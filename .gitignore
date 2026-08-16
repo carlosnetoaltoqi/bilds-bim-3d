@@ -2,10 +2,9 @@ input/
 output/geo/
 output/*.json
 output/*.zip
-output/preview/data/
-output/preview/vendor/
 __pycache__/
 *.pyc
 *.pyo
 .env
 config.json
+.vercel
