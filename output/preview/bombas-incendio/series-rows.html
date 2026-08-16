@@ -414,12 +414,20 @@ async function loadThumbnail(id) {
   const loader = document.getElementById('loader-' + id);
   const badge  = document.getElementById('badge-' + id);
   if (!canvas) return;
-  thumbStates.set(id, null); // reserva
+  thumbStates.set(id, { canvas, pending: true }); // reserva presa a ESTE elemento canvas
 
   try {
     const W = canvas.parentElement.offsetWidth || 224;
     const H = canvas.parentElement.offsetHeight || 162;
     const data = await fetchGeo(item.geo);
+
+    // Filtro pode ter re-renderizado os cards enquanto o geo carregava —
+    // se a reserva não é mais a nossa (mesmo canvas), um card novo com o
+    // mesmo id já assumiu o lugar. Abortar sem tocar em nós desconectados
+    // do DOM, senão o card novo trava em "Carregando…" pra sempre (a
+    // reserva antiga nunca seria liberada).
+    if (thumbStates.get(id)?.canvas !== canvas) return;
+
     const renderer = new THREE.WebGLRenderer({canvas, antialias:false, alpha:false});
     renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
     renderer.setSize(W, H, false);
@@ -431,7 +439,7 @@ async function loadThumbnail(id) {
     renderer.render(scene, camera);
     if (loader) loader.style.display = 'none';
 
-    thumbStates.set(id, {renderer, scene, camera, raf: null, controls: null, rotating: false});
+    thumbStates.set(id, {canvas, renderer, scene, camera, raf: null, controls: null, rotating: false});
 
     canvas.addEventListener('mouseenter', () => {
       const st = thumbStates.get(id);
@@ -460,6 +468,9 @@ async function loadThumbnail(id) {
     });
 
   } catch(e) {
+    // Só limpa a reserva se ela ainda for nossa — evita apagar um estado
+    // válido de um card mais novo que já assumiu este id.
+    if (thumbStates.get(id)?.canvas === canvas) thumbStates.delete(id);
     if (loader) loader.textContent = 'Erro ao carregar';
     console.warn('Geo load error', id, e);
   }
@@ -517,9 +528,13 @@ const io = new IntersectionObserver(entries => {
 }, {rootMargin: '120px'});
 
 function observeCards() {
-  // Limpa viewers órfãos
+  // Limpa viewers órfãos — inclui o caso em que o filtro re-renderizou os
+  // cards e o mesmo id voltou com um canvas NOVO (elemento diferente, id
+  // igual): getElementById encontra o novo, mas a reserva/estado aponta pro
+  // antigo. Comparar identidade do elemento, não só a existência do id.
   thumbStates.forEach((st, id) => {
-    if (!document.getElementById('canvas-' + id)) {
+    const current = document.getElementById('canvas-' + id);
+    if (!current || !st || current !== st.canvas) {
       if (st) {
         cancelAnimationFrame(st.raf);
         st.controls?.dispose();

@@ -691,6 +691,7 @@ Este repo (`bilds-bim-3d`) só produz o ZIP e o preview — não edita o bilds.c
 | `col[]` presente mas Three.js ignora | Material sem `vertexColors: true` ou `color` não é 0xffffff |
 | `import * as THREE from 'three'` falha | importmap ausente ou fora de ordem no HTML |
 | Miniaturas só carregam ao clicar num filtro | Fix de timing ausente — adicionar `observeCards()` direto no init do módulo |
+| Card trava em "Carregando…" pra sempre ao trocar de filtro (intermitente) | Corrida entre fetch em voo e re-render do filtro — `thumbStates` amarrado só ao id, não ao elemento canvas. Ver `docs/specs/pagina-biblioteca.md` seção "Armadilha: card trava em Carregando" |
 | Geo JSONs retornam 404 | Path relativo `./data/` em vez de absoluto `/data/` no fetchGeo |
 | GPU trava | Loop de animação em todos os cards — usar padrão hover com flag `rotating` |
 | Slug quebra caracteres portugueses | slugify sem NFKD — `ç→c` e `ã→a` precisam de normalização unicode antes do regex |

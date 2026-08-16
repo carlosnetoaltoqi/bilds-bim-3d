@@ -258,6 +258,7 @@ canvas.addEventListener('mouseleave', () => {
 ```javascript
 const thumbStates = new Map();
 // thumbStates.get(id) = {
+//   canvas,             ← elemento <canvas> ao qual esta entrada está presa — OBRIGATÓRIO
 //   renderer, scene, camera,
 //   raf: null,          ← ID do requestAnimationFrame atual
 //   controls: null,     ← inicializado na primeira hover
@@ -266,11 +267,14 @@ const thumbStates = new Map();
 // }
 ```
 
-Quando filtros re-renderizam os cards, limpar viewers órfãos em `observeCards()`:
+Quando filtros re-renderizam os cards, limpar viewers órfãos em `observeCards()` —
+comparando **identidade do elemento**, não só se o id ainda existe (ver armadilha
+abaixo):
 ```javascript
 function observeCards() {
   thumbStates.forEach((st, id) => {
-    if (!document.getElementById('canvas-' + id)) {
+    const current = document.getElementById('canvas-' + id);
+    if (!current || !st || current !== st.canvas) {
       if (st) {
         cancelAnimationFrame(st.raf);
         st.controls?.dispose();
@@ -282,6 +286,83 @@ function observeCards() {
   document.querySelectorAll('.card[data-id]').forEach(card => io.observe(card));
 }
 ```
+
+---
+
+## Armadilha: card trava em "Carregando…" pra sempre ao trocar de filtro
+
+**Sintoma:** ao trocar de filtro rapidamente (ou reabrir um filtro que já tinha
+sido visto antes), alguns cards ficam presos no texto "Carregando…" para
+sempre — o 3D nunca aparece, mesmo esperando indefinidamente.
+
+**Causa raiz — corrida entre `fetch` em voo e re-render do filtro:**
+
+`loadThumbnail(id)` reserva `thumbStates.set(id, null)` **antes** do
+`await fetchGeo(...)`, e captura `canvas`/`loader` como variáveis locais no
+início da função. Se o filtro trocar enquanto esse fetch ainda está em voo,
+`renderRows()/renderGrid()` substitui `innerHTML` inteiro — os elementos
+antigos são destruídos e **novos elementos com o mesmo `id`** são criados.
+Só que:
+
+1. As variáveis `canvas`/`loader` capturadas antes do `await` continuam
+   apontando para os nós **antigos, agora desconectados do DOM**.
+2. `observeCards()` limpa órfãos checando só `!document.getElementById('canvas-'+id)`
+   — como o id ainda existe (no elemento novo), a limpeza não dispara.
+3. Quando o fetch antigo resolve, ele escreve no elemento antigo desconectado
+   (`loader.style.display='none'` não tem efeito visual nenhum) e marca
+   `thumbStates.set(id, {...})` como "carregado".
+4. O `IntersectionObserver` do card **novo** (visível) chama `loadThumbnail(id)`
+   de novo — mas como `thumbStates.has(id)` já é `true` (do passo 3), a função
+   retorna **imediatamente**, sem nunca tocar no loader novo. Ele fica preso
+   em "Carregando…" para sempre.
+
+**Correção:** amarrar cada entrada de `thumbStates` ao elemento `canvas` real
+(campo `canvas` no objeto, desde a reserva inicial), e invalidar sempre que o
+elemento atual do DOM não bater com o que está guardado — tanto dentro de
+`loadThumbnail()` (depois do `await`) quanto em `observeCards()`:
+
+```javascript
+async function loadThumbnail(id) {
+  if (thumbStates.has(id)) return;
+  const canvas = document.getElementById('canvas-' + id);
+  const loader = document.getElementById('loader-' + id);
+  if (!canvas) return;
+  thumbStates.set(id, { canvas, pending: true }); // reserva presa a ESTE canvas
+
+  try {
+    const data = await fetchGeo(item.geo);
+
+    // Filtro pode ter re-renderizado os cards enquanto carregava — se a
+    // reserva não é mais a nossa, um card novo já assumiu este id. Abortar
+    // sem tocar em nós desconectados do DOM.
+    if (thumbStates.get(id)?.canvas !== canvas) return;
+
+    // ...cria renderer, renderiza, esconde loader...
+    thumbStates.set(id, { canvas, renderer, scene, camera, raf: null, controls: null, rotating: false });
+  } catch (e) {
+    if (thumbStates.get(id)?.canvas === canvas) thumbStates.delete(id);
+    if (loader) loader.textContent = 'Erro ao carregar';
+  }
+}
+```
+
+`observeCards()` também precisa comparar identidade do elemento, não só
+existência do id (ver seção "Estado por item" acima) — sem isso, a limpeza de
+órfãos não detecta "mesmo id, elemento novo" e o bug persiste mesmo com o
+`canvas` guardado.
+
+**Por que "às vezes"**: só acontece quando o produto continua visível depois
+da troca de filtro (ex: alternar entre "Todos" e uma série que inclui o
+mesmo item) E o fetch ainda não tinha terminado no momento da troca —
+depende de timing de rede, por isso é intermitente e não reproduz toda vez.
+
+**Como testar sem navegador real** (útil se o sandbox não tiver libs pra
+Chromium headless): extrair os `<script>` reais do HTML gerado, stubar
+`THREE`/`OrbitControls`/`IntersectionObserver`/`fetch` e rodar em `jsdom`,
+disparando a intersecção do card, trocando de filtro no meio do fetch (antes
+dele resolver) e checando se o loader do card novo fica preso. Rodar a mesma
+verificação contra a versão antiga do template confirma que o teste pega o
+bug de verdade (não é falso-positivo).
 
 ---
 
@@ -584,6 +665,7 @@ Estrutura interna: head sticky → canvas 3D → grid (specs | gráfico) → act
 | Hover não inicia rotação | `st.raf` já existe mas `rotating` era false | `if (!st.raf) st.spin()` após setar `rotating = true` |
 | Viewer do modal usa geometria errada | Modal anterior não foi descartado | Guard `if (modalViewer !== mv) return` no loop |
 | Filtro recria cards, viewers reiniciam | `thumbStates` não limpo | Chamar limpeza de órfãos em `observeCards()` antes de re-observar |
+| Card trava em "Carregando…" pra sempre ao trocar de filtro (intermitente) | Corrida: fetch em voo termina depois do filtro re-renderizar o mesmo id com um canvas NOVO; `thumbStates.has(id)` já true, bloqueia o card novo | Amarrar `thumbStates[id]` ao elemento `canvas` real (campo `canvas`); checar `thumbStates.get(id)?.canvas !== canvas` depois do `await` e em `observeCards()` — ver seção "Armadilha: card trava em Carregando" acima |
 | Canvas com tamanho errado no mobile | `offsetWidth` retorna 0 antes do layout | Fallback: `const W = wrap.offsetWidth \|\| 224` |
 | 404 nos JSONs de geometria | Path relativo `./data/` em vez de `/data/` | Sempre usar path absoluto `/data/` — página serve em `/{slug}/` |
 | Cores IFC presentes mas modelo cinza | `vertexColors: false` ou `color` não branca | `vertexColors: hasCol` e `color: 0xffffff` quando há `col[]` |
