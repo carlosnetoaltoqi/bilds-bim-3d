@@ -238,6 +238,61 @@ Esse endpoint só atualiza o campo `layout` no banco — sem alterar os arquivos
 
 ---
 
+## 4b. Autenticação e permissões
+
+### Endpoints da API (NestJS) — protegidos
+
+Ambos os endpoints (`POST` e `PATCH`) exigem autenticação. Use exatamente os mesmos guards e decorators que os endpoints de edição de empresa já existentes no codebase — não implemente uma nova lógica de autenticação.
+
+Antes de criar os endpoints, leia o controller de empresa existente (`companies.controller.ts` ou equivalente) e identifique:
+- Qual decorator/guard é usado para exigir autenticação (ex: `@UseGuards(JwtAuthGuard)`)
+- Qual decorator/guard verifica se o usuário é dono/admin da empresa (ex: `@UseGuards(CompanyOwnerGuard)`)
+- Como o usuário autenticado é extraído da request (ex: `@CurrentUser()`, `@Req()`)
+
+Aplique esses mesmos guards nos novos endpoints sem adaptação ou cópia de lógica:
+
+```typescript
+// Exemplo — use os guards reais do codebase, não invente novos
+@Post(':id/bim-catalogs')
+@UseGuards(JwtAuthGuard, CompanyOwnerGuard)   // ← copie os guards dos endpoints existentes
+@UseInterceptors(FileInterceptor('zip'))
+async uploadBimCatalog(
+  @Param('id') id: string,
+  @UploadedFile() file: Express.Multer.File,
+) { ... }
+
+@Patch(':id/bim-catalogs/:slug')
+@UseGuards(JwtAuthGuard, CompanyOwnerGuard)
+async updateLayout(...) { ... }
+```
+
+**Nível de acesso:** apenas o usuário que é dono ou admin da empresa com o `id` informado. Nenhum outro usuário — nem outros admins de empresas diferentes — pode publicar ou alterar catálogos de uma empresa que não é sua.
+
+### Dashboard (dashboard.bilds.com) — protegido
+
+Todas as páginas do dashboard já ficam atrás de autenticação pelo layout/middleware existente. As novas rotas `/bim`, `/bim/:companyId` herdam essa proteção automaticamente por estarem dentro da estrutura de rotas autenticadas do dashboard. Não é necessário nenhum guard adicional nas páginas — apenas siga a estrutura de pastas já existente.
+
+### Rota pública `bilds.com/[customLink]/[catalogSlug]` — completamente pública
+
+Esta rota é **totalmente pública, sem autenticação, sem sessão, sem middleware de proteção** de nenhum tipo. Qualquer pessoa, inclusive robôs de busca (Googlebot, etc.), deve conseguir acessar a URL sem nenhum cookie ou token.
+
+Verifique se existe algum middleware global de autenticação no `apps/web` que pudesse interceptar essa rota — se existir, a nova rota `[catalogSlug]` deve ser explicitamente excluída do matcher desse middleware. Leia o `middleware.ts` (se existir) antes de finalizar a implementação da rota.
+
+A rota segue o modelo padrão de **página pública do bilds.com** — o mesmo que a página de empresa `[customLink]/page.tsx` e outras rotas públicas do site. Não adicione nenhuma verificação de sessão dentro do server component da rota do catálogo.
+
+```typescript
+// apps/web/src/app/[customLink]/[catalogSlug]/page.tsx
+// Server component — sem getServerSession(), sem redirect para login, sem auth check
+export default async function BimCatalogPage({ params }) {
+  // Busca dados do banco/CloudFront — público
+  // Retorna a página — público
+}
+```
+
+**`generateMetadata()` também é público** — roda no servidor sem nenhuma verificação de autenticação. Os metadados de título, descrição e OpenGraph são gerados para qualquer visitante, incluindo crawlers de SEO.
+
+---
+
 ## 5. Dashboard — menu e interface de upload
 
 ### 5.1 Novo item no menu lateral
