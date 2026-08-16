@@ -19,17 +19,6 @@ body{background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
 .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
 @media(max-width:480px){.wrap{padding:0 16px}}
 
-/* Topbar */
-.topbar{position:sticky;top:0;z-index:100;height:var(--header);background:#fff;border-bottom:1px solid var(--border)}
-.topbar .wrap{display:flex;align-items:center;justify-content:space-between;height:100%;gap:16px}
-.topbar-logo{display:flex;align-items:center;gap:8px;font-weight:700;font-size:15px;text-decoration:none;color:var(--text)}
-.topbar-logo svg{color:var(--navy)}
-.topbar-sep{color:var(--border);font-size:18px}
-.topbar-fab{font-size:13px;color:var(--muted);font-weight:500}
-.topbar-actions{display:flex;align-items:center;gap:8px}
-.tb-btn{display:inline-flex;align-items:center;padding:7px 16px;border-radius:var(--radius);font-size:13px;font-weight:600;text-decoration:none;transition:all .15s}
-.tb-solid{background:var(--navy);color:#fff;border:1px solid transparent}.tb-solid:hover{background:var(--navy-dark)}
-@media(max-width:560px){.topbar-actions{display:none}}
 
 /* Hero (compacto, navy) */
 .hero{background:var(--navy-dark);color:#fff;padding:32px 0 28px}
@@ -130,21 +119,6 @@ body{background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
 <link href="https://fonts.googleapis.com/css2?family=Fira+Sans:wght@700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 </head>
 <body>
-
-<!-- Topbar -->
-<div class="topbar">
-  <div class="wrap">
-    <a class="topbar-logo" href="https://bilds.com">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-      bilds
-    </a>
-    <span class="topbar-sep">/</span>
-    <span class="topbar-fab">{{ catalog.fabricante }}</span>
-    <div class="topbar-actions">
-      <a class="tb-btn tb-solid" href="https://bilds.com" target="_blank">Ver na bilds.com</a>
-    </div>
-  </div>
-</div>
 
 <!-- Hero -->
 <header class="hero">
