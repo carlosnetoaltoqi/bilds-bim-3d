@@ -506,23 +506,23 @@
       <div class="step">
         <div class="step-num">2</div>
         <div class="step-body">
-          <p class="step-label">Configure o catálogo</p>
-          <p class="step-detail">Copie <span class="step-code">config.example.json</span> para <span class="step-code">config.json</span> e defina slug, título, fabricante e o mapeamento de IFCs.</p>
+          <p class="step-label">Rode o build em modo interativo</p>
+          <p class="step-detail"><span class="step-code">python3 scripts/build.py --interactive</span></p>
+          <p class="step-detail" style="margin-top:4px;">O CLI detecta os arquivos em input/ e faz perguntas: título, fabricante, slug, layout e nome de cada produto. Gera o preview HTML e o ZIP automaticamente.</p>
         </div>
       </div>
       <div class="step">
         <div class="step-num">3</div>
         <div class="step-body">
-          <p class="step-label">Rode o build</p>
-          <p class="step-detail"><span class="step-code">python3 scripts/build.py --config config.json</span></p>
-          <p class="step-detail" style="margin-top:4px;">Gera o preview HTML e o ZIP para upload na bilds.com.</p>
+          <p class="step-label">Revise o preview</p>
+          <p class="step-detail">O catálogo aparece aqui após o git push. Confira visual, 3D e dados antes de publicar.</p>
         </div>
       </div>
       <div class="step">
         <div class="step-num">4</div>
         <div class="step-body">
-          <p class="step-label">Visualize e publique</p>
-          <p class="step-detail">O preview aparece aqui após o git push. Faça o upload do <span class="step-code">bilds-upload.zip</span> no dashboard.bilds.com para publicar o catálogo em produção.</p>
+          <p class="step-label">Publique na bilds.com</p>
+          <p class="step-detail">Faça o upload do <span class="step-code">bilds-upload.zip</span> no dashboard.bilds.com para publicar o catálogo em produção.</p>
         </div>
       </div>
     </div>

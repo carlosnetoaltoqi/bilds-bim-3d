@@ -19,16 +19,13 @@ bash scripts/setup_vendor.sh
 #    .IFC — um por produto
 #    .aq  — biblioteca AltoQi
 
-# 5. Configure o catálogo
-cp config.example.json config.json
-# Edite config.json com seus dados
+# 5. Rode o build em modo interativo
+python3 scripts/build.py --interactive
+# O CLI detecta os arquivos e faz perguntas sobre o catálogo
 
-# 6. Rode o build
-python3 scripts/build.py --config config.json
-
-# 7. Visualize localmente
+# 6. Visualize localmente
 python3 -m http.server 8080 --directory output/preview
-# Abrir: http://localhost:8080
+# Abrir: http://localhost:8080/{slug-do-catalogo}
 ```
 
 ## Saídas
@@ -52,7 +49,8 @@ Configure em `config.json`: `"layout": "series-rows"` ou `"layout": "catalog-gri
 ## Opções do build.py
 
 ```bash
-python3 scripts/build.py --config config.json    # pipeline completo
+python3 scripts/build.py --interactive           # configura via perguntas (recomendado)
+python3 scripts/build.py --config config.json    # usa config.json existente
 python3 scripts/build.py --skip-ifc              # pula parse dos IFCs (re-usa output/geo/)
 python3 scripts/build.py --skip-preview          # só gera catalog.json e ZIP
 python3 scripts/build.py --skip-zip              # só gera preview

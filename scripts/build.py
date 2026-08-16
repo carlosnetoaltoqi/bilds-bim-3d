@@ -374,24 +374,149 @@ def build_zip(catalog):
     return zip_path
 
 
+# ─── Modo interativo ─────────────────────────────────────────────────────────
+
+def ask(prompt, default=None):
+    """Pergunta ao usuário com sugestão de default."""
+    if default:
+        full = f'  {prompt} [{default}]: '
+    else:
+        full = f'  {prompt}: '
+    resp = input(full).strip()
+    return resp if resp else (default or '')
+
+
+def ask_choice(prompt, choices, default=None):
+    """Pergunta com opções numeradas."""
+    print(f'\n  {prompt}')
+    for i, c in enumerate(choices, 1):
+        marker = ' (padrão)' if c[0] == default else ''
+        print(f'    {i}. {c[0]} — {c[1]}{marker}')
+    while True:
+        resp = input(f'  Escolha [1-{len(choices)}]: ').strip()
+        if not resp and default:
+            return default
+        if resp.isdigit() and 1 <= int(resp) <= len(choices):
+            return choices[int(resp) - 1][0]
+        print(f'  Digite um número entre 1 e {len(choices)}.')
+
+
+def interactive_config(input_dir):
+    """Gera config.json interativamente a partir dos arquivos em input/."""
+    print('\n' + '─' * 56)
+    print('  bilds-bim-3d — configuração interativa')
+    print('─' * 56 + '\n')
+
+    # Detecta arquivos
+    try:
+        all_files = os.listdir(input_dir)
+    except FileNotFoundError:
+        print(f'  ERRO: pasta {input_dir} não encontrada.')
+        print(f'  Crie a pasta e coloque seus arquivos .IFC e .aq nela.')
+        sys.exit(1)
+
+    ifc_files = sorted(f for f in all_files if f.lower().endswith('.ifc'))
+    aq_files  = sorted(f for f in all_files if f.lower().endswith('.aq'))
+
+    if not ifc_files:
+        print(f'  ERRO: nenhum arquivo .IFC encontrado em {input_dir}')
+        sys.exit(1)
+
+    print(f'  Encontrados: {len(ifc_files)} arquivo(s) IFC, {len(aq_files)} arquivo(s) .aq\n')
+
+    # Metadados do catálogo
+    titulo     = ask('Título do catálogo (ex: Bombas de Combate a Incêndio)')
+    fabricante = ask('Fabricante (ex: Dancor)')
+    slug_sug   = slugify(fabricante + '-' + titulo.split()[0]) if titulo else 'catalogo'
+    slug       = ask('Slug da URL (ex: bombas-incendio)', default=slug_sug)
+    descricao  = ask('Descrição curta (opcional)')
+
+    layout = ask_choice(
+        'Layout de exibição:',
+        [
+            ('series-rows', 'linhas por série — estilo Netflix, ideal para poucas famílias'),
+            ('catalog-grid', 'grade densa com filtros — ideal para muitos itens heterogêneos'),
+        ],
+        default='series-rows',
+    )
+
+    # Arquivo .aq
+    if not aq_files:
+        print('\n  Nenhum arquivo .aq encontrado — o catálogo será gerado sem dados hidráulicos.')
+        aq_file = None
+    elif len(aq_files) == 1:
+        aq_file = os.path.join(input_dir, aq_files[0])
+        print(f'\n  Biblioteca .aq: {aq_files[0]}')
+    else:
+        print('\n  Múltiplos arquivos .aq encontrados:')
+        for i, f in enumerate(aq_files, 1):
+            print(f'    {i}. {f}')
+        while True:
+            resp = input(f'  Qual usar? [1-{len(aq_files)}]: ').strip()
+            if resp.isdigit() and 1 <= int(resp) <= len(aq_files):
+                aq_file = os.path.join(input_dir, aq_files[int(resp) - 1])
+                break
+
+    # Mapeamento IFC → slug de produto
+    print(f'\n  Mapeamento dos {len(ifc_files)} arquivo(s) IFC para slugs de produto:')
+    print('  (pressione Enter para aceitar o slug sugerido)\n')
+    file_map = {}
+    for ifc in ifc_files:
+        stem = os.path.splitext(ifc)[0]
+        sug  = slugify(stem)[:40]
+        prod_slug = ask(f'{ifc}', default=sug)
+        if prod_slug:
+            file_map[ifc] = prod_slug
+
+    # Monta config
+    config = {
+        'slug':       slug,
+        'titulo':     titulo,
+        'fabricante': fabricante,
+        'descricao':  descricao,
+        'layout':     layout,
+        'ifc_dir':    input_dir,
+        'file_map':   file_map,
+        'products_override': [],
+    }
+    if aq_file:
+        config['aq_file'] = aq_file
+
+    # Salva config.json
+    config_path = os.path.join(ROOT, 'config.json')
+    with open(config_path, 'w', encoding='utf-8') as f:
+        json.dump(config, f, ensure_ascii=False, indent=2)
+
+    print(f'\n  config.json gerado em {config_path}')
+    print('─' * 56 + '\n')
+    return config
+
+
 # ─── Pipeline principal ───────────────────────────────────────────────────────
 
 def main():
     parser = argparse.ArgumentParser(description='bilds-bim-3d build pipeline')
     parser.add_argument('--config', default='config.json', help='Arquivo de configuração')
+    parser.add_argument('--interactive', '-i', action='store_true',
+                        help='Configura o catálogo interativamente a partir dos arquivos em input/')
+    parser.add_argument('--input-dir', default='input', help='Pasta com arquivos .IFC e .aq')
     parser.add_argument('--skip-ifc', action='store_true', help='Pula parse dos IFCs')
     parser.add_argument('--skip-preview', action='store_true', help='Pula geração do preview HTML')
     parser.add_argument('--skip-zip', action='store_true', help='Pula geração do ZIP')
     args = parser.parse_args()
 
-    config_path = os.path.join(ROOT, args.config)
-    if not os.path.exists(config_path):
-        print(f'Config não encontrado: {config_path}')
-        print(f'Copie config.example.json para config.json e edite.')
-        sys.exit(1)
-
-    with open(config_path, encoding='utf-8') as f:
-        config = json.load(f)
+    if args.interactive:
+        input_dir = os.path.join(ROOT, args.input_dir)
+        config = interactive_config(input_dir)
+    else:
+        config_path = os.path.join(ROOT, args.config)
+        if not os.path.exists(config_path):
+            print(f'\nConfig não encontrado: {config_path}')
+            print(f'Use --interactive para configurar via perguntas, ou copie')
+            print(f'config.example.json para config.json e edite manualmente.\n')
+            sys.exit(1)
+        with open(config_path, encoding='utf-8') as f:
+            config = json.load(f)
 
     print(f'\n=== bilds-bim-3d: {config["titulo"]} ===\n')
 
