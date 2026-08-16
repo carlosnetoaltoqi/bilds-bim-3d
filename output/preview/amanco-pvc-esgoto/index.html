@@ -433,6 +433,7 @@ function observeCards() {
 
 document.addEventListener('cards-rendered', () => observeCards());
 document.addEventListener('modal-open', e => initModalViewer(e.detail.id));
+observeCards(); // cards já estão no DOM quando o módulo carrega
 document.addEventListener('modal-close', () => {
   if (modalViewer) {
     cancelAnimationFrame(modalViewer.raf);
