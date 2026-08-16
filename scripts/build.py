@@ -242,28 +242,53 @@ def run_ifc_parse(config):
 
 # ─── Build do preview HTML ────────────────────────────────────────────────────
 
-def build_preview(catalog, layout):
+ALL_LAYOUTS = ['series-rows', 'catalog-grid']
+
+
+def render_html(catalog, layout):
+    """Renderiza um template Jinja2 e retorna a string HTML, ou None se não existir."""
+    template_path = os.path.join(TEMPLATES_DIR, 'layouts', f'{layout}.html')
+    if not os.path.exists(template_path):
+        print(f'  AVISO: template {layout}.html não encontrado — ignorado')
+        return None
+    if HAS_JINJA2:
+        env = Environment(
+            loader=FileSystemLoader(os.path.join(TEMPLATES_DIR, 'layouts')),
+            undefined=StrictUndefined,
+            autoescape=False,
+        )
+        return env.get_template(f'{layout}.html').render(catalog=catalog, items=catalog['produtos'])
+    else:
+        with open(template_path, encoding='utf-8') as f:
+            html = f.read()
+        html = html.replace('{{ catalog | tojson | safe }}', json.dumps(catalog, ensure_ascii=False))
+        html = html.replace('{{ items | tojson | safe }}', json.dumps(catalog['produtos'], ensure_ascii=False))
+        return html
+
+
+def build_preview(catalog, primary_layout):
     """
-    Gera output/preview/{slug}/ com index.html, catalog.json e data/.
-    Arquivos compartilhados (vendor/) ficam em output/preview/vendor/.
-    Cada catálogo fica em seu próprio subdiretório para não sobrescrever o índice.
+    Gera output/preview/{slug}/ com:
+      index.html         — layout primário (primary_layout)
+      series-rows.html   — sempre gerado
+      catalog-grid.html  — sempre gerado
+      catalog.json       — dados do catálogo
+    Arquivos compartilhados (vendor/, data/) ficam em output/preview/.
     """
     catalog_slug = catalog['slug']
     catalog_dir = os.path.join(PREVIEW_DIR, catalog_slug)
     os.makedirs(catalog_dir, exist_ok=True)
 
-    # data/ fica no root do preview (compartilhado entre catálogos)
+    # data/ compartilhado entre catálogos
     data_dir = os.path.join(PREVIEW_DIR, 'data')
     os.makedirs(data_dir, exist_ok=True)
-
-    # Copia geo files para /data/ (prefixo do slug garante unicidade)
     for produto in catalog['produtos']:
         geo_slug = produto['geo'].replace('.json', '')
         src = os.path.join(GEO_DIR, f'{geo_slug}.json')
         if os.path.exists(src):
             shutil.copy(src, os.path.join(data_dir, f'{geo_slug}.json'))
 
-    # vendor/ fica no root do preview (compartilhado)
+    # vendor/ compartilhado
     vendor_src = os.path.join(TEMPLATES_DIR, 'vendor')
     vendor_dst = os.path.join(PREVIEW_DIR, 'vendor')
     if os.path.exists(vendor_src) and os.listdir(vendor_src):
@@ -272,35 +297,24 @@ def build_preview(catalog, layout):
     else:
         print('  AVISO: templates/vendor/ vazio — rode scripts/setup_vendor.sh')
 
-    # Salva catalog.json no diretório do catálogo
-    cat_path = os.path.join(catalog_dir, 'catalog.json')
-    with open(cat_path, 'w', encoding='utf-8') as f:
+    # catalog.json
+    with open(os.path.join(catalog_dir, 'catalog.json'), 'w', encoding='utf-8') as f:
         json.dump(catalog, f, ensure_ascii=False, indent=2)
 
-    # Renderiza template HTML
-    template_path = os.path.join(TEMPLATES_DIR, 'layouts', f'{layout}.html')
-    if not os.path.exists(template_path):
-        print(f'  ERRO: template {layout}.html não encontrado em templates/layouts/')
-        print(f'  Templates disponíveis: {os.listdir(os.path.join(TEMPLATES_DIR, "layouts"))}')
+    # Layout primário → index.html
+    html = render_html(catalog, primary_layout)
+    if html is None:
         return False
-
-    if HAS_JINJA2:
-        env = Environment(
-            loader=FileSystemLoader(os.path.join(TEMPLATES_DIR, 'layouts')),
-            undefined=StrictUndefined,
-            autoescape=False,
-        )
-        tmpl = env.get_template(f'{layout}.html')
-        html = tmpl.render(catalog=catalog, items=catalog['produtos'])
-    else:
-        with open(template_path, encoding='utf-8') as f:
-            html = f.read()
-        html = html.replace('{{ catalog | tojson | safe }}', json.dumps(catalog, ensure_ascii=False))
-        html = html.replace('{{ items | tojson | safe }}', json.dumps(catalog['produtos'], ensure_ascii=False))
-
-    out_html = os.path.join(catalog_dir, 'index.html')
-    with open(out_html, 'w', encoding='utf-8') as f:
+    with open(os.path.join(catalog_dir, 'index.html'), 'w', encoding='utf-8') as f:
         f.write(html)
+
+    # Todos os layouts → {layout}.html (sempre, independente do primário)
+    for layout in ALL_LAYOUTS:
+        html_alt = render_html(catalog, layout)
+        if html_alt is None:
+            continue
+        with open(os.path.join(catalog_dir, f'{layout}.html'), 'w', encoding='utf-8') as f:
+            f.write(html_alt)
 
     return True
 
@@ -721,13 +735,15 @@ def main():
 
     # 4a. Preview HTML
     if not args.skip_preview:
-        print('4/4 Gerando preview HTML...')
+        print('4/4 Gerando preview HTML (todos os layouts)...')
         ok = build_preview(catalog, catalog['layout'])
         if ok:
             update_catalog_registry(catalog)
-            print(f'    Preview: output/preview/{catalog["slug"]}/index.html')
-            print(f'    Local:   python3 -m http.server 8080 --directory output/preview')
-            print(f'    URL:     http://localhost:8080/{catalog["slug"]}')
+            slug = catalog['slug']
+            print(f'    index.html       → /{slug}/  (layout primário: {catalog["layout"]})')
+            for layout in ALL_LAYOUTS:
+                print(f'    {layout}.html → /{slug}/{layout}')
+            print(f'    Local: python3 -m http.server 8080 --directory output/preview')
             print()
 
     # 4b. ZIP para bilds.com
