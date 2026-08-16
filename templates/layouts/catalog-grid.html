@@ -297,7 +297,7 @@ let modalViewer = null;
 
 async function fetchGeo(geo) {
   if (geoCache.has(geo)) return geoCache.get(geo);
-  const data = await fetch('./data/' + geo).then(r => r.json());
+  const data = await fetch('/data/' + geo).then(r => r.json());
   geoCache.set(geo, data);
   return data;
 }
