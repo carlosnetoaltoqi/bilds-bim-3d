@@ -1,7 +1,40 @@
 # CLAUDE.md — bilds-bim-3d
 
 Ponto de entrada para qualquer agente ou humano que trabalhe neste projeto.
-Leia tudo antes de modificar qualquer arquivo.
+
+---
+
+## OBRIGATÓRIO: ler as specs antes de qualquer ação
+
+**Antes de rodar o pipeline, depurar um bug, editar qualquer arquivo ou responder
+qualquer pergunta técnica sobre este projeto, leia as três specs abaixo.**
+
+Elas documentam bugs confirmados em produção, schemas exatos de entidades IFC4,
+armadilhas de parse e padrões de template validados. Ignorar as specs é a causa
+mais comum de reintroduzir bugs que já foram corrigidos.
+
+```
+docs/specs/leitor-ifc.md            ← parse_ifc.py, dedup.py
+docs/specs/leitor-biblioteca-aq.md  ← read_aq.py
+docs/specs/pagina-biblioteca.md     ← templates/layouts/*.html, build.py
+```
+
+Mapeamento arquivo → spec obrigatória:
+
+| Arquivo | Spec |
+|---|---|
+| `scripts/parse_ifc.py` | `docs/specs/leitor-ifc.md` |
+| `scripts/dedup.py` | `docs/specs/leitor-ifc.md` |
+| `scripts/read_aq.py` | `docs/specs/leitor-biblioteca-aq.md` |
+| `scripts/build.py` | as três specs |
+| `templates/layouts/*.html` | `docs/specs/pagina-biblioteca.md` |
+
+Ao iniciar qualquer tarefa neste projeto, execute:
+```
+Read docs/specs/leitor-ifc.md
+Read docs/specs/leitor-biblioteca-aq.md
+Read docs/specs/pagina-biblioteca.md
+```
 
 ---
 
@@ -155,6 +188,16 @@ O importmap **deve vir antes** de qualquer `<script type="module">`:
 <script type="importmap">{"imports":{"three":"/vendor/three.module.js"}}</script>
 ```
 
+**Fix de timing obrigatório:** o script sync dispara `cards-rendered` durante o parse da página, antes do módulo estar pronto para ouvir. Chamar `observeCards()` diretamente no final do módulo além de ouvir o evento:
+
+```javascript
+document.addEventListener('cards-rendered', () => observeCards());
+document.addEventListener('modal-open', e => initModalViewer(e.detail.id));
+observeCards(); // cards já estão no DOM quando o módulo carrega — OBRIGATÓRIO
+```
+
+Sem essa chamada direta, as miniaturas só carregam quando o usuário clica em algum filtro (re-renderiza os cards, dispara novo `cards-rendered`).
+
 Dados injetados via Jinja2:
 ```html
 <script>
@@ -181,6 +224,55 @@ bilds-upload.zip
 
 O dashboard.bilds.com lê `manifest.json` para exibir o nome/slug antes de processar
 o zip inteiro. `catalog.json` e `geo/*.json` vão para S3, registrados no MongoDB.
+
+---
+
+## Conhecimento crítico: build.py
+
+### Modo sempre-interativo
+
+`build.py` é **sempre interativo** — exibe prompts para confirmar/editar cada campo
+(slug, título, fabricante, layout, file_map, etc.). Se `config.json` já existe, carrega
+como defaults: o usuário só pressiona Enter para aceitar.
+
+Flags úteis:
+- `--skip-ifc` — pula o `parse_ifc.py` e usa os JSONs de geometria já existentes em
+  `output/geo/`. Útil quando os IFCs foram parseados em sessão anterior e só os dados
+  do catálogo mudaram.
+
+### slugify() — normalização unicode obrigatória
+
+Caracteres portugueses (`ç`, `ã`, `é`, etc.) devem ser transliterados antes do regex.
+Sem isso, `Junção` vira `jun-o` em vez de `juncao`:
+
+```python
+def slugify(s):
+    import unicodedata
+    s = unicodedata.normalize('NFKD', s).encode('ascii', 'ignore').decode('ascii')
+    return re.sub(r'[^a-z0-9]+', '-', s.lower()).strip('-')
+```
+
+### scan_input() — detecção de subdirs e 3-tuples
+
+Em modo subdir (IFCs organizados em pastas por categoria), `scan_input()` usa
+`os.walk` recursivo e retorna **3-tuples** `(ifc_path, slug, label)`.
+Em modo flat, retorna **2-tuples** `(ifc_path, slug)`.
+
+`interactive_config()` trata os dois casos:
+```python
+if len(entry) == 3:
+    ifc_path, slug, label = entry
+else:
+    ifc_path, slug = entry
+    label = slug
+```
+
+**Armadilha:** se as chaves do `file_map` no `config.json` existente não coincidirem
+exatamente com o que `scan_input()` gera (mesmo slug gerado por `slugify(categoria)`),
+o modo interativo não reconhece os defaults e sobrescreve o `file_map` com slugs
+das categorias em vez dos slugs por produto. Solução: garantir que as chaves do
+`file_map` no `config.json` sejam exatamente os paths relativos ao `ifc_dir` que
+o `scan_input()` gera.
 
 ---
 
@@ -307,12 +399,46 @@ Altura Máxima, Temperatura máxima, Motor, Rotor, Rotação.
 CSP da Vercel bloqueia `cdn.jsdelivr.net`, `unpkg.com`, `cdnjs.cloudflare.com`
 silenciosamente. Sempre self-host em `templates/vendor/` e copiar para `output/preview/vendor/`.
 
-### Padrão de thumbnail estática + click-to-3D
+### Padrão de thumbnail estática + hover 3D
 
 Não inicializar todos os viewers simultaneamente — GPU explode com 10+ contextos WebGL.
 - `IntersectionObserver` com `rootMargin:'120px'` para lazy load
 - `renderer.render()` uma vez → thumbnail estática
-- OrbitControls + loop de animação só ao clicar
+- OrbitControls + loop de animação ativado por **mouseenter**, parado por **mouseleave**
+
+**Implementação canônica** (ver `catalog-grid.html`):
+
+```javascript
+thumbStates.set(id, {renderer, scene, camera, raf: null, controls: null, rotating: false});
+
+canvas.addEventListener('mouseenter', () => {
+  const st = thumbStates.get(id);
+  if (!st) return;
+  if (!st.controls) {
+    if (badge) badge.classList.add('off');
+    const controls = new OrbitControls(camera, canvas);
+    controls.autoRotate = true; controls.autoRotateSpeed = 1.2;
+    controls.enableDamping = true; controls.dampingFactor = 0.07;
+    controls.enableZoom = false; controls.enablePan = false;
+    st.controls = controls;
+    st.spin = function() {
+      if (!st.rotating) { st.raf = null; return; }
+      st.raf = requestAnimationFrame(st.spin);
+      controls.update(); renderer.render(scene, camera);
+    };
+  }
+  st.rotating = true;
+  if (!st.raf) st.spin();
+});
+canvas.addEventListener('mouseleave', () => {
+  const st = thumbStates.get(id);
+  if (!st) return;
+  st.rotating = false;
+  renderer.render(scene, camera); // freeze frame
+});
+```
+
+**`series-rows.html` ainda usa click** — pendente de atualização (ver `docs/plan-series-rows-hover-update.md`).
 
 ### Cache de geometria
 
@@ -320,10 +446,12 @@ Não inicializar todos os viewers simultaneamente — GPU explode com 10+ contex
 const geoCache = new Map(); // filename → data
 async function fetchGeo(geo) {
   if (geoCache.has(geo)) return geoCache.get(geo);
-  const data = await fetch('./data/' + geo).then(r => r.json());
+  const data = await fetch('/data/' + geo).then(r => r.json()); // path ABSOLUTO — pages vivem em /{slug}/
   geoCache.set(geo, data); return data;
 }
 ```
+
+**CRÍTICO:** usar `/data/` (absoluto), nunca `./data/`. A página fica em `/{slug}/`, então `./data/` resolve para `/{slug}/data/` — 404 garantido.
 
 Quando o modal abre, o JSON já está em memória se o thumbnail foi carregado.
 
@@ -351,30 +479,45 @@ Sombra: só no hover de cards clicáveis. Cards sem borda de hover por padrão.
 
 ---
 
-## Integração com bilds.com (fase 2 — não implementada neste repo)
+## Planos pendentes
 
-O ZIP gerado por este projeto será consumido por:
+Arquivos em `docs/`:
 
-**dashboard.bilds.com** (`bilds.com/apps/admin`):
-- Menu item "BIM 3D" em `src/components/Menu/menuConfig.tsx`
-- Rotas: `/bim-3d` (grid de empresas), `/bim-3d/[companyId]/novo` (upload)
-- Stack: Next.js 16, RTK Query, react-dropzone, react-hook-form + zod
+| Arquivo | O que faz |
+|---|---|
+| `plan-series-rows-hover-update.md` | Atualiza `series-rows.html` para padrão hover 3D + fix de timing (ainda usa click) |
+| `plan-bim-catalog-hero-hover.md` | Porta hero section + hover 3D para os componentes React do bilds.com (`CatalogGridLayout.tsx`, `SeriesRowsLayout.tsx`, `BimViewer.tsx`) |
+
+---
+
+## Integração com bilds.com (implementada — fase 2 em progresso)
+
+O ZIP gerado por este projeto é consumido pelo bilds.com. As rotas e componentes
+React já existem em `/home/foltz/bilds.com/`:
+
+**Rota pública:** `apps/web/src/app/[customLink]/[catalogSlug]/page.tsx`
+- Server Component — busca `BimCatalogMeta` via `GET /b-bim-3d/{customLink}/{slug}`
+- Carrega `catalog.json` do S3 e passa para `BimCatalogView`
+
+**Componentes React em `apps/web/src/components/b-bim-3d/`:**
+- `BimCatalogView.tsx` — roteador de layout (series-rows | catalog-grid)
+- `CatalogGridLayout.tsx` — grid denso com filtros (Amanco)
+- `SeriesRowsLayout.tsx` — rows Netflix por série (Dancor)
+- `BimViewer.tsx` — viewer Three.js compartilhado (thumbnail + modal)
+- `ProductModal.tsx` — modal de detalhes
+- `CurveChart.tsx` — gráfico Q-H SVG
+- `types.ts` — `BimCatalogData`, `BimProduct`, `BimCatalogMeta`
+
+**Estado atual dos componentes React:**
+- Sem hero section (ver plan-bim-catalog-hero-hover.md)
+- `BimViewer.tsx` ainda usa click {once:true} para ativar rotação (ver mesmo plano)
 
 **API NestJS** (`bilds.com/apps/api`):
+- `GET /b-bim-3d/:customLink/:slug` — retorna meta + URLs S3
 - `POST /companies/:id/bim-catalogs` — recebe ZIP, extrai, salva no S3
-- MongoDB Company: novo campo `bimCatalogs: BimCatalog[]`
-- Storage: S3 + CloudFront (`S3Service`, `AWS_CLOUD_FRONT_BASE_URL`)
 
-**bilds.com web** (`bilds.com/apps/web`):
-- Rota `app/[customLink]/[catalogSlug]/page.tsx` — Server Component
-- `generateMetadata()` lê `catalog.json` do S3 para SEO (title, description)
-- `ProductGrid` renderizado server-side (SSR — indexável por crawlers)
-- `BimViewer` React com `three` via npm, `dynamic(() => ..., {ssr:false})`
-
-**Seleção de layout no dashboard:**
-- Campo `layout` gravado no MongoDB (não no catalog.json)
-- Admin pode trocar o layout sem re-upload dos arquivos
-- Seletor visual com SVGs wireframe por layout no formulário
+**Nota:** mudanças no bilds.com são feitas em sessões separadas naquele projeto.
+Este repo (`bilds-bim-3d`) só produz o ZIP e o preview — não edita o bilds.com.
 
 ---
 
@@ -389,8 +532,12 @@ O ZIP gerado por este projeto será consumido por:
 | 0 cores do IFCCOLOURRGBLIST | Regex espera inteiros mas floats têm casas decimais |
 | `col[]` presente mas Three.js ignora | Material sem `vertexColors: true` ou `color` não é 0xffffff |
 | `import * as THREE from 'three'` falha | importmap ausente ou fora de ordem no HTML |
-| Canvas não encontrado no init | Módulo rodou antes de 'cards-rendered' — verificar handshake |
-| GPU trava | Loop de animação em todos os cards — thumbnail estática + loop só no click |
+| Miniaturas só carregam ao clicar num filtro | Fix de timing ausente — adicionar `observeCards()` direto no init do módulo |
+| Geo JSONs retornam 404 | Path relativo `./data/` em vez de absoluto `/data/` no fetchGeo |
+| GPU trava | Loop de animação em todos os cards — usar padrão hover com flag `rotating` |
+| Slug quebra caracteres portugueses | slugify sem NFKD — `ç→c` e `ã→a` precisam de normalização unicode antes do regex |
+| interactive_config sobrescreve file_map correto | Chaves do config.json não batem com o que scan_input() gera — conferir slugify das categorias |
+| scan_input() retorna 0 IFCs em subpastas | Usa os.listdir em vez de os.walk — corrigir para recursivo |
 | ZIP vazio de geo files | IFCs não foram parseados — verificar output/geo/ após o build |
 | .aq não abre como SQLite | Tentar abrir como ZIP; se falhar: arquivo corrompido |
 | Texto com lixo | Encoding não configurado — usar `latin-1` |

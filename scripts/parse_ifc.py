@@ -122,10 +122,11 @@ def build_entity_index(content):
         line = line.strip()
         if not line.startswith('#'):
             continue
-        m = re.match(r'#(\d+)\s*=\s*([A-Z0-9_]+)\s*\((.*)(?:\)\s*;?)?\s*$', line)
+        # O ) final é obrigatório para evitar que .* capture ") ;" nos args
+        m = re.match(r'#(\d+)\s*=\s*([A-Z0-9_]+)\s*\((.*)\)\s*;?\s*$', line)
         if not m:
-            # Tenta capturar entidades com parênteses aninhados na mesma linha
-            m = re.match(r'#(\d+)\s*=\s*([A-Z0-9_]+)\s*\((.*)\)\s*;?\s*$', line, re.DOTALL)
+            # Fallback: linha sem ) final (entidade parcial ou malformada)
+            m = re.match(r'#(\d+)\s*=\s*([A-Z0-9_]+)\s*\((.*)', line)
         if m:
             eid = int(m.group(1))
             etype = m.group(2)
@@ -347,11 +348,11 @@ def parse_ifc_file(ifc_path, default_rgb=None):
         if etype not in assembly_types:
             continue
         parts = split_top(args)
-        if len(parts) < 6:
+        if len(parts) < 7:
             continue
 
-        # ObjectPlacement
-        lp_str = parts[4]
+        # ObjectPlacement — índice 5 (0=GlobalId,1=OwnerHistory,2=Name,3=Desc,4=ObjectType,5=ObjectPlacement,6=Representation)
+        lp_str = parts[5]
         if lp_str == '$':
             continue
         try:
@@ -361,7 +362,7 @@ def parse_ifc_file(ifc_path, default_rgb=None):
             continue
 
         # Representation
-        rep_str = parts[5]
+        rep_str = parts[6]
         if rep_str == '$':
             continue
         try:
@@ -433,7 +434,8 @@ def _process_faceset(fs_id, idx, M, face_color_map, default_rgb, pos_out, col_ou
     """Processa um IFCTRIANGULATEDFACESET e acumula nos buffers de saída."""
     _, fs_args = idx[fs_id]
     fs_parts = split_top(fs_args)
-    if len(fs_parts) < 2:
+    # IFC4 IFCTRIANGULATEDFACESET: [0]=Coordinates, [1]=Normals, [2]=Closed, [3]=CoordIndex, [4]=PnIndex
+    if len(fs_parts) < 4:
         return
 
     try:
@@ -454,9 +456,9 @@ def _process_faceset(fs_id, idx, M, face_color_map, default_rgb, pos_out, col_ou
     if not coord_list:
         return
 
-    # Índices dos triângulos: CoordIndex — lista de (i0,i1,i2)
+    # Índices dos triângulos: CoordIndex em parts[3] (parts[1]=Normals, parts[2]=Closed)
     face_indices = []
-    coord_index_str = fs_parts[1]
+    coord_index_str = fs_parts[3]
     for m in re.finditer(r'\(([^()]+)\)', coord_index_str):
         vals = parse_ints(m.group(1))
         if len(vals) >= 3:
