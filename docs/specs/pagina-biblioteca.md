@@ -73,7 +73,17 @@ Cada ponto de `curva`: `[vazão m³/h, altura mca, potência CV, rendimento %]`.
 
 ---
 
-## Dois layouts disponíveis
+## Dois layouts disponíveis — sempre gerados os dois
+
+**Regra: todo build gera os dois layouts para o preview.** O `config.json` define o layout primário (vira `index.html`); o outro fica como alternativa navegável. O ZIP para bilds.com não inclui HTMLs e não é afetado.
+
+Estrutura de saída obrigatória em `output/preview/{slug}/`:
+```
+index.html          ← layout primário (do config.json → "layout")
+series-rows.html    ← sempre gerado, mesmo que não seja o primário
+catalog-grid.html   ← sempre gerado, mesmo que não seja o primário
+data/               ← geo JSONs — compartilhados pelos três HTMLs
+```
 
 ### `series-rows` — linhas estilo Netflix
 
@@ -91,7 +101,7 @@ Para catálogos homogêneos ou sem séries fortes. Todos os cards em `repeat(aut
 - `<div id="grid-root">` + `<div id="empty-state">` — conteúdo injetado por `renderGrid(filter)`
 - `toolbar-count` mostra contagem dinâmica
 
-O layout é escolhido via `"layout"` no `config.json`. Não há auto-detecção.
+O layout primário é escolhido via `"layout"` no `config.json`. Não há auto-detecção.
 
 ---
 

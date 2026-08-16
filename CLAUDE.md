@@ -253,9 +253,29 @@ bilds-bim-3d/
 | `series-rows` | `templates/layouts/series-rows.html` | Poucas séries (2–4), muitas variantes, produto com curva Q-H. Ex: Dancor |
 | `catalog-grid` | `templates/layouts/catalog-grid.html` | Muitos itens heterogêneos (20+), filtros por categoria. Ex: Amanco |
 
+### Regra: sempre gerar os dois layouts no preview
+
+**Todo build sempre gera os dois layouts para o preview**, independente do `"layout"` configurado no `config.json`. O `config.json` define o layout primário (`index.html`); os outros dois ficam como alternativas navegáveis.
+
+Estrutura de saída obrigatória em `output/preview/{slug}/`:
+```
+index.html          ← layout primário (do config.json)
+series-rows.html    ← sempre gerado
+catalog-grid.html   ← sempre gerado
+data/               ← geo JSONs (compartilhados pelos três HTMLs)
+```
+
+URLs no preview Vercel:
+- `/{slug}/` → layout primário
+- `/{slug}/series-rows` → view alternativa rows
+- `/{slug}/catalog-grid` → view alternativa grid
+
+**O ZIP para bilds.com NÃO é afetado** — ele contém apenas `manifest.json`, `catalog.json` e `geo/*.json`, sem HTMLs. O layout primário fica registrado no MongoDB via dashboard, não no ZIP.
+
 Para adicionar um novo layout:
 1. Criar `templates/layouts/meu-layout.html` usando os mesmos padrões (ver seção abaixo)
 2. Usar `"layout": "meu-layout"` no config.json
+3. Adicionar ao loop de geração dos layouts alternativos no `build.py`
 
 ### Padrão obrigatório nos templates
 
