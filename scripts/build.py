@@ -378,19 +378,16 @@ def build_zip(catalog):
 
 def ask(prompt, default=None):
     """Pergunta ao usuário com sugestão de default."""
-    if default:
-        full = f'  {prompt} [{default}]: '
-    else:
-        full = f'  {prompt}: '
+    full = f'  {prompt} [{default}]: ' if default else f'  {prompt}: '
     resp = input(full).strip()
     return resp if resp else (default or '')
 
 
 def ask_choice(prompt, choices, default=None):
-    """Pergunta com opções numeradas."""
+    """Pergunta com opções numeradas. Mostra padrão em destaque."""
     print(f'\n  {prompt}')
     for i, c in enumerate(choices, 1):
-        marker = ' (padrão)' if c[0] == default else ''
+        marker = ' ◀ padrão' if c[0] == default else ''
         print(f'    {i}. {c[0]} — {c[1]}{marker}')
     while True:
         resp = input(f'  Escolha [1-{len(choices)}]: ').strip()
@@ -401,94 +398,242 @@ def ask_choice(prompt, choices, default=None):
         print(f'  Digite um número entre 1 e {len(choices)}.')
 
 
-def interactive_config(input_dir):
-    """Gera config.json interativamente a partir dos arquivos em input/."""
-    print('\n' + '─' * 56)
-    print('  bilds-bim-3d — configuração interativa')
-    print('─' * 56 + '\n')
-
-    # Detecta arquivos
+def peek_aq(aq_path):
+    """
+    Lê o .aq rapidamente para extrair hints antes das perguntas.
+    Retorna dict: fabricante, grupos (list[str]), has_curves (bool)
+    """
+    from read_aq import open_aq
+    hints = {'fabricante': '', 'grupos': [], 'has_curves': False}
     try:
-        all_files = os.listdir(input_dir)
+        con, tmp = open_aq(aq_path)
+        cur = con.cursor()
+        try:
+            cur.execute(
+                "SELECT BIBLIOTECA FROM PECA "
+                "WHERE BIBLIOTECA IS NOT NULL AND BIBLIOTECA != '' LIMIT 1"
+            )
+            r = cur.fetchone()
+            if r:
+                hints['fabricante'] = r[0].strip()
+        except Exception:
+            pass
+        try:
+            cur.execute('SELECT NOME_GP FROM GRUPO_PECA WHERE ATIVO=1 ORDER BY ID_GRUPO_PECA')
+            hints['grupos'] = [r[0] for r in cur.fetchall()]
+        except Exception:
+            pass
+        try:
+            cur.execute('SELECT 1 FROM ITEM_CURVA_BOMBA LIMIT 1')
+            hints['has_curves'] = cur.fetchone() is not None
+        except Exception:
+            pass
+        con.close()
+        if tmp:
+            shutil.rmtree(tmp, ignore_errors=True)
+    except Exception:
+        pass
+    return hints
+
+
+def scan_input(input_dir):
+    """
+    Detecta arquivos e modo de mapeamento IFC → produto.
+
+    Dois modos:
+    - 'flat'  : IFCs direto em input_dir — cada .ifc = um produto
+    - 'subdir': subdirs com IFCs — cada subdir = um produto (caso Amanco)
+
+    Retorna (ifc_entries, mode, aq_paths)
+      ifc_entries: lista de (display_name, suggested_slug)
+      aq_paths:    lista de caminhos absolutos para arquivos .aq
+    """
+    try:
+        entries = os.listdir(input_dir)
     except FileNotFoundError:
-        print(f'  ERRO: pasta {input_dir} não encontrada.')
-        print(f'  Crie a pasta e coloque seus arquivos .IFC e .aq nela.')
-        sys.exit(1)
+        return [], 'flat', []
 
-    ifc_files = sorted(f for f in all_files if f.lower().endswith('.ifc'))
-    aq_files  = sorted(f for f in all_files if f.lower().endswith('.aq'))
+    ifc_flat = sorted(f for f in entries if f.lower().endswith('.ifc'))
+    aq_paths = [
+        os.path.join(input_dir, f)
+        for f in sorted(entries) if f.lower().endswith('.aq')
+    ]
 
-    if not ifc_files:
-        print(f'  ERRO: nenhum arquivo .IFC encontrado em {input_dir}')
-        sys.exit(1)
+    # Detecta subdirs que contêm IFCs
+    subdir_counts = {}
+    for d in sorted(entries):
+        dpath = os.path.join(input_dir, d)
+        if os.path.isdir(dpath):
+            n = sum(1 for f in os.listdir(dpath) if f.lower().endswith('.ifc'))
+            if n > 0:
+                subdir_counts[d] = n
 
-    print(f'  Encontrados: {len(ifc_files)} arquivo(s) IFC, {len(aq_files)} arquivo(s) .aq\n')
+    if subdir_counts and not ifc_flat:
+        entries_out = [
+            (f'{d}/ ({subdir_counts[d]} IFCs)', slugify(d))
+            for d in subdir_counts
+        ]
+        return entries_out, 'subdir', aq_paths
+    else:
+        entries_out = [
+            (f, slugify(os.path.splitext(f)[0])[:40])
+            for f in ifc_flat
+        ]
+        return entries_out, 'flat', aq_paths
 
-    # Metadados do catálogo
-    titulo     = ask('Título do catálogo (ex: Bombas de Combate a Incêndio)')
-    fabricante = ask('Fabricante (ex: Dancor)')
-    slug_sug   = slugify(fabricante + '-' + titulo.split()[0]) if titulo else 'catalogo'
-    slug       = ask('Slug da URL (ex: bombas-incendio)', default=slug_sug)
-    descricao  = ask('Descrição curta (opcional)')
+
+def match_slug_to_aq(slug, grupos):
+    """Tenta encontrar um NOME_GP do .aq que corresponda ao slug."""
+    slug_norm = slugify(slug)
+    best = None
+    best_score = 0
+    for g in grupos:
+        g_norm = slugify(g)
+        # Score: tamanho do prefixo comum
+        score = 0
+        for a, b in zip(slug_norm, g_norm):
+            if a == b:
+                score += 1
+            else:
+                break
+        if score > best_score and score >= 3:
+            best_score = score
+            best = g
+    return best
+
+
+def interactive_config(input_dir, existing=None):
+    """
+    Configura o catálogo interativamente.
+    existing: dict com valores do config.json atual (usados como defaults).
+    """
+    ec = existing or {}
+
+    print('\n' + '─' * 60)
+    print('  bilds-bim-3d — configuração do catálogo')
+    print('─' * 60)
+    if ec:
+        print('  (valores entre colchetes são do config.json atual)')
+    print()
+
+    # ── Scan do input_dir ────────────────────────────────────────
+    ifc_entries, mode, aq_paths = scan_input(input_dir)
+
+    if not ifc_entries:
+        print(f'  AVISO: nenhum IFC encontrado em {input_dir}')
+        print(f'  O build usará os arquivos já presentes em output/geo/')
+        print()
+
+    n_ifc = len(ifc_entries)
+    n_aq  = len(aq_paths)
+    mode_label = 'subdirs de categoria' if mode == 'subdir' else 'arquivos individuais'
+    print(f'  Encontrado(s): {n_ifc} produto(s) como {mode_label}, {n_aq} biblioteca(s) .aq')
+    print()
+
+    # ── Arquivo .aq ──────────────────────────────────────────────
+    aq_file = None
+    hints   = {}
+    if not aq_paths:
+        print('  Nenhuma biblioteca .aq — catálogo sem dados hidráulicos do AltoQi.')
+        print()
+    elif len(aq_paths) == 1:
+        aq_file = aq_paths[0]
+        print(f'  Lendo biblioteca: {os.path.basename(aq_file)}...')
+        hints = peek_aq(aq_file)
+        n_gp = len(hints['grupos'])
+        curvas_txt = ', com curvas Q-H' if hints['has_curves'] else ', sem curvas Q-H'
+        print(f'  → {n_gp} grupo(s) de produtos{curvas_txt}')
+        if hints['fabricante']:
+            print(f'  → fabricante detectado: {hints["fabricante"]}')
+        print()
+    else:
+        print('  Múltiplas bibliotecas .aq:')
+        for i, p in enumerate(aq_paths, 1):
+            print(f'    {i}. {os.path.basename(p)}')
+        while True:
+            r = input(f'  Qual usar? [1-{len(aq_paths)}]: ').strip()
+            if r.isdigit() and 1 <= int(r) <= len(aq_paths):
+                aq_file = aq_paths[int(r) - 1]
+                break
+        print(f'  Lendo {os.path.basename(aq_file)}...')
+        hints = peek_aq(aq_file)
+        print()
+
+    # ── Sugestões inteligentes ───────────────────────────────────
+    sug_fabricante = ec.get('fabricante') or hints.get('fabricante') or ''
+    n_products     = n_ifc or len(ec.get('file_map', {}))
+    sug_layout     = ec.get('layout') or (
+        'series-rows' if hints.get('has_curves') else
+        ('catalog-grid' if n_products > 6 else 'series-rows')
+    )
+
+    # ── Perguntas de metadados ───────────────────────────────────
+    fabricante = ask('Fabricante', default=sug_fabricante)
+
+    sug_titulo = ec.get('titulo') or (
+        hints['grupos'][0].rsplit(' ', 1)[0] if hints.get('grupos') else ''
+    )
+    titulo = ask('Título do catálogo', default=sug_titulo)
+
+    sug_slug = ec.get('slug') or slugify(
+        (fabricante + '-' + titulo.split()[0]) if titulo else fabricante or 'catalogo'
+    )
+    slug = ask('Slug da URL', default=sug_slug)
+
+    descricao = ask('Descrição curta (opcional)', default=ec.get('descricao') or '')
 
     layout = ask_choice(
         'Layout de exibição:',
         [
-            ('series-rows', 'linhas por série — estilo Netflix, ideal para poucas famílias'),
+            ('series-rows',  'linhas por série — estilo Netflix, ideal para poucas famílias com curva Q-H'),
             ('catalog-grid', 'grade densa com filtros — ideal para muitos itens heterogêneos'),
         ],
-        default='series-rows',
+        default=sug_layout,
     )
 
-    # Arquivo .aq
-    if not aq_files:
-        print('\n  Nenhum arquivo .aq encontrado — o catálogo será gerado sem dados hidráulicos.')
-        aq_file = None
-    elif len(aq_files) == 1:
-        aq_file = os.path.join(input_dir, aq_files[0])
-        print(f'\n  Biblioteca .aq: {aq_files[0]}')
-    else:
-        print('\n  Múltiplos arquivos .aq encontrados:')
-        for i, f in enumerate(aq_files, 1):
-            print(f'    {i}. {f}')
-        while True:
-            resp = input(f'  Qual usar? [1-{len(aq_files)}]: ').strip()
-            if resp.isdigit() and 1 <= int(resp) <= len(aq_files):
-                aq_file = os.path.join(input_dir, aq_files[int(resp) - 1])
-                break
+    # ── Mapeamento produto → slug ────────────────────────────────
+    if ifc_entries:
+        print(f'\n  Mapeamento de {n_ifc} produto(s) para slug:')
+        print('  (Enter para aceitar; o slug vira o nome do arquivo geo e da URL)\n')
 
-    # Mapeamento IFC → slug de produto
-    print(f'\n  Mapeamento dos {len(ifc_files)} arquivo(s) IFC para slugs de produto:')
-    print('  (pressione Enter para aceitar o slug sugerido)\n')
     file_map = {}
-    for ifc in ifc_files:
-        stem = os.path.splitext(ifc)[0]
-        sug  = slugify(stem)[:40]
-        prod_slug = ask(f'{ifc}', default=sug)
-        if prod_slug:
-            file_map[ifc] = prod_slug
+    existing_fm = ec.get('file_map', {})
 
-    # Monta config
+    for display, sug_slug_prod in ifc_entries:
+        # Se já existe no config, usa como default
+        existing_slug = existing_fm.get(display, '')
+        # Tenta match com .aq para sugerir um slug mais preciso
+        if not existing_slug and hints.get('grupos'):
+            matched_gp = match_slug_to_aq(sug_slug_prod, hints['grupos'])
+            if matched_gp:
+                sug_slug_prod = slugify(matched_gp)[:40]
+        default_slug = existing_slug or sug_slug_prod
+        prod_slug = ask(display, default=default_slug)
+        if prod_slug:
+            file_map[display] = prod_slug
+
+    # ── Monta e salva config ─────────────────────────────────────
     config = {
-        'slug':       slug,
-        'titulo':     titulo,
-        'fabricante': fabricante,
-        'descricao':  descricao,
-        'layout':     layout,
-        'ifc_dir':    input_dir,
-        'file_map':   file_map,
-        'products_override': [],
+        'slug':              slug,
+        'titulo':            titulo,
+        'fabricante':        fabricante,
+        'descricao':         descricao,
+        'layout':            layout,
+        'ifc_dir':           input_dir,
+        'file_map':          file_map,
+        'products_override': ec.get('products_override', []),
     }
     if aq_file:
         config['aq_file'] = aq_file
+    elif ec.get('aq_file'):
+        config['aq_file'] = ec['aq_file']
 
-    # Salva config.json
     config_path = os.path.join(ROOT, 'config.json')
     with open(config_path, 'w', encoding='utf-8') as f:
         json.dump(config, f, ensure_ascii=False, indent=2)
 
-    print(f'\n  config.json gerado em {config_path}')
-    print('─' * 56 + '\n')
+    print(f'\n  config.json salvo → {config_path}')
+    print('─' * 60 + '\n')
     return config
 
 
@@ -496,27 +641,28 @@ def interactive_config(input_dir):
 
 def main():
     parser = argparse.ArgumentParser(description='bilds-bim-3d build pipeline')
-    parser.add_argument('--config', default='config.json', help='Arquivo de configuração')
-    parser.add_argument('--interactive', '-i', action='store_true',
-                        help='Configura o catálogo interativamente a partir dos arquivos em input/')
-    parser.add_argument('--input-dir', default='input', help='Pasta com arquivos .IFC e .aq')
-    parser.add_argument('--skip-ifc', action='store_true', help='Pula parse dos IFCs')
-    parser.add_argument('--skip-preview', action='store_true', help='Pula geração do preview HTML')
-    parser.add_argument('--skip-zip', action='store_true', help='Pula geração do ZIP')
+    parser.add_argument('--config',       default='config.json', help='Arquivo de configuração')
+    parser.add_argument('--input-dir',    default='input',       help='Pasta com arquivos .IFC e .aq')
+    parser.add_argument('--skip-ifc',     action='store_true',   help='Pula parse dos IFCs')
+    parser.add_argument('--skip-preview', action='store_true',   help='Pula geração do preview HTML')
+    parser.add_argument('--skip-zip',     action='store_true',   help='Pula geração do ZIP')
+    # --interactive mantido por compatibilidade, mas agora é sempre o modo padrão
+    parser.add_argument('--interactive', '-i', action='store_true', help=argparse.SUPPRESS)
     args = parser.parse_args()
 
-    if args.interactive:
-        input_dir = os.path.join(ROOT, args.input_dir)
-        config = interactive_config(input_dir)
-    else:
-        config_path = os.path.join(ROOT, args.config)
-        if not os.path.exists(config_path):
-            print(f'\nConfig não encontrado: {config_path}')
-            print(f'Use --interactive para configurar via perguntas, ou copie')
-            print(f'config.example.json para config.json e edite manualmente.\n')
-            sys.exit(1)
-        with open(config_path, encoding='utf-8') as f:
-            config = json.load(f)
+    input_dir = os.path.join(ROOT, args.input_dir)
+
+    # Carrega config.json existente como defaults (se houver)
+    existing = None
+    config_path = os.path.join(ROOT, args.config)
+    if os.path.exists(config_path):
+        try:
+            with open(config_path, encoding='utf-8') as f:
+                existing = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            existing = None
+
+    config = interactive_config(input_dir, existing)
 
     print(f'\n=== bilds-bim-3d: {config["titulo"]} ===\n')
 
