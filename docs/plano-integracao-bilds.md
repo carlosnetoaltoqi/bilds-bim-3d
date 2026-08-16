@@ -1362,7 +1362,182 @@ document.addEventListener('modal-close', () => {
 
 ---
 
-## 10. Referência rápida — URLs de exemplo após implementação
+## 10. Pontos críticos que causam bloqueio ou retrabalho
+
+Leia esta seção antes de começar — cada item aqui representa um erro que custaria horas de diagnóstico se descoberto tarde.
+
+### 10.1 CORS no S3/CloudFront para os geo JSONs
+
+O browser vai fazer `fetch('https://storage.bilds.com/bim/.../geo/cam-w10.json')` a partir da página em `bilds.com`. Isso é cross-origin. Se o bucket S3 (ou distribuição CloudFront) não tiver a política CORS correta, o fetch falha silenciosamente no browser.
+
+**Antes de testar o viewer**, adicione a política CORS ao bucket S3 que serve os arquivos BIM:
+
+```json
+[
+  {
+    "AllowedHeaders": ["*"],
+    "AllowedMethods": ["GET"],
+    "AllowedOrigins": ["https://bilds.com", "https://*.bilds.com"],
+    "ExposeHeaders": []
+  }
+]
+```
+
+E na distribuição CloudFront, configure o comportamento para repassar o header `Origin` e incluir `Access-Control-Allow-Origin` na resposta.
+
+### 10.2 Biblioteca ZIP para o NestJS
+
+O endpoint `POST /companies/:id/bim-catalogs` precisa extrair o ZIP em memória. O Node.js não tem extração de ZIP nativa. Instale uma das opções abaixo no workspace da API:
+
+```bash
+pnpm add adm-zip --filter <workspace-api>   # síncrono, simples
+# ou
+pnpm add unzipper --filter <workspace-api>  # stream-based, async
+```
+
+Leia o `package.json` da API para encontrar o nome correto do workspace antes de rodar o comando.
+
+Exemplo com `adm-zip`:
+```typescript
+import AdmZip from 'adm-zip'
+
+const zip = new AdmZip(file.buffer)        // file.buffer vem do multer/interceptor
+const manifest = JSON.parse(zip.readAsText('manifest.json'))
+const catalog = JSON.parse(zip.readAsText('catalog.json'))
+const geoEntries = zip.getEntries().filter(e => e.entryName.startsWith('geo/'))
+```
+
+### 10.3 Import path do OrbitControls via npm
+
+Desde Three.js r152 (2023), o caminho de import do OrbitControls mudou. Use o caminho novo, não o antigo:
+
+```typescript
+// ✅ correto (r152+)
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
+
+// ❌ antigo — quebra com versões recentes do three
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+```
+
+Verifique a versão do `three` que será instalada (`pnpm add three`) e confirme qual caminho é o correto para ela.
+
+### 10.4 React + Three.js: padrões obrigatórios
+
+**Cleanup no unmount** — sem isso, múltiplos contextos WebGL acumulam e a GPU trava:
+
+```typescript
+useEffect(() => {
+  const renderer = new THREE.WebGLRenderer({ canvas: canvasRef.current })
+  // ... setup
+  const raf = requestAnimationFrame(animate)
+  return () => {                         // ← cleanup obrigatório
+    cancelAnimationFrame(raf)
+    controls.dispose()
+    renderer.dispose()
+  }
+}, [geoUrl])                             // re-executa quando o produto muda
+```
+
+**`geoCache` em nível de módulo** — não use `useState` nem `useRef` para o cache. Declare fora do componente para que persista entre re-renders e seja compartilhado entre thumbnail e modal:
+
+```typescript
+// fora do componente — correto
+const geoCache = new Map<string, GeoData>()
+
+export function BimViewer(...) { /* usa geoCache */ }
+```
+
+**Canvas sizing via ref, não parentElement** — `offsetWidth` retorna 0 antes do layout. Use:
+
+```typescript
+useEffect(() => {
+  const canvas = canvasRef.current
+  const W = canvas.offsetWidth || canvas.parentElement?.offsetWidth || 224
+  const H = canvas.offsetHeight || canvas.parentElement?.offsetHeight || 162
+  // ...
+}, [])
+```
+
+**IntersectionObserver em React** — não use `document.querySelector` após re-render. Use refs:
+
+```typescript
+const cardRefs = useRef<Map<string, HTMLElement>>(new Map())
+
+useEffect(() => {
+  const io = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        const id = (e.target as HTMLElement).dataset.id!
+        loadThumbnail(id)
+        io.unobserve(e.target)
+      }
+    })
+  }, { rootMargin: '120px' })
+
+  cardRefs.current.forEach(el => io.observe(el))
+  return () => io.disconnect()
+}, [filteredItems])  // re-observa quando o filtro muda
+```
+
+### 10.5 `BimViewer` tem dois modos distintos
+
+O componente serve propósitos diferentes em thumbnail e modal. Implemente com uma prop `mode`:
+
+| Prop `mode` | Comportamento |
+|---|---|
+| `'thumbnail'` | 1 frame estático. Click ativa OrbitControls + loop. `antialias:false`, `pixelRatio: min(dpr, 1.5)`. Canvas ~200×150px. `enableZoom:false`. |
+| `'modal'` | Loop contínuo desde o início. `antialias:true`, `pixelRatio: min(dpr, 2)`. Canvas ~760×280px. `enableZoom:true`. |
+
+```typescript
+<BimViewer geoUrl={geoBaseUrl + product.geo} mode="thumbnail" />
+<BimViewer geoUrl={geoBaseUrl + selectedProduct.geo} mode="modal" />
+```
+
+Ambos os modos usam `dynamic(() => import('./BimViewer'), { ssr: false })`.
+
+### 10.6 `geoBaseUrl` sempre termina com `/`
+
+A concatenação de URL para buscar geometria é sempre:
+```
+geoBaseUrl + produto.geo
+= "https://storage.bilds.com/bim/dancor/bombas-incendio/geo/" + "cam-w10.json"
+= "https://storage.bilds.com/bim/dancor/bombas-incendio/geo/cam-w10.json"
+```
+
+Garanta que ao salvar `geoBaseUrl` no MongoDB e ao fazer upload no S3, a barra final esteja presente. Valide isso no Zod schema do endpoint.
+
+### 10.7 Relação `filtros` ↔ `item.serie`
+
+Os chips de filtro usam os valores de `catalog.filtros[]`. O filtro ativo compara com `produto.serie`. A relação é direta:
+
+```typescript
+// chip com value "CAM-W" filtra produtos onde produto.serie === "CAM-W"
+const filtered = produtos.filter(p => activeFilter === 'all' || p.serie === activeFilter)
+```
+
+Se `catalog.filtros` for `[]`, renderize só o chip "Todos" sem nenhum filtro adicional.
+
+### 10.8 Verifique as rotas existentes em `[customLink]/` antes de criar `[catalogSlug]`
+
+Liste os arquivos em `apps/web/src/app/[customLink]/` (ou onde fica essa rota no codebase). Se existir um `page.tsx` no próprio `[customLink]/`, ele é a página de empresa. Se existirem pastas estáticas (`editar/`, `avaliacoes/`, etc.), elas têm prioridade sobre `[catalogSlug]`. Confirme que não há slug de catálogo que conflite com uma rota estática existente.
+
+### 10.9 Nome do workspace para `pnpm add`
+
+O comando `pnpm add three @types/three --filter <workspace>` requer o nome correto do package. Leia o `package.json` do app web antes de rodar:
+
+```bash
+cat apps/web/package.json | grep '"name"'
+# depois:
+pnpm add three @types/three --filter <nome-encontrado>
+```
+
+### 10.10 Página de empresa existente — não quebrar
+
+O `[customLink]/page.tsx` provavelmente já exibe uma seção de arquivos `.aq` para download (campo `libraryFiles` da Company). Essa seção **não deve ser alterada**. Se quiser adicionar um link para o catálogo BIM interativo na página de empresa, faça isso de forma aditiva — um novo bloco abaixo da seção existente, sem tocar no código existente da seção `libraryFiles`.
+
+---
+
+## 11. Referência rápida — URLs de exemplo após implementação
 
 ```
 Dashboard:
