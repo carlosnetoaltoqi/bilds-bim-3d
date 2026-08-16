@@ -1,5 +1,11 @@
 # Plano de integração: bilds-bim-3d → bilds.com
 
+> ## 🔴 LEIA O `CLAUDE.md` DO REPOSITÓRIO BILDS.COM ANTES DE QUALQUER COISA
+>
+> O `CLAUDE.md` presente na raiz do repositório bilds.com é **soberano**. Ele se sobrepõe a qualquer instrução deste documento. Se houver conflito entre o que está escrito aqui e o que está no `CLAUDE.md`, siga o `CLAUDE.md` sem exceção. Este plano foi escrito sem acesso à versão atual do codebase — o `CLAUDE.md` tem a versão real das convenções, estruturas e regras do projeto.
+>
+> Leia o `CLAUDE.md` completo antes de abrir qualquer outro arquivo ou tomar qualquer decisão de implementação.
+
 **Gerado em:** 2026-08-16  
 **Destino:** agente trabalhando no codebase bilds.com (dashboard + API + web)  
 **Repositório de origem:** `carlosnetoaltoqi/bilds-bim-3d`
@@ -45,8 +51,6 @@ Toda a implementação descrita neste plano deve ser feita **exclusivamente atra
 - Refatorar, renomear ou reorganizar qualquer coisa existente
 
 **Em caso de dúvida:** se a tarefa parecer exigir a modificação de um arquivo existente, pare e registre o bloqueio em vez de editar. O operador decidirá como resolver.
-
----
 
 ---
 
@@ -152,11 +156,11 @@ Ambos os layouts exibem o viewer 3D (lazy), as specs do produto e a curva Q-H (S
 
 ## 3. MongoDB — campo novo em Company
 
-Adicione o subdocumento `bimCatalogs` ao schema de Company existente. **Não altere campos existentes** (`libraryFiles`, `name`, `customLink`, etc.).
+Adicione o subdocumento `bBim3d` ao schema de Company existente. **Não altere campos existentes** (`libraryFiles`, `name`, `customLink`, etc.).
 
 ```typescript
 // Novo subdocumento
-class BimCatalog {
+class BBim3dEntry {
   slug: string;          // 'bombas-incendio' — único por empresa
   titulo: string;
   fabricante: string;
@@ -171,28 +175,28 @@ class BimCatalog {
 }
 
 // Em Company, novo campo:
-bimCatalogs: BimCatalog[];   // padrão: []
+bBim3d: BBim3dEntry[];   // padrão: []
 ```
 
 O `catalogUrl` aponta para onde o catalog.json completo está no CloudFront:
 ```
-https://{CLOUDFRONT_BASE}/bim/{slug-empresa}/{slug-catalogo}/catalog.json
+https://{CLOUDFRONT_BASE}/b-bim-3d/{slug-empresa}/{slug-catalogo}/catalog.json
 ```
 
 O `geoBaseUrl` é o prefixo base dos arquivos de geometria:
 ```
-https://{CLOUDFRONT_BASE}/bim/{slug-empresa}/{slug-catalogo}/geo/
+https://{CLOUDFRONT_BASE}/b-bim-3d/{slug-empresa}/{slug-catalogo}/geo/
 ```
 
 Para carregar a geometria de um produto: `geoBaseUrl + produto.geo`
-Ex: `https://storage.bilds.com/bim/dancor/bombas-incendio/geo/cam-w10.json`
+Ex: `https://storage.bilds.com/b-bim-3d/dancor/bombas-incendio/geo/cam-w10.json`
 
 ---
 
 ## 4. API NestJS — endpoint de upload
 
 ```
-POST /companies/:id/bim-catalogs
+POST /companies/:id/b-bim-3d
 Content-Type: multipart/form-data
 Authorization: Bearer {token-admin}
 
@@ -206,23 +210,23 @@ Campos:
 2. Extrair o ZIP em memória (sem escrever em disco): ler `manifest.json` e `catalog.json`
 3. Para cada arquivo em `geo/`: fazer upload para S3 com `S3Service` no path:
    ```
-   bim/{customLink-da-empresa}/{manifest.slug}/geo/{nome-arquivo}
+   b-bim-3d/{customLink-da-empresa}/{manifest.slug}/geo/{nome-arquivo}
    ```
 4. Fazer upload do `catalog.json` para S3:
    ```
-   bim/{customLink-da-empresa}/{manifest.slug}/catalog.json
+   b-bim-3d/{customLink-da-empresa}/{manifest.slug}/catalog.json
    ```
 5. Construir URLs do CloudFront usando `process.env.AWS_CLOUD_FRONT_BASE_URL`
-6. Upsert em `company.bimCatalogs` (slug é chave — se já existe, atualiza; se não, insere)
-7. Retornar o `BimCatalog` salvo
+6. Upsert em `company.bBim3d` (slug é chave — se já existe, atualiza; se não, insere)
+7. Retornar o `BBim3dEntry` salvo
 
 **Resposta:**
 ```json
 {
   "slug": "bombas-incendio",
   "titulo": "Bombas de Combate a Incêndio",
-  "catalogUrl": "https://storage.bilds.com/bim/dancor/bombas-incendio/catalog.json",
-  "geoBaseUrl": "https://storage.bilds.com/bim/dancor/bombas-incendio/geo/",
+  "catalogUrl": "https://storage.bilds.com/b-bim-3d/dancor/bombas-incendio/catalog.json",
+  "geoBaseUrl": "https://storage.bilds.com/b-bim-3d/dancor/bombas-incendio/geo/",
   "publishedAt": "2026-08-16T00:00:00.000Z",
   "active": true
 }
@@ -230,7 +234,7 @@ Campos:
 
 **Endpoint adicional para trocar layout sem re-upload:**
 ```
-PATCH /companies/:id/bim-catalogs/:slug
+PATCH /companies/:id/b-bim-3d/:slug
 Body: { layout: 'series-rows' | 'catalog-grid' }
 ```
 
@@ -253,15 +257,15 @@ Aplique esses mesmos guards nos novos endpoints sem adaptação ou cópia de ló
 
 ```typescript
 // Exemplo — use os guards reais do codebase, não invente novos
-@Post(':id/bim-catalogs')
+@Post(':id/b-bim-3d')
 @UseGuards(JwtAuthGuard, CompanyOwnerGuard)   // ← copie os guards dos endpoints existentes
 @UseInterceptors(FileInterceptor('zip'))
-async uploadBimCatalog(
+async uploadBBim3d(
   @Param('id') id: string,
   @UploadedFile() file: Express.Multer.File,
 ) { ... }
 
-@Patch(':id/bim-catalogs/:slug')
+@Patch(':id/b-bim-3d/:slug')
 @UseGuards(JwtAuthGuard, CompanyOwnerGuard)
 async updateLayout(...) { ... }
 ```
@@ -270,7 +274,7 @@ async updateLayout(...) { ... }
 
 ### Dashboard (dashboard.bilds.com) — protegido
 
-Todas as páginas do dashboard já ficam atrás de autenticação pelo layout/middleware existente. As novas rotas `/bim`, `/bim/:companyId` herdam essa proteção automaticamente por estarem dentro da estrutura de rotas autenticadas do dashboard. Não é necessário nenhum guard adicional nas páginas — apenas siga a estrutura de pastas já existente.
+Todas as páginas do dashboard já ficam atrás de autenticação pelo layout/middleware existente. As novas rotas `/b-bim-3d`, `/b-bim-3d/:companyId` herdam essa proteção automaticamente por estarem dentro da estrutura de rotas autenticadas do dashboard. Não é necessário nenhum guard adicional nas páginas — apenas siga a estrutura de pastas já existente.
 
 ### Rota pública `bilds.com/[customLink]/[catalogSlug]` — completamente pública
 
@@ -297,16 +301,16 @@ export default async function BimCatalogPage({ params }) {
 
 ### 5.1 Novo item no menu lateral
 
-Adicione "BIM 3D" como item de menu em `dashboard.bilds.com`. O ícone sugerido é `Box` ou `Package` do Lucide. A rota pode ser `/bim`.
+Adicione "BIM 3D" como item de menu em `dashboard.bilds.com`. O ícone sugerido é `Box` ou `Package` do Lucide. A rota pode ser `/b-bim-3d`.
 
-### 5.2 Página `/bim` — grid de empresas
+### 5.2 Página `/b-bim-3d` — grid de empresas
 
-Lista as empresas que têm `bimCatalogs.length > 0`. Use o padrão de grid existente no dashboard. Cada card mostra:
+Lista as empresas que têm `bBim3d.length > 0`. Use o padrão de grid existente no dashboard. Cada card mostra:
 - Nome da empresa
 - Número de catálogos publicados
-- Botão "Gerenciar" → `/bim/{company-id}`
+- Botão "Gerenciar" → `/b-bim-3d/{company-id}`
 
-### 5.3 Página `/bim/{company-id}` — gerenciamento por empresa
+### 5.3 Página `/b-bim-3d/{company-id}` — gerenciamento por empresa
 
 Lista os catálogos da empresa com:
 - Nome, fabricante, layout, data de publicação, botão "Ver" (abre `bilds.com/{customLink}/{slug}`)
@@ -384,13 +388,13 @@ export default async function BimCatalogPage({ params }: Props) {
 
 `getCatalogData`:
 1. Busca a empresa pelo `customLink` (padrão existente do codebase)
-2. Encontra o `BimCatalog` pelo `catalogSlug` dentro de `company.bimCatalogs`
+2. Encontra o `BimCatalog` pelo `catalogSlug` dentro de `company.bBim3d`
 3. Faz `fetch(catalog.catalogUrl)` para obter o `catalog.json` completo com os produtos
 4. Retorna `{ company, catalog, catalogData }`
 
 ### 6.3 Componentes React necessários
 
-Crie dentro de `apps/web/src/components/bim/` (ou onde o codebase organiza componentes):
+Crie dentro de `apps/web/src/components/b-bim-3d/` (ou onde o codebase organiza componentes):
 
 #### `BimCatalogView` (server component wrapper)
 
@@ -490,9 +494,9 @@ Tipografia:
 
 ## 8. Ordem de implementação sugerida
 
-1. **MongoDB**: adicionar `bimCatalogs: BimCatalog[]` ao schema de Company
-2. **API**: endpoint `POST /companies/:id/bim-catalogs` com extração do ZIP e upload S3
-3. **API**: endpoint `PATCH /companies/:id/bim-catalogs/:slug` (troca de layout)
+1. **MongoDB**: adicionar `bBim3d: BBim3dEntry[]` ao schema de Company
+2. **API**: endpoint `POST /companies/:id/b-bim-3d` com extração do ZIP e upload S3
+3. **API**: endpoint `PATCH /companies/:id/b-bim-3d/:slug` (troca de layout)
 4. **Dashboard**: menu "BIM 3D" + páginas de listagem e upload
 5. **bilds.com web**: rota `[customLink]/[catalogSlug]` com stub (mostra título + fabricante)
 6. **Componentes**: `CurveChart` (SVG, sem dependência externa)
@@ -1452,7 +1456,7 @@ Leia esta seção antes de começar — cada item aqui representa um erro que cu
 
 ### 10.1 CORS no S3/CloudFront para os geo JSONs
 
-O browser vai fazer `fetch('https://storage.bilds.com/bim/.../geo/cam-w10.json')` a partir da página em `bilds.com`. Isso é cross-origin. Se o bucket S3 (ou distribuição CloudFront) não tiver a política CORS correta, o fetch falha silenciosamente no browser.
+O browser vai fazer `fetch('https://storage.bilds.com/b-bim-3d/.../geo/cam-w10.json')` a partir da página em `bilds.com`. Isso é cross-origin. Se o bucket S3 (ou distribuição CloudFront) não tiver a política CORS correta, o fetch falha silenciosamente no browser.
 
 **Antes de testar o viewer**, adicione a política CORS ao bucket S3 que serve os arquivos BIM:
 
@@ -1471,7 +1475,7 @@ E na distribuição CloudFront, configure o comportamento para repassar o header
 
 ### 10.2 Biblioteca ZIP para o NestJS
 
-O endpoint `POST /companies/:id/bim-catalogs` precisa extrair o ZIP em memória. O Node.js não tem extração de ZIP nativa. Instale uma das opções abaixo no workspace da API:
+O endpoint `POST /companies/:id/b-bim-3d` precisa extrair o ZIP em memória. O Node.js não tem extração de ZIP nativa. Instale uma das opções abaixo no workspace da API:
 
 ```bash
 pnpm add adm-zip --filter <workspace-api>   # síncrono, simples
@@ -1584,8 +1588,8 @@ Ambos os modos usam `dynamic(() => import('./BimViewer'), { ssr: false })`.
 A concatenação de URL para buscar geometria é sempre:
 ```
 geoBaseUrl + produto.geo
-= "https://storage.bilds.com/bim/dancor/bombas-incendio/geo/" + "cam-w10.json"
-= "https://storage.bilds.com/bim/dancor/bombas-incendio/geo/cam-w10.json"
+= "https://storage.bilds.com/b-bim-3d/dancor/bombas-incendio/geo/" + "cam-w10.json"
+= "https://storage.bilds.com/b-bim-3d/dancor/bombas-incendio/geo/cam-w10.json"
 ```
 
 Garanta que ao salvar `geoBaseUrl` no MongoDB e ao fazer upload no S3, a barra final esteja presente. Valide isso no Zod schema do endpoint.
@@ -1625,18 +1629,18 @@ O `[customLink]/page.tsx` provavelmente já exibe uma seção de arquivos `.aq` 
 
 ```
 Dashboard:
-  dashboard.bilds.com/bim                        ← grid de empresas
-  dashboard.bilds.com/bim/{company-id}           ← gerenciar catálogos
-  dashboard.bilds.com/bim/{company-id}/novo      ← formulário de upload
+  dashboard.bilds.com/b-bim-3d                        ← grid de empresas
+  dashboard.bilds.com/b-bim-3d/{company-id}           ← gerenciar catálogos
+  dashboard.bilds.com/b-bim-3d/{company-id}/novo      ← formulário de upload
 
 API:
-  POST   /companies/{id}/bim-catalogs            ← upload ZIP
-  PATCH  /companies/{id}/bim-catalogs/{slug}     ← trocar layout
+  POST   /companies/{id}/b-bim-3d            ← upload ZIP
+  PATCH  /companies/{id}/b-bim-3d/{slug}     ← trocar layout
 
 bilds.com:
   bilds.com/dancor/bombas-incendio               ← página pública SSR
 
 S3 / CloudFront:
-  storage.bilds.com/bim/dancor/bombas-incendio/catalog.json
-  storage.bilds.com/bim/dancor/bombas-incendio/geo/cam-w10.json
+  storage.bilds.com/b-bim-3d/dancor/bombas-incendio/catalog.json
+  storage.bilds.com/b-bim-3d/dancor/bombas-incendio/geo/cam-w10.json
 ```
