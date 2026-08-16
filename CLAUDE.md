@@ -565,7 +565,7 @@ canvas.addEventListener('mouseleave', () => {
 });
 ```
 
-**`series-rows.html` ainda usa click** — pendente de atualização (ver `docs/plan-series-rows-hover-update.md`).
+`series-rows.html` já usa o padrão hover 3D (mesmo de `catalog-grid.html`).
 
 ### Cache de geometria
 
@@ -612,7 +612,6 @@ Arquivos em `docs/`:
 
 | Arquivo | O que faz |
 |---|---|
-| `plan-series-rows-hover-update.md` | Atualiza `series-rows.html` para padrão hover 3D + fix de timing (ainda usa click) |
 | `plan-bim-catalog-hero-hover.md` | Porta hero section + hover 3D para os componentes React do bilds.com (`CatalogGridLayout.tsx`, `SeriesRowsLayout.tsx`, `BimViewer.tsx`) |
 
 ---
