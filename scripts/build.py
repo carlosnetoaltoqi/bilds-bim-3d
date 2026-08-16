@@ -347,6 +347,7 @@ def update_catalog_registry(catalog):
         'fabricante': catalog['fabricante'],
         'descricao': catalog.get('descricao', ''),
         'layout': catalog.get('layout', 'series-rows'),
+        'layouts': ALL_LAYOUTS,  # fonte única — output/preview/index.html lê daqui, não hardcoda a lista
         'n_produtos': len(catalog['produtos']),
         'updated_at': datetime.date.today().isoformat(),
     })

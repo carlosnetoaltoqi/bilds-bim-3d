@@ -394,7 +394,10 @@
   <script>
     (function () {
       var LAYOUT_LABEL = { 'series-rows': 'linhas por série', 'catalog-grid': 'grid denso' };
-      var ALL_LAYOUTS = ['series-rows', 'catalog-grid'];
+      // Fallback só pra registro antigo gerado antes deste campo existir —
+      // a fonte de verdade é cat.layouts (escrito por build.py/ALL_LAYOUTS),
+      // não uma lista hardcoded aqui. Ver update_catalog_registry() em build.py.
+      var FALLBACK_LAYOUTS = ['series-rows', 'catalog-grid'];
 
       function fmtDate(iso) {
         if (!iso) return '';
@@ -406,7 +409,8 @@
       // lista uma linha por página, não uma por catálogo, para dar acesso
       // direto às duas variantes na validação.
       function catalogPages(cat) {
-        return ALL_LAYOUTS.map(function (layout) {
+        var layouts = (cat.layouts && cat.layouts.length) ? cat.layouts : FALLBACK_LAYOUTS;
+        return layouts.map(function (layout) {
           var isPrimary = layout === cat.layout;
           return {
             fabricante: cat.fabricante,

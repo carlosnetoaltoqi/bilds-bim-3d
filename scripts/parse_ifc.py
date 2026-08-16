@@ -480,6 +480,17 @@ def _parse_via_ifcopenshell(ifc_path, default_rgb):
     for product in ifc_file.by_type('IFCPRODUCT'):
         if not getattr(product, 'Representation', None):
             continue
+        # Só elementos físicos/tangíveis — sem isso, IFCOPENINGELEMENT (vazios
+        # de furos/recortes) e IFCSPACE (volumes de ambiente) também têm
+        # Representation sólida válida e virariam geometria fantasma visível.
+        # IfcElement cobre proxies, tubulações, fixadores etc. (equivalente ao
+        # allow-list do parser manual, mas por herança de schema — o nome de
+        # tipo folha do ifcopenshell nem sempre bate com o allow-list manual,
+        # ex: IfcPipeFitting não é string-igual a IFCFLOWFITTING mas É um por
+        # herança). IfcFeatureElement é o ramo dos vazios (subtração/adição) —
+        # excluir explicitamente mesmo sendo IfcElement.
+        if not product.is_a('IfcElement') or product.is_a('IfcFeatureElement'):
+            continue
         try:
             shape = ifcopenshell.geom.create_shape(settings, product)
         except Exception:

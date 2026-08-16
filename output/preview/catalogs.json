@@ -5,6 +5,10 @@
     "fabricante": "Dancor",
     "descricao": "Linha CAM-W e TJM para sistemas prediais de combate a incêndio.",
     "layout": "series-rows",
+    "layouts": [
+      "series-rows",
+      "catalog-grid"
+    ],
     "n_produtos": 14,
     "updated_at": "2026-08-16"
   },
@@ -14,6 +18,10 @@
     "fabricante": "Amanco Wavin",
     "descricao": "Linha completa de conexões e acessórios em PVC para sistemas de esgoto predial, nas séries SN, SR e Silentium.",
     "layout": "catalog-grid",
+    "layouts": [
+      "series-rows",
+      "catalog-grid"
+    ],
     "n_produtos": 14,
     "updated_at": "2026-08-16"
   }
