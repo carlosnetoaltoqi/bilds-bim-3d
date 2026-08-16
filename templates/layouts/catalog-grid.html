@@ -352,8 +352,7 @@ async function loadThumbnail(id) {
     renderer.render(scene, camera);
     if (loader) loader.style.display = 'none';
     thumbStates.set(id, {renderer, scene, camera, raf:null, animated:false});
-    canvas.addEventListener('click', e => {
-      e.stopPropagation();
+    canvas.addEventListener('mouseenter', () => {
       const st = thumbStates.get(id);
       if (!st || st.animated) return;
       st.animated = true;
