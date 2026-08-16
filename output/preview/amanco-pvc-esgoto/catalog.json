@@ -152,5 +152,6 @@
       "curva": null,
       "geo": "valvula-retencao.json"
     }
-  ]
+  ],
+  "tem_curva_qh": false
 }

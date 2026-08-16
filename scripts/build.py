@@ -181,6 +181,13 @@ def build_catalog(config, product_map, geo_files):
 
     filtros = sorted([s for s in series_set if s])
 
+    # Curva Q-H é conceito específico de bomba — só faz sentido mostrar a
+    # seção no modal quando ALGUM produto do catálogo tem curva de verdade.
+    # Sem isso, catálogos sem bombas (ex: conexões PVC) mostram "Curva não
+    # disponível" vazio em todo produto, o que não faz sentido pro tipo de
+    # peça (não é dado faltando, é um conceito que não se aplica).
+    tem_curva_qh = any(p.get('curva') for p in produtos)
+
     return {
         'slug': config['slug'],
         'titulo': config['titulo'],
@@ -189,6 +196,7 @@ def build_catalog(config, product_map, geo_files):
         'layout': config.get('layout', 'series-rows'),
         'filtros': filtros,
         'produtos': produtos,
+        'tem_curva_qh': tem_curva_qh,
     }
 
 

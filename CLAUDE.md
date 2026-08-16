@@ -243,6 +243,7 @@ bilds-bim-3d/
   "descricao": "...",
   "layout": "series-rows",
   "filtros": ["W", "TJM"],
+  "tem_curva_qh": true,
   "produtos": [
     {
       "id": "cam-w10",
@@ -260,6 +261,12 @@ bilds-bim-3d/
 
 `curva`: lista de [vazao_m3h, altura_mca, potencia_cv, rendimento_%] por ponto.
 `curva: null` para produtos sem curva Q-H.
+
+`tem_curva_qh`: `true` se ALGUM produto do catálogo tem `curva` — controla se a
+seção "Curva Q-H" aparece no modal (catálogo inteiro, não por produto). Evita
+mostrar "Curva não disponível" vazio em catálogos de peças que não são bomba
+(ex: conexões PVC) — ver `docs/specs/pagina-biblioteca.md`, seção "Padrão: seção
+técnica específica de tipo de produto".
 
 ---
 

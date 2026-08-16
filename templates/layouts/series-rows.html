@@ -151,6 +151,7 @@ body{background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
 .modal-3d{height:300px;background:#F3F4F6;position:relative}
 .modal-3d canvas{width:100%;height:100%;display:block}
 .modal-body{padding:20px;display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.modal-body.no-curve{grid-template-columns:1fr}
 .specs-table{font-size:13px;border-collapse:collapse;width:100%}
 .specs-table th{text-align:left;font-weight:500;color:var(--muted);padding:5px 0;width:45%}
 .specs-table td{padding:5px 0;border-bottom:1px solid var(--border)}
@@ -353,6 +354,14 @@ function closeModal() {
 }
 
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+// Curva Q-H é conceito específico de bomba — se nenhum produto do catálogo
+// tem curva, a seção não se aplica a este tipo de peça (não é "dado
+// faltando"), então nem aparece no modal.
+if (!CATALOG.tem_curva_qh) {
+  document.getElementById('modal-chart-wrap').style.display = 'none';
+  document.querySelector('.modal-body').classList.add('no-curve');
+}
 
 renderRows('all');
 </script>

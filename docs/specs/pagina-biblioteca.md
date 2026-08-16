@@ -498,6 +498,54 @@ document.addEventListener('modal-close', () => {
 
 ---
 
+## Padrão: seção técnica específica de tipo de produto (não mostrar placeholder vazio)
+
+**Princípio geral, não específico de curva Q-H:** algumas seções do modal são
+conceitos técnicos que só existem para certos tipos de produto (curva Q-H é
+de bomba; poderia ser "vazão nominal" pra registro, "classe de pressão" pra
+tubo, etc). Quando o catálogo inteiro não tem esse conceito — porque a linha
+de produto não é desse tipo —, a seção **não deve aparecer nem como
+placeholder vazio** ("Curva não disponível", "—"). Isso é diferente de um
+produto individual que tem o conceito aplicável mas está com dado faltando
+(aí sim mostrar o placeholder faz sentido, é uma lacuna real de dados).
+
+**Como decidir automaticamente, sem configuração manual por catálogo:**
+`build.py` calcula, ao montar o `catalog.json`, se **algum** produto do
+catálogo tem aquele dado:
+```python
+tem_curva_qh = any(p.get('curva') for p in produtos)
+```
+- Se **nenhum** produto do catálogo tem `curva` → o conceito não se aplica a
+  esse tipo de peça → esconder a seção inteira (título + gráfico) em todos os
+  produtos, catálogo inteiro.
+- Se **algum** produto tem `curva` → o conceito se aplica a essa linha →
+  manter a seção visível; produtos individuais sem dado mostram o
+  placeholder normalmente (gap de dado real, não ausência de conceito).
+
+No template, um flag booleano no `catalog` (injetado via `{{ catalog | tojson | safe }}`,
+então disponível como `CATALOG.tem_curva_qh` no JS) controla isso **uma vez**,
+fora do `openModal()` (é constante pro catálogo inteiro, não precisa recalcular
+a cada abertura de modal):
+```javascript
+if (!CATALOG.tem_curva_qh) {
+  document.getElementById('modal-chart-wrap').style.display = 'none';
+  document.querySelector('.modal-body').classList.add('no-curve'); // grid 1 coluna
+}
+```
+```css
+.modal-body{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.modal-body.no-curve{grid-template-columns:1fr}  /* especificações ocupa tudo */
+```
+
+**Ao adicionar um novo tipo de dado técnico condicional** (não só curva Q-H),
+seguir o mesmo padrão: computar `tem_X` em `build_catalog()` a partir de
+`any(...)` sobre os produtos, expor no `catalog.json`, e esconder a seção
+inteira via JS quando `false` — nunca deixar um placeholder de "não
+disponível" aparecer pra um tipo de produto onde o dado não é um conceito
+aplicável.
+
+---
+
 ## Curva Q-H em SVG inline
 
 Gerada a partir de pontos `[vazão, altura, potência, rendimento]`:
