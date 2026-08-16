@@ -683,11 +683,10 @@ def main():
     parser.add_argument('--skip-ifc',     action='store_true',   help='Pula parse dos IFCs')
     parser.add_argument('--skip-preview', action='store_true',   help='Pula geração do preview HTML')
     parser.add_argument('--skip-zip',     action='store_true',   help='Pula geração do ZIP')
+    parser.add_argument('--yes', '-y',    action='store_true',   help='Usa config.json sem modo interativo')
     # --interactive mantido por compatibilidade, mas agora é sempre o modo padrão
     parser.add_argument('--interactive', '-i', action='store_true', help=argparse.SUPPRESS)
     args = parser.parse_args()
-
-    input_dir = os.path.join(ROOT, args.input_dir)
 
     # Carrega config.json existente como defaults (se houver)
     existing = None
@@ -699,7 +698,15 @@ def main():
         except (json.JSONDecodeError, OSError):
             existing = None
 
-    config = interactive_config(input_dir, existing)
+    if args.yes:
+        if not existing:
+            print(f'ERRO: --yes requer {args.config} existente.')
+            sys.exit(1)
+        config = existing
+        print(f'Usando config.json: {config["slug"]} ({config.get("layout","?")})')
+    else:
+        input_dir = os.path.join(ROOT, args.input_dir)
+        config = interactive_config(input_dir, existing)
 
     print(f'\n=== bilds-bim-3d: {config["titulo"]} ===\n')
 
