@@ -684,7 +684,7 @@ Este repo (`bilds-bim-3d`) só produz o ZIP e o preview — não edita o bilds.c
 |---|---|
 | Parse retorna 0 vértices para todos os produtos de um IFC exportado pelo Revit | Arquivo em BRep (`IFCFACETEDBREP`/`IFCADVANCEDBREP`), sem `IFCTRIANGULATEDFACESET` — confirmar com `grep -c IFCTRIANGULATEDFACESET arquivo.ifc`; fallback `_parse_via_ifcopenshell()` deve cobrir automaticamente (requer `ifcopenshell` instalado) |
 | Peças separadas por metros | resolve_lp() não acumula hierarquia recursivamente |
-| Fragmentos a 5–16m do corpo | LP aberrante no IFC exportado — filtrar outliers |
+| Fragmentos a 5–16m do corpo, valores de translação "redondos" (4.0, 5.0, 16.0) | **Checar `parse_floats()` primeiro** — bug de regex com mantissa STEP tipo `-4.E-16` (sem dígito após o ponto) vira 2 valores fantasmas; já corrigido em `scripts/parse_ifc.py`, mas confirmar se a versão está atualizada antes de suspeitar do IFC. Ver `docs/specs/leitor-ifc.md` |
 | Modelo ~1000× maior | Conversão mm→m desnecessária — verificar magnitude das coordenadas brutas |
 | Modelo cinza (tem cores no IFC) | build_face_color_map() não chamado, ou IFCINDEXEDCOLOURMAP não encontrado |
 | 0 cores do IFCCOLOURRGBLIST | Regex espera inteiros mas floats têm casas decimais |

@@ -251,6 +251,66 @@ def split_top(s):
 
 ---
 
+## Armadilha: regex de float STEP não trata mantissa sem dígitos após o ponto
+
+**Este bug produz o sintoma "fragmentos de peça a vários metros de distância no
+viewer 3D" — historicamente atribuído a `IFCLOCALPLACEMENT` aberrante no arquivo
+de origem, mas em pelo menos um caso confirmado a causa real era esta.**
+
+O formato STEP permite mantissa sem nenhum dígito depois do ponto quando há
+expoente — valores praticamente zero são frequentemente escritos assim por
+exportadores CAD:
+```
+-4.E-16
+2.E+05
+```
+
+Uma regex de float que trata os dígitos após o ponto como sempre opcionais
+falha nesse caso:
+
+```python
+# ERRADO — [0-9]+ no final é obrigatório, então o motor de regex não consegue
+# casar o '.' seguido direto de 'E': ele para em '-4' (sem consumir o '.'),
+# e o 'E-16' restante forma um número FANTASMA separado.
+re.findall(r'[-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?', '-4.E-16')
+# → ['-4', '-16']   (deveria ser um único valor: -4e-16 ≈ 0)
+```
+
+Um valor que deveria ser ~0 vira **dois valores espúrios grandes** (`-4.0` e
+`-16.0`). Quando isso cai na `Location` (translação) de um `IFCAXIS2PLACEMENT3D`
+dentro da cadeia de `IFCLOCALPLACEMENT`, o componente inteiro é deslocado alguns
+metros — exatamente o padrão "fragmento isolado longe do corpo principal" descrito
+na seção de outliers. O mesmo bug corrompe silenciosamente vetores de direção
+(rotação errada) e vértices de malha (`IFCCARTESIANPOINTLIST3D`) sempre que a
+coordenada bruta tiver esse formato — não é exclusivo de translações, só é mais
+visível ali.
+
+**Correto — mantissa exige dígito antes OU depois do ponto, nunca os dois
+opcionais ao mesmo tempo:**
+
+```python
+def parse_floats(s):
+    return [float(x) for x in re.findall(
+        r'[-+]?(?:[0-9]+\.[0-9]*|\.[0-9]+|[0-9]+)(?:[eE][-+]?[0-9]+)?', s
+    )]
+
+parse_floats('-4.E-16')   # → [-4e-16]  (correto)
+parse_floats('-0.07485,-4.E-16,1.2E-15')  # → 3 valores, não 4
+```
+
+**Diagnóstico**: antes de suspeitar de posicionamento aberrante no IFC de
+origem, confirmar se o arquivo tem esse padrão:
+```bash
+grep -oE '[-+]?[0-9]+\.[eE][-+]?[0-9]+' arquivo.ifc | wc -l
+```
+Se houver ocorrências, rastrear a cadeia de `IFCLOCALPLACEMENT` do componente
+afetado (`resolve_lp()` por proxy) e comparar a translação calculada com o valor
+bruto do `IFCCARTESIANPOINT` de origem — se o valor bruto for `~0` (notação
+`N.E±NN`) e o calculado for um número redondo grande (4.0, 5.0, 16.0…), é este
+bug, não um erro de modelagem.
+
+---
+
 ## Cores por face — IFCINDEXEDCOLOURMAP
 
 IFC4 armazena cor por face (triângulo) usando dois tipos de entidade **standalone** — elas existem no arquivo sem aparecer como filho de nenhuma outra entidade; a ligação é feita do mapa para o face set, não o contrário.
@@ -526,7 +586,7 @@ O parser tenta correspondência exata primeiro; se não encontrar, faz fuzzy mat
 | 0 vértices, entidades indexadas mas ignoradas | Regex `build_entity_index` com `)` opcional — `.*` captura `) ;` nos args | Usar `\((.*)\)\s*;?` com `)` obrigatório (ver seção "Armadilha: regex") |
 | Índices de face absurdos (bilhões) | `parts[1]` usado como CoordIndex — é Normals; CoordIndex está em `parts[3]` | Corrigir para `fs_parts[3]`; guard `if len(fs_parts) < 4: return` |
 | Peças separadas por metros | LP ignorado | Verificar `resolve_lp()` — deve acumular hierarquia recursivamente |
-| Fragmentos pequenos longe do corpo (ex: cluster a 5m ou 16m) | LP aberrante no IFC exportado (bug do modelador, não do parser) | Confirmar com `resolve_lp()` por proxy: se a translação acumulada de algum proxy exceder ~1m para peças industriais compactas, filtrar vértices outlier no JSON final (ver seção abaixo) |
+| Fragmentos pequenos longe do corpo (ex: cluster a 5m ou 16m, translação "redonda" tipo 4.0/16.0) | **Checar primeiro** `parse_floats()` — mantissa STEP tipo `-4.E-16` sem dígito após o ponto vira dois valores fantasmas (ver seção "Armadilha: regex de float STEP" acima). Só depois de descartar isso, suspeitar de LP aberrante real no arquivo (bug do modelador) | `grep -oE '[-+]?[0-9]+\.[eE][-+]?[0-9]+' arquivo.ifc` — se houver match, é o bug de regex, não o IFC. Se `parse_floats()` já estiver corrigido e o problema persistir, aí sim filtrar vértices outlier no JSON final (ver seção abaixo) |
 | Modelo ~1000× maior que o esperado | Conversão mm→m desnecessária | Verificar magnitude das coordenadas brutas antes de converter |
 | `ObjectPlacement` em índice errado | `split(',')` simples | Substituir por `split_top()` |
 | Saída vazia / 0 triângulos | `IFCELEMENTASSEMBLY` sendo processado em vez dos filhos | Pular entidades do tipo assembly no loop principal |
