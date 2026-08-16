@@ -606,16 +606,6 @@ Sombra: só no hover de cards clicáveis. Cards sem borda de hover por padrão.
 
 ---
 
-## Planos pendentes
-
-Arquivos em `docs/`:
-
-| Arquivo | O que faz |
-|---|---|
-| `plan-bim-catalog-hero-hover.md` | Porta hero section + hover 3D para os componentes React do bilds.com (`CatalogGridLayout.tsx`, `SeriesRowsLayout.tsx`, `BimViewer.tsx`) |
-
----
-
 ## Integração com bilds.com (implementada — fase 2 em progresso)
 
 O ZIP gerado por este projeto é consumido pelo bilds.com. As rotas e componentes
@@ -635,8 +625,11 @@ React já existem em `/home/foltz/bilds.com/`:
 - `types.ts` — `BimCatalogData`, `BimProduct`, `BimCatalogMeta`
 
 **Estado atual dos componentes React:**
-- Sem hero section (ver plan-bim-catalog-hero-hover.md)
-- `BimViewer.tsx` ainda usa click {once:true} para ativar rotação (ver mesmo plano)
+- Sem hero section
+- `BimViewer.tsx` ainda usa click {once:true} para ativar rotação
+
+Plano de portar hero + hover 3D pra esses componentes vive no repo `bilds.com`, não aqui —
+mudanças nesses arquivos são feitas em sessões separadas naquele projeto (ver nota abaixo).
 
 **API NestJS** (`bilds.com/apps/api`):
 - `GET /b-bim-3d/:customLink/:slug` — retorna meta + URLs S3
