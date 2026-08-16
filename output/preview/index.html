@@ -394,6 +394,7 @@
   <script>
     (function () {
       var LAYOUT_LABEL = { 'series-rows': 'linhas por série', 'catalog-grid': 'grid denso' };
+      var ALL_LAYOUTS = ['series-rows', 'catalog-grid'];
 
       function fmtDate(iso) {
         if (!iso) return '';
@@ -401,14 +402,35 @@
         return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
       }
 
-      function renderRow(cat) {
-        var layoutLabel = LAYOUT_LABEL[cat.layout] || cat.layout;
-        return '<tr class="table-row" onclick="location.href=\'/' + cat.slug + '\'">'
-          + '<td class="tc-fabricante">' + esc(cat.fabricante) + '</td>'
-          + '<td class="tc-titulo">' + esc(cat.titulo) + '</td>'
-          + '<td class="tc-n" style="text-align:right">' + cat.n_produtos + '</td>'
-          + '<td class="tc-layout"><span class="layout-pill">' + esc(layoutLabel) + '</span></td>'
-          + '<td class="tc-date">' + fmtDate(cat.updated_at) + '</td>'
+      // Cada catálogo sempre gera as duas páginas de layout (ver build.py) —
+      // lista uma linha por página, não uma por catálogo, para dar acesso
+      // direto às duas variantes na validação.
+      function catalogPages(cat) {
+        return ALL_LAYOUTS.map(function (layout) {
+          var isPrimary = layout === cat.layout;
+          return {
+            fabricante: cat.fabricante,
+            titulo: cat.titulo,
+            n_produtos: cat.n_produtos,
+            layout: layout,
+            isPrimary: isPrimary,
+            updated_at: cat.updated_at,
+            href: '/' + cat.slug + '/' + (isPrimary ? '' : layout),
+          };
+        });
+      }
+
+      function renderRow(page) {
+        var layoutLabel = LAYOUT_LABEL[page.layout] || page.layout;
+        var primaryTag = page.isPrimary
+          ? '<span style="margin-left:6px;font-size:11px;color:var(--text-secondary)">· primário</span>'
+          : '';
+        return '<tr class="table-row" onclick="location.href=\'' + page.href + '\'">'
+          + '<td class="tc-fabricante">' + esc(page.fabricante) + '</td>'
+          + '<td class="tc-titulo">' + esc(page.titulo) + '</td>'
+          + '<td class="tc-n" style="text-align:right">' + page.n_produtos + '</td>'
+          + '<td class="tc-layout"><span class="layout-pill">' + esc(layoutLabel) + '</span>' + primaryTag + '</td>'
+          + '<td class="tc-date">' + fmtDate(page.updated_at) + '</td>'
           + '</tr>';
       }
 
@@ -434,9 +456,14 @@
             tbody.innerHTML = renderEmptyRow();
             label.textContent = '';
           } else {
-            var n = catalogs.length;
-            label.textContent = n === 1 ? '1 catálogo' : (n + ' catálogos');
-            tbody.innerHTML = catalogs.map(renderRow).join('');
+            var pages = catalogs.reduce(function (acc, cat) {
+              return acc.concat(catalogPages(cat));
+            }, []);
+            var nCat = catalogs.length;
+            var nPages = pages.length;
+            label.textContent = nPages + ' página' + (nPages === 1 ? '' : 's')
+              + ' · ' + nCat + ' catálogo' + (nCat === 1 ? '' : 's');
+            tbody.innerHTML = pages.map(renderRow).join('');
           }
         })
         .catch(function () {
