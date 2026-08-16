@@ -459,18 +459,32 @@ def scan_input(input_dir):
         for f in sorted(entries) if f.lower().endswith('.aq')
     ]
 
-    # Detecta subdirs que contêm IFCs
-    subdir_counts = {}
+    # Detecta subdirs que contêm IFCs (busca recursiva)
+    subdir_first_ifc = {}   # d → caminho relativo do 1º IFC encontrado
+    subdir_counts    = {}   # d → total de IFCs
     for d in sorted(entries):
         dpath = os.path.join(input_dir, d)
-        if os.path.isdir(dpath):
-            n = sum(1 for f in os.listdir(dpath) if f.lower().endswith('.ifc'))
-            if n > 0:
-                subdir_counts[d] = n
+        if not os.path.isdir(dpath):
+            continue
+        first = None
+        total = 0
+        for root, _dirs, files in os.walk(dpath):
+            for f in sorted(files):
+                if f.lower().endswith('.ifc'):
+                    total += 1
+                    if first is None:
+                        first = os.path.relpath(
+                            os.path.join(root, f), input_dir
+                        )
+        if total > 0:
+            subdir_counts[d]    = total
+            subdir_first_ifc[d] = first
 
     if subdir_counts and not ifc_flat:
+        # Chave = caminho relativo do 1º IFC (parse real); label mostra o nome da pasta
         entries_out = [
-            (f'{d}/ ({subdir_counts[d]} IFCs)', slugify(d))
+            (subdir_first_ifc[d], slugify(d),
+             f'{d}/ ({subdir_counts[d]} IFC{"s" if subdir_counts[d] > 1 else ""})')
             for d in subdir_counts
         ]
         return entries_out, 'subdir', aq_paths
@@ -599,18 +613,25 @@ def interactive_config(input_dir, existing=None):
     file_map = {}
     existing_fm = ec.get('file_map', {})
 
-    for display, sug_slug_prod in ifc_entries:
-        # Se já existe no config, usa como default
-        existing_slug = existing_fm.get(display, '')
+    for entry in ifc_entries:
+        # Tupla pode ter 2 (flat) ou 3 elementos (subdir: ifc_path, slug, label)
+        if len(entry) == 3:
+            ifc_key, sug_slug_prod, label = entry
+        else:
+            ifc_key, sug_slug_prod = entry
+            label = ifc_key
+
+        # Default: slug já existente no file_map para este arquivo
+        existing_slug = existing_fm.get(ifc_key, '')
         # Tenta match com .aq para sugerir um slug mais preciso
         if not existing_slug and hints.get('grupos'):
             matched_gp = match_slug_to_aq(sug_slug_prod, hints['grupos'])
             if matched_gp:
                 sug_slug_prod = slugify(matched_gp)[:40]
         default_slug = existing_slug or sug_slug_prod
-        prod_slug = ask(display, default=default_slug)
+        prod_slug = ask(label, default=default_slug)
         if prod_slug:
-            file_map[display] = prod_slug
+            file_map[ifc_key] = prod_slug
 
     # ── Monta e salva config ─────────────────────────────────────
     config = {

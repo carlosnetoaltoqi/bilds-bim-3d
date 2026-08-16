@@ -13,186 +13,144 @@
       "id": "adaptador",
       "nome": "Adaptador com Anel Labial SN",
       "serie": "Conexões",
-      "geo": "adaptador.json",
-      "potencia": null,
-      "conexoes": "",
       "specs": {
         "Série": "SN",
-        "Material": "PVC",
-        "Uso": "Esgoto predial"
+        "Material": "PVC"
       },
-      "curva": null
+      "curva": null,
+      "geo": "adaptador.json"
     },
     {
       "id": "caixa-sifonada",
       "nome": "Caixa Sifonada",
       "serie": "Acessórios",
-      "geo": "caixa-sifonada.json",
-      "potencia": null,
-      "conexoes": "",
       "specs": {
-        "Material": "PVC",
-        "Uso": "Esgoto predial"
+        "Material": "PVC"
       },
-      "curva": null
+      "curva": null,
+      "geo": "caixa-sifonada.json"
     },
     {
       "id": "cap",
       "nome": "Cap SN",
       "serie": "Conexões",
-      "geo": "cap.json",
-      "potencia": null,
-      "conexoes": "",
       "specs": {
         "Série": "SN",
-        "Material": "PVC",
-        "Uso": "Esgoto predial"
+        "Material": "PVC"
       },
-      "curva": null
+      "curva": null,
+      "geo": "cap.json"
     },
     {
       "id": "curvas",
       "nome": "Curvas",
       "serie": "Conexões",
-      "geo": "curvas.json",
-      "potencia": null,
-      "conexoes": "",
       "specs": {
-        "Material": "PVC",
-        "Uso": "Esgoto predial"
+        "Material": "PVC"
       },
-      "curva": null
+      "curva": null,
+      "geo": "curvas.json"
     },
     {
       "id": "joelhos",
       "nome": "Joelhos",
       "serie": "Conexões",
-      "geo": "joelhos.json",
-      "potencia": null,
-      "conexoes": "",
       "specs": {
-        "Material": "PVC",
-        "Uso": "Esgoto predial"
+        "Material": "PVC"
       },
-      "curva": null
+      "curva": null,
+      "geo": "joelhos.json"
     },
     {
       "id": "juncao",
       "nome": "Junção",
       "serie": "Conexões",
-      "geo": "juncao.json",
-      "potencia": null,
-      "conexoes": "",
       "specs": {
-        "Material": "PVC",
-        "Uso": "Esgoto predial"
+        "Material": "PVC"
       },
-      "curva": null
+      "curva": null,
+      "geo": "juncao.json"
     },
     {
       "id": "luvas",
       "nome": "Luvas",
       "serie": "Conexões",
-      "geo": "luvas.json",
-      "potencia": null,
-      "conexoes": "",
       "specs": {
-        "Material": "PVC",
-        "Uso": "Esgoto predial"
+        "Material": "PVC"
       },
-      "curva": null
+      "curva": null,
+      "geo": "luvas.json"
     },
     {
       "id": "pecas-especiais",
       "nome": "Peças Especiais",
       "serie": "Acessórios",
-      "geo": "pecas-especiais.json",
-      "potencia": null,
-      "conexoes": "",
       "specs": {
-        "Material": "PVC",
-        "Uso": "Esgoto predial"
+        "Material": "PVC"
       },
-      "curva": null
+      "curva": null,
+      "geo": "pecas-especiais.json"
     },
     {
       "id": "plug",
       "nome": "Plug SN",
       "serie": "Acessórios",
-      "geo": "plug.json",
-      "potencia": null,
-      "conexoes": "",
       "specs": {
         "Série": "SN",
-        "Material": "PVC",
-        "Uso": "Esgoto predial"
+        "Material": "PVC"
       },
-      "curva": null
+      "curva": null,
+      "geo": "plug.json"
     },
     {
       "id": "ralo",
       "nome": "Ralo",
       "serie": "Acessórios",
-      "geo": "ralo.json",
-      "potencia": null,
-      "conexoes": "",
       "specs": {
-        "Material": "PVC",
-        "Uso": "Esgoto predial"
+        "Material": "PVC"
       },
-      "curva": null
+      "curva": null,
+      "geo": "ralo.json"
     },
     {
       "id": "reducao",
       "nome": "Redução",
       "serie": "Conexões",
-      "geo": "reducao.json",
-      "potencia": null,
-      "conexoes": "",
       "specs": {
-        "Material": "PVC",
-        "Uso": "Esgoto predial"
+        "Material": "PVC"
       },
-      "curva": null
+      "curva": null,
+      "geo": "reducao.json"
     },
     {
       "id": "terminal-ventilacao",
       "nome": "Terminal de Ventilação",
       "serie": "Acessórios",
-      "geo": "terminal-ventilacao.json",
-      "potencia": null,
-      "conexoes": "",
       "specs": {
-        "Material": "PVC",
-        "Uso": "Esgoto predial"
+        "Material": "PVC"
       },
-      "curva": null
+      "curva": null,
+      "geo": "terminal-ventilacao.json"
     },
     {
       "id": "tes",
       "nome": "Tês",
       "serie": "Conexões",
-      "geo": "tes.json",
-      "potencia": null,
-      "conexoes": "",
       "specs": {
-        "Material": "PVC",
-        "Uso": "Esgoto predial"
+        "Material": "PVC"
       },
-      "curva": null
+      "curva": null,
+      "geo": "tes.json"
     },
     {
       "id": "valvula-retencao",
       "nome": "Válvula de Retenção",
       "serie": "Acessórios",
-      "geo": "valvula-retencao.json",
-      "potencia": null,
-      "conexoes": "",
       "specs": {
-        "Material": "PVC",
-        "Uso": "Esgoto predial"
+        "Material": "PVC"
       },
-      "curva": null
+      "curva": null,
+      "geo": "valvula-retencao.json"
     }
   ]
 }
