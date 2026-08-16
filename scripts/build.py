@@ -60,6 +60,8 @@ GEO_DIR = os.path.join(OUTPUT_DIR, 'geo')
 # ─── Matching IFC → AQ ───────────────────────────────────────────────────────
 
 def slugify(s):
+    import unicodedata
+    s = unicodedata.normalize('NFKD', s).encode('ascii', 'ignore').decode('ascii')
     return re.sub(r'[^a-z0-9]+', '-', s.lower()).strip('-')
 
 
