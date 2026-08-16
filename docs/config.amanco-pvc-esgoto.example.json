@@ -1,0 +1,40 @@
+{
+  "slug": "amanco-pvc-esgoto",
+  "titulo": "PVC Esgoto SN, SR e Silentium",
+  "fabricante": "Amanco Wavin",
+  "descricao": "Linha completa de conexões e acessórios em PVC para sistemas de esgoto predial, nas séries SN, SR e Silentium.",
+  "layout": "catalog-grid",
+  "ifc_dir": "/home/foltz/bilds-bim-3d/input/Amanco/PVC Esgoto SN, SR e Silentium/Esgoto",
+  "file_map": {
+    "Adaptador com Anel Labial SN/40mm x 38mm + bolsa do tubo.ifc": "adaptador",
+    "Caixa Sifonada/Caixa 5 entradas/Quadrada DN 150.ifc": "caixa-sifonada",
+    "Cap/PVC Esgoto SN/100mm.ifc": "cap",
+    "Curvas/Curva 45 longa dupla SN/Com luva/100mm.ifc": "curvas",
+    "Joelhos/Joelho 90º com Anel Labial/40mm x 38mm - SN.ifc": "joelhos",
+    "Junção/Junção Invertida SN/Junção invertida de redução SN/Com luva/100mm x 50mm.ifc": "juncao",
+    "Luvas/Luva Simples/SR/100mm.ifc": "luvas",
+    "Peças Especiais/Sifão Expert/0º - 50mm.ifc": "pecas-especiais",
+    "Plug SN/Com luva/100mm.ifc": "plug",
+    "Ralo/Ralo Seco DN40.ifc": "ralo",
+    "Redução/Redução Excêntrica/Com luva/SR/100mm x 150mm.ifc": "reducao",
+    "Terminal de Ventilação/Silentium/50mm.ifc": "terminal-ventilacao",
+    "Tês/Tê/40mm SN.ifc": "tes",
+    "Válvula de Retenção/100mm sem tampa.ifc": "valvula-retencao"
+  },
+  "products_override": [
+    {"id": "adaptador", "nome": "Adaptador com Anel Labial SN", "serie": "Conexões", "specs": {"Série": "SN", "Material": "PVC"}, "curva": null},
+    {"id": "caixa-sifonada", "nome": "Caixa Sifonada", "serie": "Acessórios", "specs": {"Material": "PVC"}, "curva": null},
+    {"id": "cap", "nome": "Cap SN", "serie": "Conexões", "specs": {"Série": "SN", "Material": "PVC"}, "curva": null},
+    {"id": "curvas", "nome": "Curvas", "serie": "Conexões", "specs": {"Material": "PVC"}, "curva": null},
+    {"id": "joelhos", "nome": "Joelhos", "serie": "Conexões", "specs": {"Material": "PVC"}, "curva": null},
+    {"id": "juncao", "nome": "Junção", "serie": "Conexões", "specs": {"Material": "PVC"}, "curva": null},
+    {"id": "luvas", "nome": "Luvas", "serie": "Conexões", "specs": {"Material": "PVC"}, "curva": null},
+    {"id": "pecas-especiais", "nome": "Peças Especiais", "serie": "Acessórios", "specs": {"Material": "PVC"}, "curva": null},
+    {"id": "plug", "nome": "Plug SN", "serie": "Acessórios", "specs": {"Série": "SN", "Material": "PVC"}, "curva": null},
+    {"id": "ralo", "nome": "Ralo", "serie": "Acessórios", "specs": {"Material": "PVC"}, "curva": null},
+    {"id": "reducao", "nome": "Redução", "serie": "Conexões", "specs": {"Material": "PVC"}, "curva": null},
+    {"id": "terminal-ventilacao", "nome": "Terminal de Ventilação", "serie": "Acessórios", "specs": {"Material": "PVC"}, "curva": null},
+    {"id": "tes", "nome": "Tês", "serie": "Conexões", "specs": {"Material": "PVC"}, "curva": null},
+    {"id": "valvula-retencao", "nome": "Válvula de Retenção", "serie": "Acessórios", "specs": {"Material": "PVC"}, "curva": null}
+  ]
+}

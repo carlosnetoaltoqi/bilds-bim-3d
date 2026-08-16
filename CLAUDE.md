@@ -494,6 +494,44 @@ Identificar pelo bounding box do JSON e filtrar com threshold por tipo de equipa
 - Válvula/fitting: 2m
 - Equipamento grande (chiller): 10m
 
+### Fallback ifcopenshell — IFCs sem IFCTRIANGULATEDFACESET (BRep do Revit)
+
+O parser manual só entende malha já tesselada (`IFCTRIANGULATEDFACESET`, típico de
+exportadores CATIA/AltoQi). Exportadores Revit geram sólidos BRep
+(`IFCFACETEDBREP`, `IFCADVANCEDBREP`, inclusive superfícies curvas) — formato que
+exige tesselação real de CAD, não dá pra resolver só com regex sobre o STEP.
+
+Quando `parse_ifc_file()` não encontra nenhum `IFCTRIANGULATEDFACESET` (0 vértices
+no resultado do parser manual), cai automaticamente em `_parse_via_ifcopenshell()`
+(mesmo arquivo `parse_ifc.py`), que usa a biblioteca `ifcopenshell` (OpenCascade)
+para tesselar qualquer representação sólida. Ela já devolve:
+- coordenadas em metros e em espaço de mundo (`USE_WORLD_COORDS`) — não precisa
+  resolver `IFCLOCALPLACEMENT` manualmente nesse caminho
+- cor por material via `geometry.materials` / `material_ids` (método `.r()/.g()/.b()`
+  no objeto de cor, não subscriptable como tupla)
+
+Requer `ifcopenshell` instalado (`requirements.txt`). Retorna geometria expandida
+(sem `idx`) no mesmo formato `{pos, col}` do caminho colorido manual — o `dedup.py`
+compacta normalmente depois.
+
+**Armadilha resolvida:** um catálogo anterior parecia funcionar com esses mesmos
+arquivos porque a geometria tinha sido pré-processada por fora do projeto (fora do
+`parse_ifc.py`) numa sessão anterior, sem deixar código commitado — ao tentar
+reproduzir o build do zero, o pipeline oficial falhava silenciosamente (0 vértices)
+porque nunca soube ler BRep. Não confiar em builds antigos como prova de que o
+parser suporta um formato — sempre checar se `IFCTRIANGULATEDFACESET` aparece no
+arquivo (`grep -c IFCTRIANGULATEDFACESET arquivo.ifc`).
+
+### Padrão: um modelo representativo por categoria (catálogos com centenas de variantes)
+
+Quando `input/` traz uma pasta por categoria com dezenas/centenas de IFCs de
+variantes (tamanhos, diâmetros), não faz sentido tratar cada variante como produto
+separado no catálogo visual — o `scan_input()` já detecta isso (modo `subdir`) e
+usa só o primeiro IFC de cada pasta como modelo 3D representativo da categoria.
+Os dados reais de cada categoria (nome, série/agrupamento para filtro, specs) vêm
+de `products_override` no `config.json`, escritos manualmente — não de match
+automático com `.aq` (que nem sempre existe ou bate com esse nível de agrupamento).
+
 ---
 
 ## Conhecimento crítico: read_aq.py
@@ -644,6 +682,7 @@ Este repo (`bilds-bim-3d`) só produz o ZIP e o preview — não edita o bilds.c
 
 | Sintoma | Causa provável |
 |---|---|
+| Parse retorna 0 vértices para todos os produtos de um IFC exportado pelo Revit | Arquivo em BRep (`IFCFACETEDBREP`/`IFCADVANCEDBREP`), sem `IFCTRIANGULATEDFACESET` — confirmar com `grep -c IFCTRIANGULATEDFACESET arquivo.ifc`; fallback `_parse_via_ifcopenshell()` deve cobrir automaticamente (requer `ifcopenshell` instalado) |
 | Peças separadas por metros | resolve_lp() não acumula hierarquia recursivamente |
 | Fragmentos a 5–16m do corpo | LP aberrante no IFC exportado — filtrar outliers |
 | Modelo ~1000× maior | Conversão mm→m desnecessária — verificar magnitude das coordenadas brutas |

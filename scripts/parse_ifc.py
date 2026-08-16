@@ -424,10 +424,74 @@ def parse_ifc_file(ifc_path, default_rgb=None):
                     _process_faceset(item_id, idx, M_final, face_color_map,
                                      default_rgb, pos_out, col_out, idx_out)
 
+    if not pos_out:
+        # Nenhum IFCTRIANGULATEDFACESET no arquivo — exportador não-tessellated
+        # (ex: Revit gera IFCFACETEDBREP/IFCADVANCEDBREP). Cai para ifcopenshell,
+        # que tesseliza qualquer representação sólida via OpenCascade.
+        return _parse_via_ifcopenshell(ifc_path, default_rgb)
+
     result = {'pos': pos_out, 'col': col_out}
     if idx_out:
         result['idx'] = idx_out
     return result
+
+
+def _parse_via_ifcopenshell(ifc_path, default_rgb):
+    """
+    Fallback para IFCs cuja geometria não é IFCTRIANGULATEDFACESET (ex: sólidos
+    BRep/Revit — IFCFACETEDBREP, IFCADVANCEDBREP, swept solids). ifcopenshell
+    tesseliza qualquer representação via OpenCascade e já devolve coordenadas
+    em metros e em coordenadas de mundo (USE_WORLD_COORDS), sem precisar
+    resolver IFCLOCALPLACEMENT manualmente.
+
+    Retorna geometria expandida (sem idx) — cor por triângulo via material.
+    """
+    try:
+        import ifcopenshell
+        import ifcopenshell.geom
+    except ImportError as e:
+        raise RuntimeError(
+            'ifcopenshell não instalado — necessário para IFCs em formato BRep '
+            '(sem IFCTRIANGULATEDFACESET). Rode: pip install -r requirements.txt'
+        ) from e
+
+    settings = ifcopenshell.geom.settings()
+    settings.set(settings.USE_WORLD_COORDS, True)
+
+    ifc_file = ifcopenshell.open(ifc_path)
+    pos_out = []
+    col_out = []
+
+    for product in ifc_file.by_type('IFCPRODUCT'):
+        if not getattr(product, 'Representation', None):
+            continue
+        try:
+            shape = ifcopenshell.geom.create_shape(settings, product)
+        except Exception:
+            continue
+
+        geom = shape.geometry
+        verts = geom.verts
+        faces = geom.faces
+        materials = geom.materials
+        material_ids = geom.material_ids
+
+        mat_colors = []
+        for m in materials:
+            c = getattr(m, 'diffuse', None)
+            mat_colors.append([c.r(), c.g(), c.b()] if c else default_rgb)
+
+        n_tris = len(faces) // 3
+        for t in range(n_tris):
+            mi = material_ids[t] if t < len(material_ids) else -1
+            rgb = mat_colors[mi] if 0 <= mi < len(mat_colors) else default_rgb
+            for k in range(3):
+                vi = faces[t * 3 + k]
+                x, y, z = verts[vi * 3], verts[vi * 3 + 1], verts[vi * 3 + 2]
+                pos_out += [x, z, -y]  # IFC Z-up → Three.js Y-up
+                col_out += rgb
+
+    return {'pos': pos_out, 'col': col_out}
 
 
 def _process_faceset(fs_id, idx, M, face_color_map, default_rgb, pos_out, col_out, idx_out):

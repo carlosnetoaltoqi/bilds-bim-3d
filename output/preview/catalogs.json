@@ -1,1 +1,20 @@
-[]
+[
+  {
+    "slug": "bombas-incendio",
+    "titulo": "Bombas de Combate a Incêndio",
+    "fabricante": "Dancor",
+    "descricao": "Linha CAM-W e TJM para sistemas prediais de combate a incêndio.",
+    "layout": "series-rows",
+    "n_produtos": 14,
+    "updated_at": "2026-08-16"
+  },
+  {
+    "slug": "amanco-pvc-esgoto",
+    "titulo": "PVC Esgoto SN, SR e Silentium",
+    "fabricante": "Amanco Wavin",
+    "descricao": "Linha completa de conexões e acessórios em PVC para sistemas de esgoto predial, nas séries SN, SR e Silentium.",
+    "layout": "catalog-grid",
+    "n_produtos": 14,
+    "updated_at": "2026-08-16"
+  }
+]

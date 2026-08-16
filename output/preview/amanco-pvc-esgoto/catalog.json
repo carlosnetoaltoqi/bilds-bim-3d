@@ -1,0 +1,156 @@
+{
+  "slug": "amanco-pvc-esgoto",
+  "titulo": "PVC Esgoto SN, SR e Silentium",
+  "fabricante": "Amanco Wavin",
+  "descricao": "Linha completa de conexões e acessórios em PVC para sistemas de esgoto predial, nas séries SN, SR e Silentium.",
+  "layout": "catalog-grid",
+  "filtros": [
+    "Acessórios",
+    "Conexões"
+  ],
+  "produtos": [
+    {
+      "id": "adaptador",
+      "nome": "Adaptador com Anel Labial SN",
+      "serie": "Conexões",
+      "specs": {
+        "Série": "SN",
+        "Material": "PVC"
+      },
+      "curva": null,
+      "geo": "adaptador.json"
+    },
+    {
+      "id": "caixa-sifonada",
+      "nome": "Caixa Sifonada",
+      "serie": "Acessórios",
+      "specs": {
+        "Material": "PVC"
+      },
+      "curva": null,
+      "geo": "caixa-sifonada.json"
+    },
+    {
+      "id": "cap",
+      "nome": "Cap SN",
+      "serie": "Conexões",
+      "specs": {
+        "Série": "SN",
+        "Material": "PVC"
+      },
+      "curva": null,
+      "geo": "cap.json"
+    },
+    {
+      "id": "curvas",
+      "nome": "Curvas",
+      "serie": "Conexões",
+      "specs": {
+        "Material": "PVC"
+      },
+      "curva": null,
+      "geo": "curvas.json"
+    },
+    {
+      "id": "joelhos",
+      "nome": "Joelhos",
+      "serie": "Conexões",
+      "specs": {
+        "Material": "PVC"
+      },
+      "curva": null,
+      "geo": "joelhos.json"
+    },
+    {
+      "id": "juncao",
+      "nome": "Junção",
+      "serie": "Conexões",
+      "specs": {
+        "Material": "PVC"
+      },
+      "curva": null,
+      "geo": "juncao.json"
+    },
+    {
+      "id": "luvas",
+      "nome": "Luvas",
+      "serie": "Conexões",
+      "specs": {
+        "Material": "PVC"
+      },
+      "curva": null,
+      "geo": "luvas.json"
+    },
+    {
+      "id": "pecas-especiais",
+      "nome": "Peças Especiais",
+      "serie": "Acessórios",
+      "specs": {
+        "Material": "PVC"
+      },
+      "curva": null,
+      "geo": "pecas-especiais.json"
+    },
+    {
+      "id": "plug",
+      "nome": "Plug SN",
+      "serie": "Acessórios",
+      "specs": {
+        "Série": "SN",
+        "Material": "PVC"
+      },
+      "curva": null,
+      "geo": "plug.json"
+    },
+    {
+      "id": "ralo",
+      "nome": "Ralo",
+      "serie": "Acessórios",
+      "specs": {
+        "Material": "PVC"
+      },
+      "curva": null,
+      "geo": "ralo.json"
+    },
+    {
+      "id": "reducao",
+      "nome": "Redução",
+      "serie": "Conexões",
+      "specs": {
+        "Material": "PVC"
+      },
+      "curva": null,
+      "geo": "reducao.json"
+    },
+    {
+      "id": "terminal-ventilacao",
+      "nome": "Terminal de Ventilação",
+      "serie": "Acessórios",
+      "specs": {
+        "Material": "PVC"
+      },
+      "curva": null,
+      "geo": "terminal-ventilacao.json"
+    },
+    {
+      "id": "tes",
+      "nome": "Tês",
+      "serie": "Conexões",
+      "specs": {
+        "Material": "PVC"
+      },
+      "curva": null,
+      "geo": "tes.json"
+    },
+    {
+      "id": "valvula-retencao",
+      "nome": "Válvula de Retenção",
+      "serie": "Acessórios",
+      "specs": {
+        "Material": "PVC"
+      },
+      "curva": null,
+      "geo": "valvula-retencao.json"
+    }
+  ]
+}
