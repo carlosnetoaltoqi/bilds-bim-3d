@@ -55,14 +55,17 @@ este protocolo de autonomia total sem pedir confirmação a cada passo:
 Após qualquer decisão de mudança (edição de arquivo, geração de catálogo, correção de bug):
 
 ```bash
-# 1. Commit local
+# 1. Rodar o build (--yes protege o file_map; --skip-ifc se geo já existe)
+python3 scripts/build.py --yes [--skip-ifc]
+
+# 2. Commit local
 git add <arquivos relevantes>
 git commit -m "<mensagem descritiva>"
 
-# 2. Push remoto
+# 3. Push remoto
 git push
 
-# 3. Deploy na Vercel (preview do projeto)
+# 4. Deploy na Vercel (preview do projeto)
 vercel deploy output/preview/ --prod
 ```
 
@@ -136,17 +139,31 @@ Clonado em qualquer máquina, produz o mesmo resultado dado os mesmos inputs.
 
 ## Fluxo do usuário
 
+**Primeira vez (sem config.json):**
 ```
 1. Clonar este repo
-2. Rodar: bash scripts/setup_vendor.sh  (baixa Three.js para templates/vendor/)
-3. pip install -r requirements.txt      (instala Jinja2)
+2. bash scripts/setup_vendor.sh      ← baixa Three.js para output/preview/vendor/
+3. pip install -r requirements.txt   ← instala Jinja2
 4. Copiar arquivos .IFC e .aq para input/
-5. Copiar config.example.json → config.json, editar com seus dados
-6. python3 scripts/build.py --config config.json
-7. Preview local: python3 -m http.server 8080 --directory output/preview
-8. Abrir: http://localhost:8080
-9. Subir output/bilds-upload.zip no dashboard.bilds.com → BIM 3D
+5. python3 scripts/build.py          ← modo interativo: cria config.json + roda tudo
+6. Preview: python3 -m http.server 8080 --directory output/preview
+7. Abrir: http://localhost:8080/{slug}
+8. Subir output/bilds-upload.zip no dashboard.bilds.com → BIM 3D
 ```
+
+**Sessões seguintes (config.json já existe, IFCs já parseados):**
+```
+python3 scripts/build.py --yes --skip-ifc
+```
+
+**Sessões seguintes (re-parsear IFCs, ex: depois de limpar output/geo/):**
+```
+python3 scripts/build.py --yes
+```
+
+> **config.json é gitignored** — nunca commitado. Cada máquina cria o seu via modo
+> interativo ou copiando manualmente. `output/geo/` também é gitignored — sempre
+> gerado localmente pelo parse.
 
 ---
 
@@ -332,16 +349,23 @@ o zip inteiro. `catalog.json` e `geo/*.json` vão para S3, registrados no MongoD
 
 ## Conhecimento crítico: build.py
 
-### Modo sempre-interativo
+### Modos de execução
 
-`build.py` é **sempre interativo** — exibe prompts para confirmar/editar cada campo
-(slug, título, fabricante, layout, file_map, etc.). Se `config.json` já existe, carrega
-como defaults: o usuário só pressiona Enter para aceitar.
+`build.py` tem dois modos:
+
+**Interativo** (padrão — sem `--yes`): exibe prompts para cada campo. Se `config.json`
+existe, usa como defaults; o operador pressiona Enter para aceitar. **Atenção:** o modo
+interativo chama `scan_input()` que detecta a estrutura de `input/`. Se `input/` tiver
+subdirs (ex: `Amanco/`, `Dancor/`), vai sugerir slugs de diretório em vez dos slugs por
+produto. Nesses casos, preferir `--yes` para proteger o `file_map` existente.
+
+**Não-interativo** (`--yes` / `-y`): usa `config.json` como está, sem perguntas.
+Requer `config.json` existente. É o modo seguro para sessões repetidas.
 
 Flags úteis:
-- `--skip-ifc` — pula o `parse_ifc.py` e usa os JSONs de geometria já existentes em
-  `output/geo/`. Útil quando os IFCs foram parseados em sessão anterior e só os dados
-  do catálogo mudaram.
+- `--yes` / `-y` — usa config.json sem modo interativo. **Usar sempre em sessões seguintes.**
+- `--skip-ifc` — pula o `parse_ifc.py` e usa os JSONs de `output/geo/` já existentes.
+  Combinar com `--yes` para rebuild rápido: `python3 scripts/build.py --yes --skip-ifc`
 
 ### slugify() — normalização unicode obrigatória
 
