@@ -35,7 +35,10 @@ python3 -m http.server 8080 --directory output/preview
 
 | Arquivo | Uso |
 |---|---|
-| `output/preview/index.html` | Preview local ou via Vercel |
+| `output/preview/index.html` | Índice dos catálogos — listagem de todos os builds |
+| `output/preview/catalogs.json` | Registro automático de catálogos gerados |
+| `output/preview/{slug}/index.html` | Preview do catálogo (gerado pelo build) |
+| `output/preview/data/{slug}.json` | Geometria 3D de cada produto |
 | `output/bilds-upload.zip` | Upload no dashboard.bilds.com |
 
 ## Layouts
@@ -57,10 +60,15 @@ python3 scripts/build.py --skip-zip              # só gera preview
 
 ## Preview via Vercel
 
+Após o build, faça commit e push. O deploy acontece automaticamente.
+
 ```bash
-# Deploy manual do preview
-vercel deploy output/preview/ --prod
+git add output/preview/
+git commit -m "build: catálogo {slug}"
+git push
 ```
+
+A página de índice fica em `bilds-bim-3d.vercel.app` e cada catálogo em `bilds-bim-3d.vercel.app/{slug}`.
 
 ## Requisitos
 

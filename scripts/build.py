@@ -241,30 +241,37 @@ def run_ifc_parse(config):
 # ─── Build do preview HTML ────────────────────────────────────────────────────
 
 def build_preview(catalog, layout):
-    """Gera output/preview/ com index.html, catalog.json, data/ e vendor/."""
-    os.makedirs(PREVIEW_DIR, exist_ok=True)
+    """
+    Gera output/preview/{slug}/ com index.html, catalog.json e data/.
+    Arquivos compartilhados (vendor/) ficam em output/preview/vendor/.
+    Cada catálogo fica em seu próprio subdiretório para não sobrescrever o índice.
+    """
+    catalog_slug = catalog['slug']
+    catalog_dir = os.path.join(PREVIEW_DIR, catalog_slug)
+    os.makedirs(catalog_dir, exist_ok=True)
+
+    # data/ fica no root do preview (compartilhado entre catálogos)
     data_dir = os.path.join(PREVIEW_DIR, 'data')
     os.makedirs(data_dir, exist_ok=True)
 
-    # Copia geo files
+    # Copia geo files para /data/ (prefixo do slug garante unicidade)
     for produto in catalog['produtos']:
-        slug = produto['geo'].replace('.json', '')
-        src = os.path.join(GEO_DIR, f'{slug}.json')
+        geo_slug = produto['geo'].replace('.json', '')
+        src = os.path.join(GEO_DIR, f'{geo_slug}.json')
         if os.path.exists(src):
-            shutil.copy(src, os.path.join(data_dir, f'{slug}.json'))
+            shutil.copy(src, os.path.join(data_dir, f'{geo_slug}.json'))
 
-    # Copia vendor/
+    # vendor/ fica no root do preview (compartilhado)
     vendor_src = os.path.join(TEMPLATES_DIR, 'vendor')
     vendor_dst = os.path.join(PREVIEW_DIR, 'vendor')
     if os.path.exists(vendor_src) and os.listdir(vendor_src):
-        if os.path.exists(vendor_dst):
-            shutil.rmtree(vendor_dst)
-        shutil.copytree(vendor_src, vendor_dst)
+        if not os.path.exists(vendor_dst):
+            shutil.copytree(vendor_src, vendor_dst)
     else:
         print('  AVISO: templates/vendor/ vazio — rode scripts/setup_vendor.sh')
 
-    # Salva catalog.json no preview
-    cat_path = os.path.join(PREVIEW_DIR, 'catalog.json')
+    # Salva catalog.json no diretório do catálogo
+    cat_path = os.path.join(catalog_dir, 'catalog.json')
     with open(cat_path, 'w', encoding='utf-8') as f:
         json.dump(catalog, f, ensure_ascii=False, indent=2)
 
@@ -284,17 +291,47 @@ def build_preview(catalog, layout):
         tmpl = env.get_template(f'{layout}.html')
         html = tmpl.render(catalog=catalog, items=catalog['produtos'])
     else:
-        # Fallback sem Jinja2: substitui marcadores simples
         with open(template_path, encoding='utf-8') as f:
             html = f.read()
         html = html.replace('{{ catalog | tojson | safe }}', json.dumps(catalog, ensure_ascii=False))
         html = html.replace('{{ items | tojson | safe }}', json.dumps(catalog['produtos'], ensure_ascii=False))
 
-    out_html = os.path.join(PREVIEW_DIR, 'index.html')
+    out_html = os.path.join(catalog_dir, 'index.html')
     with open(out_html, 'w', encoding='utf-8') as f:
         f.write(html)
 
     return True
+
+
+def update_catalog_registry(catalog):
+    """Atualiza output/preview/catalogs.json com a entrada do catálogo gerado."""
+    import datetime
+    registry_path = os.path.join(PREVIEW_DIR, 'catalogs.json')
+
+    registry = []
+    if os.path.exists(registry_path):
+        with open(registry_path, encoding='utf-8') as f:
+            try:
+                registry = json.load(f)
+            except json.JSONDecodeError:
+                registry = []
+
+    registry = [e for e in registry if e.get('slug') != catalog['slug']]
+    registry.append({
+        'slug': catalog['slug'],
+        'titulo': catalog['titulo'],
+        'fabricante': catalog['fabricante'],
+        'descricao': catalog.get('descricao', ''),
+        'layout': catalog.get('layout', 'series-rows'),
+        'n_produtos': len(catalog['produtos']),
+        'updated_at': datetime.date.today().isoformat(),
+    })
+
+    os.makedirs(PREVIEW_DIR, exist_ok=True)
+    with open(registry_path, 'w', encoding='utf-8') as f:
+        json.dump(registry, f, ensure_ascii=False, indent=2)
+
+    print(f'    Índice: {len(registry)} catálogo(s) registrado(s)')
 
 
 # ─── Empacotamento ZIP ────────────────────────────────────────────────────────
@@ -393,8 +430,10 @@ def main():
         print('4/4 Gerando preview HTML...')
         ok = build_preview(catalog, catalog['layout'])
         if ok:
-            print(f'    Preview: output/preview/index.html')
+            update_catalog_registry(catalog)
+            print(f'    Preview: output/preview/{catalog["slug"]}/index.html')
             print(f'    Local:   python3 -m http.server 8080 --directory output/preview')
+            print(f'    URL:     http://localhost:8080/{catalog["slug"]}')
             print()
 
     # 4b. ZIP para bilds.com
