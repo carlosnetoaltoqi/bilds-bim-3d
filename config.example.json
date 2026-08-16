@@ -1,0 +1,34 @@
+{
+  "slug": "bombas-incendio",
+  "titulo": "Bombas de Combate a Incêndio",
+  "fabricante": "Dancor",
+  "descricao": "Linha CAM-W e TJM para sistemas prediais de combate a incêndio.",
+  "layout": "series-rows",
+  "aq_file": "input/pecas_dancor.aq",
+  "ifc_dir": "input/",
+  "file_map": {
+    "CAM-W10.IFC": "cam-w10",
+    "CAM-W14.IFC": "cam-w14",
+    "CAM-W16.IFC": "cam-w16",
+    "CAM-W21-2CV.IFC": "cam-w21-2cv",
+    "CAM-W21-3CV.IFC": "cam-w21-3cv"
+  },
+  "products_override": [
+    {
+      "id": "89-62",
+      "nome": "CAM 89-62 TJM 50CV",
+      "serie": "TJM",
+      "geo": "cam-89-62-tjm",
+      "potencia": 50,
+      "conexoes": "2½\" × 2½\"",
+      "specs": {
+        "Tensão": "Trifásico 220/380V",
+        "Grau de Proteção": "IP55-TFVE",
+        "Isolamento": "Classe F",
+        "Rotação": "3.500 rpm · 60Hz"
+      },
+      "curva": null,
+      "_note": "Presente no IFC mas ausente no .aq — specs inferidas do nome e série"
+    }
+  ]
+}
