@@ -10,39 +10,74 @@
 /* ─── Reset + tokens bilds ──────────────────────────────────── */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --orange:#FF4F1F;--blue:#1E40AF;--bg:#F8F9FA;--surface:#fff;
+  --orange:#FF4F1F;--blue:#1E40AF;
+  --navy:#002D72;--navy-dark:#00245B;--navy-light:#DFE8FA;
+  --bg:#F8F9FA;--bg-muted:#FAFBFB;--surface:#fff;
   --text:#111827;--muted:#6B7280;--border:#E5E7EB;
-  --radius:4px;--header:64px;
+  --radius:4px;--header:60px;--maxw:1200px;
   font-family:'Inter',system-ui,sans-serif;
 }
-body{background:var(--bg);color:var(--text);min-height:100vh}
+body{background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
+@media(max-width:480px){.wrap{padding:0 16px}}
 
 /* ─── Topbar ────────────────────────────────────────────────── */
 .topbar{
   position:sticky;top:0;z-index:100;height:var(--header);
   background:#fff;border-bottom:1px solid var(--border);
-  display:flex;align-items:center;gap:16px;padding:0 24px;
 }
+.topbar .wrap{display:flex;align-items:center;justify-content:space-between;height:100%;gap:16px}
 .topbar-logo{display:flex;align-items:center;gap:8px;font-weight:700;font-size:15px;text-decoration:none;color:var(--text)}
-.topbar-logo svg{color:var(--orange)}
-.topbar-sep{color:var(--border);font-size:20px}
-.topbar-title{font-size:14px;color:var(--muted)}
-.topbar-cta{
-  margin-left:auto;
-  background:var(--orange);color:#fff;border:none;border-radius:var(--radius);
-  padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer;
-  text-decoration:none;
+.topbar-logo svg{color:var(--navy)}
+.topbar-sep{color:var(--border);font-size:18px}
+.topbar-fab{font-size:13px;color:var(--muted);font-weight:500}
+.topbar-actions{display:flex;align-items:center;gap:8px}
+.tb-btn{display:inline-flex;align-items:center;padding:7px 16px;border-radius:var(--radius);font-size:13px;font-weight:600;text-decoration:none;transition:all .15s;white-space:nowrap}
+.tb-solid{background:var(--navy);color:#fff;border:1px solid transparent}
+.tb-solid:hover{background:var(--navy-dark)}
+@media(max-width:560px){.topbar-actions{display:none}}
+
+/* ─── Hero (dark navy, full-bleed) ──────────────────────────── */
+.hero{background:var(--navy-dark);color:#F9FAFB;position:relative;overflow:hidden}
+.hero::before{
+  content:'';position:absolute;
+  right:6%;top:50%;transform:translateY(-50%);
+  width:520px;height:520px;border-radius:50%;
+  background:radial-gradient(circle,rgba(255,255,255,0.055) 0%,transparent 60%);
+  pointer-events:none;z-index:1;
+}
+.hero::after{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(to right,var(--navy-dark) 38%,rgba(0,36,91,0.55) 58%,transparent 76%);
+  pointer-events:none;z-index:1;
+}
+.hero-inner{
+  position:relative;z-index:2;
+  display:flex;flex-direction:column;justify-content:center;
+  min-height:72vh;padding-top:80px;padding-bottom:64px;
+}
+.hero-eyebrow{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--navy-light);margin-bottom:20px}
+.hero h1{font-family:'Fira Sans',system-ui,sans-serif;font-weight:900;font-size:clamp(40px,5.5vw,72px);line-height:.96;letter-spacing:-.035em;color:#F9FAFB;max-width:14ch;margin-bottom:22px;text-wrap:balance}
+.hero-sub{font-size:15px;color:#C5D2E8;max-width:44ch;line-height:1.7;margin-bottom:32px}
+.hero-cta-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.btn-hero{display:inline-flex;align-items:center;gap:8px;padding:12px 24px;border-radius:var(--radius);background:transparent;border:1px solid rgba(255,255,255,0.5);color:#fff;font-size:14px;font-weight:600;text-decoration:none;cursor:pointer;transition:all .15s;font-family:'Inter',system-ui,sans-serif}
+.btn-hero:hover{background:rgba(255,255,255,0.1);border-color:#fff}
+@media(max-width:640px){
+  .hero::after{background:none}
+  .hero-inner{min-height:auto;padding-top:96px;padding-bottom:40px}
+  .hero h1{font-size:clamp(36px,10vw,52px)}
+  .hero-sub{font-size:14px}
 }
 
-/* ─── Hero ──────────────────────────────────────────────────── */
-.hero{padding:40px 24px 24px;max-width:1200px;margin:0 auto}
-.hero h1{font-family:'Fira Sans',sans-serif;font-size:clamp(22px,4vw,32px);font-weight:700;margin-bottom:8px}
-.hero-sub{color:var(--muted);font-size:14px}
+/* ─── Library section ───────────────────────────────────────── */
+.library{background:var(--bg);padding:56px 0 72px}
+.library .section-eyebrow{font-size:11px;font-weight:600;color:var(--navy);letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px}
+.library .section-title{font-family:'Fira Sans',system-ui,sans-serif;font-size:clamp(22px,3.5vw,32px);font-weight:800;letter-spacing:-.02em;color:var(--text);margin-bottom:6px;line-height:1.1}
+.library .section-sub{font-size:13px;color:var(--muted);max-width:52ch;margin-bottom:24px}
 
 /* ─── Filter bar ────────────────────────────────────────────── */
 .filter-bar{
-  display:flex;gap:8px;padding:0 24px 24px;max-width:1200px;margin:0 auto;
-  flex-wrap:wrap;
+  display:flex;gap:8px;flex-wrap:wrap;
 }
 .chip{
   padding:6px 14px;border-radius:9999px;border:1px solid var(--border);
@@ -52,7 +87,7 @@ body{background:var(--bg);color:var(--text);min-height:100vh}
 .chip:hover:not(.active){border-color:var(--blue);color:var(--blue)}
 
 /* ─── Rows ──────────────────────────────────────────────────── */
-.section{padding:0 24px 40px;max-width:1200px;margin:0 auto}
+.section{padding:0 0 40px;}
 .section-head{
   display:flex;align-items:baseline;gap:12px;margin-bottom:12px;
 }
@@ -160,36 +195,58 @@ body{background:var(--bg);color:var(--text);min-height:100vh}
 @media(max-width:860px){.topbar-nav{display:none}}
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fira+Sans:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fira+Sans:wght@700;800;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 </head>
 <body>
 
 <!-- Topbar -->
-<header class="topbar">
-  <a class="topbar-logo" href="https://bilds.com">
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-    bilds
-  </a>
-  <span class="topbar-sep">/</span>
-  <span class="topbar-title">{{ catalog.fabricante }}</span>
-</header>
-
-<!-- Hero -->
-<section class="hero">
-  <h1>{{ catalog.titulo }}</h1>
-  <p class="hero-sub">{{ catalog.descricao }}</p>
-</section>
-
-<!-- Filter chips -->
-<div class="filter-bar" id="filter-bar">
-  <button class="chip active" data-filter="all" onclick="filterBy('all',this)">Todos</button>
-  {% for f in catalog.filtros %}
-  <button class="chip" data-filter="{{ f }}" onclick="filterBy('{{ f }}',this)">Série {{ f }}</button>
-  {% endfor %}
+<div class="topbar">
+  <div class="wrap">
+    <a class="topbar-logo" href="https://bilds.com">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      bilds
+    </a>
+    <span class="topbar-sep">/</span>
+    <span class="topbar-fab">{{ catalog.fabricante }}</span>
+    <div class="topbar-actions">
+      <a class="tb-btn tb-solid" href="https://bilds.com" target="_blank">Ver na bilds.com</a>
+    </div>
+  </div>
 </div>
 
-<!-- Rows por série -->
-<div id="rows-root"></div>
+<!-- Hero -->
+<header class="hero">
+  <div class="hero-inner wrap">
+    <p class="hero-eyebrow">{{ catalog.fabricante }} &middot; Biblioteca BIM &middot; IFC4</p>
+    <h1>{{ catalog.titulo }}</h1>
+    <p class="hero-sub">{{ catalog.descricao }}</p>
+    <div class="hero-cta-row">
+      <a class="btn-hero" href="#library">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        Ver biblioteca
+      </a>
+    </div>
+  </div>
+</header>
+
+<!-- Library -->
+<section class="library" id="library">
+  <div class="wrap">
+    <p class="section-eyebrow">Biblioteca de produtos BIM</p>
+    <h2 class="section-title">{{ catalog.titulo }}</h2>
+    <p class="section-sub">Clique em qualquer modelo para ver especificações, curva Q-H e visualização 3D.</p>
+
+    <div class="filter-bar" id="filter-bar" style="margin-bottom:32px">
+      <button class="chip active" data-filter="all" onclick="filterBy('all',this)">Todos</button>
+      {% for f in catalog.filtros %}
+      <button class="chip" data-filter="{{ f }}" onclick="filterBy('{{ f }}',this)">Série {{ f }}</button>
+      {% endfor %}
+    </div>
+
+    <!-- Rows por série -->
+    <div id="rows-root"></div>
+  </div>
+</section>
 
 <!-- Modal -->
 <div class="modal-backdrop" id="modal" onclick="if(event.target===this)closeModal()">

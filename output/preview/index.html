@@ -82,61 +82,33 @@
 
     /* ── Hero ── */
     .hero {
-      background: var(--muted);
-      padding: 64px 32px 56px;
-      text-align: center;
+      background: var(--navy);
+      padding: 36px 32px 32px;
       border-bottom: 1px solid var(--border);
     }
     .hero-eyebrow {
       font-family: var(--font-sans);
-      font-weight: 500;
-      font-size: 14px;
-      color: var(--navy);
-      text-transform: none;
-      margin-bottom: 16px;
-      letter-spacing: 0.01em;
+      font-weight: 600;
+      font-size: 11px;
+      color: rgba(255,255,255,0.5);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 12px;
     }
     .hero-title {
       font-family: var(--font-display);
       font-weight: 800;
-      font-size: 48px;
-      line-height: 1.1;
-      color: var(--text-primary);
-      margin-bottom: 16px;
-      letter-spacing: -0.02em;
+      font-size: clamp(28px, 4vw, 42px);
+      line-height: 1.05;
+      color: #F9FAFB;
+      letter-spacing: -0.03em;
     }
-    .hero-subtitle {
-      font-family: var(--font-sans);
-      font-weight: 400;
-      font-size: 16px;
-      color: var(--text-secondary);
-      max-width: 520px;
-      margin: 0 auto 32px;
-      line-height: 1.6;
-    }
-    .btn-primary {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      background: var(--orange);
-      color: var(--white);
-      font-family: var(--font-sans);
-      font-weight: 500;
-      font-size: 15px;
-      padding: 10px 20px;
-      border-radius: var(--radius);
-      text-decoration: none;
-      border: none;
-      cursor: pointer;
-      transition: opacity 0.15s;
-    }
-    .btn-primary:hover { opacity: 0.9; }
 
     /* ── Main content ── */
     .main {
       max-width: 1100px;
       margin: 0 auto;
-      padding: 48px 32px 80px;
+      padding: 40px 32px 80px;
     }
 
     /* ── Section header ── */
@@ -144,133 +116,61 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 24px;
+      margin-bottom: 20px;
     }
     .section-title {
       font-family: var(--font-sans);
       font-weight: 600;
-      font-size: 20px;
+      font-size: 18px;
       color: var(--text-primary);
     }
     .section-count {
       font-family: var(--font-sans);
-      font-size: 14px;
+      font-size: 13px;
       color: var(--text-secondary);
     }
 
-    /* ── Catalog grid ── */
-    .catalog-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-      gap: 16px;
-    }
-
-    /* ── Catalog card ── */
-    .catalog-card {
-      background: var(--white);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 24px;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-      text-decoration: none;
-      color: inherit;
-      transition: box-shadow 0.15s, border-color 0.15s;
-      cursor: pointer;
-    }
-    .catalog-card:hover {
-      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-      border-color: #D1D5DB;
-    }
-    .card-top {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-    .card-avatar {
-      width: 44px;
-      height: 44px;
-      border-radius: var(--radius);
-      background: var(--navy);
-      color: var(--white);
+    /* ── Catalogs table ── */
+    .catalogs-table {
+      width: 100%;
+      border-collapse: collapse;
       font-family: var(--font-sans);
-      font-weight: 600;
-      font-size: 18px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
+      font-size: 14px;
     }
-    .card-meta-wrap { min-width: 0; }
-    .card-fabricante {
-      font-family: var(--font-sans);
+    .catalogs-table th {
+      text-align: left;
+      font-size: 11px;
       font-weight: 600;
-      font-size: 16px;
-      color: var(--text-primary);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-secondary);
+      padding: 10px 14px;
+      border-bottom: 2px solid var(--border);
       white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
     }
-    .card-updated {
-      font-family: var(--font-sans);
-      font-size: 12px;
-      color: var(--text-secondary);
-      margin-top: 2px;
+    .catalogs-table td {
+      padding: 14px 14px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
     }
-    .card-titulo {
-      font-family: var(--font-sans);
-      font-weight: 400;
-      font-size: 14px;
-      color: var(--text-secondary);
-      line-height: 1.5;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-    }
-    .card-badges {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-    }
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      font-family: var(--font-sans);
-      font-size: 12px;
-      font-weight: 500;
-      padding: 3px 10px;
-      border-radius: 9999px;
-    }
-    .badge-secondary {
-      background: #E0E7FF;
-      color: var(--navy);
-    }
-    .badge-default {
-      background: var(--navy);
-      color: #F9FAFB;
-    }
-    .card-cta {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      background: var(--blue);
-      color: var(--white);
-      font-family: var(--font-sans);
-      font-weight: 500;
-      font-size: 14px;
-      padding: 9px 16px;
-      border-radius: var(--radius);
-      text-decoration: none;
-      border: none;
+    .table-row {
       cursor: pointer;
-      transition: opacity 0.15s;
-      margin-top: auto;
+      transition: background 0.12s;
     }
-    .card-cta:hover { opacity: 0.88; }
+    .table-row:hover { background: var(--muted); }
+    .table-row:last-child td { border-bottom: none; }
+    .tc-fabricante { font-weight: 600; color: var(--text-primary); }
+    .tc-titulo { color: var(--text-secondary); max-width: 340px; }
+    .tc-n { font-variant-numeric: tabular-nums; color: var(--text-secondary); text-align: right; width: 80px; }
+    .tc-layout { white-space: nowrap; }
+    .tc-date { color: var(--text-secondary); white-space: nowrap; }
+    .layout-pill {
+      display: inline-flex; align-items: center;
+      font-size: 11px; font-weight: 600;
+      padding: 2px 9px; border-radius: 9999px;
+      background: var(--navy-light); color: var(--navy);
+    }
+    .tbl-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); }
 
     /* ── Empty state ── */
     .empty-state {
@@ -425,15 +325,12 @@
 
     /* ── Responsive ── */
     @media (max-width: 640px) {
-      .hero { padding: 48px 20px 40px; }
-      .hero-title { font-size: 36px; }
-      .main { padding: 32px 20px 64px; }
+      .hero { padding: 28px 20px 24px; }
+      .main { padding: 28px 20px 64px; }
       .header { padding: 0 20px; }
       .footer { padding: 24px 20px; }
       .footer-links { display: none; }
-    }
-    @media (max-width: 480px) {
-      .catalog-grid { grid-template-columns: 1fr; }
+      .tc-layout, .tc-date { display: none; }
     }
   </style>
 </head>
@@ -450,15 +347,8 @@
 
   <!-- Hero -->
   <section class="hero">
-    <p class="hero-eyebrow">Pipeline de catálogos BIM</p>
+    <p class="hero-eyebrow">bilds · Preview pipeline</p>
     <h1 class="hero-title">Catálogos BIM 3D</h1>
-    <p class="hero-subtitle">
-      Visualize e publique bibliotecas BIM interativas com viewer 3D geradas a partir de arquivos .aq e .IFC do AltoQi.
-    </p>
-    <a class="btn-primary" href="https://github.com/carlosnetoaltoqi/bilds-bim-3d" target="_blank" rel="noopener">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
-      Ver repositório
-    </a>
   </section>
 
   <!-- Main -->
@@ -468,20 +358,22 @@
       <span class="section-count" id="count-label"></span>
     </div>
 
-    <div class="catalog-grid" id="catalog-grid">
-      <!-- Skeleton inicial -->
-      <div class="skeleton-card" id="sk1">
-        <div class="sk-row"><div class="sk sk-avatar"></div><div class="sk-lines"><div class="sk sk-title"></div><div class="sk sk-body-sm"></div></div></div>
-        <div class="sk sk-body"></div>
-        <div class="sk sk-body-sm"></div>
-        <div class="sk sk-btn"></div>
-      </div>
-      <div class="skeleton-card" id="sk2">
-        <div class="sk-row"><div class="sk sk-avatar"></div><div class="sk-lines"><div class="sk sk-title"></div><div class="sk sk-body-sm"></div></div></div>
-        <div class="sk sk-body"></div>
-        <div class="sk sk-body-sm"></div>
-        <div class="sk sk-btn"></div>
-      </div>
+    <div class="tbl-wrap" id="catalog-table-wrap">
+      <table class="catalogs-table" id="catalog-table">
+        <thead>
+          <tr>
+            <th>Fabricante</th>
+            <th>Catálogo</th>
+            <th class="tc-n" style="text-align:right">Produtos</th>
+            <th class="tc-layout">Layout</th>
+            <th class="tc-date">Atualizado</th>
+          </tr>
+        </thead>
+        <tbody id="table-body">
+          <!-- skeleton -->
+          <tr><td colspan="5" style="padding:40px;text-align:center;color:var(--text-secondary);font-size:13px">Carregando…</td></tr>
+        </tbody>
+      </table>
     </div>
 
     <hr class="divider">
@@ -541,64 +433,31 @@
     (function () {
       var LAYOUT_LABEL = { 'series-rows': 'linhas por série', 'catalog-grid': 'grid denso' };
 
-      function initial(name) {
-        return (name || '?').trim().charAt(0).toUpperCase();
-      }
-
       function fmtDate(iso) {
         if (!iso) return '';
         var d = new Date(iso + 'T12:00:00');
         return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
       }
 
-      function renderCard(cat) {
+      function renderRow(cat) {
         var layoutLabel = LAYOUT_LABEL[cat.layout] || cat.layout;
-        var n = cat.n_produtos;
-        var nLabel = n === 1 ? '1 produto' : (n + ' produtos');
-        return [
-          '<a class="catalog-card" href="/' + cat.slug + '">',
-            '<div class="card-top">',
-              '<div class="card-avatar">' + initial(cat.fabricante) + '</div>',
-              '<div class="card-meta-wrap">',
-                '<p class="card-fabricante">' + esc(cat.fabricante) + '</p>',
-                '<p class="card-updated">Atualizado em ' + fmtDate(cat.updated_at) + '</p>',
-              '</div>',
-            '</div>',
-            '<p class="card-titulo">' + esc(cat.titulo) + '</p>',
-            '<div class="card-badges">',
-              '<span class="badge badge-secondary">' + esc(nLabel) + '</span>',
-              '<span class="badge badge-secondary">' + esc(layoutLabel) + '</span>',
-            '</div>',
-            '<span class="card-cta">',
-              '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>',
-              'Ver catálogo',
-            '</span>',
-          '</a>'
-        ].join('');
+        return '<tr class="table-row" onclick="location.href=\'/' + cat.slug + '\'">'
+          + '<td class="tc-fabricante">' + esc(cat.fabricante) + '</td>'
+          + '<td class="tc-titulo">' + esc(cat.titulo) + '</td>'
+          + '<td class="tc-n" style="text-align:right">' + cat.n_produtos + '</td>'
+          + '<td class="tc-layout"><span class="layout-pill">' + esc(layoutLabel) + '</span></td>'
+          + '<td class="tc-date">' + fmtDate(cat.updated_at) + '</td>'
+          + '</tr>';
       }
 
-      function renderEmpty() {
-        return [
-          '<div class="empty-state">',
-            '<svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">',
-              '<rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>',
-              '<path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>',
-            '</svg>',
-            '<p class="empty-title">Nenhum catálogo gerado ainda</p>',
-            '<p class="empty-desc">Rode o pipeline com um arquivo config.json para gerar seu primeiro catálogo. Ele aparecerá aqui após o git push.</p>',
-          '</div>'
-        ].join('');
+      function renderEmptyRow() {
+        return '<tr><td colspan="5" style="padding:48px;text-align:center;color:var(--text-secondary);font-size:13px">'
+          + 'Nenhum catálogo gerado ainda. Rode o pipeline para criar o primeiro.'
+          + '</td></tr>';
       }
 
       function esc(s) {
         return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-      }
-
-      function removeSkeletons() {
-        var s1 = document.getElementById('sk1');
-        var s2 = document.getElementById('sk2');
-        if (s1) s1.remove();
-        if (s2) s2.remove();
       }
 
       fetch('/catalogs.json')
@@ -607,21 +466,20 @@
           return r.json();
         })
         .then(function (catalogs) {
-          removeSkeletons();
-          var grid = document.getElementById('catalog-grid');
+          var tbody = document.getElementById('table-body');
           var label = document.getElementById('count-label');
           if (!catalogs || catalogs.length === 0) {
-            grid.innerHTML = renderEmpty();
+            tbody.innerHTML = renderEmptyRow();
             label.textContent = '';
           } else {
             var n = catalogs.length;
             label.textContent = n === 1 ? '1 catálogo' : (n + ' catálogos');
-            grid.innerHTML = catalogs.map(renderCard).join('');
+            tbody.innerHTML = catalogs.map(renderRow).join('');
           }
         })
         .catch(function () {
-          removeSkeletons();
-          document.getElementById('catalog-grid').innerHTML = renderEmpty();
+          var tbody = document.getElementById('table-body');
+          tbody.innerHTML = renderEmptyRow();
           document.getElementById('count-label').textContent = '';
         });
     })();
