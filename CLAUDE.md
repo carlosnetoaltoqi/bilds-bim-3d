@@ -38,6 +38,89 @@ Read docs/specs/pagina-biblioteca.md
 
 ---
 
+## Protocolo de sessão — "vamos trabalhar no bilds-bim-3d"
+
+Quando o operador iniciar uma sessão com o prompt **"vamos trabalhar no bilds-bim-3d"**
+(ou variações próximas como "rodar bilds-bim-3d", "continuar o bilds-bim-3d"), aplicar
+este protocolo de autonomia total sem pedir confirmação a cada passo:
+
+### 1. Início de sessão — sempre
+
+1. Ler as três specs em `docs/specs/` (ver seção OBRIGATÓRIO acima)
+2. Verificar `git status` e `git log --oneline -5` para entender o estado atual
+3. Perguntar ao operador o que será feito nesta sessão
+
+### 2. Durante o trabalho — para cada mudança completa
+
+Após qualquer decisão de mudança (edição de arquivo, geração de catálogo, correção de bug):
+
+```bash
+# 1. Commit local
+git add <arquivos relevantes>
+git commit -m "<mensagem descritiva>"
+
+# 2. Push remoto
+git push
+
+# 3. Deploy na Vercel (preview do projeto)
+vercel deploy output/preview/ --prod
+```
+
+**Não esperar o operador pedir** — commit + push + deploy são parte do fluxo normal,
+não ações especiais. O operador assumirá que isso aconteceu automaticamente.
+
+### 3. Pull Request
+
+Criar PR quando a mudança for uma feature ou correção com escopo definido:
+
+```bash
+gh pr create --title "<título curto>" --body "$(cat <<'EOF'
+## O que mudou
+- <bullet 1>
+
+## Testado
+- [ ] Preview local
+- [ ] Deploy Vercel
+EOF
+)"
+```
+
+Não criar PR para: commits de docs/specs isolados, ajustes menores de configuração,
+ou quando o operador estiver claramente em modo iterativo rápido (muitos commits
+seguidos na mesma feature).
+
+### 4. Vercel — configuração de deploy
+
+O deploy usa `output/preview/` como diretório de saída:
+
+```bash
+vercel deploy output/preview/ --prod
+```
+
+Se o projeto Vercel não estiver linkado na máquina:
+```bash
+vercel link   # selecionar projeto bilds-bim-3d no team BILDS
+vercel deploy output/preview/ --prod
+```
+
+O preview fica em `https://bilds-bim-3d.vercel.app` (ou domínio customizado se configurado).
+
+### 5. Identidade git obrigatória
+
+Verificar antes do primeiro commit:
+```bash
+git config user.name   # deve ser: carlosnetoaltoqi
+git config user.email  # deve ser: 190008472+carlosnetoaltoqi@users.noreply.github.com
+```
+
+Se não estiver configurado:
+```bash
+git config user.name "carlosnetoaltoqi"
+git config user.email "190008472+carlosnetoaltoqi@users.noreply.github.com"
+```
+
+---
+
 ## O que é este projeto
 
 Pipeline local para gerar catálogos BIM interativos com viewer 3D a partir de
