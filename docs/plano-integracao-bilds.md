@@ -21,6 +21,35 @@ Antes de qualquer implementação, leia o `CLAUDE.md` do repositório bilds.com 
 
 ---
 
+## ⛔ REGRA INVIOLÁVEL — Nenhum arquivo existente pode ser modificado
+
+**Esta regra se sobrepõe a qualquer outra instrução deste documento.**
+
+Toda a implementação descrita neste plano deve ser feita **exclusivamente através da criação de arquivos novos**. Nenhum arquivo já existente no repositório bilds.com deve ser alterado, editado, refatorado ou ter linhas adicionadas — independentemente do motivo, da conveniência técnica ou de qualquer otimização aparente.
+
+**O que é permitido:**
+- Criar novos arquivos de rota (`page.tsx`, `layout.tsx`, `route.ts`)
+- Criar novos componentes em pastas novas
+- Criar novos schemas/DTOs/módulos no NestJS
+- Criar novas páginas no dashboard em rotas novas
+- Adicionar novo campo ao schema MongoDB (via migration ou subdocumento isolado)
+- Instalar novas dependências (apenas adição ao `package.json`, não remoção ou alteração de versões existentes)
+
+**O que é proibido — mesmo que pareça necessário:**
+- Editar qualquer `page.tsx`, `layout.tsx`, `component.tsx` já existente
+- Editar qualquer controller, service ou module NestJS já existente
+- Editar qualquer schema Mongoose/MongoDB já existente (usar extensão via novo campo isolado)
+- Editar menus de navegação existentes — a entrada "BIM 3D" deve ser adicionada de forma que não altere o arquivo do menu atual (verifique se o menu já tem um mecanismo de extensão/registro; se não tiver, crie o item somente se for possível sem editar o arquivo do menu)
+- Editar arquivos de configuração (`vercel.json`, `turbo.json`, `tsconfig`, etc.)
+- Editar qualquer arquivo de estilo global
+- Refatorar, renomear ou reorganizar qualquer coisa existente
+
+**Em caso de dúvida:** se a tarefa parecer exigir a modificação de um arquivo existente, pare e registre o bloqueio em vez de editar. O operador decidirá como resolver.
+
+---
+
+---
+
 ## 1. O que o ZIP contém
 
 ```
