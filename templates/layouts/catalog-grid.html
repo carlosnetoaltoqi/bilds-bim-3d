@@ -153,9 +153,9 @@ body{background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
 <section class="catalog-section">
   <div class="wrap">
     <div class="toolbar" id="toolbar">
-      <button class="chip active" data-filter="all" onclick="filterBy('all',this)">Todos</button>
+      <button class="chip active" data-filter="all">Todos</button>
       {% for f in catalog.filtros %}
-      <button class="chip" data-filter="{{ f }}" onclick="filterBy('{{ f }}',this)">{{ f }}</button>
+      <button class="chip" data-filter="{{ f }}">{{ f }}</button>
       {% endfor %}
       <span class="toolbar-count" id="count-label"></span>
     </div>
@@ -200,11 +200,17 @@ const ITEMS   = CATALOG.produtos;
 const geoCache = new Map();
 let activeFilter = 'all';
 
+function esc(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
 function matchFilter(item, f) { return f==='all' || item.serie===f; }
 
+// item.id é sempre um slug gerado por slugify() — apenas [a-z0-9-_].
+// Usar esc() nos campos de texto livre (nome, serie, conexoes, potencia).
 function buildCard(item) {
-  const meta = item.conexoes || (item.potencia ? item.potencia+' CV' : '');
-  return `<div class="card" data-id="${item.id}" onclick="openModal('${item.id}')">
+  const meta = esc(item.conexoes) || (item.potencia ? esc(String(item.potencia)) + ' CV' : '');
+  return `<div class="card" data-id="${item.id}">
     <div class="card-canvas-wrap">
       <canvas id="canvas-${item.id}"></canvas>
       <div class="card-loader" id="loader-${item.id}">Carregando…</div>
@@ -213,8 +219,8 @@ function buildCard(item) {
       </div>
     </div>
     <div class="card-body">
-      ${item.serie ? `<span class="card-tag">${item.serie}</span>` : ''}
-      <div class="card-name">${item.nome}</div>
+      ${item.serie ? `<span class="card-tag">${esc(item.serie)}</span>` : ''}
+      <div class="card-name">${esc(item.nome)}</div>
       ${meta ? `<div class="card-meta">${meta}</div>` : ''}
       <button class="card-btn">Ver detalhes</button>
     </div>
@@ -267,13 +273,23 @@ function filterBy(f, el) {
   renderGrid(f);
 }
 
+document.getElementById('toolbar').addEventListener('click', function(e) {
+  var btn = e.target.closest('.chip');
+  if (btn) filterBy(btn.dataset.filter, btn);
+});
+
+document.getElementById('grid-root').addEventListener('click', function(e) {
+  var card = e.target.closest('.card');
+  if (card) openModal(card.dataset.id);
+});
+
 function openModal(id) {
   const item = ITEMS.find(i => i.id === id);
   if (!item) return;
   document.getElementById('modal-title').textContent = item.nome;
   const specs = Object.entries(item.specs || {});
   document.getElementById('modal-specs').innerHTML =
-    specs.map(([k,v]) => `<tr><th>${k}</th><td>${v}</td></tr>`).join('') ||
+    specs.map(([k,v]) => `<tr><th>${esc(k)}</th><td>${esc(v)}</td></tr>`).join('') ||
     `<tr><td colspan="2" style="color:var(--muted)">—</td></tr>`;
   document.getElementById('modal-chart').innerHTML = buildChart(item.curva);
   document.getElementById('modal').classList.add('open');

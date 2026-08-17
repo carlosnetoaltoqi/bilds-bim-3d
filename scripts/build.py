@@ -56,6 +56,17 @@ OUTPUT_DIR = os.path.join(ROOT, 'output')
 PREVIEW_DIR = os.path.join(OUTPUT_DIR, 'preview')
 GEO_DIR = os.path.join(OUTPUT_DIR, 'geo')
 
+_SAFE_SLUG_RE = re.compile(r'^[a-z0-9][a-z0-9\-_]*$')
+
+
+def _assert_safe_slug(value, field):
+    """Valida que value é um slug seguro para uso em paths e arcnames de ZIP."""
+    if not _SAFE_SLUG_RE.match(str(value)):
+        raise ValueError(
+            f'Valor inválido para {field}: {value!r} — '
+            f'use apenas letras minúsculas, números, hífens e underscores'
+        )
+
 
 # ─── Matching IFC → AQ ───────────────────────────────────────────────────────
 
@@ -263,14 +274,20 @@ def render_html(catalog, layout):
         env = Environment(
             loader=FileSystemLoader(os.path.join(TEMPLATES_DIR, 'layouts')),
             undefined=StrictUndefined,
-            autoescape=False,
+            autoescape=True,
         )
         return env.get_template(f'{layout}.html').render(catalog=catalog, items=catalog['produtos'])
     else:
         with open(template_path, encoding='utf-8') as f:
             html = f.read()
-        html = html.replace('{{ catalog | tojson | safe }}', json.dumps(catalog, ensure_ascii=False))
-        html = html.replace('{{ items | tojson | safe }}', json.dumps(catalog['produtos'], ensure_ascii=False))
+        # json.dumps padrão não escapa </script> — usar unicode escapes para
+        # <, > e / para evitar quebra do bloco <script> no fallback sem Jinja2.
+        def _json_for_html(obj):
+            return (json.dumps(obj, ensure_ascii=False)
+                    .replace('<', '\\u003c')
+                    .replace('>', '\\u003e'))
+        html = html.replace('{{ catalog | tojson | safe }}', _json_for_html(catalog))
+        html = html.replace('{{ items | tojson | safe }}', _json_for_html(catalog['produtos']))
         return html
 
 
@@ -284,6 +301,7 @@ def build_preview(catalog, primary_layout):
     Arquivos compartilhados (vendor/, data/) ficam em output/preview/.
     """
     catalog_slug = catalog['slug']
+    _assert_safe_slug(catalog_slug, 'slug')
     catalog_dir = os.path.join(PREVIEW_DIR, catalog_slug)
     os.makedirs(catalog_dir, exist_ok=True)
 
@@ -292,6 +310,7 @@ def build_preview(catalog, primary_layout):
     os.makedirs(data_dir, exist_ok=True)
     for produto in catalog['produtos']:
         geo_slug = produto['geo'].replace('.json', '')
+        _assert_safe_slug(geo_slug, f'produto.geo ({geo_slug})')
         src = os.path.join(GEO_DIR, f'{geo_slug}.json')
         if os.path.exists(src):
             shutil.copy(src, os.path.join(data_dir, f'{geo_slug}.json'))
@@ -404,6 +423,7 @@ def build_zip(catalog):
         # geo files
         for produto in catalog['produtos']:
             slug = produto['geo'].replace('.json', '')
+            _assert_safe_slug(slug, f'produto.geo no ZIP ({slug})')
             geo_path = os.path.join(GEO_DIR, f'{slug}.json')
             if os.path.exists(geo_path):
                 zf.write(geo_path, f'geo/{slug}.json')

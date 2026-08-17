@@ -42,7 +42,12 @@ def open_aq(aq_path):
     tmp_dir = tempfile.mkdtemp()
     try:
         with zipfile.ZipFile(aq_path, 'r') as z:
-            z.extractall(tmp_dir)
+            safe_root = os.path.realpath(tmp_dir)
+            for member in z.namelist():
+                dest = os.path.realpath(os.path.join(safe_root, member))
+                if not dest.startswith(safe_root + os.sep):
+                    continue  # zip slip — entrada com path de travessia, ignorar
+                z.extract(member, tmp_dir)
     except zipfile.BadZipFile:
         shutil.rmtree(tmp_dir, ignore_errors=True)
         raise ValueError(f'{aq_path} não é um SQLite válido nem um ZIP válido')
