@@ -488,34 +488,41 @@ def _parse_via_ifcopenshell(ifc_path, default_rgb):
         # tipo folha do ifcopenshell nem sempre bate com o allow-list manual,
         # ex: IfcPipeFitting não é string-igual a IFCFLOWFITTING mas É um por
         # herança). IfcFeatureElement é o ramo dos vazios (subtração/adição) —
-        # excluir explicitamente mesmo sendo IfcElement.
-        if not product.is_a('IfcElement') or product.is_a('IfcFeatureElement'):
+        # excluir explicitamente mesmo sendo IfcElement. IfcVirtualElement é
+        # subtype de IfcElement (não de IfcFeatureElement) — representa limites
+        # de espaço/porta aberta como superfície planar — também deve ser excluído.
+        if (not product.is_a('IfcElement')
+                or product.is_a('IfcFeatureElement')
+                or product.is_a('IfcVirtualElement')):
             continue
         try:
             shape = ifcopenshell.geom.create_shape(settings, product)
         except Exception:
             continue
 
-        geom = shape.geometry
-        verts = geom.verts
-        faces = geom.faces
-        materials = geom.materials
-        material_ids = geom.material_ids
+        try:
+            geom = shape.geometry
+            verts = geom.verts
+            faces = geom.faces
+            materials = geom.materials
+            material_ids = geom.material_ids
 
-        mat_colors = []
-        for m in materials:
-            c = getattr(m, 'diffuse', None)
-            mat_colors.append([c.r(), c.g(), c.b()] if c else default_rgb)
+            mat_colors = []
+            for m in materials:
+                c = getattr(m, 'diffuse', None)
+                mat_colors.append([c.r(), c.g(), c.b()] if c else default_rgb)
 
-        n_tris = len(faces) // 3
-        for t in range(n_tris):
-            mi = material_ids[t] if t < len(material_ids) else -1
-            rgb = mat_colors[mi] if 0 <= mi < len(mat_colors) else default_rgb
-            for k in range(3):
-                vi = faces[t * 3 + k]
-                x, y, z = verts[vi * 3], verts[vi * 3 + 1], verts[vi * 3 + 2]
-                pos_out += [x, z, -y]  # IFC Z-up → Three.js Y-up
-                col_out += rgb
+            n_tris = len(faces) // 3
+            for t in range(n_tris):
+                mi = material_ids[t] if t < len(material_ids) else -1
+                rgb = mat_colors[mi] if 0 <= mi < len(mat_colors) else default_rgb
+                for k in range(3):
+                    vi = faces[t * 3 + k]
+                    x, y, z = verts[vi * 3], verts[vi * 3 + 1], verts[vi * 3 + 2]
+                    pos_out += [x, z, -y]  # IFC Z-up → Three.js Y-up
+                    col_out += rgb
+        except Exception:
+            continue
 
     return {'pos': pos_out, 'col': col_out}
 

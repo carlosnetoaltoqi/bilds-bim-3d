@@ -347,7 +347,10 @@ def update_catalog_registry(catalog):
         'fabricante': catalog['fabricante'],
         'descricao': catalog.get('descricao', ''),
         'layout': catalog.get('layout', 'series-rows'),
-        'layouts': ALL_LAYOUTS,  # fonte única — output/preview/index.html lê daqui, não hardcoda a lista
+        # Garante que o layout primário está na lista mesmo se for customizado
+        # (fora de ALL_LAYOUTS) — sem isso isPrimary nunca seria true no índice.
+        'layouts': (ALL_LAYOUTS if catalog.get('layout', 'series-rows') in ALL_LAYOUTS
+                    else [catalog.get('layout', 'series-rows')] + ALL_LAYOUTS),
         'n_produtos': len(catalog['produtos']),
         'updated_at': datetime.date.today().isoformat(),
     })
@@ -355,6 +358,19 @@ def update_catalog_registry(catalog):
     os.makedirs(PREVIEW_DIR, exist_ok=True)
     with open(registry_path, 'w', encoding='utf-8') as f:
         json.dump(registry, f, ensure_ascii=False, indent=2)
+
+    # Mantém FALLBACK_LAYOUTS em index.html em sincronia com ALL_LAYOUTS —
+    # evita divergência se ALL_LAYOUTS crescer.
+    index_html_path = os.path.join(PREVIEW_DIR, 'index.html')
+    if os.path.exists(index_html_path):
+        import re as _re
+        with open(index_html_path, encoding='utf-8') as f:
+            idx_content = f.read()
+        new_fallback = 'var FALLBACK_LAYOUTS = ' + json.dumps(ALL_LAYOUTS) + ';'
+        patched = _re.sub(r'var FALLBACK_LAYOUTS = \[.*?\];', new_fallback, idx_content)
+        if patched != idx_content:
+            with open(index_html_path, 'w', encoding='utf-8') as f:
+                f.write(patched)
 
     print(f'    Índice: {len(registry)} catálogo(s) registrado(s)')
 
