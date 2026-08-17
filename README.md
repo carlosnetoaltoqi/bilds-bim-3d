@@ -74,3 +74,13 @@ A página de índice fica em `bilds-bim-3d.vercel.app` e cada catálogo em `bild
 - `pip install jinja2`
 - bash (para setup_vendor.sh)
 - curl (para setup_vendor.sh)
+
+## Testes
+
+```bash
+pip install -r requirements-dev.txt   # instala pytest (uma vez)
+python3 -m pytest tests/ -v
+```
+
+137 testes cobrindo `parse_ifc.py`, `dedup.py`, `read_aq.py` e `build.py`.
+Todos devem passar antes de qualquer commit.

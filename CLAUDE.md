@@ -728,6 +728,41 @@ Este repo (`bilds-bim-3d`) só produz o ZIP e o preview — não edita o bilds.c
 
 ---
 
+## Testes
+
+### Rodar a suíte completa
+
+```bash
+pip install -r requirements-dev.txt   # instala pytest (uma vez)
+python3 -m pytest tests/ -v
+```
+
+137 testes divididos em 4 arquivos:
+
+| Arquivo | Script coberto | Testes |
+|---|---|---|
+| `tests/test_parse_ifc.py` | `parse_ifc.py` | 64 |
+| `tests/test_dedup.py` | `dedup.py` | 10 |
+| `tests/test_read_aq.py` | `read_aq.py` | 23 |
+| `tests/test_build.py` | `build.py` | 40 |
+
+### Guards de regressão críticos
+
+Os testes a seguir existem para bugs confirmados em produção — não remover nem enfraquecer:
+
+| Teste | Bug documentado |
+|---|---|
+| `TestParseFloats::test_step_exponent_no_digit_after_dot` | `parse_floats('-4.E-16')` retornava 2 valores em vez de 1; causava translações fantasma de 4m, 16m |
+| `TestBuildEntityIndex::test_args_never_contain_closing_paren` | `build_entity_index()` deixava `)` e `;` nos args; causava falha silenciosa no parse |
+| `TestOpenAq::test_zip_slip_traversal_entry_is_skipped` | ZIP com `../evil.db` deve ser ignorado (Zip Slip) |
+| `TestAssertSafeSlug::test_invalid_slugs_raise_value_error` | Path traversal via slug (`'../evil'`) deve levantar `ValueError` |
+| `TestSlugify::test_portuguese_cedilla` | `slugify('Junção')` deve gerar `'juncao'`, não `'jun-o'` |
+| `TestBuildCatalog::test_tem_curva_qh_false_when_no_curves` | `tem_curva_qh` deve ser `False` em catálogos sem bomba, não `True` padrão |
+
+Rodar `python3 -m pytest tests/ -v` deve retornar `137 passed` antes de qualquer push.
+
+---
+
 ## Git e deploy
 
 **Identidade:** commits neste repo usam `carlosnetoaltoqi`.
