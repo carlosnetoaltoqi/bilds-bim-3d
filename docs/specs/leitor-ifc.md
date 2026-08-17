@@ -665,4 +665,33 @@ def filter_outliers(json_path, threshold=3.0):
 | Válvula / fitting | 2m |
 | Equipamento de grande porte (chiller, caldeira) | 10m |
 
+---
+
+## Segurança — filtro de tipo no fallback ifcopenshell
+
+`ifc_file.by_type('IFCPRODUCT')` devolve **todo** elemento com `Representation`, incluindo não-físicos. Filtro obrigatório:
+
+```python
+if (not product.is_a('IfcElement')
+        or product.is_a('IfcFeatureElement')   # vazios de furo/recorte — excluir mesmo sendo IfcElement
+        or product.is_a('IfcVirtualElement')):  # limite de espaço/porta aberta — subtype de IfcElement, NÃO de IfcFeatureElement
+    continue
+```
+
+`IfcVirtualElement` tem `Representation` sólida válida (superfície planar) e vira geometria fantasma visível no viewer se não for filtrado. Não está coberto por `IfcFeatureElement` — exige exclusão explícita.
+
+O bloco de extração de geometria e cores deve estar em `try/except` separado do `create_shape()`:
+
+```python
+try:
+    shape = ifcopenshell.geom.create_shape(settings, product)
+except Exception:
+    continue
+try:
+    geom = shape.geometry
+    # ... mat_colors, loop de triângulos ...
+except Exception:
+    continue  # falha em cor/material não deve abortar o parse inteiro
+```
+
 Sempre verificar o bounding box do JSON resultante antes de publicar — deve corresponder às dimensões físicas do equipamento.

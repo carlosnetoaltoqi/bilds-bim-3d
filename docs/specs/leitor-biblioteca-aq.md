@@ -397,4 +397,21 @@ if __name__ == '__main__':
 | `IMAGEM` vazia | Fabricante não incluiu imagens no .aq | Imagens podem estar em arquivo separado ou só nos IFCs |
 | Propriedades ausentes para algumas peças | Nem toda peça tem todas as propriedades | Usar `LEFT JOIN` ao invés de `JOIN` ao consultar `VALOR_PROPRIEDADE_PERSONALIZADA` |
 | Valores numéricos como texto | `TIPO_VALOR = 0` mesmo para números | Converter com `float(valor)` quando necessário; o campo `TIPO_VALOR` indica o tipo esperado |
+
+---
+
+## Segurança — Zip Slip na extração do .aq
+
+Arquivos `.aq` são ZIPs contendo o SQLite. **Nunca usar `z.extractall(tmp_dir)` diretamente** — em Python < 3.12 não há validação dos paths internos do ZIP. Um `.aq` craftado pode conter uma entrada `../../../../home/user/.ssh/authorized_keys` que é extraída fora do `tmp_dir`.
+
+Padrão obrigatório:
+
+```python
+safe_root = os.path.realpath(tmp_dir)
+for member in z.namelist():
+    dest = os.path.realpath(os.path.join(safe_root, member))
+    if not dest.startswith(safe_root + os.sep):
+        continue  # zip slip — ignorar
+    z.extract(member, tmp_dir)
+```
 | Peça no IFC sem entrada no banco | Fabricante não sincronizou .aq com os IFCs | Incluir a peça com specs mínimas derivadas do nome do arquivo; `pts: null` |
