@@ -521,6 +521,22 @@ Requer `ifcopenshell` instalado (`requirements.txt`). Retorna geometria expandid
 (sem `idx`) no mesmo formato `{pos, col}` do caminho colorido manual — o `dedup.py`
 compacta normalmente depois.
 
+**Filtro de tipo obrigatório no fallback ifcopenshell:**
+`ifc_file.by_type('IFCPRODUCT')` devolve todo elemento com `Representation` —
+incluindo volumes de espaço (`IfcSpace`) e limites de abertura (`IfcVirtualElement`)
+que não são geometria física. O filtro correto é:
+
+```python
+if (not product.is_a('IfcElement')
+        or product.is_a('IfcFeatureElement')   # vazios de furo/recorte
+        or product.is_a('IfcVirtualElement')):  # limites de espaço/porta aberta
+    continue
+```
+
+- `IfcElement` cobre elementos físicos (proxies, tubulações, fixadores, etc.)
+- `IfcFeatureElement` é subtype de `IfcElement` — representa operações de vazio/adição mergeadas no sólido pai; excluir mesmo sendo `IfcElement`
+- `IfcVirtualElement` é subtype de `IfcElement` mas **não** de `IfcFeatureElement` — representa superfície planar de limite de espaço (ex: vão de porta aberta); tem `Representation` sólida válida e vira geometria fantasma visível se não for excluído
+
 **Armadilha resolvida:** um catálogo anterior parecia funcionar com esses mesmos
 arquivos porque a geometria tinha sido pré-processada por fora do projeto (fora do
 `parse_ifc.py`) numa sessão anterior, sem deixar código commitado — ao tentar
@@ -690,6 +706,8 @@ Este repo (`bilds-bim-3d`) só produz o ZIP e o preview — não edita o bilds.c
 | Sintoma | Causa provável |
 |---|---|
 | Parse retorna 0 vértices para todos os produtos de um IFC exportado pelo Revit | Arquivo em BRep (`IFCFACETEDBREP`/`IFCADVANCEDBREP`), sem `IFCTRIANGULATEDFACESET` — confirmar com `grep -c IFCTRIANGULATEDFACESET arquivo.ifc`; fallback `_parse_via_ifcopenshell()` deve cobrir automaticamente (requer `ifcopenshell` instalado) |
+| Geometria fantasma planar (superfícies finas de porta/abertura) no fallback ifcopenshell | `IfcVirtualElement` não filtrado — é subtype de `IfcElement` mas não de `IfcFeatureElement`, portanto passa pela guarda anterior. Ver filtro de tipo em "Fallback ifcopenshell" |
+| Build falha silenciosamente no fallback ifcopenshell em alguns materiais | Exceção em `c.r()/c.g()/c.b()` fora do try/except de `create_shape()` — o bloco de extração de geometria/cores inteiro deve estar dentro de try/except separado |
 | Peças separadas por metros | resolve_lp() não acumula hierarquia recursivamente |
 | Fragmentos a 5–16m do corpo, valores de translação "redondos" (4.0, 5.0, 16.0) | **Checar `parse_floats()` primeiro** — bug de regex com mantissa STEP tipo `-4.E-16` (sem dígito após o ponto) vira 2 valores fantasmas; já corrigido em `scripts/parse_ifc.py`, mas confirmar se a versão está atualizada antes de suspeitar do IFC. Ver `docs/specs/leitor-ifc.md` |
 | Modelo ~1000× maior | Conversão mm→m desnecessária — verificar magnitude das coordenadas brutas |
