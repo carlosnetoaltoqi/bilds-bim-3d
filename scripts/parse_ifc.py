@@ -55,19 +55,19 @@ def split_top(s):
 
 
 def parse_floats(s):
-    """
+    r"""
     Extrai todos os floats de uma string STEP.
 
     O grupo da mantissa exige pelo menos um dígito ANTES ou DEPOIS do ponto
     (nunca os dois opcionais ao mesmo tempo) — formato STEP permite mantissa
-    sem dígitos após o ponto quando há expoente, ex: '-4.E-16' (ess.
-    praticamente zero). Uma regex que trata os dígitos após o ponto como
-    sempre opcionais (`\.?[0-9]+`) falha em casar isso: ela para em '-4.'
-    (sem consumir o '.'), e o 'E-16' restante vira um número fantasma
-    separado ('-16'). Um valor ~0 assim vira dois valores espúrios grandes —
-    bug real observado em campo: fragmentos de peça aparecendo a 4-16m de
-    distância no viewer 3D, quando a causa era essa corrupção de parsing,
-    não posicionamento aberrante no IFC de origem. Ver docs/specs/leitor-ifc.md.
+    sem dígitos após o ponto quando há expoente, ex: '-4.E-16' (praticamente
+    zero). Uma regex que trata os dígitos após o ponto como sempre opcionais
+    (`\.?[0-9]+`) falha nesse caso: ela para em '-4.' (sem consumir o '.'),
+    e o 'E-16' restante vira um número fantasma separado ('-16'). Um valor ~0
+    assim vira dois valores espúrios grandes — bug real observado em campo:
+    fragmentos de peça aparecendo a 4-16m de distância no viewer 3D, quando
+    a causa era essa corrupção de parsing, não posicionamento aberrante no IFC
+    de origem. Ver docs/specs/leitor-ifc.md.
     """
     return [float(x) for x in re.findall(
         r'[-+]?(?:[0-9]+\.[0-9]*|\.[0-9]+|[0-9]+)(?:[eE][-+]?[0-9]+)?', s
