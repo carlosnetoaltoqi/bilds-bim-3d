@@ -399,21 +399,21 @@ def update_catalog_registry(catalog):
 def build_zip(catalog):
     """
     Gera output/bilds-upload.zip com:
-      manifest.json    — slug, titulo, fabricante, descricao, layout
+      manifest.json    — slug, title, manufacturer, description, layout, filters, productCount
       catalog.json     — dados completos dos produtos
       geo/<slug>.json  — geometria de cada produto
     """
     zip_path = os.path.join(OUTPUT_DIR, 'bilds-upload.zip')
     with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
-        # manifest
+        # manifest — campos em inglês para compatibilidade com a API bilds.com
         manifest = {
             'slug': catalog['slug'],
-            'titulo': catalog['titulo'],
-            'fabricante': catalog['fabricante'],
-            'descricao': catalog['descricao'],
+            'title': catalog['titulo'],
+            'manufacturer': catalog['fabricante'],
+            'description': catalog['descricao'],
             'layout': catalog['layout'],
-            'filtros': catalog['filtros'],
-            'n_produtos': len(catalog['produtos']),
+            'filters': catalog['filtros'],
+            'productCount': len(catalog['produtos']),
         }
         zf.writestr('manifest.json', json.dumps(manifest, ensure_ascii=False, indent=2))
 
