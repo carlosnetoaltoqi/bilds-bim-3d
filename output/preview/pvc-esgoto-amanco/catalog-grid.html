@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PVC Esgoto SN, SR e Silentium | Amanco | bilds</title>
+<meta name="description" content="Linha completa de tubos e conexões PVC para esgoto predial.">
+<script type="importmap">{"imports":{"three":"/vendor/three.module.js"}}</script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --orange:#FF4F1F;--blue:#1E40AF;
+  --navy:#002D72;--navy-dark:#00245B;--navy-light:#DFE8FA;
+  --bg:#F8F9FA;--bg-muted:#FAFBFB;--surface:#fff;
+  --text:#111827;--muted:#6B7280;--border:#E5E7EB;--radius:4px;--header:60px;--maxw:1200px;
+  font-family:'Inter',system-ui,sans-serif;
+}
+body{background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
+@media(max-width:480px){.wrap{padding:0 16px}}
+
+
+/* Hero (compacto, navy) */
+.hero{background:var(--navy-dark);color:#fff;padding:32px 0 28px}
+.hero-inner{display:flex;align-items:center;gap:48px}
+.hero-text{flex:1;min-width:0}
+.hero-eyebrow{font-size:11px;font-weight:600;color:#7CA5CC;letter-spacing:.1em;text-transform:uppercase;margin-bottom:12px}
+.hero h1{font-family:'Fira Sans',system-ui,sans-serif;font-weight:800;font-size:clamp(24px,3.5vw,42px);line-height:1.05;letter-spacing:-.03em;text-wrap:balance}
+.hero-ficha{flex-shrink:0;min-width:220px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:var(--radius);padding:4px 0}
+.ficha-row{display:flex;justify-content:space-between;align-items:baseline;gap:20px;padding:8px 18px;border-bottom:1px solid rgba(255,255,255,.07);font-size:12px}
+.ficha-row:last-child{border-bottom:none}
+.ficha-lbl{color:#7CA5CC;font-weight:500;white-space:nowrap}
+.ficha-val{color:#fff;font-weight:600;text-align:right}
+@media(max-width:700px){.hero-inner{flex-direction:column;align-items:flex-start;gap:20px}.hero-ficha{width:100%;min-width:0}}
+
+/* Toolbar: filtros + contagem */
+.toolbar{
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  padding:20px 0 0;
+}
+.chip{padding:6px 14px;border-radius:9999px;border:1px solid var(--border);
+  background:#fff;font-size:13px;cursor:pointer;transition:all .15s;white-space:nowrap}
+.chip.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+.chip:hover:not(.active){border-color:var(--blue);color:var(--blue)}
+.toolbar-count{margin-left:auto;font-size:12px;color:var(--muted)}
+
+/* Catalog section */
+.catalog-section{padding:0 0 56px}
+/* Grid */
+.grid-wrap{padding:0;}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
+
+/* Card */
+.card{
+  background:var(--surface);border-radius:var(--radius);
+  border:1px solid var(--border);cursor:pointer;
+  transition:box-shadow .15s,transform .15s;
+}
+.card:hover{box-shadow:0 4px 16px rgba(0,0,0,.1);transform:translateY(-2px)}
+.card-canvas-wrap{position:relative;height:150px;background:#F3F4F6;
+  border-radius:var(--radius) var(--radius) 0 0;overflow:hidden}
+.card-canvas-wrap canvas{width:100%;height:100%;display:block}
+.card-loader{position:absolute;inset:0;display:flex;align-items:center;
+  justify-content:center;font-size:11px;color:var(--muted)}
+.badge-3d{position:absolute;top:8px;right:8px;width:26px;height:26px;
+  background:rgba(255,255,255,.93);border-radius:var(--radius);
+  display:flex;align-items:center;justify-content:center;transition:opacity .25s}
+.badge-3d svg{width:14px;height:14px;stroke:var(--orange);stroke-width:2;fill:none}
+.badge-3d.off{opacity:0;pointer-events:none}
+.card-body{padding:10px 12px}
+.card-name{font-size:12px;font-weight:600;margin-bottom:3px;line-height:1.3}
+.card-meta{font-size:11px;color:var(--muted);margin-bottom:8px}
+.card-tag{display:inline-block;font-size:10px;background:#EFF6FF;color:var(--blue);
+  border-radius:9999px;padding:2px 8px;margin-bottom:8px}
+.card-btn{width:100%;padding:6px;border-radius:var(--radius);
+  border:1px solid var(--blue);color:var(--blue);background:#fff;
+  font-size:11px;font-weight:600;cursor:pointer;transition:all .15s}
+.card-btn:hover{background:var(--blue);color:#fff}
+
+/* Empty state */
+.empty{text-align:center;padding:60px 20px;color:var(--muted);font-size:14px}
+
+/* Modal */
+.modal-backdrop{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.5);
+  backdrop-filter:blur(4px);display:none;align-items:center;
+  justify-content:center;padding:16px}
+.modal-backdrop.open{display:flex}
+.modal{background:#fff;border-radius:var(--radius);width:100%;max-width:780px;
+  max-height:92vh;overflow-y:auto;display:flex;flex-direction:column;
+  animation:slideUp .2s ease}
+@keyframes slideUp{from{transform:translateY(12px);opacity:0}to{transform:none;opacity:1}}
+.modal-head{position:sticky;top:0;background:#fff;z-index:10;
+  display:flex;align-items:center;gap:12px;padding:16px 20px;
+  border-bottom:1px solid var(--border)}
+.modal-head h3{font-size:15px;font-weight:600;flex:1}
+.modal-close{background:none;border:none;cursor:pointer;padding:4px;
+  color:var(--muted);border-radius:var(--radius)}
+.modal-close:hover{background:var(--border)}
+.modal-3d{height:280px;background:#F3F4F6}
+.modal-3d canvas{width:100%;height:100%;display:block}
+.modal-body{padding:20px;display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.modal-body.no-curve{grid-template-columns:1fr}
+.specs-table{font-size:12px;border-collapse:collapse;width:100%}
+.specs-table th{text-align:left;font-weight:500;color:var(--muted);padding:4px 0;width:45%}
+.specs-table td{padding:4px 0;border-bottom:1px solid var(--border)}
+.modal-actions{position:sticky;bottom:0;background:#fff;z-index:10;
+  padding:12px 20px;border-top:1px solid var(--border);
+  display:flex;gap:8px;justify-content:flex-end}
+.btn-primary{background:var(--orange);color:#fff;border:none;border-radius:var(--radius);
+  padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer}
+.btn-outline{background:#fff;color:var(--muted);border:1px solid var(--border);
+  border-radius:var(--radius);padding:8px 18px;font-size:13px;cursor:pointer}
+
+@media(max-width:600px){
+  .modal-body{grid-template-columns:1fr}
+  .modal-3d{height:220px}
+}
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fira+Sans:wght@700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<!-- Hero -->
+<header class="hero">
+  <div class="wrap hero-inner">
+    <div class="hero-text">
+      <p class="hero-eyebrow">Amanco &middot; Biblioteca BIM &middot; IFC4</p>
+      <h1>PVC Esgoto SN, SR e Silentium</h1>
+    </div>
+    <div class="hero-ficha">
+      <div class="ficha-row">
+        <span class="ficha-lbl">Produtos</span>
+        <span class="ficha-val">14</span>
+      </div>
+      <div class="ficha-row">
+        <span class="ficha-lbl">Categorias</span>
+        <span class="ficha-val">9</span>
+      </div>
+      <div class="ficha-row">
+        <span class="ficha-lbl">Formato</span>
+        <span class="ficha-val">IFC4</span>
+      </div>
+      <div class="ficha-row">
+        <span class="ficha-lbl">Software</span>
+        <span class="ficha-val">AltoQi Builder</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- Catálogo -->
+<section class="catalog-section">
+  <div class="wrap">
+    <div class="toolbar" id="toolbar">
+      <button class="chip active" data-filter="all">Todos</button>
+      
+      <button class="chip" data-filter="Adaptador">Adaptador</button>
+      
+      <button class="chip" data-filter="Caixa">Caixa</button>
+      
+      <button class="chip" data-filter="Cap">Cap</button>
+      
+      <button class="chip" data-filter="Junção">Junção</button>
+      
+      <button class="chip" data-filter="Plug">Plug</button>
+      
+      <button class="chip" data-filter="Ralo">Ralo</button>
+      
+      <button class="chip" data-filter="Redução">Redução</button>
+      
+      <button class="chip" data-filter="Tê">Tê</button>
+      
+      <button class="chip" data-filter="Válvula">Válvula</button>
+      
+      <span class="toolbar-count" id="count-label"></span>
+    </div>
+
+    <div class="grid-wrap">
+      <div class="grid" id="grid-root"></div>
+      <div class="empty" id="empty-state" style="display:none">Nenhum produto encontrado.</div>
+    </div>
+  </div>
+</section>
+
+<!-- Modal -->
+<div class="modal-backdrop" id="modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="modal-title">—</h3>
+      <button class="modal-close" onclick="closeModal()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-3d"><canvas id="modal-canvas"></canvas></div>
+    <div class="modal-body">
+      <div>
+        <h4 style="font-size:12px;font-weight:600;margin-bottom:8px;color:var(--muted)">Especificações</h4>
+        <table class="specs-table" id="modal-specs"></table>
+      </div>
+      <div id="modal-chart-wrap">
+        <h4 style="font-size:12px;font-weight:600;margin-bottom:8px;color:var(--muted)">Curva Q-H</h4>
+        <div id="modal-chart"></div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-outline" onclick="closeModal()">Fechar</button>
+      <a class="btn-primary" href="https://bilds.com" target="_blank">Ver na bilds</a>
+    </div>
+  </div>
+</div>
+
+<script>
+const CATALOG = {"descricao": "Linha completa de tubos e conex\u00f5es PVC para esgoto predial.", "fabricante": "Amanco", "filtros": ["Adaptador", "Caixa", "Cap", "Jun\u00e7\u00e3o", "Plug", "Ralo", "Redu\u00e7\u00e3o", "T\u00ea", "V\u00e1lvula"], "layout": "catalog-grid", "produtos": [{"conexoes": "Adaptador com Anel Labial", "curva": null, "geo": "adaptador-com-anel-labial-sn.json", "id": "adaptador-com-anel-labial-sn", "nome": "40mm x 38mm", "potencia": null, "serie": "Adaptador", "specs": {}}, {"conexoes": "Caixa Sifonada", "curva": null, "geo": "caixa-sifonada.json", "id": "caixa-sifonada", "nome": "DN100 x 100 x DN50", "potencia": null, "serie": "Caixa", "specs": {"Fecho H\u00eddrico": "31,5mm"}}, {"conexoes": "Cap", "curva": null, "geo": "cap.json", "id": "cap", "nome": "50mm", "potencia": null, "serie": "Cap", "specs": {"Bolsa": "Bolsa de dupla atua\u00e7\u00e3o: bolsa sold\u00e1vel e \nel\u00e1stica", "Encaixe": "Junta sold\u00e1vel com aplica\u00e7\u00e3o de adesivo PVC \ne junta el\u00e1stica com uso de anel de veda\u00e7\u00e3o", "Observa\u00e7\u00e3o": "A linha s\u00e9rie Silentium \u00e9 intercambi\u00e1vel com a \nlinha s\u00e9rie Normal e a linha s\u00e9rie refor\u00e7ada", "Temperatura m\u00e1xima de opera\u00e7\u00e3o": "75\u00b0C"}}, {"conexoes": "", "curva": null, "geo": "curvas.json", "id": "curvas", "nome": "CURVAS", "potencia": null, "serie": "", "specs": {}}, {"conexoes": "", "curva": null, "geo": "joelhos.json", "id": "joelhos", "nome": "JOELHOS", "potencia": null, "serie": "", "specs": {}}, {"conexoes": "Jun\u00e7\u00e3o de Redu\u00e7\u00e3o", "curva": null, "geo": "juncao.json", "id": "juncao", "nome": "100mm x 50mm", "potencia": null, "serie": "Jun\u00e7\u00e3o", "specs": {"Bolsa": "Bolsa de dupla atua\u00e7\u00e3o: bolsa sold\u00e1vel e \nel\u00e1stica", "Encaixe": "Junta sold\u00e1vel com aplica\u00e7\u00e3o de adesivo PVC \ne junta el\u00e1stica com uso de anel de veda\u00e7\u00e3o", "Observa\u00e7\u00e3o": "A linha s\u00e9rie Silentium \u00e9 intercambi\u00e1vel com a \nlinha s\u00e9rie Normal e a linha s\u00e9rie refor\u00e7ada", "Temperatura m\u00e1xima de opera\u00e7\u00e3o": "75\u00b0C"}}, {"conexoes": "", "curva": null, "geo": "luvas.json", "id": "luvas", "nome": "LUVAS", "potencia": null, "serie": "", "specs": {}}, {"conexoes": "", "curva": null, "geo": "pecas-especiais.json", "id": "pecas-especiais", "nome": "PECAS ESPECIAIS", "potencia": null, "serie": "", "specs": {}}, {"conexoes": "Plug", "curva": null, "geo": "plug-sn.json", "id": "plug-sn", "nome": "50mm", "potencia": null, "serie": "Plug", "specs": {"Bolsa": "Bolsa de dupla atua\u00e7\u00e3o: bolsa sold\u00e1vel e \nel\u00e1stica", "Classe de rigidez": "8.000Pa", "Encaixe": "Junta sold\u00e1vel com aplica\u00e7\u00e3o de adesivo PVC \ne junta el\u00e1stica com uso de anel de veda\u00e7\u00e3o", "Observa\u00e7\u00e3o": "A linha s\u00e9rie Normal \u00e9 intercambi\u00e1vel com a linha s\u00e9rie Refor\u00e7ada e a linha Silentium", "Press\u00e3o negativa (v\u00e1cuo) m\u00e1xima suportada": "-0,40 bar", "Temperatura m\u00e1xima de opera\u00e7\u00e3o": "45\u00b0C"}}, {"conexoes": "Caixa Sifonada (ralo)", "curva": null, "geo": "ralo.json", "id": "ralo", "nome": "CS - DN100 x 100 x 50", "potencia": null, "serie": "Ralo", "specs": {"Fecho H\u00eddrico": "31,5mm", "Temperatura m\u00e1xima de opera\u00e7\u00e3o": "75\u00b0C"}}, {"conexoes": "Redu\u00e7\u00e3o Exc\u00eantrica", "curva": null, "geo": "reducao.json", "id": "reducao", "nome": "75mm x 50mm", "potencia": null, "serie": "Redu\u00e7\u00e3o", "specs": {"Bolsa": "Bolsa de dupla atua\u00e7\u00e3o: bolsa sold\u00e1vel e \nel\u00e1stica", "Encaixe": "Junta sold\u00e1vel com aplica\u00e7\u00e3o de adesivo PVC \ne junta el\u00e1stica com uso de anel de veda\u00e7\u00e3o", "Observa\u00e7\u00e3o": "A linha s\u00e9rie Silentium \u00e9 intercambi\u00e1vel com a \nlinha s\u00e9rie Normal e a linha s\u00e9rie refor\u00e7ada", "Temperatura m\u00e1xima de opera\u00e7\u00e3o": "75\u00b0C"}}, {"conexoes": "T\u00ea de Redu\u00e7\u00e3o", "curva": null, "geo": "terminal-de-ventilacao.json", "id": "terminal-de-ventilacao", "nome": "100mm x 50mm", "potencia": null, "serie": "T\u00ea", "specs": {"Bolsa": "Bolsa de dupla atua\u00e7\u00e3o: bolsa sold\u00e1vel e \nel\u00e1stica", "Encaixe": "Junta sold\u00e1vel com aplica\u00e7\u00e3o de adesivo PVC \ne junta el\u00e1stica com uso de anel de veda\u00e7\u00e3o", "Observa\u00e7\u00e3o": "A linha s\u00e9rie Silentium \u00e9 intercambi\u00e1vel com a \nlinha s\u00e9rie Normal e a linha s\u00e9rie refor\u00e7ada", "Temperatura m\u00e1xima de opera\u00e7\u00e3o": "75\u00b0C"}}, {"conexoes": "T\u00ea de Redu\u00e7\u00e3o", "curva": null, "geo": "tes.json", "id": "tes", "nome": "100mm x 50mm", "potencia": null, "serie": "T\u00ea", "specs": {"Bolsa": "Bolsa de dupla atua\u00e7\u00e3o: bolsa sold\u00e1vel e \nel\u00e1stica", "Encaixe": "Junta sold\u00e1vel com aplica\u00e7\u00e3o de adesivo PVC \ne junta el\u00e1stica com uso de anel de veda\u00e7\u00e3o", "Observa\u00e7\u00e3o": "A linha s\u00e9rie Silentium \u00e9 intercambi\u00e1vel com a \nlinha s\u00e9rie Normal e a linha s\u00e9rie refor\u00e7ada", "Temperatura m\u00e1xima de opera\u00e7\u00e3o": "75\u00b0C"}}, {"conexoes": "V\u00e1lvula de Reten\u00e7\u00e3o", "curva": null, "geo": "valvula-de-retencao.json", "id": "valvula-de-retencao", "nome": "100mm x 150mm", "potencia": null, "serie": "V\u00e1lvula", "specs": {"Observa\u00e7\u00e3o": "Portinhola de fechamento com veda\u00e7\u00e3o em \nborracha", "Temperatura m\u00e1xima de opera\u00e7\u00e3o": "45\u00ba"}}], "slug": "pvc-esgoto-amanco", "tem_curva_qh": false, "titulo": "PVC Esgoto SN, SR e Silentium"};
+const ITEMS   = CATALOG.produtos;
+const geoCache = new Map();
+let activeFilter = 'all';
+
+function esc(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function matchFilter(item, f) { return f==='all' || item.serie===f; }
+
+// item.id é sempre um slug gerado por slugify() — apenas [a-z0-9-_].
+// Usar esc() nos campos de texto livre (nome, serie, conexoes, potencia).
+function buildCard(item) {
+  const meta = esc(item.conexoes) || (item.potencia ? esc(String(item.potencia)) + ' CV' : '');
+  return `<div class="card" data-id="${item.id}">
+    <div class="card-canvas-wrap">
+      <canvas id="canvas-${item.id}"></canvas>
+      <div class="card-loader" id="loader-${item.id}">Carregando…</div>
+      <div class="badge-3d" id="badge-${item.id}">
+        <svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+      </div>
+    </div>
+    <div class="card-body">
+      ${item.serie ? `<span class="card-tag">${esc(item.serie)}</span>` : ''}
+      <div class="card-name">${esc(item.nome)}</div>
+      ${meta ? `<div class="card-meta">${meta}</div>` : ''}
+      <button class="card-btn">Ver detalhes</button>
+    </div>
+  </div>`;
+}
+
+function buildChart(pts) {
+  const W=300,H=170;
+  if (!pts || !pts.length) return '<p style="font-size:11px;color:var(--muted)">Curva não disponível.</p>';
+  const pl=38,pr=10,pt=12,pb=34,cW=W-pl-pr,cH=H-pt-pb;
+  const qMax=Math.max(...pts.map(p=>p[0]))*1.1;
+  const hMax=Math.max(...pts.map(p=>p[1]))*1.18;
+  const tx=q=>pl+(q/qMax)*cW, ty=h=>H-pb-(h/hMax)*cH;
+  let g='';
+  [.25,.5,.75,1].forEach(f=>{
+    const yy=ty(hMax*f).toFixed(1);
+    g+=`<line x1="${pl}" y1="${yy}" x2="${W-pr}" y2="${yy}" stroke="#E5E7EB" stroke-width="1"/>`;
+    g+=`<text x="${pl-4}" y="${+yy+3}" text-anchor="end" fill="#9CA3AF" font-size="8">${Math.round(hMax*f)}</text>`;
+  });
+  const path='M'+pts.map(p=>`${tx(p[0]).toFixed(1)},${ty(p[1]).toFixed(1)}`).join('L');
+  const area=path+`L${tx(pts.at(-1)[0]).toFixed(1)},${H-pb}L${tx(pts[0][0]).toFixed(1)},${H-pb}Z`;
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%" xmlns="http://www.w3.org/2000/svg">
+    ${g}
+    <path d="${area}" fill="rgba(30,64,175,.1)"/>
+    <path d="${path}" fill="none" stroke="#1E40AF" stroke-width="2" stroke-linejoin="round"/>
+    <text x="${pl+cW/2}" y="${H-2}" text-anchor="middle" fill="#9CA3AF" font-size="8">Vazão (m³/h)</text>
+  </svg>`;
+}
+
+function renderGrid(filter) {
+  activeFilter = filter;
+  const filtered = ITEMS.filter(i => matchFilter(i, filter));
+  const grid = document.getElementById('grid-root');
+  const empty = document.getElementById('empty-state');
+  const label = document.getElementById('count-label');
+  if (!filtered.length) {
+    grid.innerHTML = '';
+    empty.style.display = 'block';
+  } else {
+    grid.innerHTML = filtered.map(buildCard).join('');
+    empty.style.display = 'none';
+  }
+  if (label) label.textContent = `${filtered.length} produto${filtered.length !== 1 ? 's' : ''}`;
+  document.dispatchEvent(new CustomEvent('cards-rendered', {detail:{filter}}));
+}
+
+function filterBy(f, el) {
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  renderGrid(f);
+}
+
+document.getElementById('toolbar').addEventListener('click', function(e) {
+  var btn = e.target.closest('.chip');
+  if (btn) filterBy(btn.dataset.filter, btn);
+});
+
+document.getElementById('grid-root').addEventListener('click', function(e) {
+  var card = e.target.closest('.card');
+  if (card) openModal(card.dataset.id);
+});
+
+function openModal(id) {
+  const item = ITEMS.find(i => i.id === id);
+  if (!item) return;
+  document.getElementById('modal-title').textContent = item.nome;
+  const specs = Object.entries(item.specs || {});
+  document.getElementById('modal-specs').innerHTML =
+    specs.map(([k,v]) => `<tr><th>${esc(k)}</th><td>${esc(v)}</td></tr>`).join('') ||
+    `<tr><td colspan="2" style="color:var(--muted)">—</td></tr>`;
+  document.getElementById('modal-chart').innerHTML = buildChart(item.curva);
+  document.getElementById('modal').classList.add('open');
+  document.dispatchEvent(new CustomEvent('modal-open', {detail:{id}}));
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+  document.dispatchEvent(new CustomEvent('modal-close'));
+}
+
+document.addEventListener('keydown', e => { if (e.key==='Escape') closeModal(); });
+
+// Curva Q-H é conceito específico de bomba — se nenhum produto do catálogo
+// tem curva, a seção não se aplica a este tipo de peça (não é "dado
+// faltando"), então nem aparece no modal.
+if (!CATALOG.tem_curva_qh) {
+  document.getElementById('modal-chart-wrap').style.display = 'none';
+  document.querySelector('.modal-body').classList.add('no-curve');
+}
+
+renderGrid('all');
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from '/vendor/OrbitControls.js';
+
+const thumbStates = new Map();
+let modalViewer = null;
+
+async function fetchGeo(geo) {
+  if (geoCache.has(geo)) return geoCache.get(geo);
+  const data = await fetch('/data/' + geo).then(r => r.json());
+  geoCache.set(geo, data);
+  return data;
+}
+
+function buildScene(data) {
+  const scene = new THREE.Scene();
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute('position', new THREE.Float32BufferAttribute(data.pos, 3));
+  const hasCol = data.col && data.col.length > 0;
+  if (hasCol) geom.setAttribute('color', new THREE.Float32BufferAttribute(data.col, 3));
+  if (data.idx) geom.setIndex(data.idx);
+  geom.computeVertexNormals();
+  geom.computeBoundingBox();
+  const center = geom.boundingBox.getCenter(new THREE.Vector3());
+  const size = geom.boundingBox.getSize(new THREE.Vector3()).length();
+  const mat = new THREE.MeshStandardMaterial({
+    vertexColors: hasCol, color: hasCol ? 0xffffff : 0x8896AA,
+    metalness: 0.25, roughness: 0.55,
+  });
+  const mesh = new THREE.Mesh(geom, mat);
+  mesh.position.copy(center.negate());
+  scene.add(mesh);
+  scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+  const key = new THREE.DirectionalLight(0xffffff, 0.9);
+  key.position.set(2,3,2); scene.add(key);
+  const fill = new THREE.DirectionalLight(0xC8D8F0, 0.35);
+  fill.position.set(-2,1,-1); scene.add(fill);
+  return {scene, size};
+}
+
+async function loadThumbnail(id) {
+  if (thumbStates.has(id)) return;
+  const item = ITEMS.find(i => i.id === id);
+  if (!item) return;
+  const canvas = document.getElementById('canvas-' + id);
+  const loader = document.getElementById('loader-' + id);
+  const badge  = document.getElementById('badge-' + id);
+  if (!canvas) return;
+  thumbStates.set(id, { canvas, pending: true }); // reserva presa a ESTE elemento canvas
+  try {
+    const W = canvas.parentElement.offsetWidth || 200;
+    const H = canvas.parentElement.offsetHeight || 150;
+    const data = await fetchGeo(item.geo);
+
+    // Filtro pode ter re-renderizado os cards enquanto o geo carregava —
+    // se a reserva não é mais a nossa (mesmo canvas), um card novo com o
+    // mesmo id já assumiu o lugar. Abortar sem tocar em nós desconectados
+    // do DOM, senão o card novo trava em "Carregando…" pra sempre (a
+    // reserva antiga nunca seria liberada).
+    if (thumbStates.get(id)?.canvas !== canvas) return;
+
+    const renderer = new THREE.WebGLRenderer({canvas, antialias:false, alpha:false});
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+    renderer.setSize(W, H, false);
+    renderer.setClearColor(0xF3F4F6, 1);
+    const {scene, size} = buildScene(data);
+    const camera = new THREE.PerspectiveCamera(38, W/H, 0.001, 500);
+    camera.position.set(size*.85, size*.32, size*.85);
+    camera.lookAt(0,0,0);
+    renderer.render(scene, camera);
+    if (loader) loader.style.display = 'none';
+    thumbStates.set(id, {canvas, renderer, scene, camera, raf:null, controls:null, rotating:false});
+    canvas.addEventListener('mouseenter', () => {
+      const st = thumbStates.get(id);
+      if (!st) return;
+      if (!st.controls) {
+        if (badge) badge.classList.add('off');
+        const controls = new OrbitControls(camera, canvas);
+        controls.autoRotate = true; controls.autoRotateSpeed = 1.2;
+        controls.enableDamping = true; controls.dampingFactor = 0.07;
+        controls.enableZoom = false; controls.enablePan = false;
+        st.controls = controls;
+        st.spin = function() {
+          if (!st.rotating) { st.raf = null; return; }
+          st.raf = requestAnimationFrame(st.spin);
+          controls.update(); renderer.render(scene, camera);
+        };
+      }
+      st.rotating = true;
+      if (!st.raf) st.spin();
+    });
+    canvas.addEventListener('mouseleave', () => {
+      const st = thumbStates.get(id);
+      if (!st) return;
+      st.rotating = false;
+      renderer.render(scene, camera);
+    });
+  } catch(e) {
+    // Só limpa a reserva se ela ainda for nossa — evita apagar um estado
+    // válido de um card mais novo que já assumiu este id.
+    if (thumbStates.get(id)?.canvas === canvas) thumbStates.delete(id);
+    if (loader) loader.textContent = 'Erro';
+    console.warn('Geo error', id, e);
+  }
+}
+
+async function initModalViewer(id) {
+  if (modalViewer) {
+    cancelAnimationFrame(modalViewer.raf);
+    modalViewer.controls?.dispose();
+    modalViewer.renderer.dispose();
+    modalViewer = null;
+  }
+  const item = ITEMS.find(i => i.id === id);
+  if (!item) return;
+  const canvas = document.getElementById('modal-canvas');
+  const W = canvas.parentElement.offsetWidth || 760;
+  const H = canvas.parentElement.offsetHeight || 280;
+  try {
+    const data = await fetchGeo(item.geo);
+    const renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:false});
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.setSize(W, H, false);
+    renderer.setClearColor(0xF3F4F6, 1);
+    const {scene, size} = buildScene(data);
+    const camera = new THREE.PerspectiveCamera(34, W/H, 0.001, 500);
+    camera.position.set(size*.9, size*.35, size*.9);
+    camera.lookAt(0,0,0);
+    const controls = new OrbitControls(camera, canvas);
+    controls.autoRotate = true; controls.autoRotateSpeed = 0.7;
+    controls.enableDamping = true; controls.dampingFactor = 0.06;
+    controls.enableZoom = true; controls.enablePan = false;
+    const mv = {renderer, scene, camera, controls, raf:null};
+    modalViewer = mv;
+    function animate() {
+      if (modalViewer !== mv) return;
+      mv.raf = requestAnimationFrame(animate);
+      controls.update(); renderer.render(scene, camera);
+    }
+    animate();
+  } catch(e) { console.warn('Modal error', e); }
+}
+
+const io = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) { loadThumbnail(e.target.dataset.id); io.unobserve(e.target); }
+  });
+}, {rootMargin:'120px'});
+
+function observeCards() {
+  // Limpa viewers órfãos — inclui o caso em que o filtro re-renderizou os
+  // cards e o mesmo id voltou com um canvas NOVO (elemento diferente, id
+  // igual): getElementById encontra o novo, mas a reserva/estado aponta pro
+  // antigo. Comparar identidade do elemento, não só a existência do id.
+  thumbStates.forEach((st, id) => {
+    const current = document.getElementById('canvas-'+id);
+    if (!current || !st || current !== st.canvas) {
+      if (st) { cancelAnimationFrame(st.raf); st.controls?.dispose(); st.renderer?.dispose(); }
+      thumbStates.delete(id);
+    }
+  });
+  document.querySelectorAll('.card[data-id]').forEach(c => io.observe(c));
+}
+
+document.addEventListener('cards-rendered', () => observeCards());
+document.addEventListener('modal-open', e => initModalViewer(e.detail.id));
+observeCards(); // cards já estão no DOM quando o módulo carrega
+document.addEventListener('modal-close', () => {
+  if (modalViewer) {
+    cancelAnimationFrame(modalViewer.raf);
+    modalViewer.controls?.dispose();
+    modalViewer.renderer.dispose();
+    modalViewer = null;
+  }
+});
+</script>
+</body>
+</html>

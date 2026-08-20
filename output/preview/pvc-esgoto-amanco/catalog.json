@@ -1,0 +1,201 @@
+{
+  "slug": "pvc-esgoto-amanco",
+  "titulo": "PVC Esgoto SN, SR e Silentium",
+  "fabricante": "Amanco",
+  "descricao": "Linha completa de tubos e conexões PVC para esgoto predial.",
+  "layout": "catalog-grid",
+  "filtros": [
+    "Adaptador",
+    "Caixa",
+    "Cap",
+    "Junção",
+    "Plug",
+    "Ralo",
+    "Redução",
+    "Tê",
+    "Válvula"
+  ],
+  "produtos": [
+    {
+      "id": "adaptador-com-anel-labial-sn",
+      "nome": "40mm x 38mm",
+      "serie": "Adaptador",
+      "geo": "adaptador-com-anel-labial-sn.json",
+      "potencia": null,
+      "conexoes": "Adaptador com Anel Labial",
+      "specs": {},
+      "curva": null
+    },
+    {
+      "id": "caixa-sifonada",
+      "nome": "DN100 x 100 x DN50",
+      "serie": "Caixa",
+      "geo": "caixa-sifonada.json",
+      "potencia": null,
+      "conexoes": "Caixa Sifonada",
+      "specs": {
+        "Fecho Hídrico": "31,5mm"
+      },
+      "curva": null
+    },
+    {
+      "id": "cap",
+      "nome": "50mm",
+      "serie": "Cap",
+      "geo": "cap.json",
+      "potencia": null,
+      "conexoes": "Cap",
+      "specs": {
+        "Bolsa": "Bolsa de dupla atuação: bolsa soldável e \nelástica",
+        "Encaixe": "Junta soldável com aplicação de adesivo PVC \ne junta elástica com uso de anel de vedação",
+        "Observação": "A linha série Silentium é intercambiável com a \nlinha série Normal e a linha série reforçada",
+        "Temperatura máxima de operação": "75°C"
+      },
+      "curva": null
+    },
+    {
+      "id": "curvas",
+      "nome": "CURVAS",
+      "serie": "",
+      "geo": "curvas.json",
+      "potencia": null,
+      "conexoes": "",
+      "specs": {},
+      "curva": null
+    },
+    {
+      "id": "joelhos",
+      "nome": "JOELHOS",
+      "serie": "",
+      "geo": "joelhos.json",
+      "potencia": null,
+      "conexoes": "",
+      "specs": {},
+      "curva": null
+    },
+    {
+      "id": "juncao",
+      "nome": "100mm x 50mm",
+      "serie": "Junção",
+      "geo": "juncao.json",
+      "potencia": null,
+      "conexoes": "Junção de Redução",
+      "specs": {
+        "Bolsa": "Bolsa de dupla atuação: bolsa soldável e \nelástica",
+        "Encaixe": "Junta soldável com aplicação de adesivo PVC \ne junta elástica com uso de anel de vedação",
+        "Observação": "A linha série Silentium é intercambiável com a \nlinha série Normal e a linha série reforçada",
+        "Temperatura máxima de operação": "75°C"
+      },
+      "curva": null
+    },
+    {
+      "id": "luvas",
+      "nome": "LUVAS",
+      "serie": "",
+      "geo": "luvas.json",
+      "potencia": null,
+      "conexoes": "",
+      "specs": {},
+      "curva": null
+    },
+    {
+      "id": "pecas-especiais",
+      "nome": "PECAS ESPECIAIS",
+      "serie": "",
+      "geo": "pecas-especiais.json",
+      "potencia": null,
+      "conexoes": "",
+      "specs": {},
+      "curva": null
+    },
+    {
+      "id": "plug-sn",
+      "nome": "50mm",
+      "serie": "Plug",
+      "geo": "plug-sn.json",
+      "potencia": null,
+      "conexoes": "Plug",
+      "specs": {
+        "Bolsa": "Bolsa de dupla atuação: bolsa soldável e \nelástica",
+        "Classe de rigidez": "8.000Pa",
+        "Encaixe": "Junta soldável com aplicação de adesivo PVC \ne junta elástica com uso de anel de vedação",
+        "Observação": "A linha série Normal é intercambiável com a linha série Reforçada e a linha Silentium",
+        "Pressão negativa (vácuo) máxima suportada": "-0,40 bar",
+        "Temperatura máxima de operação": "45°C"
+      },
+      "curva": null
+    },
+    {
+      "id": "ralo",
+      "nome": "CS - DN100 x 100 x 50",
+      "serie": "Ralo",
+      "geo": "ralo.json",
+      "potencia": null,
+      "conexoes": "Caixa Sifonada (ralo)",
+      "specs": {
+        "Fecho Hídrico": "31,5mm",
+        "Temperatura máxima de operação": "75°C"
+      },
+      "curva": null
+    },
+    {
+      "id": "reducao",
+      "nome": "75mm x 50mm",
+      "serie": "Redução",
+      "geo": "reducao.json",
+      "potencia": null,
+      "conexoes": "Redução Excêntrica",
+      "specs": {
+        "Bolsa": "Bolsa de dupla atuação: bolsa soldável e \nelástica",
+        "Encaixe": "Junta soldável com aplicação de adesivo PVC \ne junta elástica com uso de anel de vedação",
+        "Observação": "A linha série Silentium é intercambiável com a \nlinha série Normal e a linha série reforçada",
+        "Temperatura máxima de operação": "75°C"
+      },
+      "curva": null
+    },
+    {
+      "id": "terminal-de-ventilacao",
+      "nome": "100mm x 50mm",
+      "serie": "Tê",
+      "geo": "terminal-de-ventilacao.json",
+      "potencia": null,
+      "conexoes": "Tê de Redução",
+      "specs": {
+        "Bolsa": "Bolsa de dupla atuação: bolsa soldável e \nelástica",
+        "Encaixe": "Junta soldável com aplicação de adesivo PVC \ne junta elástica com uso de anel de vedação",
+        "Observação": "A linha série Silentium é intercambiável com a \nlinha série Normal e a linha série reforçada",
+        "Temperatura máxima de operação": "75°C"
+      },
+      "curva": null
+    },
+    {
+      "id": "tes",
+      "nome": "100mm x 50mm",
+      "serie": "Tê",
+      "geo": "tes.json",
+      "potencia": null,
+      "conexoes": "Tê de Redução",
+      "specs": {
+        "Bolsa": "Bolsa de dupla atuação: bolsa soldável e \nelástica",
+        "Encaixe": "Junta soldável com aplicação de adesivo PVC \ne junta elástica com uso de anel de vedação",
+        "Observação": "A linha série Silentium é intercambiável com a \nlinha série Normal e a linha série reforçada",
+        "Temperatura máxima de operação": "75°C"
+      },
+      "curva": null
+    },
+    {
+      "id": "valvula-de-retencao",
+      "nome": "100mm x 150mm",
+      "serie": "Válvula",
+      "geo": "valvula-de-retencao.json",
+      "potencia": null,
+      "conexoes": "Válvula de Retenção",
+      "specs": {
+        "Observação": "Portinhola de fechamento com vedação em \nborracha",
+        "Temperatura máxima de operação": "45º"
+      },
+      "curva": null
+    }
+  ],
+  "tem_curva_qh": false
+}

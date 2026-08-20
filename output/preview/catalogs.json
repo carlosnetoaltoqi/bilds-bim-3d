@@ -24,5 +24,18 @@
     ],
     "n_produtos": 14,
     "updated_at": "2026-08-16"
+  },
+  {
+    "slug": "pvc-esgoto-amanco",
+    "titulo": "PVC Esgoto SN, SR e Silentium",
+    "fabricante": "Amanco",
+    "descricao": "Linha completa de tubos e conexões PVC para esgoto predial.",
+    "layout": "catalog-grid",
+    "layouts": [
+      "series-rows",
+      "catalog-grid"
+    ],
+    "n_produtos": 14,
+    "updated_at": "2026-08-19"
   }
 ]

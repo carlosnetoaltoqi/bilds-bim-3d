@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PVC Esgoto SN, SR e Silentium | Amanco | bilds</title>
+<meta name="description" content="Linha completa de tubos e conexões PVC para esgoto predial.">
+<script type="importmap">{"imports":{"three":"/vendor/three.module.js"}}</script>
+<style>
+/* ─── Reset + tokens bilds ──────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --orange:#FF4F1F;--blue:#1E40AF;
+  --navy:#002D72;--navy-dark:#00245B;--navy-light:#DFE8FA;
+  --bg:#F8F9FA;--bg-muted:#FAFBFB;--surface:#fff;
+  --text:#111827;--muted:#6B7280;--border:#E5E7EB;
+  --radius:4px;--header:60px;--maxw:1200px;
+  font-family:'Inter',system-ui,sans-serif;
+}
+body{background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
+@media(max-width:480px){.wrap{padding:0 16px}}
+
+
+/* ─── Hero (dark navy, full-bleed) ──────────────────────────── */
+.hero{background:var(--navy-dark);color:#F9FAFB;position:relative;overflow:hidden}
+.hero::before{
+  content:'';position:absolute;
+  right:6%;top:50%;transform:translateY(-50%);
+  width:520px;height:520px;border-radius:50%;
+  background:radial-gradient(circle,rgba(255,255,255,0.055) 0%,transparent 60%);
+  pointer-events:none;z-index:1;
+}
+.hero::after{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(to right,var(--navy-dark) 38%,rgba(0,36,91,0.55) 58%,transparent 76%);
+  pointer-events:none;z-index:1;
+}
+.hero-inner{
+  position:relative;z-index:2;
+  display:flex;flex-direction:column;justify-content:center;
+  min-height:72vh;padding-top:80px;padding-bottom:64px;
+}
+.hero-eyebrow{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--navy-light);margin-bottom:20px}
+.hero h1{font-family:'Fira Sans',system-ui,sans-serif;font-weight:900;font-size:clamp(40px,5.5vw,72px);line-height:.96;letter-spacing:-.035em;color:#F9FAFB;max-width:14ch;margin-bottom:22px;text-wrap:balance}
+.hero-sub{font-size:15px;color:#C5D2E8;max-width:44ch;line-height:1.7;margin-bottom:32px}
+.hero-cta-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.btn-hero{display:inline-flex;align-items:center;gap:8px;padding:12px 24px;border-radius:var(--radius);background:transparent;border:1px solid rgba(255,255,255,0.5);color:#fff;font-size:14px;font-weight:600;text-decoration:none;cursor:pointer;transition:all .15s;font-family:'Inter',system-ui,sans-serif}
+.btn-hero:hover{background:rgba(255,255,255,0.1);border-color:#fff}
+@media(max-width:640px){
+  .hero::after{background:none}
+  .hero-inner{min-height:auto;padding-top:96px;padding-bottom:40px}
+  .hero h1{font-size:clamp(36px,10vw,52px)}
+  .hero-sub{font-size:14px}
+}
+
+/* ─── Library section ───────────────────────────────────────── */
+.library{background:var(--bg);padding:56px 0 72px}
+.library .section-eyebrow{font-size:11px;font-weight:600;color:var(--navy);letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px}
+.library .section-title{font-family:'Fira Sans',system-ui,sans-serif;font-size:clamp(22px,3.5vw,32px);font-weight:800;letter-spacing:-.02em;color:var(--text);margin-bottom:6px;line-height:1.1}
+.library .section-sub{font-size:13px;color:var(--muted);max-width:52ch;margin-bottom:24px}
+
+/* ─── Filter bar ────────────────────────────────────────────── */
+.filter-bar{
+  display:flex;gap:8px;flex-wrap:wrap;
+}
+.chip{
+  padding:6px 14px;border-radius:9999px;border:1px solid var(--border);
+  background:#fff;font-size:13px;cursor:pointer;transition:all .15s;
+}
+.chip.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+.chip:hover:not(.active){border-color:var(--blue);color:var(--blue)}
+
+/* ─── Rows ──────────────────────────────────────────────────── */
+.section{padding:0 0 40px;}
+.section-head{
+  display:flex;align-items:baseline;gap:12px;margin-bottom:12px;
+}
+.section-head h2{font-family:'Fira Sans',sans-serif;font-size:18px;font-weight:600}
+.section-count{font-size:12px;color:var(--muted)}
+.row-outer{position:relative}
+.row-outer::before,.row-outer::after{
+  content:'';position:absolute;top:0;bottom:16px;width:28px;
+  z-index:10;pointer-events:none;
+}
+.row-outer::before{left:0;background:linear-gradient(to right,var(--bg),transparent)}
+.row-outer::after{right:0;background:linear-gradient(to left,var(--bg),transparent)}
+.row-track{
+  display:flex;gap:12px;overflow-x:auto;padding:4px 0 16px;
+  scroll-snap-type:x mandatory;scrollbar-width:none;
+}
+.row-track::-webkit-scrollbar{display:none}
+
+/* ─── Card ──────────────────────────────────────────────────── */
+.card{
+  flex-shrink:0;width:224px;scroll-snap-align:start;
+  background:var(--surface);border-radius:var(--radius);
+  border:1px solid var(--border);cursor:pointer;
+  transition:box-shadow .15s,transform .15s;
+}
+.card:hover{box-shadow:0 4px 16px rgba(0,0,0,.1);transform:translateY(-2px)}
+.card-canvas-wrap{position:relative;height:162px;background:#F3F4F6;border-radius:var(--radius) var(--radius) 0 0;overflow:hidden}
+.card-canvas-wrap canvas{width:100%;height:100%;display:block}
+.card-loader{
+  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:11px;color:var(--muted);
+}
+.badge-3d{
+  position:absolute;top:8px;right:8px;width:28px;height:28px;
+  background:rgba(255,255,255,.93);border-radius:var(--radius);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+  transition:opacity .25s;
+}
+.badge-3d svg{width:16px;height:16px;stroke:var(--orange);stroke-width:2;fill:none}
+.badge-3d.off{opacity:0;pointer-events:none}
+.card-body{padding:12px}
+.card-name{font-size:13px;font-weight:600;margin-bottom:4px;line-height:1.3}
+.card-meta{font-size:11px;color:var(--muted);margin-bottom:10px}
+.card-btn{
+  width:100%;padding:7px;border-radius:var(--radius);
+  border:1px solid var(--blue);color:var(--blue);background:#fff;
+  font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;
+}
+.card-btn:hover{background:var(--blue);color:#fff}
+
+/* ─── Modal ─────────────────────────────────────────────────── */
+.modal-backdrop{
+  position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.5);
+  backdrop-filter:blur(4px);display:none;
+  align-items:center;justify-content:center;padding:16px;
+}
+.modal-backdrop.open{display:flex}
+.modal{
+  background:#fff;border-radius:var(--radius);
+  width:100%;max-width:820px;max-height:92vh;
+  overflow-y:auto;display:flex;flex-direction:column;
+  animation:slideUp .2s ease;
+}
+@keyframes slideUp{from{transform:translateY(12px);opacity:0}to{transform:none;opacity:1}}
+.modal-head{
+  position:sticky;top:0;background:#fff;z-index:10;
+  display:flex;align-items:center;gap:12px;padding:16px 20px;
+  border-bottom:1px solid var(--border);
+}
+.modal-head h3{font-size:16px;font-weight:600;flex:1}
+.modal-close{
+  background:none;border:none;cursor:pointer;padding:4px;
+  color:var(--muted);border-radius:var(--radius);
+}
+.modal-close:hover{background:var(--border)}
+.modal-3d{height:300px;background:#F3F4F6;position:relative}
+.modal-3d canvas{width:100%;height:100%;display:block}
+.modal-body{padding:20px;display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.modal-body.no-curve{grid-template-columns:1fr}
+.specs-table{font-size:13px;border-collapse:collapse;width:100%}
+.specs-table th{text-align:left;font-weight:500;color:var(--muted);padding:5px 0;width:45%}
+.specs-table td{padding:5px 0;border-bottom:1px solid var(--border)}
+.modal-actions{
+  position:sticky;bottom:0;background:#fff;z-index:10;
+  padding:12px 20px;border-top:1px solid var(--border);
+  display:flex;gap:8px;justify-content:flex-end;
+}
+.btn-primary{
+  background:var(--orange);color:#fff;border:none;border-radius:var(--radius);
+  padding:9px 20px;font-size:13px;font-weight:600;cursor:pointer;
+}
+.btn-outline{
+  background:#fff;color:var(--muted);border:1px solid var(--border);
+  border-radius:var(--radius);padding:9px 20px;font-size:13px;cursor:pointer;
+}
+
+/* ─── Responsivo ────────────────────────────────────────────── */
+@media(max-width:600px){
+
+  .hero,.filter-bar,.section{padding-left:16px;padding-right:16px}
+  .card{width:196px}
+  .card-canvas-wrap{height:142px}
+  .modal-body{grid-template-columns:1fr}
+  .modal-3d{height:220px}
+}
+
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fira+Sans:wght@700;800;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<!-- Hero -->
+<header class="hero">
+  <div class="hero-inner wrap">
+    <p class="hero-eyebrow">Amanco &middot; Biblioteca BIM &middot; IFC4</p>
+    <h1>PVC Esgoto SN, SR e Silentium</h1>
+    <p class="hero-sub">Linha completa de tubos e conexões PVC para esgoto predial.</p>
+    <div class="hero-cta-row">
+      <a class="btn-hero" href="#library">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        Ver biblioteca
+      </a>
+    </div>
+  </div>
+</header>
+
+<!-- Library -->
+<section class="library" id="library">
+  <div class="wrap">
+    <p class="section-eyebrow">Biblioteca de produtos BIM</p>
+    <h2 class="section-title">PVC Esgoto SN, SR e Silentium</h2>
+    <p class="section-sub">Clique em qualquer modelo para ver especificações, curva Q-H e visualização 3D.</p>
+
+    <div class="filter-bar" id="filter-bar" style="margin-bottom:32px">
+      <button class="chip active" data-filter="all">Todos</button>
+      
+      <button class="chip" data-filter="Adaptador">Série Adaptador</button>
+      
+      <button class="chip" data-filter="Caixa">Série Caixa</button>
+      
+      <button class="chip" data-filter="Cap">Série Cap</button>
+      
+      <button class="chip" data-filter="Junção">Série Junção</button>
+      
+      <button class="chip" data-filter="Plug">Série Plug</button>
+      
+      <button class="chip" data-filter="Ralo">Série Ralo</button>
+      
+      <button class="chip" data-filter="Redução">Série Redução</button>
+      
+      <button class="chip" data-filter="Tê">Série Tê</button>
+      
+      <button class="chip" data-filter="Válvula">Série Válvula</button>
+      
+    </div>
+
+    <!-- Rows por série -->
+    <div id="rows-root"></div>
+  </div>
+</section>
+
+<!-- Modal -->
+<div class="modal-backdrop" id="modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="modal-title">—</h3>
+      <button class="modal-close" onclick="closeModal()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-3d"><canvas id="modal-canvas"></canvas></div>
+    <div class="modal-body">
+      <div>
+        <h4 style="font-size:13px;font-weight:600;margin-bottom:10px;color:var(--muted)">Especificações</h4>
+        <table class="specs-table" id="modal-specs"></table>
+      </div>
+      <div id="modal-chart-wrap">
+        <h4 style="font-size:13px;font-weight:600;margin-bottom:10px;color:var(--muted)">Curva Q-H</h4>
+        <div id="modal-chart"></div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-outline" onclick="closeModal()">Fechar</button>
+      <a class="btn-primary" href="https://bilds.com" target="_blank">Ver na bilds</a>
+    </div>
+  </div>
+</div>
+
+<!-- Script 1: sync — dados + renderização dos cards -->
+<script>
+const CATALOG = {"descricao": "Linha completa de tubos e conex\u00f5es PVC para esgoto predial.", "fabricante": "Amanco", "filtros": ["Adaptador", "Caixa", "Cap", "Jun\u00e7\u00e3o", "Plug", "Ralo", "Redu\u00e7\u00e3o", "T\u00ea", "V\u00e1lvula"], "layout": "catalog-grid", "produtos": [{"conexoes": "Adaptador com Anel Labial", "curva": null, "geo": "adaptador-com-anel-labial-sn.json", "id": "adaptador-com-anel-labial-sn", "nome": "40mm x 38mm", "potencia": null, "serie": "Adaptador", "specs": {}}, {"conexoes": "Caixa Sifonada", "curva": null, "geo": "caixa-sifonada.json", "id": "caixa-sifonada", "nome": "DN100 x 100 x DN50", "potencia": null, "serie": "Caixa", "specs": {"Fecho H\u00eddrico": "31,5mm"}}, {"conexoes": "Cap", "curva": null, "geo": "cap.json", "id": "cap", "nome": "50mm", "potencia": null, "serie": "Cap", "specs": {"Bolsa": "Bolsa de dupla atua\u00e7\u00e3o: bolsa sold\u00e1vel e \nel\u00e1stica", "Encaixe": "Junta sold\u00e1vel com aplica\u00e7\u00e3o de adesivo PVC \ne junta el\u00e1stica com uso de anel de veda\u00e7\u00e3o", "Observa\u00e7\u00e3o": "A linha s\u00e9rie Silentium \u00e9 intercambi\u00e1vel com a \nlinha s\u00e9rie Normal e a linha s\u00e9rie refor\u00e7ada", "Temperatura m\u00e1xima de opera\u00e7\u00e3o": "75\u00b0C"}}, {"conexoes": "", "curva": null, "geo": "curvas.json", "id": "curvas", "nome": "CURVAS", "potencia": null, "serie": "", "specs": {}}, {"conexoes": "", "curva": null, "geo": "joelhos.json", "id": "joelhos", "nome": "JOELHOS", "potencia": null, "serie": "", "specs": {}}, {"conexoes": "Jun\u00e7\u00e3o de Redu\u00e7\u00e3o", "curva": null, "geo": "juncao.json", "id": "juncao", "nome": "100mm x 50mm", "potencia": null, "serie": "Jun\u00e7\u00e3o", "specs": {"Bolsa": "Bolsa de dupla atua\u00e7\u00e3o: bolsa sold\u00e1vel e \nel\u00e1stica", "Encaixe": "Junta sold\u00e1vel com aplica\u00e7\u00e3o de adesivo PVC \ne junta el\u00e1stica com uso de anel de veda\u00e7\u00e3o", "Observa\u00e7\u00e3o": "A linha s\u00e9rie Silentium \u00e9 intercambi\u00e1vel com a \nlinha s\u00e9rie Normal e a linha s\u00e9rie refor\u00e7ada", "Temperatura m\u00e1xima de opera\u00e7\u00e3o": "75\u00b0C"}}, {"conexoes": "", "curva": null, "geo": "luvas.json", "id": "luvas", "nome": "LUVAS", "potencia": null, "serie": "", "specs": {}}, {"conexoes": "", "curva": null, "geo": "pecas-especiais.json", "id": "pecas-especiais", "nome": "PECAS ESPECIAIS", "potencia": null, "serie": "", "specs": {}}, {"conexoes": "Plug", "curva": null, "geo": "plug-sn.json", "id": "plug-sn", "nome": "50mm", "potencia": null, "serie": "Plug", "specs": {"Bolsa": "Bolsa de dupla atua\u00e7\u00e3o: bolsa sold\u00e1vel e \nel\u00e1stica", "Classe de rigidez": "8.000Pa", "Encaixe": "Junta sold\u00e1vel com aplica\u00e7\u00e3o de adesivo PVC \ne junta el\u00e1stica com uso de anel de veda\u00e7\u00e3o", "Observa\u00e7\u00e3o": "A linha s\u00e9rie Normal \u00e9 intercambi\u00e1vel com a linha s\u00e9rie Refor\u00e7ada e a linha Silentium", "Press\u00e3o negativa (v\u00e1cuo) m\u00e1xima suportada": "-0,40 bar", "Temperatura m\u00e1xima de opera\u00e7\u00e3o": "45\u00b0C"}}, {"conexoes": "Caixa Sifonada (ralo)", "curva": null, "geo": "ralo.json", "id": "ralo", "nome": "CS - DN100 x 100 x 50", "potencia": null, "serie": "Ralo", "specs": {"Fecho H\u00eddrico": "31,5mm", "Temperatura m\u00e1xima de opera\u00e7\u00e3o": "75\u00b0C"}}, {"conexoes": "Redu\u00e7\u00e3o Exc\u00eantrica", "curva": null, "geo": "reducao.json", "id": "reducao", "nome": "75mm x 50mm", "potencia": null, "serie": "Redu\u00e7\u00e3o", "specs": {"Bolsa": "Bolsa de dupla atua\u00e7\u00e3o: bolsa sold\u00e1vel e \nel\u00e1stica", "Encaixe": "Junta sold\u00e1vel com aplica\u00e7\u00e3o de adesivo PVC \ne junta el\u00e1stica com uso de anel de veda\u00e7\u00e3o", "Observa\u00e7\u00e3o": "A linha s\u00e9rie Silentium \u00e9 intercambi\u00e1vel com a \nlinha s\u00e9rie Normal e a linha s\u00e9rie refor\u00e7ada", "Temperatura m\u00e1xima de opera\u00e7\u00e3o": "75\u00b0C"}}, {"conexoes": "T\u00ea de Redu\u00e7\u00e3o", "curva": null, "geo": "terminal-de-ventilacao.json", "id": "terminal-de-ventilacao", "nome": "100mm x 50mm", "potencia": null, "serie": "T\u00ea", "specs": {"Bolsa": "Bolsa de dupla atua\u00e7\u00e3o: bolsa sold\u00e1vel e \nel\u00e1stica", "Encaixe": "Junta sold\u00e1vel com aplica\u00e7\u00e3o de adesivo PVC \ne junta el\u00e1stica com uso de anel de veda\u00e7\u00e3o", "Observa\u00e7\u00e3o": "A linha s\u00e9rie Silentium \u00e9 intercambi\u00e1vel com a \nlinha s\u00e9rie Normal e a linha s\u00e9rie refor\u00e7ada", "Temperatura m\u00e1xima de opera\u00e7\u00e3o": "75\u00b0C"}}, {"conexoes": "T\u00ea de Redu\u00e7\u00e3o", "curva": null, "geo": "tes.json", "id": "tes", "nome": "100mm x 50mm", "potencia": null, "serie": "T\u00ea", "specs": {"Bolsa": "Bolsa de dupla atua\u00e7\u00e3o: bolsa sold\u00e1vel e \nel\u00e1stica", "Encaixe": "Junta sold\u00e1vel com aplica\u00e7\u00e3o de adesivo PVC \ne junta el\u00e1stica com uso de anel de veda\u00e7\u00e3o", "Observa\u00e7\u00e3o": "A linha s\u00e9rie Silentium \u00e9 intercambi\u00e1vel com a \nlinha s\u00e9rie Normal e a linha s\u00e9rie refor\u00e7ada", "Temperatura m\u00e1xima de opera\u00e7\u00e3o": "75\u00b0C"}}, {"conexoes": "V\u00e1lvula de Reten\u00e7\u00e3o", "curva": null, "geo": "valvula-de-retencao.json", "id": "valvula-de-retencao", "nome": "100mm x 150mm", "potencia": null, "serie": "V\u00e1lvula", "specs": {"Observa\u00e7\u00e3o": "Portinhola de fechamento com veda\u00e7\u00e3o em \nborracha", "Temperatura m\u00e1xima de opera\u00e7\u00e3o": "45\u00ba"}}], "slug": "pvc-esgoto-amanco", "tem_curva_qh": false, "titulo": "PVC Esgoto SN, SR e Silentium"};
+const ITEMS   = CATALOG.produtos;
+
+let activeFilter = 'all';
+const geoCache   = new Map();
+
+function esc(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function matchFilter(item, f) {
+  return f === 'all' || item.serie === f;
+}
+
+// item.id é sempre um slug gerado por slugify() — apenas [a-z0-9-_].
+// Usar esc() nos campos de texto livre (nome, conexoes, potencia).
+function buildCard(item) {
+  const meta = esc(item.conexoes) || (item.potencia ? esc(String(item.potencia)) + ' CV' : '');
+  return `<div class="card" data-id="${item.id}">
+    <div class="card-canvas-wrap">
+      <canvas id="canvas-${item.id}" style="cursor:pointer"></canvas>
+      <div class="card-loader" id="loader-${item.id}">Carregando…</div>
+      <div class="badge-3d" id="badge-${item.id}">
+        <svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="card-name">${esc(item.nome)}</div>
+      <div class="card-meta">${meta}</div>
+      <button class="card-btn">Ver detalhes</button>
+    </div>
+  </div>`;
+}
+
+function buildSection(serie, items) {
+  const cards = items.map(buildCard).join('');
+  return `<section class="section">
+    <div class="section-head">
+      <h2>Série ${esc(serie)}</h2>
+      <span class="section-count">${items.length} modelo${items.length !== 1 ? 's' : ''}</span>
+    </div>
+    <div class="row-outer">
+      <div class="row-track">${cards}</div>
+    </div>
+  </section>`;
+}
+
+function renderRows(filter) {
+  activeFilter = filter;
+  const filtered = ITEMS.filter(i => matchFilter(i, filter));
+  const bySerie = {};
+  filtered.forEach(i => {
+    const s = i.serie || 'Outros';
+    if (!bySerie[s]) bySerie[s] = [];
+    bySerie[s].push(i);
+  });
+  document.getElementById('rows-root').innerHTML =
+    Object.entries(bySerie).map(([s, items]) => buildSection(s, items)).join('');
+  document.dispatchEvent(new CustomEvent('cards-rendered', {detail:{filter}}));
+}
+
+function filterBy(f, el) {
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  renderRows(f);
+}
+
+document.getElementById('filter-bar').addEventListener('click', function(e) {
+  var btn = e.target.closest('.chip');
+  if (btn) filterBy(btn.dataset.filter, btn);
+});
+
+document.getElementById('rows-root').addEventListener('click', function(e) {
+  var card = e.target.closest('.card');
+  if (card) openModal(card.dataset.id);
+});
+
+function buildChart(pts, W, H) {
+  if (!pts || !pts.length) return '<p style="font-size:12px;color:var(--muted)">Curva não disponível.</p>';
+  const pl=40,pr=12,pt=14,pb=36,cW=W-pl-pr,cH=H-pt-pb;
+  const qMax=Math.max(...pts.map(p=>p[0]))*1.1;
+  const hMax=Math.max(...pts.map(p=>p[1]))*1.18;
+  const tx=q=>pl+(q/qMax)*cW, ty=h=>H-pb-(h/hMax)*cH;
+  let g='';
+  [.25,.5,.75,1].forEach(f=>{
+    const yy=ty(hMax*f).toFixed(1);
+    g+=`<line x1="${pl}" y1="${yy}" x2="${W-pr}" y2="${yy}" stroke="#E5E7EB" stroke-width="1"/>`;
+    g+=`<text x="${pl-5}" y="${+yy+3}" text-anchor="end" fill="#6B7280" font-size="9">${Math.round(hMax*f)}</text>`;
+  });
+  const path='M'+pts.map(p=>`${tx(p[0]).toFixed(1)},${ty(p[1]).toFixed(1)}`).join('L');
+  const area=path+`L${tx(pts.at(-1)[0]).toFixed(1)},${H-pb}L${tx(pts[0][0]).toFixed(1)},${H-pb}Z`;
+  const tyEff=e=>H-pb-(Math.min(e,65)/65)*cH;
+  const eff=pts[0][3]!=null?'M'+pts.map(p=>`${tx(p[0]).toFixed(1)},${tyEff(p[3]).toFixed(1)}`).join('L'):'';
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%" xmlns="http://www.w3.org/2000/svg">
+    <rect x="${pl}" y="${pt}" width="${cW}" height="${cH}" fill="#FAFBFB" rx="2"/>
+    ${g}
+    <path d="${area}" fill="rgba(30,64,175,0.1)"/>
+    <path d="${path}" fill="none" stroke="#1E40AF" stroke-width="2" stroke-linejoin="round"/>
+    ${eff?`<path d="${eff}" fill="none" stroke="#9CA3AF" stroke-width="1.5" stroke-dasharray="4,3"/>`:''}
+    <text x="${pl+cW/2}" y="${H-2}" text-anchor="middle" fill="#9CA3AF" font-size="9">Vazão (m³/h)</text>
+    <text x="8" y="${pt+cH/2}" text-anchor="middle" fill="#9CA3AF" font-size="9" transform="rotate(-90,8,${pt+cH/2})">m.c.a</text>
+  </svg>`;
+}
+
+function openModal(id) {
+  const item = ITEMS.find(i => i.id === id);
+  if (!item) return;
+  document.getElementById('modal-title').textContent = item.nome;
+  const specs = Object.entries(item.specs || {});
+  document.getElementById('modal-specs').innerHTML =
+    specs.map(([k,v]) => `<tr><th>${esc(k)}</th><td>${esc(v)}</td></tr>`).join('') ||
+    `<tr><td colspan="2" style="color:var(--muted)">—</td></tr>`;
+  document.getElementById('modal-chart').innerHTML = buildChart(item.curva, 300, 180);
+  document.getElementById('modal').classList.add('open');
+  document.dispatchEvent(new CustomEvent('modal-open', {detail:{id}}));
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+  document.dispatchEvent(new CustomEvent('modal-close'));
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+// Curva Q-H é conceito específico de bomba — se nenhum produto do catálogo
+// tem curva, a seção não se aplica a este tipo de peça (não é "dado
+// faltando"), então nem aparece no modal.
+if (!CATALOG.tem_curva_qh) {
+  document.getElementById('modal-chart-wrap').style.display = 'none';
+  document.querySelector('.modal-body').classList.add('no-curve');
+}
+
+renderRows('all');
+</script>
+
+<!-- Script 2: module — Three.js viewer -->
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from '/vendor/OrbitControls.js';
+
+const thumbStates = new Map();
+let modalViewer = null;
+
+async function fetchGeo(geoFile) {
+  if (geoCache.has(geoFile)) return geoCache.get(geoFile);
+  const data = await fetch('/data/' + geoFile).then(r => r.json());
+  geoCache.set(geoFile, data);
+  return data;
+}
+
+function buildScene(data) {
+  const scene = new THREE.Scene();
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute('position', new THREE.Float32BufferAttribute(data.pos, 3));
+  const hasCol = data.col && data.col.length > 0;
+  if (hasCol) geom.setAttribute('color', new THREE.Float32BufferAttribute(data.col, 3));
+  if (data.idx) geom.setIndex(data.idx);
+  geom.computeVertexNormals();
+  geom.computeBoundingBox();
+  const center = geom.boundingBox.getCenter(new THREE.Vector3());
+  const size = geom.boundingBox.getSize(new THREE.Vector3()).length();
+  const mat = new THREE.MeshStandardMaterial({
+    vertexColors: hasCol, color: hasCol ? 0xffffff : 0x8896AA,
+    metalness: 0.25, roughness: 0.55,
+  });
+  const mesh = new THREE.Mesh(geom, mat);
+  mesh.position.copy(center.negate());
+  scene.add(mesh);
+  scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+  const key = new THREE.DirectionalLight(0xffffff, 0.9);
+  key.position.set(2, 3, 2); scene.add(key);
+  const fill = new THREE.DirectionalLight(0xC8D8F0, 0.35);
+  fill.position.set(-2, 1, -1); scene.add(fill);
+  return { scene, size };
+}
+
+async function loadThumbnail(id) {
+  if (thumbStates.has(id)) return;
+  const item = ITEMS.find(i => i.id === id);
+  if (!item) return;
+  const canvas = document.getElementById('canvas-' + id);
+  const loader = document.getElementById('loader-' + id);
+  const badge  = document.getElementById('badge-' + id);
+  if (!canvas) return;
+  thumbStates.set(id, { canvas, pending: true }); // reserva presa a ESTE elemento canvas
+
+  try {
+    const W = canvas.parentElement.offsetWidth || 224;
+    const H = canvas.parentElement.offsetHeight || 162;
+    const data = await fetchGeo(item.geo);
+
+    // Filtro pode ter re-renderizado os cards enquanto o geo carregava —
+    // se a reserva não é mais a nossa (mesmo canvas), um card novo com o
+    // mesmo id já assumiu o lugar. Abortar sem tocar em nós desconectados
+    // do DOM, senão o card novo trava em "Carregando…" pra sempre (a
+    // reserva antiga nunca seria liberada).
+    if (thumbStates.get(id)?.canvas !== canvas) return;
+
+    const renderer = new THREE.WebGLRenderer({canvas, antialias:false, alpha:false});
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+    renderer.setSize(W, H, false);
+    renderer.setClearColor(0xF3F4F6, 1);
+    const {scene, size} = buildScene(data);
+    const camera = new THREE.PerspectiveCamera(38, W/H, 0.001, 500);
+    camera.position.set(size*.85, size*.32, size*.85);
+    camera.lookAt(0, 0, 0);
+    renderer.render(scene, camera);
+    if (loader) loader.style.display = 'none';
+
+    thumbStates.set(id, {canvas, renderer, scene, camera, raf: null, controls: null, rotating: false});
+
+    canvas.addEventListener('mouseenter', () => {
+      const st = thumbStates.get(id);
+      if (!st) return;
+      if (!st.controls) {
+        if (badge) badge.classList.add('off');
+        const controls = new OrbitControls(camera, canvas);
+        controls.autoRotate = true; controls.autoRotateSpeed = 1.2;
+        controls.enableDamping = true; controls.dampingFactor = 0.07;
+        controls.enableZoom = false; controls.enablePan = false;
+        st.controls = controls;
+        st.spin = function() {
+          if (!st.rotating) { st.raf = null; return; }
+          st.raf = requestAnimationFrame(st.spin);
+          controls.update(); renderer.render(scene, camera);
+        };
+      }
+      st.rotating = true;
+      if (!st.raf) st.spin();
+    });
+    canvas.addEventListener('mouseleave', () => {
+      const st = thumbStates.get(id);
+      if (!st) return;
+      st.rotating = false;
+      renderer.render(scene, camera);
+    });
+
+  } catch(e) {
+    // Só limpa a reserva se ela ainda for nossa — evita apagar um estado
+    // válido de um card mais novo que já assumiu este id.
+    if (thumbStates.get(id)?.canvas === canvas) thumbStates.delete(id);
+    if (loader) loader.textContent = 'Erro ao carregar';
+    console.warn('Geo load error', id, e);
+  }
+}
+
+async function initModalViewer(id) {
+  // Limpa viewer anterior
+  if (modalViewer) {
+    cancelAnimationFrame(modalViewer.raf);
+    modalViewer.controls?.dispose();
+    modalViewer.renderer.dispose();
+    modalViewer = null;
+  }
+  const item = ITEMS.find(i => i.id === id);
+  if (!item) return;
+  const canvas = document.getElementById('modal-canvas');
+  const W = canvas.parentElement.offsetWidth || 760;
+  const H = canvas.parentElement.offsetHeight || 300;
+  try {
+    const data = await fetchGeo(item.geo);
+    const renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:false});
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.setSize(W, H, false);
+    renderer.setClearColor(0xF3F4F6, 1);
+    const {scene, size} = buildScene(data);
+    const camera = new THREE.PerspectiveCamera(34, W/H, 0.001, 500);
+    camera.position.set(size*.9, size*.35, size*.9);
+    camera.lookAt(0, 0, 0);
+    const controls = new OrbitControls(camera, canvas);
+    controls.autoRotate = true; controls.autoRotateSpeed = 0.7;
+    controls.enableDamping = true; controls.dampingFactor = 0.06;
+    controls.enableZoom = true; controls.enablePan = false;
+    const mv = {renderer, scene, camera, controls, raf: null};
+    modalViewer = mv;
+    function animate() {
+      if (modalViewer !== mv) return;
+      mv.raf = requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+  } catch(e) {
+    console.warn('Modal geo error', e);
+  }
+}
+
+// Observer lazy-load
+const io = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      loadThumbnail(e.target.dataset.id);
+      io.unobserve(e.target);
+    }
+  });
+}, {rootMargin: '120px'});
+
+function observeCards() {
+  // Limpa viewers órfãos — inclui o caso em que o filtro re-renderizou os
+  // cards e o mesmo id voltou com um canvas NOVO (elemento diferente, id
+  // igual): getElementById encontra o novo, mas a reserva/estado aponta pro
+  // antigo. Comparar identidade do elemento, não só a existência do id.
+  thumbStates.forEach((st, id) => {
+    const current = document.getElementById('canvas-' + id);
+    if (!current || !st || current !== st.canvas) {
+      if (st) {
+        cancelAnimationFrame(st.raf);
+        st.controls?.dispose();
+        st.renderer?.dispose();
+      }
+      thumbStates.delete(id);
+    }
+  });
+  document.querySelectorAll('.card[data-id]').forEach(card => {
+    io.observe(card);
+  });
+}
+
+document.addEventListener('cards-rendered', () => observeCards());
+document.addEventListener('modal-open', e => initModalViewer(e.detail.id));
+observeCards(); // cards já estão no DOM quando o módulo carrega
+document.addEventListener('modal-close', () => {
+  if (modalViewer) {
+    cancelAnimationFrame(modalViewer.raf);
+    modalViewer.controls?.dispose();
+    modalViewer.renderer.dispose();
+    modalViewer = null;
+  }
+});
+</script>
+</body>
+</html>
