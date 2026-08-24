@@ -153,19 +153,43 @@ Cada produto com geometria 3D tem um arquivo JSON correspondente. O viewer usa *
 - **`pos.length` deve ser múltiplo de 3.**
 - Se `col` for fornecido, `col.length` deve ser igual a `pos.length` (uma cor por vértice).
 - Se `idx` for fornecido, cada índice deve referenciar um vértice válido em `pos`.
-- **Cores e `idx` são mutuamente exclusivos na prática:** quando há cor por face (IFCINDEXEDCOLOURMAP), gerar vértices expandidos (non-indexed) para que cada vértice carregue a cor da sua face. Não fornecer `idx` nesse caso.
+- **Cor e `idx` podem coexistir, desde que a deduplicação leve a cor em conta.** Ao fundir vértices duplicados, a chave precisa ser posição **+ cor** — nunca só a posição:
+
+  ```python
+  key = (q(px), q(py), q(pz), q(cr), q(cg), q(cb))   # correto
+  key = (q(px), q(py), q(pz))                        # perde cor em arestas entre materiais
+  ```
+
+  Sem isso, dois vértices na mesma posição com cores diferentes (a fronteira entre o corpo vermelho e o logo branco de uma bomba, por exemplo) seriam fundidos e uma das cores desapareceria.
+
+  A alternativa é expandir os vértices e **omitir `idx`** — obrigatório quando a cor é **por face** e não por malha, como no `IFCINDEXEDCOLOURMAP` do caminho IFC: ali um vértice compartilhado entre duas faces de cores diferentes é genuinamente ambíguo. Geometria expandida custa ~5× mais bytes, então prefira a versão indexada quando a cor for uniforme por malha (é o caso do OQ3D).
 - O viewer chama `geom.computeVertexNormals()` — não é necessário incluir normais no JSON.
 - O viewer centraliza automaticamente a geometria usando o bounding box — não é necessário pré-centrar.
 
-### Convenção de eixos (IFC → Three.js)
+### Convenção de eixos e unidades
 
-Se o pipeline fonte usa IFC (Z-up):
+O JSON final é sempre **metros, Y-up** (convenção do Three.js). A conversão depende da fonte:
+
+**A partir do `.aq` (formato OQ3D) — caminho padrão do pipeline.**
+Origem em **centímetros, Z-up**:
+
+```
+THREE.x =  OQ3D.x * 0.01
+THREE.y =  OQ3D.z * 0.01   ← Z vira Y
+THREE.z = -OQ3D.y * 0.01   ← Y inverte e vira Z
+```
+
+> O fator 0,01 é o erro mais fácil de cometer aqui: o OQ3D grava em centímetros, ao contrário do IFC. Esquecê-lo produz um modelo 100× maior.
+
+**A partir de IFC (Z-up, normalmente já em metros):**
 
 ```
 THREE.x =  IFC.x
 THREE.y =  IFC.z   ← Z do IFC vira Y no Three.js
 THREE.z = -IFC.y   ← Y do IFC inverte e vira Z
 ```
+
+> Alguns exportadores declaram `MILLIMETRE` no `IFCSIUNIT` mas gravam em metros. Confira a magnitude antes de converter: um equipamento industrial em metros fica na faixa 0,01–5,0.
 
 ### Nome do arquivo
 
@@ -450,13 +474,25 @@ Antes de gerar o ZIP, verificar:
 - [ ] Para cada arquivo `geo/<nome>.json`:
   - [ ] `pos.length % 3 === 0`
   - [ ] `col` é vazio `[]` ou `col.length === pos.length`
+  - [ ] Se tem `col` **e** `idx`, a dedup usou posição + cor como chave (ver seção 4)
   - [ ] Tamanho do arquivo ≤ 10 MB
-  - [ ] Nome do arquivo referenciado por exatamente um produto em `catalog.produtos`
+  - [ ] Referenciado por **pelo menos um** produto em `catalog.produtos`
+- [ ] Nenhum arquivo órfão em `geo/` — todos são referenciados por algum produto
 - [ ] ZIP total ≤ 100 MB comprimido
 - [ ] ZIP descomprimido ≤ 500 MB
 - [ ] ZIP tem ≤ 10.000 entradas
 
+> **Vários produtos podem apontar para o mesmo arquivo de geometria.** É o caso normal
+> quando peças diferem só em dados, não em forma: variantes de orientação ("DESCE",
+> "COLUNA", "SOBE") na Amanco, ou cores de acabamento na Intelbras. O `fetchGeo` do
+> viewer cacheia **por URL**, então o arquivo é baixado uma única vez.
+>
+> Números reais em produção: 856 produtos → 448 arquivos (Amanco), 32 → 18 (Intelbras).
+> O ZIP deve conter **uma cópia** de cada arquivo, não uma por produto.
+
 ---
 
 _Gerado por engenharia reversa em: 2026-08-23_
+_Revisado em 2026-08-24 contra 9 catálogos em produção — seções 4 (cor + `idx`, unidades
+do OQ3D) e 12 (geometria compartilhada entre produtos)._
 _Fonte: `bilds.com/apps/api/src/b-bim-3d/` · `bilds.com/apps/web/src/components/b-bim-3d/` · `bilds.com/docs/modules/bim-3d-module.md`_
