@@ -34,13 +34,27 @@ Invoque via Skill tool em paralelo.
 ## O que é este projeto
 
 Pipeline local para gerar catálogos BIM interativos com viewer 3D a partir de
-arquivos `.aq` (AltoQi) e `.IFC` (geometria). Produz dois artefatos:
+bibliotecas `.aq` do AltoQi Builder. Produz dois artefatos:
 
 1. **Preview HTML standalone** (`output/preview/`) — visualização local ou via Vercel
-2. **ZIP para bilds.com** (`output/<slug>-AAAAMMDDHHMM.zip`) — pacote para upload no dashboard
+2. **ZIP para bilds.com** (`output/<origem>/<slug>-AAAAMMDDHHMM.zip`) — upload no dashboard
 
 O projeto é independente do `bilds-code-vercel` (apps/lps, vagas, seo).
 Clonado em qualquer máquina, produz o mesmo resultado dado os mesmos inputs.
+
+### A decisão central: a geometria vem do .aq, não do IFC
+
+**O `.aq` carrega a malha 3D completa, com cor e miniatura.** Está no BLOB
+`SIMBOLOGIA_3D.SIMBOLOGIA_3D`, no formato binário proprietário **OQ3D** — o mesmo
+sólido que o AltoQi exporta como IFC. Os IFCs deixaram de ser necessários.
+
+Validado em três bibliotecas de domínios e schemas distintos; ver
+"Sessão 2026-08-24 — estudo OQ3D" no histórico. Ganhos:
+
+- **85× a 421× mais rápido** que parsear os IFCs equivalentes
+- **um arquivo de entrada** em vez de um `.aq` mais uma árvore de IFCs
+- **zero matching por nome** — o vínculo peça → geometria é chave estrangeira
+- os cinco bugs de parsing STEP documentados abaixo deixam de existir
 
 ---
 
@@ -48,31 +62,67 @@ Clonado em qualquer máquina, produz o mesmo resultado dado os mesmos inputs.
 
 ```
 1. Clonar este repo
-2. Rodar: bash scripts/setup_vendor.sh  (baixa Three.js para templates/vendor/)
-3. pip install -r requirements.txt      (instala Jinja2 + ifcopenshell)
-4. Copiar arquivos .IFC e .aq para input/
-5. python3 scripts/build.py             ← detecta tudo e faz perguntas automaticamente
-   (alternativa: copiar config.example.json → config.json, editar, e --config config.json)
+2. bash scripts/setup_vendor.sh   (baixa Three.js para templates/vendor/)
+3. pip install -r requirements.txt
+4. Copiar as bibliotecas .aq para input/, organizadas por fabricante:
+       input/Dancor/pecas_dancor_bombas.aq
+       input/Amanco/PVC Esgoto SN, SR e Silentium/pecas_amanco.aq
+5. python3 scripts/build.py --all      ← um ZIP por .aq, sem perguntas
+   (ou: python3 scripts/build.py       ← uma biblioteca, com perguntas)
 6. Preview local: python3 -m http.server 8080 --directory output/preview
-7. Abrir: http://localhost:8080
-8. Subir output/<slug>-AAAAMMDDHHMM.zip no dashboard.bilds.com → BIM 3D
+7. Subir output/<origem>/<slug>-AAAAMMDDHHMM.zip no dashboard.bilds.com → BIM 3D
 ```
 
-### O que é inferido automaticamente no modo interativo
+### Os dois modos
 
-O build detecta e pré-preenche os campos; o usuário pressiona Enter para confirmar:
-
-| Campo | Fonte | Perguntas ao usuário |
+| Modo | Comando | Geometria vem de |
 |---|---|---|
-| Fabricante | Campo `BIBLIOTECA` do .aq → pasta avô do .aq (ex: `input/Amanco/`) → 1º token do filename | Sim — confirma ou edita |
-| Título | Nome da pasta pai do .aq (ex: `input/Amanco/PVC Esgoto SN, SR e Silentium/`) → fallback por tokens do filename | Sim — confirma ou edita |
-| Slug | `slugify(titulo)` — **calculado automaticamente, sem pergunta** | Não — só exibido |
-| Descrição | Nenhuma fonte automática | Sim — campo livre, opcional |
-| Layout | `series-rows` se .aq tem curvas Q-H; `catalog-grid` se > 6 produtos | Sim — choice com padrão destacado |
-| File map (>50 produtos) | Slugs automáticos a partir do caminho relativo do IFC | Não — aceito sem confirmação |
-| File map (≤50 produtos) | Slug sugerido por token + match com GRUPO_PECA | Sim — confirma por produto |
+| **Padrão** | `build.py` / `build.py --all` | do próprio `.aq` (OQ3D) |
+| **Compatibilidade** | `build.py --ifc` | dos arquivos `.IFC` da pasta |
 
-Quando o .aq detectado difere do `aq_file` no `config.json` (`aq_stale`), fabricante, título e file_map são resetados — nunca herdam do catálogo anterior.
+**Quando usar `--ifc`** — só nestes dois casos:
+
+1. **Há peças em IFC ausentes do banco.** Caso real: a bomba 89-62 TJM da Dancor
+   tem `.IFC` na pasta mas não existe no `.aq`, nem como `PECA`. Sem `--ifc` ela
+   fica de fora. É o mesmo cenário que o `products_override` cobre.
+2. **Conferir uma fonte contra a outra**, ao validar uma biblioteca nova.
+
+Fora isso não use: é mais lento, exige `ifcopenshell` para IFCs B-rep e depende
+do matching por nome, que erra em catálogos grandes (ver `find_aq_product`).
+Com `--ifc`, os IFCs precisam estar **na mesma pasta do `.aq`** correspondente.
+
+### Modo lote (`--all`)
+
+Varre `input/` recursivamente, gera um catálogo por `.aq` e **espelha a estrutura
+de pastas na saída**:
+
+```
+input/Amanco/linha/pecas.aq  →  output/Amanco/linha/<slug>-<ts>.zip
+input/Dancor/pecas.aq        →  output/Dancor/<slug>-<ts>.zip
+```
+
+Bibliotecas que já têm ZIP no destino são **puladas**; `--force` refaz. Nada é
+perguntado — fabricante, título e layout saem da inferência. Uma falha não
+interrompe o lote: é registrada e o build segue para a próxima.
+
+### O que é inferido automaticamente
+
+| Campo | Fonte | Pergunta? |
+|---|---|---|
+| Fabricante | Prefixo de `CLASSE_SIMBOLOGIA_3D.NOME_CLASSE` (`"AMANCO - PVC Esgoto SN"`) → pasta avô → pasta pai → 1º token do filename | Sim (não no `--all`) |
+| Título | Pasta pai, se diferente do fabricante → tokens do filename → prefixo comum das linhas | Sim (não no `--all`) |
+| Slug | `slugify(titulo)` — automático | Não, só exibido |
+| Descrição | Nenhuma fonte automática | Sim, opcional |
+| Layout | `series-rows` com curvas Q-H; `catalog-grid` acima de 6 peças | Sim (não no `--all`) |
+| Geometria | `PECA_SIMBOLOGIA_3D` — chave estrangeira | Nunca |
+
+> **Fabricante e título jamais podem sair vazios ou em forma de slug** — são o
+> cabeçalho da página publicada. A cascata acima sempre produz algo legível.
+> `PECA.BIBLIOTECA`, que era a fonte primária antiga, está **vazia nas três
+> bibliotecas testadas**: não confie nela.
+
+Quando o `.aq` detectado difere do `aq_file` do `config.json` (`aq_stale`),
+fabricante, título e file_map são resetados — nunca herdam do catálogo anterior.
 
 ---
 
@@ -83,27 +133,40 @@ bilds-bim-3d/
 ├── CLAUDE.md                    ← você está aqui
 ├── README.md                    ← guia para o usuário final
 ├── config.example.json          ← template de configuração
-├── config.json                  ← criado pelo usuário, gitignored
-├── requirements.txt             ← Jinja2
+├── config.json                  ← criado pelo build, gitignored
+├── requirements.txt             ← Jinja2 + numpy (ifcopenshell só p/ --ifc)
 ├── vercel.json                  ← serve output/preview/ como site estático
 ├── scripts/
 │   ├── build.py                 ← pipeline principal (entry point)
-│   ├── parse_ifc.py             ← IFC4 → JSON de geometria
-│   ├── read_aq.py               ← .aq AltoQi → dados de produto
-│   ├── dedup.py                 ← deduplicação de vértices (80% redução)
+│   ├── oq3d.py                  ← OQ3D binário → malha 3D  ★ caminho padrão
+│   ├── read_aq.py               ← .aq AltoQi → dados, metadados e simbologias
+│   ├── parse_ifc.py             ← IFC4 → JSON de geometria (só no modo --ifc)
+│   ├── dedup.py                 ← deduplicação de vértices (~79% redução)
 │   └── setup_vendor.sh          ← baixa Three.js para templates/vendor/
 ├── templates/
 │   ├── layouts/
-│   │   ├── series-rows.html     ← layout Dancor: rows Netflix por série
-│   │   └── catalog-grid.html   ← layout Amanco: grid denso com filtros
+│   │   ├── series-rows.html     ← rows estilo Netflix por série (bombas)
+│   │   └── catalog-grid.html    ← grid denso com filtros (conexões)
 │   └── vendor/                  ← Three.js self-hosted (gitignored após setup)
-├── input/                       ← arquivos do usuário (.IFC, .aq) — gitignored
-└── output/                      ← gerado pelo build — geo/ e *.json gitignored
-    ├── geo/                     ← JSONs de geometria por produto
-    ├── catalog.json             ← dados estruturados do catálogo
-    ├── preview/                 ← site estático pronto para servir
-    └── <slug>-AAAAMMDDHHMM.zip  ← ZIP para bilds.com (ex: dancor-bombas-incendio-202608241530.zip)
+├── input/                       ← bibliotecas do usuário — gitignored
+│   └── <Fabricante>/[<Linha>/]<pecas>.aq
+└── output/                      ← gerado pelo build
+    ├── <origem>/<slug>-<ts>.zip        ← ZIP para bilds.com (gitignored)
+    ├── <origem>/<slug>-catalog.json    ← catálogo solto (gitignored)
+    ├── geo/<origem>/<slug>/*.json      ← geometria por produto (gitignored)
+    └── preview/                        ← site estático, COMMITADO
+        ├── index.html                  ← landing com a lista de catálogos
+        ├── catalogs.json               ← índice dos catálogos gerados
+        ├── vendor/                     ← Three.js
+        └── <slug>/
+            ├── index.html
+            ├── catalog.json
+            └── data/*.json             ← geometria servida ao viewer
 ```
+
+> **`output/` espelha a estrutura de `input/`.** Os padrões do `.gitignore`
+> precisam de `**` (`output/**/*.zip`), porque a saída é aninhada — `output/*.zip`
+> só pegaria a raiz.
 
 ---
 
@@ -231,7 +294,98 @@ o zip inteiro. `catalog.json` e `geo/*.json` vão para S3, registrados no MongoD
 
 ---
 
-## Conhecimento crítico: parse_ifc.py
+## Conhecimento crítico: oq3d.py — a geometria dentro do .aq
+
+Formato **OQ3D** (`OQ3D 3D Objects File`), no BLOB `SIMBOLOGIA_3D.SIMBOLOGIA_3D`.
+Árvore de objetos serializada no estilo Delphi:
+
+```
+0x5B <len:u32> <ClassName>   abre um objeto
+...payload...
+0x5D                         fecha
+```
+
+### Classes que carregam dados
+
+```
+TQi3DIndexedTriangleMeshData
+    u32 versao(=2) | u32 nCoords | u32 reservado
+    nCoords doubles                 → nCoords/3 vértices (x,y,z)
+    u32 nIdx | u32 reservado
+    nIdx u32                        → nIdx/3 triângulos
+TCoatingColor
+    u32 versao | u32 flag | u8 R | u8 G | u8 B | u8 A    (cor UNIFORME da malha)
+TCoordinateTransformation3D
+    u32 versao | 12 doubles         → rotação 3×3 row-major + translação
+```
+
+Hierarquia: `TQi3DReusedObject(guid)` → `TQi3DReusableObject` (definição inline,
+opcional) → `TQi3DTriangleMesh` → `TCoatingColor` + malha. O **último**
+`TCoordinateTransformation3D` filho direto é o que posiciona; o par origem/alvo
+espelha `MappingOrigin`/`MappingTarget` do IFC.
+
+### Correspondência com o IFC
+
+| OQ3D | IFC4 |
+|---|---|
+| `TQi3DObjectGroup` | `IFCELEMENTASSEMBLY` |
+| `TQi3DReusableObject` | `IFCREPRESENTATIONMAP` |
+| `TQi3DReusedObject` | `IFCMAPPEDITEM` |
+| `TQi3DIndexedTriangleMeshData` | `IFCTRIANGULATEDFACESET` |
+| `TCoordinateTransformation3D` | `IFCLOCALPLACEMENT` |
+| `TCoatingColor` | `IFCINDEXEDCOLOURMAP` |
+
+A contagem de entidades bate exatamente (18 `TQi3DReusedObject` ↔ 18
+`IFCMAPPEDITEM`): o exportador IFC é tradução direta desta estrutura.
+
+### Unidades
+
+**Centímetros, Z-up** — a mesma orientação do IFC nativo.
+Para Three.js: `x, y=z, z=-y`, multiplicado por 0.01.
+
+### Armadilhas
+
+| Armadilha | Consequência |
+|---|---|
+| Ignorar os transforms | Funciona em equipamentos (malhas já em coordenadas de mundo) e **quebra** em conexões, montadas de malhas reaproveitadas — joelhos saem retos. Use sempre o parser de árvore. |
+| Buscar `0x5B` junto do byte anterior | O byte que precede varia (`\x02\x5b`, `\x01\x09\x00\x00\x00\x5b`…). Ancore só no `0x5B`. |
+| Varrer delimitadores byte a byte | `0x5B`/`0x5D` ocorrem dentro de doubles. Consuma por inteiro os blocos de tamanho conhecido antes de varrer. |
+| Somar bocais na bounding box | Verde `(1,154,63)` e azul `(10,84,152)` são marcadores de conexão, não produto — inflam a bbox em ~2 cm. Use `skip_markers=True`. |
+| `SELECT *` em `SIMBOLOGIA_3D` | Traz o `WIREFRAME`: 69–71% do arquivo (285 MB dos 412 MB da Amanco), inútil para viewer web. |
+| Esquecer o `dedup()` | O caminho `.aq` **precisa** dedupar como o IFC faz. Sem isso o preview foi de 148 MB para 571 MB. |
+
+### API
+
+```python
+import oq3d
+oq3d.is_oq3d(blob)                     # valida assinatura
+oq3d.parse(blob)                       # árvore de nós
+oq3d.extract(blob, skip_markers=True)  # [(verts_cm, tris, rgba)] com transforms
+oq3d.to_buffers(blob)                  # {'pos','col','idx'} em metros, Y-up
+oq3d.bbox(blob) / oq3d.stats(blob)     # validação e logs
+```
+
+### BUG ABERTO — instâncias repetidas não emitem geometria
+
+`TQi3DReusedObject` **sem** definição inline referencia a malha por GUID, mas os
+GUIDs são **únicos por instância** — a chave de resolução não foi identificada.
+
+Na CAM-W21 2CV: **5 instâncias com malha própria, 13 só com transform**, que não
+emitem nada. Efeito visível: parafusos faltando, e um deles aparece solto no ar
+(a definição inline é desenhada na posição da sua própria instância, longe do
+corpo). Confirmado em produção no preview da Dancor.
+
+Não afeta a silhueta do produto — os renders continuam equivalentes ao IFC —
+mas é a próxima coisa a resolver. Hipóteses a testar: o `u32` em `+8` do payload
+do `TQi3DReusedObject` (valores observados: 1..6) pode ser índice da definição;
+ou a definição a herdar é a última vista no mesmo nível da árvore.
+
+---
+
+## Conhecimento crítico: parse_ifc.py (modo `--ifc`)
+
+> Só usado com `--ifc`. No caminho padrão nada disto é executado — e os cinco
+> bugs abaixo, todos de parsing de texto STEP, deixam de existir.
 
 ### O bug mais comum — IFCLOCALPLACEMENT ignorado
 
@@ -480,6 +634,17 @@ via modo `'recursive'` do `scan_input()`.
 | Título sugerido ruim (ex: `"Esgoto Sn Sr"`) | Pasta pai do .aq é genérica (`input/`, `.`) — organizar como `input/Fabricante/Nome da Linha/pecas.aq` |
 | Slug com acento (`inc-ndio`) | slugify não normalizava unicode — corrigido com NFD + strip combining marks (commit 8e2f67d) |
 | Slug mostra valor antigo do config.json | ec.get('slug') tomava precedência sobre titulo atual — removido; slug sempre = slugify(titulo) (commit fefb627) |
+| **Fabricante vazio na página publicada** | `PECA.BIBLIOTECA` está vazia nas três bibliotecas testadas — usar o prefixo de `CLASSE_SIMBOLOGIA_3D.NOME_CLASSE` |
+| **Título vira o nome do fabricante** | Pasta pai é o fabricante (`input/Intelbras/pecas_Intelbras_*.aq`) — comparar o slug da pasta com o 1º token do arquivo antes de usá-la como título |
+| **Título em forma de slug** na página | Derivado do filename sem limpeza — remover ruído (`pecas`, anos, versões), preservar siglas (CFTV, PPCI) e separar CamelCase |
+| Nome do produto redundante (`Pontos de comando Interruptor…`) | Prefixo do grupo aplicado sem necessidade — prefixar só quando o nome é ambíguo, decidindo **por grupo** |
+| **Preview 404 em `data/*.json`, erro `Unexpected token 'T'`** | Template usava `./data/`; com `cleanUrls` a página é servida em `/<slug>` sem barra final e o relativo vai para a raiz. Usar caminho absoluto `'/' + CATALOG.slug + '/data/'`. O `'T'` é a página 404 da Vercel ("The page…") caindo no `JSON.parse` |
+| Preview gigante (centenas de MB) | Faltou `dedup()` no caminho `.aq` — reduz ~79% dos vértices |
+| ZIPs entrando no commit | `output/*.zip` não cobre subpastas; a saída é aninhada — usar `output/**/*.zip` |
+| Joelhos e curvas retos no viewer | Transforms do OQ3D ignorados — usar o parser de árvore de `oq3d.py` |
+| Peças 100× maiores/menores | OQ3D é **centímetros**; multiplicar por 0.01 |
+| Menos produtos que peças no banco | Peças sem `PECA_SIMBOLOGIA_3D` são tubos e kits — sem forma fixa, pular é o correto |
+| Parafusos faltando / um solto no ar | Bug aberto do OQ3D — ver "instâncias repetidas não emitem geometria" |
 
 ---
 
@@ -764,3 +929,70 @@ de manter o listener para re-renders (ao filtrar).
 
 **Ponto estável: commit `35d63db`** — WebGL context overflow resolvido, validado em produção.
 Para retornar: `git checkout 35d63db`.
+
+### 2026-08-24 — Estudo OQ3D: a geometria sai do .aq (commits 912bf38, 8414bb2, 9b85f6c)
+
+**A descoberta.** O `.aq` não é só o banco de dados de produto: carrega a malha 3D
+completa, com cor e miniatura, no BLOB `SIMBOLOGIA_3D.SIMBOLOGIA_3D`, em formato
+binário proprietário (OQ3D). É o mesmo sólido que o AltoQi exporta como IFC.
+Consequência: **os IFCs deixaram de ser necessários** no caminho padrão.
+
+**Como foi validado.** Três bibliotecas de naturezas opostas, mais um teste cego:
+
+| Biblioteca | Schema | Peças | Geometrias | IFCs de contraprova |
+|---|---|---|---|---|
+| Dancor (bombas) | 607 | 13 | 13 | 14, tessellated |
+| Amanco (conexões PVC) | 595 | 1.168 | 457 | 502, `IFCADVANCEDBREP` |
+| Intelbras (elétrica) | 572 | 32 | 18 | nenhum — teste cego |
+
+Onde o IFC é tessellated, os triângulos batem **exatamente** (37-40 TJM: 44.951 em
+ambos). Onde é B-rep, a forma converge a 0,3 mm mas a tesselação é independente —
+o IFC guarda o sólido exato e é retessellizado a cada leitura, o `.aq` traz a malha
+que o AltoQi fixou. O lote final rodou sobre **9 bibliotecas e seis versões de
+schema** (552, 562, 572, 582, 595, 607) sem uma falha.
+
+**Bug do parser linear (achado na Amanco).** Nas bombas, as malhas já vêm em
+coordenadas de mundo — dá para ignorar os transforms e ainda renderizar certo. Nas
+conexões **não**: cada peça é montada de malhas reaproveitadas e posicionadas por
+`TCoordinateTransformation3D`. O primeiro parser produzia joelhos retos. Exigiu
+parser de árvore com pilha (`scripts/oq3d.py`).
+
+**Bug colateral no `parse_ifc.py` — ainda aberto.** Ao resolver o Caminho B, o
+código procura o face set direto dentro do `IFCREPRESENTATIONMAP`, mas falta um
+nível: `IFCMAPPEDITEM → IFCREPRESENTATIONMAP → IFCSHAPEREPRESENTATION →
+IFCTRIANGULATEDFACESET`. Na CAM-W21 isso descarta 3.231 triângulos (13,8%) — as
+peças instanciadas. Afeta só o modo `--ifc`.
+
+**O `file_map` morreu.** O vínculo `PECA → PECA_SIMBOLOGIA_3D → SIMBOLOGIA_3D` é
+chave estrangeira. O matching por tokens do `find_aq_product` é comprovadamente
+frágil: ao tentar parear os 502 caminhos de IFC da Amanco com os nomes do banco,
+`Junção Simples + Joelho 45/Com luva` casou com `Luva Simples 200MM` — cobertura
+100%, peça errada.
+
+**Variantes com e sem luva.** O AltoQi exporta **dois IFCs por peça** (com e sem a
+luva de encaixe) e o banco guarda só a canônica — a com luva. Explica os 502 IFCs
+para 457 geometrias. Medindo por bounding box: 76% de cobertura nos "com luva",
+1,5% nos "sem luva".
+
+**Peças sem forma fixa.** 312 das 1.168 peças da Amanco (27%) não têm geometria, e
+é o correto: tubos (cilindro paramétrico por diâmetro × comprimento) e kits de
+aparelho sanitário. O build informa quantas pulou.
+
+**Erros cometidos nesta sessão, e o que ensinaram:**
+
+- **Faltou o `dedup()`** no caminho `.aq` — só o caminho IFC aplicava. O preview
+  foi para 571 MB; com dedup, 347 MB para 9 catálogos (antes: 155 MB para 2).
+- **`output/*.zip` não cobre subpastas.** Como a saída passou a espelhar o input,
+  os 9 ZIPs escaparam do gitignore. Corrigido com `output/**/*.zip`.
+- **`./data/` quebra com `cleanUrls`.** Mover o `data/` para dentro do catálogo
+  (necessário: `50mm.json` colide entre bibliotecas) expôs que a página é servida
+  em `/<slug>` sem barra final, e o relativo resolve para a raiz. O sintoma
+  enganoso era `Unexpected token 'T'` — a página 404 da Vercel caindo no
+  `JSON.parse`. Agora o `fetch` checa `r.ok` antes de parsear.
+
+**Pendência conhecida:** parafusos faltando na Dancor — 13 de 18 instâncias não
+emitem geometria, e uma definição aparece solta no ar. Ver "BUG ABERTO" na seção
+do `oq3d.py`.
+
+**Ponto estável: commit `9b85f6c`** — 9 catálogos em produção, geometria servindo
+200 em todos. Para retornar: `git checkout 9b85f6c`.

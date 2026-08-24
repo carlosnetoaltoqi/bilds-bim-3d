@@ -1,79 +1,137 @@
 # bilds-bim-3d
 
-Pipeline para gerar catálogos BIM interativos com viewer 3D a partir de arquivos `.aq` e `.IFC` do AltoQi.
+Gera catálogos BIM com viewer 3D a partir de bibliotecas `.aq` do AltoQi Builder.
+
+**Você só precisa do arquivo `.aq`.** Ele carrega a malha 3D, a cor e a miniatura de cada peça — não é preciso ter os IFCs.
 
 ## Início rápido
 
 ```bash
-# 1. Clone e configure
 git clone https://github.com/carlosnetoaltoqi/bilds-bim-3d.git
 cd bilds-bim-3d
 
-# 2. Instale dependências Python
 pip install -r requirements.txt
+bash scripts/setup_vendor.sh          # baixa o Three.js — uma vez só
 
-# 3. Baixe Three.js (uma vez)
-bash scripts/setup_vendor.sh
+# copie as bibliotecas .aq para input/, organizadas por fabricante:
+#   input/Dancor/pecas_dancor_bombas.aq
+#   input/Amanco/PVC Esgoto SN, SR e Silentium/pecas_amanco.aq
 
-# 4. Coloque seus arquivos em input/
-#    .IFC — um por produto
-#    .aq  — biblioteca AltoQi
+python3 scripts/build.py --all        # gera um ZIP por biblioteca
 
-# 5. Rode o build em modo interativo
-python3 scripts/build.py --interactive
-# Detecta .aq e IFCs; infere fabricante, título e slug do nome do .aq
-# Basta pressionar Enter para aceitar as sugestões
-
-# 6. Visualize localmente
 python3 -m http.server 8080 --directory output/preview
-# Abrir: http://localhost:8080/{slug-do-catalogo}
+# abrir http://localhost:8080
 ```
 
-## Saídas
+## Os dois modos
 
-| Arquivo | Uso |
+### Padrão — só o `.aq`
+
+```bash
+python3 scripts/build.py              # uma biblioteca, com perguntas
+python3 scripts/build.py --all        # todas as bibliotecas, sem perguntar
+```
+
+Forma, cor e dados saem todos do `.aq`. É o caminho normal: mais rápido (85× a 421×), um único arquivo de entrada, e sem o matching por nome que os IFCs exigem.
+
+### `--ifc` — quando a geometria vem dos arquivos IFC
+
+```bash
+python3 scripts/build.py --ifc
+python3 scripts/build.py --all --ifc
+```
+
+Use **apenas** quando:
+
+- **Há peças em IFC que não estão no banco.** Foi o caso da bomba 89-62 TJM da Dancor: existe como `.IFC` na pasta, mas não tem registro no `.aq`. Sem `--ifc` ela não entra no catálogo.
+- **Você quer conferir uma fonte contra a outra**, por exemplo ao validar uma biblioteca nova.
+
+Fora isso, não use. O modo `--ifc` é mais lento, depende do `ifcopenshell` para IFCs B-rep, e precisa casar nome de arquivo com nome de peça — heurística que erra em catálogos grandes.
+
+Com `--ifc`, os IFCs precisam estar **na mesma pasta do `.aq`** correspondente.
+
+## Como a saída é organizada
+
+A estrutura de `output/` espelha a de `input/`:
+
+```
+input/Amanco/PVC Esgoto SN, SR e Silentium/pecas.aq
+  → output/Amanco/PVC Esgoto SN, SR e Silentium/pvc-esgoto-sn-sr-e-silentium-202608241730.zip
+
+input/Dancor/pecas_dancor_bombas.aq
+  → output/Dancor/bombas-incendio-202608241730.zip
+```
+
+| Caminho | O que é |
 |---|---|
-| `output/preview/index.html` | Índice dos catálogos — listagem de todos os builds |
-| `output/preview/catalogs.json` | Registro automático de catálogos gerados |
-| `output/preview/{slug}/index.html` | Preview do catálogo (gerado pelo build) |
-| `output/preview/data/{slug}.json` | Geometria 3D de cada produto |
-| `output/<slug>-AAAAMMDDHHMM.zip` | Upload no dashboard.bilds.com |
+| `output/<origem>/<slug>-<timestamp>.zip` | **o pacote para subir no dashboard.bilds.com** |
+| `output/<origem>/<slug>-catalog.json` | catálogo solto, para inspeção |
+| `output/geo/<origem>/<slug>/*.json` | geometria por produto |
+| `output/preview/<slug>/index.html` | preview navegável do catálogo |
+| `output/preview/catalogs.json` | índice dos catálogos gerados |
+
+ZIPs, geometria e catálogos soltos são gitignored — sempre regeráveis a partir do `.aq`.
+
+## Opções
+
+```bash
+python3 scripts/build.py --all              # todas as bibliotecas de input/
+python3 scripts/build.py --all --force      # refaz também as que já têm ZIP
+python3 scripts/build.py --ifc              # geometria dos IFCs (ver acima)
+python3 scripts/build.py --input-dir PASTA  # varre outra pasta
+python3 scripts/build.py --skip-preview     # só catalog.json e ZIP
+python3 scripts/build.py --skip-zip         # só preview
+```
+
+Sem `--all`, o build pergunta fabricante, título, descrição e layout — com tudo pré-preenchido a partir do `.aq`. Basta ir dando Enter. Com `--all` nada é perguntado: os campos são inferidos.
+
+`--all` **pula bibliotecas que já têm ZIP** na pasta de destino. Use `--force` para refazer.
 
 ## Layouts
 
-| `series-rows` | Linhas por série, estilo Netflix. Para catálogos com poucas famílias de bombas/equipamentos. |
+| Layout | Quando usar |
 |---|---|
-| `catalog-grid` | Grid denso com filtros. Para catálogos com muitos itens heterogêneos (conexões, fitting, válvulas). |
+| `series-rows` | Poucas famílias, muitas variantes; ideal com curva Q-H. Ex: bombas |
+| `catalog-grid` | Muitos itens heterogêneos, com filtros por categoria. Ex: conexões |
 
-Configure em `config.json`: `"layout": "series-rows"` ou `"layout": "catalog-grid"`.
+Escolhido automaticamente: `series-rows` se a biblioteca tem curvas Q-H, `catalog-grid` acima de 6 peças. Ajustável na pergunta do modo interativo ou no `config.json`.
 
-## Opções do build.py
+## Publicar o preview
 
-```bash
-python3 scripts/build.py --interactive           # configura via perguntas (recomendado)
-python3 scripts/build.py --config config.json    # usa config.json existente
-python3 scripts/build.py --skip-ifc              # pula parse dos IFCs (re-usa output/geo/)
-python3 scripts/build.py --skip-preview          # só gera catalog.json e ZIP
-python3 scripts/build.py --skip-zip              # só gera preview
-```
-
-## Preview via Vercel
-
-Após o build, faça commit e push. O deploy acontece automaticamente via integração Vercel+git.
+O push para `main` dispara o deploy na Vercel automaticamente.
 
 ```bash
 git add output/preview/
-git commit -m "build: catálogo {slug}"
+git commit -m "build: catálogo <slug>"
 git push
 ```
 
-A página de índice fica em `bilds-bim-3d.vercel.app` e cada catálogo em `bilds-bim-3d.vercel.app/{slug}`.
+Índice em `bilds-bim-3d.vercel.app`, cada catálogo em `bilds-bim-3d.vercel.app/<slug>`.
+
+## Ferramentas auxiliares
+
+```bash
+# Inspecionar uma biblioteca sem gerar nada
+python3 scripts/read_aq.py caminho/para/pecas.aq --meta
+# → fabricante, linhas, nº de peças, nº de geometrias, curvas Q-H, versão do schema
+```
 
 ## Requisitos
 
 - Python 3.8+
-- `pip install -r requirements.txt` (instala Jinja2 + ifcopenshell)
-- bash (para setup_vendor.sh)
-- curl (para setup_vendor.sh)
+- `pip install -r requirements.txt` — Jinja2 e numpy
+- bash e curl, para o `setup_vendor.sh`
 
-> `ifcopenshell` é necessário para parsear IFCs com geometria B-rep paramétrica (IFCADVANCEDBREP), como os exportados pelo AltoQi Hidráulico/Elétrico. IFCs tessellados (exportados pelo CATIA/3DEXPERIENCE) funcionam sem ele.
+`ifcopenshell` só é necessário para o modo `--ifc` com IFCs B-rep (`IFCADVANCEDBREP`), como os do AltoQi Hidráulico. O modo padrão não usa.
+
+## Uma peça não apareceu no catálogo
+
+Peças sem geometria no banco são puladas, e o build informa quantas. Normalmente são **tubos** (que o AltoQi gera como cilindro a partir do diâmetro e do comprimento) e **kits de aparelho sanitário** — entradas de projeto, não peças com forma fixa. Na biblioteca de esgoto da Amanco são 312 de 1.168 peças, e é o comportamento correto.
+
+Se faltar uma peça que deveria ter forma, verifique se ela existe só como IFC: nesse caso use `--ifc`.
+
+## Documentação
+
+- `CLAUDE.md` — arquitetura, formato OQ3D, decisões e armadilhas conhecidas
+- `docs/bilds-bim-3d-zip-spec.md` — contrato do ZIP consumido pela bilds.com
+- `docs/plano-integracao-bilds.md` — integração com dashboard e API
