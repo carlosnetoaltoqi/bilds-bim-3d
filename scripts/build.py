@@ -683,18 +683,38 @@ def interactive_config(input_dir, existing=None):
         print()
 
     # ── Sugestões inteligentes ───────────────────────────────────
-    sug_fabricante = ec.get('fabricante') or hints.get('fabricante') or ''
-    n_products     = n_ifc or len(ec.get('file_map', {}))
-    sug_layout     = ec.get('layout') or (
-        'series-rows' if hints.get('has_curves') else
-        ('catalog-grid' if n_products > 6 else 'series-rows')
+    # Detectar mudança de biblioteca .aq: hints prevalecem sobre config stale
+    aq_stale = bool(
+        aq_file and ec.get('aq_file') and
+        os.path.abspath(aq_file) != os.path.abspath(
+            os.path.join(ROOT, ec['aq_file']) if not os.path.isabs(ec['aq_file']) else ec['aq_file']
+        )
     )
+    if aq_stale:
+        print('  AVISO: biblioteca .aq diferente do config.json anterior — reiniciando sugestões.\n')
+
+    if aq_stale:
+        sug_fabricante = hints.get('fabricante') or ''
+        n_products     = n_ifc
+        sug_layout     = (
+            'series-rows' if hints.get('has_curves') else
+            ('catalog-grid' if n_products > 6 else 'series-rows')
+        )
+    else:
+        sug_fabricante = ec.get('fabricante') or hints.get('fabricante') or ''
+        n_products     = n_ifc or len(ec.get('file_map', {}))
+        sug_layout     = ec.get('layout') or (
+            'series-rows' if hints.get('has_curves') else
+            ('catalog-grid' if n_products > 6 else 'series-rows')
+        )
 
     # ── Perguntas de metadados ───────────────────────────────────
     fabricante = ask('Fabricante', default=sug_fabricante)
 
-    sug_titulo = ec.get('titulo') or (
+    sug_titulo = (
         hints['grupos'][0].rsplit(' ', 1)[0] if hints.get('grupos') else ''
+    ) if aq_stale else (
+        ec.get('titulo') or (hints['grupos'][0].rsplit(' ', 1)[0] if hints.get('grupos') else '')
     )
     titulo = ask('Título do catálogo', default=sug_titulo)
 
@@ -716,7 +736,7 @@ def interactive_config(input_dir, existing=None):
 
     # ── Mapeamento produto → slug ────────────────────────────────
     file_map = {}
-    existing_fm = ec.get('file_map', {})
+    existing_fm = {} if aq_stale else ec.get('file_map', {})
 
     if ifc_entries and n_ifc > 50:
         # Muitos produtos: aceitar slugs automáticos sem prompt por item
