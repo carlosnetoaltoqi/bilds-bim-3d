@@ -5,6 +5,18 @@ Leia tudo antes de modificar qualquer arquivo.
 
 ---
 
+## Skills obrigatórias — carregar ao iniciar
+
+Ao começar qualquer sessão neste projeto, carregue as três skills abaixo antes de qualquer outra ação:
+
+- `leitor-biblioteca-aq`
+- `leitor-ifc`
+- `pagina-biblioteca`
+
+Invoque via Skill tool em paralelo.
+
+---
+
 ## O que é este projeto
 
 Pipeline local para gerar catálogos BIM interativos com viewer 3D a partir de
