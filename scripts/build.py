@@ -689,6 +689,11 @@ def interactive_config(input_dir, existing=None):
         print(f'  → {n_gp} grupo(s) de produtos{curvas_txt}')
         if hints['fabricante']:
             print(f'  → fabricante detectado: {hints["fabricante"]}')
+        if hints['grupos']:
+            print(f'  → grupos: {", ".join(hints["grupos"][:5])}{"..." if n_gp > 5 else ""}')
+        titulo_inf = infer_titulo(hints['grupos'])
+        if titulo_inf:
+            print(f'  → título inferido: {titulo_inf}')
         print()
     else:
         print('  Múltiplas bibliotecas .aq:')
@@ -732,11 +737,19 @@ def interactive_config(input_dir, existing=None):
     # ── Perguntas de metadados ───────────────────────────────────
     fabricante = ask('Fabricante', default=sug_fabricante)
 
-    sug_titulo = ec.get('titulo') or infer_titulo(hints.get('grupos', []))
+    sug_titulo = (
+        infer_titulo(hints.get('grupos', []))
+        if aq_stale else
+        (ec.get('titulo') or infer_titulo(hints.get('grupos', [])))
+    )
     titulo = ask('Título do catálogo', default=sug_titulo)
 
-    sug_slug = ec.get('slug') or slugify(
-        (fabricante + '-' + titulo.split()[0]) if titulo else fabricante or 'catalogo'
+    sug_slug = (
+        slugify((fabricante + '-' + titulo.split()[0]) if titulo else fabricante or 'catalogo')
+        if aq_stale else
+        (ec.get('slug') or slugify(
+            (fabricante + '-' + titulo.split()[0]) if titulo else fabricante or 'catalogo'
+        ))
     )
     slug = ask('Slug da URL', default=sug_slug)
 
