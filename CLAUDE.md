@@ -5,6 +5,20 @@ Leia tudo antes de modificar qualquer arquivo.
 
 ---
 
+## Regra fundamental: documentação primeiro
+
+**Toda mudança de comportamento, bug corrigido ou decisão de arquitetura deve ser registrada neste arquivo antes de encerrar a sessão.**
+
+A memória do agente (arquivo externo de memória) é auxiliar e pode não existir na próxima sessão. Este `CLAUDE.md` é a única fonte de verdade persistente e confiável. Se a informação não está aqui, ela não existe para o próximo agente.
+
+Fluxo obrigatório ao finalizar qualquer mudança:
+1. Corrigir/implementar o código
+2. Commitar
+3. Atualizar este `CLAUDE.md` com o que mudou (seção "Histórico de sessões" e tabela de diagnóstico quando aplicável)
+4. Só então encerrar
+
+---
+
 ## Skills obrigatórias — carregar ao iniciar
 
 Ao começar qualquer sessão neste projeto, carregue as três skills abaixo antes de qualquer outra ação:
