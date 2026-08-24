@@ -23,7 +23,7 @@ Pipeline local para gerar catálogos BIM interativos com viewer 3D a partir de
 arquivos `.aq` (AltoQi) e `.IFC` (geometria). Produz dois artefatos:
 
 1. **Preview HTML standalone** (`output/preview/`) — visualização local ou via Vercel
-2. **ZIP para bilds.com** (`output/bilds-upload.zip`) — pacote para upload no dashboard
+2. **ZIP para bilds.com** (`output/<slug>-AAAAMMDDHHMM.zip`) — pacote para upload no dashboard
 
 O projeto é independente do `bilds-code-vercel` (apps/lps, vagas, seo).
 Clonado em qualquer máquina, produz o mesmo resultado dado os mesmos inputs.
@@ -41,7 +41,7 @@ Clonado em qualquer máquina, produz o mesmo resultado dado os mesmos inputs.
 6. python3 scripts/build.py --config config.json
 7. Preview local: python3 -m http.server 8080 --directory output/preview
 8. Abrir: http://localhost:8080
-9. Subir output/bilds-upload.zip no dashboard.bilds.com → BIM 3D
+9. Subir output/<slug>-AAAAMMDDHHMM.zip no dashboard.bilds.com → BIM 3D
 ```
 
 ---
@@ -72,7 +72,7 @@ bilds-bim-3d/
     ├── geo/                     ← JSONs de geometria por produto
     ├── catalog.json             ← dados estruturados do catálogo
     ├── preview/                 ← site estático pronto para servir
-    └── bilds-upload.zip         ← ZIP para bilds.com
+    └── <slug>-AAAAMMDDHHMM.zip  ← ZIP para bilds.com (ex: dancor-bombas-incendio-202608241530.zip)
 ```
 
 ---
@@ -181,8 +181,10 @@ Fallback sem Jinja2: `build.py` substitui `{{ catalog | tojson | safe }}` por st
 
 ## ZIP para bilds.com — conteúdo
 
+O arquivo é gerado em `output/<slug>-AAAAMMDDHHMM.zip` (ex: `dancor-bombas-incendio-202608241530.zip`).
+
 ```
-bilds-upload.zip
+<slug>-AAAAMMDDHHMM.zip
 ├── manifest.json    { slug, title, manufacturer, description, layout, filters, productCount }
 ├── catalog.json     dados completos dos produtos (campos em português)
 └── geo/

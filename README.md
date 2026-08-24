@@ -36,7 +36,7 @@ python3 -m http.server 8080 --directory output/preview
 | `output/preview/catalogs.json` | Registro automático de catálogos gerados |
 | `output/preview/{slug}/index.html` | Preview do catálogo (gerado pelo build) |
 | `output/preview/data/{slug}.json` | Geometria 3D de cada produto |
-| `output/bilds-upload.zip` | Upload no dashboard.bilds.com |
+| `output/<slug>-AAAAMMDDHHMM.zip` | Upload no dashboard.bilds.com |
 
 ## Layouts
 

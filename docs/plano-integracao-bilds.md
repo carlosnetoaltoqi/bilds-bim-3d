@@ -17,7 +17,7 @@
 Existe um pipeline local chamado `bilds-bim-3d` que recebe arquivos `.aq` (biblioteca AltoQi) e `.IFC` (geometria 3D) e gera dois artefatos:
 
 1. **`output/preview/{slug}/index.html`** — preview HTML local para revisar o catálogo
-2. **`output/bilds-upload.zip`** — pacote para upload na bilds.com
+2. **`output/<slug>-AAAAMMDDHHMM.zip`** — pacote para upload na bilds.com (ex: `dancor-bombas-incendio-202608241530.zip`)
 
 Sua tarefa é implementar o lado da bilds.com que recebe esse ZIP e serve o catálogo como uma página pública React/Next.js com SEO adequado.
 
@@ -57,7 +57,7 @@ Toda a implementação descrita neste plano deve ser feita **exclusivamente atra
 ## 1. O que o ZIP contém
 
 ```
-bilds-upload.zip
+<slug>-AAAAMMDDHHMM.zip
 ├── manifest.json       ← metadados do catálogo
 ├── catalog.json        ← dados completos (produtos, specs, curvas Q-H)
 └── geo/
@@ -203,7 +203,7 @@ Content-Type: multipart/form-data
 Authorization: Bearer {token-admin}
 
 Campos:
-  zip (File) — o arquivo bilds-upload.zip
+  zip (File) — o arquivo <slug>-AAAAMMDDHHMM.zip gerado pelo pipeline
 ```
 
 **Lógica do endpoint:**
