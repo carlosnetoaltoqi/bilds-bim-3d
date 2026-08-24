@@ -135,3 +135,17 @@ Se faltar uma peça que deveria ter forma, verifique se ela existe só como IFC:
 - `CLAUDE.md` — arquitetura, formato OQ3D, decisões e armadilhas conhecidas
 - `docs/bilds-bim-3d-zip-spec.md` — contrato do ZIP consumido pela bilds.com
 - `docs/plano-integracao-bilds.md` — integração com dashboard e API
+- `docs/estudo-oq3d/` — como a geometria dentro do `.aq` foi descoberta e validada
+- `docs/skills/` — skills de agente sobre `.aq`, IFC e páginas de catálogo
+
+## Skills de agente
+
+As três skills que cobrem o terreno técnico do projeto são versionadas em
+`docs/skills/`. Para usá-las com o Claude Code:
+
+```bash
+bash scripts/link_skills.sh
+```
+
+Cria symlinks de `~/.claude/skills/` para cá — uma cópia só, versionada no git.
+Idempotente: pode rodar quantas vezes quiser.

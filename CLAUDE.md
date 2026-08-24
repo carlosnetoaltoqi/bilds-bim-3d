@@ -42,32 +42,42 @@ não está aqui, isso é uma falha desta documentação — registre-a antes de 
 | Contrato do ZIP consumido pela bilds.com | `docs/bilds-bim-3d-zip-spec.md` |
 | Como a descoberta do OQ3D foi feita e validada | `docs/estudo-oq3d/` |
 | Integração com dashboard e API | `docs/plano-integracao-bilds.md` |
+| Skills de agente (versionadas aqui) | `docs/skills/` |
 
-### Skills: ler é opcional, escrever é obrigatório
+### Skills — versionadas aqui, em `docs/skills/`
 
-Três skills de agente cobrem o mesmo terreno técnico:
+Três skills de agente cobrem o terreno técnico do projeto e **moram neste
+repositório**:
 
 | Skill | Assunto |
 |---|---|
-| `leitor-biblioteca-aq` | ler `.aq`, schema do banco, formato OQ3D |
-| `leitor-ifc` | parsear IFC4, geometria, cores, armadilhas STEP |
-| `pagina-biblioteca` | gerar as páginas de catálogo com viewer 3D |
+| `docs/skills/leitor-biblioteca-aq/` | ler `.aq`, schema do banco, formato OQ3D |
+| `docs/skills/leitor-ifc/` | parsear IFC4, geometria, cores, armadilhas STEP |
+| `docs/skills/pagina-biblioteca/` | gerar as páginas de catálogo com viewer 3D |
 
-**Para trabalhar neste projeto, elas não são necessárias** — este repositório é
-autossuficiente e pode ser clonado numa máquina onde elas não existam.
+`~/.claude/skills/` recebe **symlinks** apontando para cá — existe uma cópia só,
+e ela é versionada. Editar em qualquer um dos caminhos edita o arquivo do repo.
 
-**Mas mantê-las atualizadas é obrigatório.** Elas servem outros projetos, e
-conhecimento que só existe aqui não chega até eles.
+```bash
+bash scripts/link_skills.sh     # recria os symlinks; idempotente
+```
+
+Rode isso depois de clonar. Se um diretório de mesmo nome já existir em
+`~/.claude/skills/` com conteúdo diferente, o script o preserva como `.bak.<timestamp>`
+em vez de sobrescrever.
+
+**Para trabalhar neste projeto, as skills não são necessárias** — o `CLAUDE.md` e o
+`README.md` bastam. Elas existem porque o conhecimento sobre `.aq`, IFC e viewers 3D
+serve **outros projetos** também.
 
 > **Ao descobrir qualquer coisa nova sobre leitura de `.aq`, leitura de IFC ou
-> geração das páginas de preview, registre nos dois lugares: neste `CLAUDE.md` e
-> na skill correspondente.** Vale para formato de arquivo, armadilha de parser,
+> geração das páginas de preview, registre nos dois lugares: neste `CLAUDE.md` e na
+> skill correspondente.** Vale para formato de arquivo, armadilha de parser,
 > comportamento do AltoQi, padrão de template — qualquer aprendizado reaproveitável
-> fora deste repositório.
+> fora daqui. Bump a `version` no frontmatter da skill e anote no `## Histórico` dela.
 
-Registre primeiro aqui (é o que garante a continuidade deste projeto), depois na
-skill — mas não encerre a sessão sem fazer as duas. Bump a `version` no
-frontmatter da skill e anote a mudança no seu `## Histórico`.
+Como as skills estão no git, essa atualização entra no mesmo commit da mudança que a
+originou — e não se perde se a máquina sumir.
 
 ---
 
@@ -182,7 +192,8 @@ bilds-bim-3d/
 │   ├── read_aq.py               ← .aq AltoQi → dados, metadados e simbologias
 │   ├── parse_ifc.py             ← IFC4 → JSON de geometria (só no modo --ifc)
 │   ├── dedup.py                 ← deduplicação de vértices (~79% redução)
-│   └── setup_vendor.sh          ← baixa Three.js para templates/vendor/
+│   ├── setup_vendor.sh          ← baixa Three.js para templates/vendor/
+│   └── link_skills.sh           ← liga docs/skills/ a ~/.claude/skills/
 ├── templates/
 │   ├── layouts/
 │   │   ├── series-rows.html     ← rows estilo Netflix por série (bombas)
