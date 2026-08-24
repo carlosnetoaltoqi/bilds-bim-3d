@@ -1,33 +1,44 @@
 #!/usr/bin/env python3
 """
-build.py — Pipeline completo: .aq + .IFC → preview HTML + ZIP para bilds.com
+build.py — Pipeline: biblioteca .aq → preview HTML + ZIP para bilds.com
 
-Uso:
-  python3 scripts/build.py --config config.json
+MODO PADRÃO (só o .aq)
+  python3 scripts/build.py
 
-config.json:
+  Forma, cor e dados saem todos do .aq. A geometria 3D está no BLOB
+  SIMBOLOGIA_3D.SIMBOLOGIA_3D, no formato binário OQ3D (ver scripts/oq3d.py) —
+  é o mesmo sólido que o AltoQi exporta como IFC. O vínculo peça → geometria
+  vem da chave estrangeira PECA_SIMBOLOGIA_3D, então não existe file_map nem
+  matching por nome de arquivo.
+
+MODO COMPATIBILIDADE (--ifc)
+  python3 scripts/build.py --ifc
+
+  Volta a ler os IFCs da pasta input/ para a geometria, usando o .aq apenas
+  para os dados de produto. Útil quando a biblioteca traz IFCs de peças que não
+  estão cadastradas no banco, ou para conferir uma contra a outra.
+
+config.json (gerado pelo fluxo interativo; editável à mão):
   {
-    "slug":        "bombas-incendio",
+    "slug":        "bombas-de-combate-a-incendio",
     "titulo":      "Bombas de Combate a Incêndio",
     "fabricante":  "Dancor",
-    "descricao":   "Linha CAM-W e TJM para sistemas prediais de combate a incêndio.",
+    "descricao":   "...",
     "layout":      "series-rows",        // "series-rows" | "catalog-grid"
-    "aq_file":     "input/biblioteca.aq",
-    "ifc_dir":     "input/",
-    "file_map":    { "CAM-W10.IFC": "cam-w10", ... },
-    "products_override": []              // produtos no IFC mas ausentes no .aq
+    "aq_file":     "input/Dancor/pecas.aq",
+    "ifc_dir":     "input/",             // usado só com --ifc
+    "file_map":    { "CAM-W10.IFC": "cam-w10", ... },   // idem
+    "products_override": []              // peças no IFC e ausentes no .aq
   }
 
 Saídas:
-  output/preview/index.html        — HTML standalone para visualização local/Vercel
-  output/preview/catalog.json      — dados do catálogo (copiado)
-  output/preview/data/<slug>.json  — geometria de cada produto
-  output/preview/vendor/           — Three.js (copiado de templates/vendor/)
-  output/bilds-upload.zip          — ZIP para upload na bilds.com
+  output/geo/<slug>.json             — geometria por produto
+  output/catalog.json                — dados do catálogo
+  output/preview/<slug>/index.html   — preview estático (local ou Vercel)
+  output/<slug>-AAAAMMDDHHMM.zip     — pacote para upload na bilds.com
 
 Visualização local após o build:
   python3 -m http.server 8080 --directory output/preview
-  Abrir: http://localhost:8080
 """
 import argparse
 import datetime
@@ -270,6 +281,155 @@ def build_catalog(config, product_map, geo_files):
     }
 
 
+# ─── Catálogo a partir do .aq (caminho padrão) ───────────────────────────────
+
+def _potencia_de(nome_gp, peca):
+    """Potência em CV a partir do nome do grupo ou dos dados da peça."""
+    m = re.search(r'(\d+(?:[.,]\d+)?)\s*CV', nome_gp or '', re.IGNORECASE)
+    if m:
+        return float(m.group(1).replace(',', '.'))
+    return peca.get('potencia_cv')
+
+
+def build_catalog_from_aq(config, aq_path, geo_dir):
+    """
+    Gera catalog.json e os JSONs de geometria direto do .aq — sem IFC.
+
+    O vínculo peça → geometria vem de PECA_SIMBOLOGIA_3D (chave estrangeira),
+    então não há file_map nem matching por nome. Peças sem simbologia 3D são
+    puladas: na prática são tubos (cilindro paramétrico gerado pelo AltoQi) e
+    kits de aparelho sanitário, que não têm forma fixa.
+
+    Retorna (catalog, n_geometrias, n_sem_3d).
+    """
+    from read_aq import extract as extract_aq, extract_simbologias
+    import oq3d
+
+    aq_data = extract_aq(aq_path)
+    simbologias, sim_por_peca = extract_simbologias(aq_path)
+
+    grupos_by_id = {g['ID_GRUPO_PECA']: g for g in aq_data['grupos']}
+
+    props_by_peca = {}
+    for p in aq_data['propriedades']:
+        props_by_peca.setdefault(p['ID_PECA'], {})[p['propriedade']] = p['VALOR']
+
+    curvas_by_peca = {}
+    for pt in aq_data['curvas']:
+        curvas_by_peca.setdefault(pt['ID_PECA'], []).append([
+            round(pt['vazao'], 3), round(pt['altura'], 3),
+            round(pt['potencia_ponto'] or 0, 3), round(pt['rendimento'] or 0, 1),
+        ])
+
+    os.makedirs(geo_dir, exist_ok=True)
+
+    # Uma geometria por simbologia; várias peças podem compartilhá-la.
+    # O nome da simbologia costuma ser só a dimensão ("100MM"), que se repete
+    # entre grupos — por isso o grupo entra no slug quando há colisão.
+    geo_por_sim = {}
+    usados = set()
+    for sid in sorted(simbologias):
+        blob = simbologias[sid]['blob']
+        if not blob or not oq3d.is_oq3d(blob):
+            continue
+        try:
+            data = oq3d.to_buffers(blob)
+        except oq3d.OQ3DError as e:
+            print(f'  AVISO: simbologia {sid} ilegível ({e})')
+            continue
+        if not data['pos']:
+            continue
+
+        sim = simbologias[sid]
+        name = slugify(sim['nome'])[:60]
+        if not name or name in usados:
+            name = slugify(f"{sim['grupo']} {sim['nome']}")[:60]
+        if not name:
+            name = f'sim-{sid}'
+        base = name
+        n = 2
+        while name in usados:
+            name = f'{base}-{n}'
+            n += 1
+        usados.add(name)
+
+        with open(os.path.join(geo_dir, name + '.json'), 'w', encoding='utf-8') as f:
+            json.dump({'pos': [round(x, 5) for x in data['pos']],
+                       'col': [round(x, 4) for x in data['col']],
+                       'idx': data['idx']}, f)
+        geo_por_sim[sid] = name
+
+    # O nome da peça só recebe o prefixo do grupo quando sozinho é ambíguo —
+    # e a decisão é POR GRUPO, para todas as peças dele saírem no mesmo padrão.
+    # "100mm" se repete entre Cap/Luva/Joelho e "3CV T 220/380V" entre as séries
+    # CAM: ambos precisam do grupo. Já "Interruptor inteligente 1 tecla - EWS
+    # 1001 BR" é único, e prefixar com a categoria ("Pontos de comando") só
+    # poluiria o nome exibido.
+    grupos_por_nome = {}
+    for p in aq_data['pecas']:
+        n = (p['NOME_PECA'] or '').strip().lower()
+        grupos_por_nome.setdefault(n, set()).add(p['ID_GRUPO_PECA'])
+
+    grupo_precisa_prefixo = set()
+    for p in aq_data['pecas']:
+        n = (p['NOME_PECA'] or '').strip()
+        if len(n) < 4 or len(grupos_por_nome.get(n.lower(), ())) > 1:
+            grupo_precisa_prefixo.add(p['ID_GRUPO_PECA'])
+
+    produtos = []
+    series_set = set()
+    sem_3d = 0
+    ids_usados = set()
+
+    for p in aq_data['pecas']:
+        pid = p['ID_PECA']
+        sid = sim_por_peca.get(pid)
+        geo = geo_por_sim.get(sid) if sid else None
+        if not geo:
+            sem_3d += 1
+            continue
+
+        nome_gp = grupos_by_id.get(p['ID_GRUPO_PECA'], {}).get('NOME_GP', '')
+        nome_peca = (p['NOME_PECA'] or '').strip()
+        if (nome_gp and p['ID_GRUPO_PECA'] in grupo_precisa_prefixo
+                and nome_gp.lower() not in nome_peca.lower()):
+            nome_peca = f'{nome_gp} {nome_peca}'.strip()
+        if not nome_peca:
+            nome_peca = nome_gp or f'Peça {pid}'
+
+        pid_slug = slugify(nome_peca) or f'peca-{pid}'
+        base_slug = pid_slug
+        n = 2
+        while pid_slug in ids_usados:
+            pid_slug = f'{base_slug}-{n}'
+            n += 1
+        ids_usados.add(pid_slug)
+
+        serie = nome_gp or 'Outros'
+        produtos.append({
+            'id': pid_slug,
+            'nome': nome_peca,
+            'serie': serie,
+            'geo': f'{geo}.json',
+            'potencia': _potencia_de(nome_gp, p),
+            'conexoes': p.get('DESCRICAO_DADOS') or '',
+            'specs': props_by_peca.get(pid, {}),
+            'curva': curvas_by_peca.get(pid),
+        })
+        series_set.add(serie)
+
+    catalog = {
+        'slug': config['slug'],
+        'titulo': config['titulo'],
+        'fabricante': config['fabricante'],
+        'descricao': config.get('descricao', ''),
+        'layout': config.get('layout', 'catalog-grid'),
+        'filtros': sorted(s for s in series_set if s),
+        'produtos': produtos,
+    }
+    return catalog, len(geo_por_sim), sem_3d
+
+
 # ─── Parse dos IFCs ───────────────────────────────────────────────────────────
 
 def run_ifc_parse(config):
@@ -395,7 +555,17 @@ def update_catalog_registry(catalog):
             except json.JSONDecodeError:
                 registry = []
 
-    registry = [e for e in registry if e.get('slug') != catalog['slug']]
+    # Descarta a entrada atual e as órfãs (slug sem diretório no preview) —
+    # sem isso o índice acumula links quebrados a cada troca de slug.
+    def _vivo(e):
+        s = e.get('slug')
+        return bool(s) and os.path.isdir(os.path.join(PREVIEW_DIR, s))
+
+    orfas = [e for e in registry if e.get('slug') != catalog['slug'] and not _vivo(e)]
+    if orfas:
+        print(f'    Índice: removendo {len(orfas)} entrada(s) órfã(s): '
+              f'{", ".join(e.get("slug", "?") for e in orfas)}')
+    registry = [e for e in registry if e.get('slug') != catalog['slug'] and _vivo(e)]
     registry.append({
         'slug': catalog['slug'],
         'titulo': catalog['titulo'],
@@ -441,14 +611,24 @@ def build_zip(catalog):
         # catalog.json
         zf.writestr('catalog.json', json.dumps(catalog, ensure_ascii=False, separators=(',', ':')))
 
-        # geo files
+        # geo files — peças diferentes podem compartilhar a mesma geometria,
+        # então cada arquivo entra no ZIP uma única vez
+        incluidos = set()
+        faltando = 0
         for produto in catalog['produtos']:
             slug = produto['geo'].replace('.json', '')
+            if slug in incluidos:
+                continue
             geo_path = os.path.join(GEO_DIR, f'{slug}.json')
             if os.path.exists(geo_path):
                 zf.write(geo_path, f'geo/{slug}.json')
+                incluidos.add(slug)
             else:
-                print(f'  AVISO: geo/{slug}.json não encontrado — não incluído no ZIP')
+                faltando += 1
+                if faltando <= 5:
+                    print(f'  AVISO: geo/{slug}.json não encontrado — fora do ZIP')
+        if faltando > 5:
+            print(f'  AVISO: +{faltando - 5} geometrias ausentes')
 
     size_kb = os.path.getsize(zip_path) / 1024
     print(f'ZIP: {zip_path} ({size_kb:.0f}KB)')
@@ -495,70 +675,98 @@ def _tokens_from_aq_filename(aq_path):
             and not re.match(r'^\d{2,4}$', t)]                 # remove anos/versões
 
 
+_GENERIC_DIRS = {'input', 'biblioteca', 'bibliotecas', 'bim', 'ifc', 'aq',
+                 'downloads', 'arquivos', 'temp', 'tmp', '.', ''}
+
+
 def peek_aq(aq_path):
     """
-    Lê o .aq rapidamente para extrair hints antes das perguntas.
-    Retorna dict: fabricante, titulo, grupos (list[str]), has_curves (bool)
+    Lê o .aq para extrair fabricante, título e pistas de layout.
+
+    Fabricante e título NUNCA podem sair em branco ou em forma de slug: são o
+    cabeçalho da página publicada. A cascata abaixo sempre produz algo legível.
+
+    Fabricante, em ordem de confiança:
+      1. Prefixo de CLASSE_SIMBOLOGIA_3D.NOME_CLASSE ("AMANCO - PVC Esgoto SN")
+      2. PECA.BIBLIOTECA (quase sempre vazia na prática)
+      3. Pasta avô, quando descritiva
+      4. Pasta pai, quando bate com o primeiro token do nome do arquivo
+      5. Primeiro token do nome do arquivo
+
+    Título, em ordem:
+      1. Pasta pai, quando descritiva e diferente do fabricante
+         (input/Amanco/PVC Esgoto SN, SR e Silentium/pecas.aq)
+      2. Tokens do nome do arquivo, menos o fabricante
+      3. Sufixo comum das classes ("PVC Esgoto SN" → "PVC Esgoto")
+      4. Último recurso: o próprio fabricante
     """
-    from read_aq import open_aq
-    hints = {'fabricante': '', 'titulo': '', 'grupos': [], 'has_curves': False}
-    try:
-        con, tmp = open_aq(aq_path)
-        cur = con.cursor()
-        try:
-            cur.execute(
-                "SELECT BIBLIOTECA FROM PECA "
-                "WHERE BIBLIOTECA IS NOT NULL AND BIBLIOTECA != '' LIMIT 1"
-            )
-            r = cur.fetchone()
-            if r:
-                hints['fabricante'] = r[0].strip()
-        except Exception:
-            pass
-        try:
-            cur.execute('SELECT NOME_GP FROM GRUPO_PECA WHERE ATIVO=1 ORDER BY ID_GRUPO_PECA')
-            hints['grupos'] = [r[0] for r in cur.fetchall()]
-        except Exception:
-            pass
-        try:
-            cur.execute('SELECT 1 FROM ITEM_CURVA_BOMBA LIMIT 1')
-            hints['has_curves'] = cur.fetchone() is not None
-        except Exception:
-            pass
-        con.close()
-        if tmp:
-            shutil.rmtree(tmp, ignore_errors=True)
-    except Exception:
-        pass
+    from read_aq import peek_metadata
 
-    # Hierarquia de pastas: pai = título, avô = fabricante (ex: input/Amanco/PVC Esgoto SN, SR/pecas.aq)
-    parent_dir  = os.path.basename(os.path.dirname(aq_path))
-    grandpa_dir = os.path.basename(os.path.dirname(os.path.dirname(aq_path)))
+    meta = peek_metadata(aq_path)
+    hints = {
+        'fabricante': meta['fabricante'],
+        'titulo': '',
+        'grupos': meta['grupos'],
+        'has_curves': meta['has_curves'],
+        'linhas': meta['linhas'],
+        'n_pecas': meta['n_pecas'],
+        'n_simbologias': meta['n_simbologias'],
+        'schema': meta['schema'],
+    }
 
-    _generic_dirs = {'input', 'amanco', 'dancor', 'biblioteca', 'bim', 'ifc', 'aq', '.'}
+    parent_dir = os.path.basename(os.path.dirname(os.path.abspath(aq_path)))
+    grandpa_dir = os.path.basename(
+        os.path.dirname(os.path.dirname(os.path.abspath(aq_path))))
+    fn_tokens = _tokens_from_aq_filename(aq_path)
 
-    # Título: nome da pasta pai se for descritivo (não genérico, não é o fabricante)
-    if not hints['titulo'] and parent_dir.lower() not in _generic_dirs:
+    def _is_generic(d):
+        return d.lower() in _GENERIC_DIRS
+
+    # ── Fabricante ────────────────────────────────────────────────────────
+    if not hints['fabricante'] and not _is_generic(grandpa_dir):
+        hints['fabricante'] = grandpa_dir
+    if not hints['fabricante'] and fn_tokens:
+        # A pasta pai é o fabricante quando repete o primeiro token do arquivo
+        # (input/Intelbras/pecas_Intelbras_....aq)
+        if not _is_generic(parent_dir) and slugify(parent_dir) == slugify(fn_tokens[0]):
+            hints['fabricante'] = parent_dir
+        else:
+            hints['fabricante'] = fn_tokens[0].capitalize()
+
+    fab_slug = slugify(hints['fabricante']) if hints['fabricante'] else ''
+
+    # ── Título ────────────────────────────────────────────────────────────
+    if not _is_generic(parent_dir) and slugify(parent_dir) != fab_slug:
         hints['titulo'] = parent_dir
 
-    # Fabricante: avô se for nome de empresa (curto, sem espaço ou capitalizado)
-    if not hints['fabricante'] and grandpa_dir.lower() not in _generic_dirs:
-        hints['fabricante'] = grandpa_dir
+    if not hints['titulo'] and fn_tokens:
+        fab_tokens = set(tokenize(hints['fabricante'])) if hints['fabricante'] else set()
+        rest = [t for t in fn_tokens if t not in fab_tokens]
+        if rest:
+            hints['titulo'] = ' '.join(t.capitalize() for t in rest)
 
-    # Fallback final: extrair do nome do arquivo .aq
-    fn_tokens = _tokens_from_aq_filename(aq_path)
-    fab_tokens = set(tokenize(hints['fabricante'])) if hints['fabricante'] else set()
-
-    if not hints['fabricante'] and fn_tokens:
-        hints['fabricante'] = fn_tokens[0].capitalize()
-        fab_tokens = {fn_tokens[0]}
+    if not hints['titulo'] and hints['linhas']:
+        hints['titulo'] = _common_prefix(hints['linhas']) or hints['linhas'][0]
 
     if not hints['titulo']:
-        title_tokens = [t for t in fn_tokens if t not in fab_tokens]
-        if title_tokens:
-            hints['titulo'] = ' '.join(t.capitalize() for t in title_tokens)
+        hints['titulo'] = hints['fabricante'] or 'Catálogo BIM'
 
     return hints
+
+
+def _common_prefix(nomes):
+    """Prefixo comum, por palavra: ['PVC Esgoto SN','PVC Esgoto SR'] → 'PVC Esgoto'."""
+    if not nomes:
+        return ''
+    partes = [n.split() for n in nomes]
+    comum = []
+    for i in range(min(len(p) for p in partes)):
+        w = partes[0][i]
+        if all(p[i].lower() == w.lower() for p in partes):
+            comum.append(w)
+        else:
+            break
+    return ' '.join(comum)
 
 
 def scan_input(input_dir):
@@ -691,9 +899,11 @@ def match_slug_to_aq(slug, grupos):
     return best
 
 
-def interactive_config(input_dir, existing=None):
+def interactive_config(input_dir, existing=None, com_ifc=False):
     """
     Configura o catálogo interativamente.
+    com_ifc: quando False (padrão), a geometria vem do .aq e os IFCs são
+             ignorados — não há file_map a montar.
     existing: dict com valores do config.json atual (usados como defaults).
     """
     ec = existing or {}
@@ -707,18 +917,26 @@ def interactive_config(input_dir, existing=None):
 
     # ── Scan do input_dir ────────────────────────────────────────
     ifc_entries, mode, aq_paths = scan_input(input_dir)
-
-    if not ifc_entries:
-        print(f'  AVISO: nenhum IFC encontrado em {input_dir}')
-        print(f'  O build usará os arquivos já presentes em output/geo/')
-        print()
+    if not com_ifc:
+        ifc_entries = []          # geometria vem do .aq; IFCs ignorados
 
     n_ifc = len(ifc_entries)
     n_aq  = len(aq_paths)
-    mode_labels = {'flat': 'arquivos individuais', 'subdir': 'subdirs de categoria',
-                   'recursive': 'busca recursiva'}
-    mode_label = mode_labels.get(mode, mode)
-    print(f'  Encontrado(s): {n_ifc} produto(s) como {mode_label}, {n_aq} biblioteca(s) .aq')
+
+    if not aq_paths:
+        print(f'  ERRO: nenhuma biblioteca .aq encontrada em {input_dir}')
+        print('  Copie o arquivo .aq do fabricante para a pasta input/ e rode de novo.')
+        sys.exit(1)
+
+    if com_ifc:
+        mode_labels = {'flat': 'arquivos individuais', 'subdir': 'subdirs de categoria',
+                       'recursive': 'busca recursiva'}
+        print(f'  Modo --ifc: {n_ifc} produto(s) como '
+              f'{mode_labels.get(mode, mode)}, {n_aq} biblioteca(s) .aq')
+        if not ifc_entries:
+            print('  AVISO: nenhum IFC encontrado — usando output/geo/ existente')
+    else:
+        print(f'  {n_aq} biblioteca(s) .aq — geometria e dados vêm do próprio .aq')
     print()
 
     # ── Arquivo .aq ──────────────────────────────────────────────
@@ -765,27 +983,34 @@ def interactive_config(input_dir, existing=None):
     if aq_stale:
         print('  AVISO: biblioteca .aq diferente do config.json anterior — reiniciando sugestões.\n')
 
+    # No modo padrão o tamanho do catálogo vem do .aq, não da contagem de IFCs
+    n_products = n_ifc if com_ifc else (hints.get('n_pecas') or 0)
+    if not n_products:
+        n_products = len(ec.get('file_map', {}))
+
+    _auto_layout = (
+        'series-rows' if hints.get('has_curves') else
+        ('catalog-grid' if n_products > 6 else 'series-rows')
+    )
     if aq_stale:
         sug_fabricante = hints.get('fabricante') or ''
-        n_products     = n_ifc
-        sug_layout     = (
-            'series-rows' if hints.get('has_curves') else
-            ('catalog-grid' if n_products > 6 else 'series-rows')
-        )
+        sug_layout     = _auto_layout
     else:
         sug_fabricante = ec.get('fabricante') or hints.get('fabricante') or ''
-        n_products     = n_ifc or len(ec.get('file_map', {}))
-        sug_layout     = ec.get('layout') or (
-            'series-rows' if hints.get('has_curves') else
-            ('catalog-grid' if n_products > 6 else 'series-rows')
-        )
+        sug_layout     = ec.get('layout') or _auto_layout
 
     # ── Perguntas de metadados ───────────────────────────────────
-    fabricante = ask('Fabricante', default=sug_fabricante)
+    # Fabricante e título jamais saem vazios: são o cabeçalho da página.
+    fabricante = ask('Fabricante', default=sug_fabricante) or sug_fabricante
 
     _titulo_inf = hints.get('titulo') or infer_titulo(hints.get('grupos', []))
     sug_titulo = _titulo_inf if aq_stale else (ec.get('titulo') or _titulo_inf)
-    titulo = ask('Título do catálogo', default=sug_titulo)
+    titulo = ask('Título do catálogo', default=sug_titulo) or sug_titulo
+
+    if not fabricante:
+        print('  AVISO: fabricante não identificado — a página ficará sem esse campo.')
+    if not titulo:
+        titulo = fabricante or 'Catálogo BIM'
 
     slug = slugify(titulo or fabricante or 'catalogo')
     print(f'  Slug da URL: {slug}')
@@ -852,12 +1077,17 @@ def interactive_config(input_dir, existing=None):
 # ─── Pipeline principal ───────────────────────────────────────────────────────
 
 def main():
-    parser = argparse.ArgumentParser(description='bilds-bim-3d build pipeline')
+    parser = argparse.ArgumentParser(
+        description='bilds-bim-3d — gera catálogo BIM 3D a partir de uma biblioteca .aq',
+        epilog='Por padrão lê só o .aq. Use --ifc para também parsear os IFCs da pasta.')
     parser.add_argument('--config',       default='config.json', help='Arquivo de configuração')
-    parser.add_argument('--input-dir',    default='input',       help='Pasta com arquivos .IFC e .aq')
-    parser.add_argument('--skip-ifc',     action='store_true',   help='Pula parse dos IFCs')
+    parser.add_argument('--input-dir',    default='input',       help='Pasta com o .aq (e IFCs, se --ifc)')
+    parser.add_argument('--ifc',          action='store_true',
+                        help='Também lê os IFCs da pasta (modo antigo). '
+                             'Sem esta flag, a geometria vem toda do .aq.')
     parser.add_argument('--skip-preview', action='store_true',   help='Pula geração do preview HTML')
     parser.add_argument('--skip-zip',     action='store_true',   help='Pula geração do ZIP')
+    parser.add_argument('--skip-ifc',     action='store_true',   help=argparse.SUPPRESS)
     # --interactive mantido por compatibilidade, mas agora é sempre o modo padrão
     parser.add_argument('--interactive', '-i', action='store_true', help=argparse.SUPPRESS)
     args = parser.parse_args()
@@ -874,43 +1104,58 @@ def main():
         except (json.JSONDecodeError, OSError):
             existing = None
 
-    config = interactive_config(input_dir, existing)
+    config = interactive_config(input_dir, existing, com_ifc=args.ifc)
 
-    print(f'\n=== bilds-bim-3d: {config["titulo"]} ===\n')
+    modo = 'aq + IFC' if args.ifc else 'somente .aq'
+    print(f'\n=== bilds-bim-3d: {config["titulo"]} ({modo}) ===\n')
 
-    # 1. Parse dos IFCs
-    if not args.skip_ifc:
-        print('1/4 Parseando IFCs...')
-        geo_files = run_ifc_parse(config)
-        print(f'    {len(geo_files)} geometrias geradas\n')
-    else:
-        geo_files = [f.replace('.json', '') for f in os.listdir(GEO_DIR)
-                     if f.endswith('.json')] if os.path.exists(GEO_DIR) else []
+    aq_path = os.path.join(ROOT, config.get('aq_file', ''))
+    if not os.path.exists(aq_path):
+        print(f'ERRO: biblioteca .aq não encontrada: {aq_path}')
+        sys.exit(1)
 
-    # 2. Lê o .aq
-    aq_path = os.path.join(ROOT, config.get('aq_file', 'input/biblioteca.aq'))
-    product_map = {}
-    if os.path.exists(aq_path):
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+    if args.ifc:
+        # ── Modo antigo: geometria dos IFCs, dados do .aq ──────────────────
+        if not args.skip_ifc:
+            print('1/4 Parseando IFCs...')
+            geo_files = run_ifc_parse(config)
+            print(f'    {len(geo_files)} geometrias geradas\n')
+        else:
+            geo_files = [f.replace('.json', '') for f in os.listdir(GEO_DIR)
+                         if f.endswith('.json')] if os.path.exists(GEO_DIR) else []
+
         print('2/4 Lendo biblioteca .aq...')
         aq_data = extract_aq(aq_path)
         product_map = build_product_map(aq_data)
         print(f'    {len(product_map)} grupos, '
               f'{sum(len(g["pecas"]) for g in product_map.values())} peças\n')
-    else:
-        print(f'2/4 .aq não encontrado ({aq_path}) — usando apenas overrides do config\n')
 
-    # 3. Gera catalog.json
-    print('3/4 Gerando catalog.json...')
-    catalog = build_catalog(config, product_map, set(geo_files))
+        print('3/4 Gerando catalog.json...')
+        catalog = build_catalog(config, product_map, set(geo_files))
+    else:
+        # ── Modo padrão: tudo do .aq ───────────────────────────────────────
+        print('1/3 Extraindo geometria do .aq...')
+        catalog, n_geo, sem_3d = build_catalog_from_aq(config, aq_path, GEO_DIR)
+        print(f'    {n_geo} geometrias extraídas')
+        if sem_3d:
+            print(f'    {sem_3d} peças sem geometria 3D (tubos/kits) — puladas')
+        print()
+        print('2/3 Gerando catalog.json...')
+
     cat_out = os.path.join(OUTPUT_DIR, 'catalog.json')
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
     with open(cat_out, 'w', encoding='utf-8') as f:
         json.dump(catalog, f, ensure_ascii=False, indent=2)
     print(f'    {len(catalog["produtos"])} produtos, layout: {catalog["layout"]}\n')
 
+    if not catalog['produtos']:
+        print('ERRO: nenhum produto no catálogo — nada a publicar.')
+        sys.exit(1)
+
     # 4a. Preview HTML
     if not args.skip_preview:
-        print('4/4 Gerando preview HTML...')
+        print(f'{"4/4" if args.ifc else "3/3"} Gerando preview HTML...')
         ok = build_preview(catalog, catalog['layout'])
         if ok:
             update_catalog_registry(catalog)

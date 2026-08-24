@@ -195,11 +195,179 @@ def build_product_map(aq_data):
     return product_map
 
 
+# ─── Metadados do catálogo ────────────────────────────────────────────────────
+
+def read_classes(con):
+    """
+    NOME_CLASSE de CLASSE_SIMBOLOGIA_3D — o padrão observado é
+    "FABRICANTE - Linha de Produto" (ex: 'AMANCO - PVC Esgoto SN').
+
+    É a fonte mais confiável de fabricante: presente nas três bibliotecas
+    testadas, enquanto PECA.BIBLIOTECA estava vazia em todas elas.
+    """
+    try:
+        return [r[0] for r in con.execute(
+            "SELECT DISTINCT NOME_CLASSE FROM CLASSE_SIMBOLOGIA_3D "
+            "WHERE NOME_CLASSE IS NOT NULL AND NOME_CLASSE != ''")]
+    except sqlite3.OperationalError:
+        return []
+
+
+def _titlecase(s):
+    """DANCOR → Dancor; preserva palavras que já têm capitalização mista."""
+    out = []
+    for w in s.split():
+        out.append(w.capitalize() if (w.isupper() or w.islower()) else w)
+    return ' '.join(out)
+
+
+def peek_metadata(aq_path):
+    """
+    Lê apenas os metadados do catálogo, sem tocar na geometria.
+
+    Retorna: fabricante, linhas (sufixos das classes), grupos, has_curves,
+             n_pecas, n_simbologias, schema.
+    """
+    meta = {'fabricante': '', 'linhas': [], 'grupos': [], 'has_curves': False,
+            'n_pecas': 0, 'n_simbologias': 0, 'schema': None}
+    try:
+        con, tmp = open_aq(aq_path)
+    except Exception:
+        return meta
+
+    try:
+        classes = read_classes(con)
+        prefixos, sufixos = [], []
+        for c in classes:
+            if ' - ' in c:
+                pre, suf = c.split(' - ', 1)
+                prefixos.append(pre.strip())
+                sufixos.append(suf.strip())
+            else:
+                sufixos.append(c.strip())
+        # Fabricante: prefixo comum a todas as classes
+        if prefixos and len(set(prefixos)) == 1:
+            meta['fabricante'] = _titlecase(prefixos[0])
+        meta['linhas'] = sufixos
+
+        # PECA.BIBLIOTECA como reforço (raramente preenchida)
+        if not meta['fabricante']:
+            try:
+                r = con.execute("SELECT BIBLIOTECA FROM PECA WHERE BIBLIOTECA IS NOT NULL "
+                                "AND BIBLIOTECA != '' LIMIT 1").fetchone()
+                if r:
+                    meta['fabricante'] = r[0].strip()
+            except sqlite3.OperationalError:
+                pass
+
+        for sql, key in (
+            ('SELECT NOME_GP FROM GRUPO_PECA WHERE ATIVO=1 ORDER BY ID_GRUPO_PECA', 'grupos'),
+        ):
+            try:
+                meta[key] = [r[0] for r in con.execute(sql)]
+            except sqlite3.OperationalError:
+                pass
+
+        for sql, key in (('SELECT COUNT(*) FROM PECA', 'n_pecas'),
+                         ('SELECT COUNT(*) FROM SIMBOLOGIA_3D', 'n_simbologias')):
+            try:
+                meta[key] = con.execute(sql).fetchone()[0]
+            except sqlite3.OperationalError:
+                pass
+
+        try:
+            meta['has_curves'] = con.execute(
+                'SELECT 1 FROM ITEM_CURVA_BOMBA LIMIT 1').fetchone() is not None
+        except sqlite3.OperationalError:
+            pass
+        try:
+            meta['schema'] = con.execute(
+                'SELECT VERSAO FROM VERSAO_BANCO_CADASTRO LIMIT 1').fetchone()[0]
+        except sqlite3.OperationalError:
+            pass
+    finally:
+        con.close()
+        if tmp:
+            shutil.rmtree(tmp, ignore_errors=True)
+    return meta
+
+
+# ─── Geometria 3D embutida (OQ3D) ────────────────────────────────────────────
+
+def extract_simbologias(aq_path):
+    """
+    Lê SIMBOLOGIA_3D e o vínculo determinístico com as peças.
+
+    Este vínculo (PECA → PECA_SIMBOLOGIA_3D → SIMBOLOGIA_3D) é uma chave
+    estrangeira: dispensa o file_map e o matching por nome que o caminho IFC
+    exige. Várias peças podem compartilhar a mesma simbologia.
+
+    Retorna:
+      simbologias: { id → { nome, grupo, classe, blob, imagem } }
+      por_peca:    { id_peca → id_simbologia_3d }
+    """
+    con, tmp_dir = open_aq(aq_path)
+    simbologias, por_peca = {}, {}
+    try:
+        try:
+            rows = con.execute("""
+                SELECT s.ID_SIMBOLOGIA_3D, s.NOME, s.SIMBOLOGIA_3D, s.IMAGEM,
+                       g.NOME_GRUPO, c.NOME_CLASSE
+                FROM SIMBOLOGIA_3D s
+                LEFT JOIN GRUPO_SIMBOLOGIA_3D g
+                       ON g.ID_GRUPO_SIMBOLOGIA_3D = s.ID_GRUPO_SIMBOLOGIA_3D
+                LEFT JOIN CLASSE_SIMBOLOGIA_3D c
+                       ON c.ID_CLASSE_SIMBOLOGIA_3D = g.ID_CLASSE
+            """).fetchall()
+        except sqlite3.OperationalError:
+            rows = con.execute(
+                'SELECT ID_SIMBOLOGIA_3D, NOME, SIMBOLOGIA_3D, IMAGEM, NULL, NULL '
+                'FROM SIMBOLOGIA_3D').fetchall()
+
+        for r in rows:
+            blob = r[2]
+            img = r[3]
+            simbologias[r[0]] = {
+                'nome': r[1] or '',
+                'blob': blob if isinstance(blob, bytes) else (
+                    blob.encode('latin-1') if blob else None),
+                'imagem': img if isinstance(img, bytes) else (
+                    img.encode('latin-1') if img else None),
+                'grupo': r[4] or '',
+                'classe': r[5] or '',
+            }
+
+        try:
+            for pid, sid in con.execute(
+                    'SELECT ID_PECA, ID_SIMBOLOGIA_3D FROM PECA_SIMBOLOGIA_3D'):
+                por_peca[pid] = sid
+        except sqlite3.OperationalError:
+            pass
+    finally:
+        con.close()
+        if tmp_dir:
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+    return simbologias, por_peca
+
+
 def main():
     parser = argparse.ArgumentParser(description='Lê biblioteca AltoQi .aq → JSON')
     parser.add_argument('aq_file', help='Arquivo .aq de entrada')
-    parser.add_argument('output', help='Arquivo JSON de saída')
+    parser.add_argument('output', nargs='?', help='Arquivo JSON de saída')
+    parser.add_argument('--meta', action='store_true',
+                        help='Mostra só os metadados (fabricante, linhas, contagens)')
     args = parser.parse_args()
+
+    if args.meta or not args.output:
+        meta = peek_metadata(args.aq_file)
+        print(f'fabricante   : {meta["fabricante"] or "(não identificado)"}')
+        print(f'linhas       : {", ".join(meta["linhas"]) or "(nenhuma)"}')
+        print(f'peças        : {meta["n_pecas"]}')
+        print(f'simbologias  : {meta["n_simbologias"]}')
+        print(f'grupos       : {len(meta["grupos"])}')
+        print(f'curvas Q-H   : {"sim" if meta["has_curves"] else "não"}')
+        print(f'schema       : {meta["schema"]}')
+        return
 
     data = extract(args.aq_file)
     with open(args.output, 'w', encoding='utf-8') as f:
