@@ -561,12 +561,14 @@ def scan_input(input_dir):
             for f in ifc_flat
         ]
         return entries_out, 'flat', aq_paths
-    elif subdir_counts:
+    elif subdir_counts and all(n == 1 for n in subdir_counts.values()):
+        # subdir mode: cada subdir tem exatamente 1 IFC → subdir = nome do produto
         entries_out = [
-            (f'{d}/ ({subdir_counts[d]} IFCs)', slugify(d))
+            (f'{d}/{next(f for f in os.listdir(os.path.join(input_dir, d)) if f.lower().endswith(".ifc"))}',
+             slugify(d))
             for d in subdir_counts
         ]
-        return entries_out, 'subdir', aq_paths
+        return entries_out, 'flat', aq_paths
     else:
         # Busca recursiva: cada IFC é um produto; display_name = path relativo
         all_ifcs = []
