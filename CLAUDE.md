@@ -727,5 +727,5 @@ dados de input (fabricantes são variáveis e efêmeros).
 - Correto: `feat(peek_aq): inferir título da pasta pai do .aq`
 - Errado: `feat: pipeline validado com Amanco 502 IFCs`
 
-**Ponto estável: commit `c740086`** — pipeline completo funcionando com catálogos hierárquicos.
-Para retornar: `git checkout c740086`.
+**Ponto estável: commit `6336f60`** — pipeline completo, documentação autocontida, preview dos dois catálogos no repo.
+Para retornar: `git checkout 6336f60`.
