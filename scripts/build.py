@@ -36,6 +36,7 @@ import os
 import re
 import shutil
 import sys
+import unicodedata
 import zipfile
 
 # Adiciona scripts/ ao path para importar os módulos irmãos
@@ -61,6 +62,8 @@ GEO_DIR = os.path.join(OUTPUT_DIR, 'geo')
 # ─── Matching IFC → AQ ───────────────────────────────────────────────────────
 
 def slugify(s):
+    s = unicodedata.normalize('NFD', s)
+    s = ''.join(c for c in s if unicodedata.category(c) != 'Mn')
     return re.sub(r'[^a-z0-9]+', '-', s.lower()).strip('-')
 
 
@@ -771,11 +774,9 @@ def interactive_config(input_dir, existing=None):
     titulo = ask('Título do catálogo', default=sug_titulo)
 
     sug_slug = (
-        slugify((fabricante + '-' + titulo.split()[0]) if titulo else fabricante or 'catalogo')
+        slugify(titulo or fabricante or 'catalogo')
         if aq_stale else
-        (ec.get('slug') or slugify(
-            (fabricante + '-' + titulo.split()[0]) if titulo else fabricante or 'catalogo'
-        ))
+        (ec.get('slug') or slugify(titulo or fabricante or 'catalogo'))
     )
     slug = ask('Slug da URL', default=sug_slug)
 
