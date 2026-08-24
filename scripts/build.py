@@ -605,6 +605,25 @@ def scan_input(input_dir):
         return entries_out, 'recursive', aq_paths
 
 
+def infer_titulo(grupos):
+    """Extrai o prefixo comum entre todos os nomes de grupo como título do catálogo.
+    Dancor: ['Bombas de Combate a Incêndio CAM-W10', 'Bombas de Combate a Incêndio CAM-W14', ...]
+             → 'Bombas de Combate a Incêndio'
+    Catálogos heterogêneos: prefixo curto → retorna ''
+    """
+    if not grupos:
+        return ''
+    if len(grupos) == 1:
+        parts = grupos[0].split()
+        return ' '.join(parts[:-1]) if len(parts) > 1 else grupos[0]
+    words_list = [g.split() for g in grupos]
+    common = words_list[0]
+    for words in words_list[1:]:
+        common = [c for c, w in zip(common, words) if c.lower() == w.lower()]
+    title = ' '.join(common).strip()
+    return title if len(title) > 3 else ''
+
+
 def match_slug_to_aq(slug, grupos):
     """Tenta encontrar um NOME_GP do .aq que corresponda ao slug."""
     slug_norm = slugify(slug)
@@ -713,7 +732,7 @@ def interactive_config(input_dir, existing=None):
     # ── Perguntas de metadados ───────────────────────────────────
     fabricante = ask('Fabricante', default=sug_fabricante)
 
-    sug_titulo = ec.get('titulo') or ''
+    sug_titulo = ec.get('titulo') or infer_titulo(hints.get('grupos', []))
     titulo = ask('Título do catálogo', default=sug_titulo)
 
     sug_slug = ec.get('slug') or slugify(
