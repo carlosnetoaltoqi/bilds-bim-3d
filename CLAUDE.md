@@ -35,7 +35,7 @@ Clonado em qualquer máquina, produz o mesmo resultado dado os mesmos inputs.
 ```
 1. Clonar este repo
 2. Rodar: bash scripts/setup_vendor.sh  (baixa Three.js para templates/vendor/)
-3. pip install -r requirements.txt      (instala Jinja2)
+3. pip install -r requirements.txt      (instala Jinja2 + ifcopenshell)
 4. Copiar arquivos .IFC e .aq para input/
 5. Copiar config.example.json → config.json, editar com seus dados
 6. python3 scripts/build.py --config config.json
@@ -423,8 +423,20 @@ Se necessário: `git config user.name "carlosnetoaltoqi"`
 **output/preview/** NÃO é gitignored (é o artefato de preview commitado).
 **output/geo/** e **output/*.json** SÃO gitignored (gerado localmente).
 
-**Preview via Vercel:** `vercel deploy output/preview/ --prod`
-O `vercel.json` na raiz do repo já está configurado para servir `output/preview/`.
+### Deploy na Vercel
+
+**Projeto:** `bilds/bilds-bim-3d` — **não criar outro projeto, nunca.**
+**URL de produção:** https://bilds-bim-3d.vercel.app
+
+```bash
+# CORRETO — rodar sempre da RAIZ do repo
+vercel --prod --yes
+```
+
+O `vercel.json` na raiz já configura `"outputDirectory": "output/preview"` — a Vercel
+serve esse diretório automaticamente. **Nunca** passar `output/preview` como argumento
+posicional (`vercel deploy output/preview --prod`) — isso ignora o `.vercel/project.json`
+da raiz e cria um projeto novo indesejado.
 
 **Preview local:**
 ```bash
@@ -509,3 +521,28 @@ Guard atualizado de `len(fs_parts) < 2` → `< 4`.
 - Pipeline completo rodou com sucesso: parse → dedup → catalog.json → preview HTML → ZIP
 - Amanco: código de B-rep implementado (ifcopenshell), mas estrutura de dirs aninhada ainda
   limita quais categorias são detectadas pelo `scan_input` (problema arquitetural separado)
+
+### 2026-08-24 — Bug 5: parse_floats quebrava em notação científica sem dígito fracionário (commit 2bf5607)
+
+Coordenadas IFC exportadas pelo CATIA usam formato `-4.E-16` e `1.E+00` — notação científica
+sem dígitos entre o ponto decimal e o expoente. A regex `[0-9]*\.?[0-9]+` exigia ao menos
+um dígito após o ponto, então `-4.E-16` era extraído como dois números: `-4` e `-16`.
+
+Resultado: sub-peças com esse valor de coordenada (INTERMEDIARIA, MOTOR) apareciam
+deslocadas exatamente em 16m do corpo da bomba.
+
+Bombas afetadas: 105-50 TJM, 51-30W TJM, 109_40 TJM.
+
+```python
+# Regex corrigida — aceita ponto sem dígito fracionário
+r'[-+]?(?:[0-9]+\.?[0-9]*|[0-9]*\.[0-9]+)(?:[eE][-+]?[0-9]+)?'
+```
+
+### 2026-08-24 — Correções de documentação e pipeline
+
+- `build_zip()` em `build.py`: manifest.json gerado com campos em **inglês** conforme
+  contrato da API bilds.com (`title`, `manufacturer`, `description`, `filters`, `productCount`).
+  Antes usava os mesmos campos em português do `catalog.json`.
+- ZIP renomeado de `bilds-upload.zip` para `<slug>-AAAAMMDDHHMM.zip`.
+- `output/preview/.gitignore` criado para excluir `*_raw.json` (artefatos do CLI do parse_ifc).
+- Skill `leitor-ifc` atualizada para v1.3.0 com todos os 5 bugs e suas correções documentadas.
