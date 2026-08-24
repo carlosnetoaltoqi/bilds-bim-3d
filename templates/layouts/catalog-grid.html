@@ -567,6 +567,7 @@ function observeCards() {
 }
 
 document.addEventListener('cards-rendered', () => observeCards());
+observeCards();
 document.addEventListener('modal-open',     e  => initModalViewer(e.detail.id));
 document.addEventListener('modal-close', () => {
   if (modalViewer) {
