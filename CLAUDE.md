@@ -461,6 +461,8 @@ via modo `'recursive'` do `scan_input()`.
 | ZIP 0KB + "X não encontrado em input/" | scan_input escolheu modo subdir com múltiplos IFCs — fix: modo subdir só ativa quando cada subdir tem exatamente 1 IFC; caso contrário cai em recursive |
 | Fabricante/título stale do catálogo anterior | aq_stale não estava resetando titulo/slug — fix em commit 056e729; deletar config.json corrompido se necessário |
 | `Fabricante []` sem sugestão | BIBLIOTECA vazia no .aq — peek_aq extrai do filename como fallback (commit 8c2deff) |
+| Slug com acento (`inc-ndio`) | slugify não normalizava unicode — corrigido com NFD + strip combining marks (commit 8e2f67d) |
+| Slug mostra valor antigo do config.json | ec.get('slug') tomava precedência sobre titulo atual — removido; slug sempre = slugify(titulo) (commit fefb627) |
 
 ---
 
@@ -471,7 +473,8 @@ Verificar com `git config user.name` e `git config user.email`.
 Se necessário: `git config user.name "carlosnetoaltoqi"`
 
 **output/preview/** NÃO é gitignored (é o artefato de preview commitado).
-**output/geo/** e **output/*.json** SÃO gitignored (gerado localmente).
+Inclui `output/preview/data/` — geo JSONs servidos pelo preview (commitados junto).
+**output/geo/** e **output/*.json** SÃO gitignored (cópias locais de trabalho).
 
 ### Deploy na Vercel
 
@@ -654,3 +657,22 @@ Correção: `peek_aq()` analisa o filename após falha no banco:
 - Tokens restantes = título (`Bombas Incendio`)
 
 Resultado: usuário passa por `--interactive` só com Enter em todos os campos.
+
+**Bug 10 — slugify não normalizava acentos (commit 8e2f67d)**
+
+`re.sub(r'[^a-z0-9]+', '-', s.lower())` convertia `ê` em `-` (não é ASCII).
+`"Incêndio"` → `"inc-ndio"`. Corrigido com NFD + strip combining marks:
+```python
+s = unicodedata.normalize('NFD', s)
+s = ''.join(c for c in s if unicodedata.category(c) != 'Mn')
+```
+Agora: `"Bombas de Combate a Incêndio"` → `"bombas-de-combate-a-incendio"`.
+
+**Bug 11 — slug derivava de fabricante+1ªpalavra, não do título completo (commits 8e2f67d, fefb627)**
+
+`sug_slug` usava `f"{fabricante}-{titulo.split()[0]}"` → `"dancor-bombas"` em vez de
+`"bombas-de-combate-a-incendio"`. Além disso, `ec.get('slug')` tomava precedência e
+exibia o slug antigo do `config.json` mesmo após o usuário alterar o título.
+
+Correção: `sug_slug = slugify(titulo or fabricante or 'catalogo')` — sempre re-calculado
+a partir do título confirmado na pergunta anterior, sem herdar valor do config.
