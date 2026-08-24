@@ -25,5 +25,14 @@
     "layout": "series-rows",
     "n_produtos": 14,
     "updated_at": "2026-08-24"
+  },
+  {
+    "slug": "pvc-esgoto-sn-sr-e-silentium",
+    "titulo": "PVC Esgoto SN, SR e Silentium",
+    "fabricante": "Amanco",
+    "descricao": "Linha CAM-W e TJM para sistemas prediais de combate a incêndio",
+    "layout": "catalog-grid",
+    "n_produtos": 502,
+    "updated_at": "2026-08-24"
   }
 ]
