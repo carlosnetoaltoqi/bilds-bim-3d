@@ -1,1 +1,29 @@
-[]
+[
+  {
+    "slug": "s",
+    "titulo": "CAM-W21",
+    "fabricante": "Dancor",
+    "descricao": "s",
+    "layout": "series-rows",
+    "n_produtos": 0,
+    "updated_at": "2026-08-24"
+  },
+  {
+    "slug": "dancor-bombas",
+    "titulo": "Bombas de Combate a Incêndio",
+    "fabricante": "Dancor",
+    "descricao": "Linha CAM-W e TJM para sistemas prediais de combate a incêndio",
+    "layout": "series-rows",
+    "n_produtos": 14,
+    "updated_at": "2026-08-24"
+  },
+  {
+    "slug": "bombas-de-combate-a-incendio",
+    "titulo": "Bombas de Combate a Incêndio",
+    "fabricante": "Dancor",
+    "descricao": "Linha CAM-W e TJM para sistemas prediais de combate a incêndio",
+    "layout": "series-rows",
+    "n_produtos": 14,
+    "updated_at": "2026-08-24"
+  }
+]
