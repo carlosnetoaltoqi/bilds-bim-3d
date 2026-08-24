@@ -478,13 +478,27 @@ def ask_choice(prompt, choices, default=None):
 
 
 
+_AQ_NOISE = {'pecas', 'peca', 'biblioteca', 'lib', 'catalogo', 'catalog',
+             'bim', 'ifc', 'altoqi', 'arquivo', 'dados', 'base'}
+
+
+def _tokens_from_aq_filename(aq_path):
+    """Extrai tokens significativos do nome do arquivo .aq."""
+    stem = os.path.splitext(os.path.basename(aq_path))[0]
+    stem = re.sub(r'\.\d+$', '', stem)                         # remove ".1" final
+    tokens = re.split(r'[_\-\s]+', stem.lower())
+    return [t for t in tokens if t
+            and t not in _AQ_NOISE
+            and not re.match(r'^\d{2,4}$', t)]                 # remove anos/versões
+
+
 def peek_aq(aq_path):
     """
     Lê o .aq rapidamente para extrair hints antes das perguntas.
-    Retorna dict: fabricante, grupos (list[str]), has_curves (bool)
+    Retorna dict: fabricante, titulo, grupos (list[str]), has_curves (bool)
     """
     from read_aq import open_aq
-    hints = {'fabricante': '', 'grupos': [], 'has_curves': False}
+    hints = {'fabricante': '', 'titulo': '', 'grupos': [], 'has_curves': False}
     try:
         con, tmp = open_aq(aq_path)
         cur = con.cursor()
@@ -513,6 +527,20 @@ def peek_aq(aq_path):
             shutil.rmtree(tmp, ignore_errors=True)
     except Exception:
         pass
+
+    # Fallback: extrair fabricante e titulo do nome do arquivo .aq
+    fn_tokens = _tokens_from_aq_filename(aq_path)
+    fab_tokens = set(tokenize(hints['fabricante'])) if hints['fabricante'] else set()
+
+    if not hints['fabricante'] and fn_tokens:
+        hints['fabricante'] = fn_tokens[0].capitalize()
+        fab_tokens = {fn_tokens[0]}
+
+    if not hints['titulo']:
+        title_tokens = [t for t in fn_tokens if t not in fab_tokens]
+        if title_tokens:
+            hints['titulo'] = ' '.join(t.capitalize() for t in title_tokens)
+
     return hints
 
 
@@ -690,12 +718,11 @@ def interactive_config(input_dir, existing=None):
         curvas_txt = ', com curvas Q-H' if hints['has_curves'] else ', sem curvas Q-H'
         print(f'  → {n_gp} grupo(s) de produtos{curvas_txt}')
         if hints['fabricante']:
-            print(f'  → fabricante detectado: {hints["fabricante"]}')
+            print(f'  → fabricante: {hints["fabricante"]}')
+        if hints['titulo']:
+            print(f'  → título inferido: {hints["titulo"]}')
         if hints['grupos']:
             print(f'  → grupos: {", ".join(hints["grupos"][:5])}{"..." if n_gp > 5 else ""}')
-        titulo_inf = infer_titulo(hints['grupos'])
-        if titulo_inf:
-            print(f'  → título inferido: {titulo_inf}')
         print()
     else:
         print('  Múltiplas bibliotecas .aq:')
@@ -739,11 +766,8 @@ def interactive_config(input_dir, existing=None):
     # ── Perguntas de metadados ───────────────────────────────────
     fabricante = ask('Fabricante', default=sug_fabricante)
 
-    sug_titulo = (
-        infer_titulo(hints.get('grupos', []))
-        if aq_stale else
-        (ec.get('titulo') or infer_titulo(hints.get('grupos', [])))
-    )
+    _titulo_inf = hints.get('titulo') or infer_titulo(hints.get('grupos', []))
+    sug_titulo = _titulo_inf if aq_stale else (ec.get('titulo') or _titulo_inf)
     titulo = ask('Título do catálogo', default=sug_titulo)
 
     sug_slug = (
