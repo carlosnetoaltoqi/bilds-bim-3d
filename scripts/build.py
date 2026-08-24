@@ -773,11 +773,7 @@ def interactive_config(input_dir, existing=None):
     sug_titulo = _titulo_inf if aq_stale else (ec.get('titulo') or _titulo_inf)
     titulo = ask('Título do catálogo', default=sug_titulo)
 
-    sug_slug = (
-        slugify(titulo or fabricante or 'catalogo')
-        if aq_stale else
-        (ec.get('slug') or slugify(titulo or fabricante or 'catalogo'))
-    )
+    sug_slug = slugify(titulo or fabricante or 'catalogo')
     slug = ask('Slug da URL', default=sug_slug)
 
     descricao = ask('Descrição curta (opcional)', default=ec.get('descricao') or '')
