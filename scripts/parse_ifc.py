@@ -62,8 +62,12 @@ def split_top(s):
 
 
 def parse_floats(s):
-    """Extrai todos os floats de uma string."""
-    return [float(x) for x in re.findall(r'[-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?', s)]
+    """Extrai todos os floats de uma string.
+    Suporta notação científica como -4.E-16 (sem dígitos após o ponto decimal).
+    """
+    return [float(x) for x in re.findall(
+        r'[-+]?(?:[0-9]+\.?[0-9]*|[0-9]*\.[0-9]+)(?:[eE][-+]?[0-9]+)?', s
+    )]
 
 
 def parse_ints(s):
@@ -329,44 +333,42 @@ def _parse_ifc_brep(ifc_path, default_rgb):
 
     ifc_model = ifcopenshell.open(ifc_path)
 
-    brep_types = [
-        'IfcBuildingElementProxy', 'IfcElementAssembly',
-        'IfcFlowFitting', 'IfcFlowTerminal', 'IfcFlowSegment',
-        'IfcMember', 'IfcPlate', 'IfcBeam', 'IfcColumn',
-        'IfcMechanicalFastener', 'IfcDiscreteAccessory',
-    ]
-
     pos_out = []
     col_out = []
+    seen_ids = set()  # evita processar o mesmo produto duas vezes via herança
 
-    for btype in brep_types:
-        for product in ifc_model.by_type(btype):
-            try:
-                shape = ifcopenshell.geom.create_shape(settings, product)
-            except Exception:
-                continue
-            verts = shape.geometry.verts   # [x,y,z, x,y,z, ...]
-            faces = shape.geometry.faces   # [i0,i1,i2, ...]
-            if not verts or not faces:
-                continue
+    for product in ifc_model.by_type('IfcElement'):
+        pid = product.id()
+        if pid in seen_ids:
+            continue
+        seen_ids.add(pid)
 
-            materials = getattr(shape.geometry, 'materials', [])
-            mat_ids   = getattr(shape.geometry, 'material_ids', [])
+        try:
+            shape = ifcopenshell.geom.create_shape(settings, product)
+        except Exception:
+            continue
+        verts = shape.geometry.verts   # tuple de floats: x,y,z, x,y,z, ...
+        faces = shape.geometry.faces   # tuple de ints: i0,i1,i2, ...
+        if not verts or not faces:
+            continue
 
-            for tri_i in range(len(faces) // 3):
-                if materials and tri_i < len(mat_ids):
-                    try:
-                        m = materials[mat_ids[tri_i]]
-                        rgb = [m.diffuse.r, m.diffuse.g, m.diffuse.b]
-                    except (IndexError, AttributeError):
-                        rgb = default_rgb
-                else:
+        materials = getattr(shape.geometry, 'materials', [])
+        mat_ids   = getattr(shape.geometry, 'material_ids', [])
+
+        for tri_i in range(len(faces) // 3):
+            if materials and tri_i < len(mat_ids):
+                try:
+                    m = materials[mat_ids[tri_i]]
+                    rgb = [m.diffuse.r(), m.diffuse.g(), m.diffuse.b()]
+                except (IndexError, AttributeError, TypeError):
                     rgb = default_rgb
+            else:
+                rgb = default_rgb
 
-                for vi in (faces[tri_i * 3], faces[tri_i * 3 + 1], faces[tri_i * 3 + 2]):
-                    x, y, z = verts[vi * 3], verts[vi * 3 + 1], verts[vi * 3 + 2]
-                    pos_out += [x, z, -y]  # IFC Z-up → Three.js Y-up
-                    col_out += rgb
+            for vi in (faces[tri_i * 3], faces[tri_i * 3 + 1], faces[tri_i * 3 + 2]):
+                x, y, z = verts[vi * 3], verts[vi * 3 + 1], verts[vi * 3 + 2]
+                pos_out += [x, z, -y]  # IFC Z-up → Three.js Y-up
+                col_out += rgb
 
     # Geometria expandida (sem idx) — dedup.py compacta depois
     return {'pos': pos_out, 'col': col_out}
@@ -390,13 +392,13 @@ def parse_ifc_file(ifc_path, default_rgb=None):
     with open(ifc_path, encoding='utf-8', errors='replace') as f:
         content = f.read()
 
-    # IFCs com IFCADVANCEDBREP (B-rep paramétrico, ex: Amanco/AltoQi Hidráulico)
-    # não contêm IFCTRIANGULATEDFACESET — usar ifcopenshell para tessellizar.
-    if 'IFCADVANCEDBREP' in content and 'IFCTRIANGULATEDFACESET' not in content:
+    # Se não há geometria tessellada (IFCTRIANGULATEDFACESET), usar ifcopenshell.
+    # Cobre IFCADVANCEDBREP, IFCFACETEDBREP e outros tipos B-rep da Amanco/AltoQi.
+    if 'IFCTRIANGULATEDFACESET' not in content:
         if HAS_IFCOPENSHELL:
             return _parse_ifc_brep(ifc_path, default_rgb)
         else:
-            print('  AVISO: arquivo usa IFCADVANCEDBREP mas ifcopenshell não está instalado.')
+            print('  AVISO: arquivo sem IFCTRIANGULATEDFACESET; ifcopenshell necessário.')
             print('         Instale com: pip install ifcopenshell')
             return {'pos': [], 'col': []}
 

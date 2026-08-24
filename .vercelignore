@@ -1,0 +1,10 @@
+input/
+output/geo/
+output/bilds-upload.zip
+scripts/
+*.aq
+*.IFC
+*.ifc
+__pycache__/
+*.pyc
+.git/
