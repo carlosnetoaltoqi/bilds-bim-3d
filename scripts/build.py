@@ -11,12 +11,24 @@ MODO PADRÃO (só o .aq)
   vem da chave estrangeira PECA_SIMBOLOGIA_3D, então não existe file_map nem
   matching por nome de arquivo.
 
+MODO LOTE (--all)
+  python3 scripts/build.py --all
+
+  Varre input/ e subpastas, gera um ZIP por .aq encontrado, sem perguntar nada
+  (fabricante, título e layout são inferidos). A saída espelha a estrutura da
+  entrada e bibliotecas que já têm ZIP são puladas — use --force para refazer.
+
+    input/Amanco/linha/pecas.aq  →  output/Amanco/linha/<slug>-<ts>.zip
+    input/Dancor/pecas.aq        →  output/Dancor/<slug>-<ts>.zip
+
 MODO COMPATIBILIDADE (--ifc)
   python3 scripts/build.py --ifc
 
   Volta a ler os IFCs da pasta input/ para a geometria, usando o .aq apenas
   para os dados de produto. Útil quando a biblioteca traz IFCs de peças que não
   estão cadastradas no banco, ou para conferir uma contra a outra.
+  Combinável com --all: aí o file_map de cada biblioteca é montado a partir dos
+  IFCs que estiverem na pasta do próprio .aq.
 
 config.json (gerado pelo fluxo interativo; editável à mão):
   {
@@ -31,11 +43,13 @@ config.json (gerado pelo fluxo interativo; editável à mão):
     "products_override": []              // peças no IFC e ausentes no .aq
   }
 
-Saídas:
-  output/geo/<slug>.json             — geometria por produto
-  output/catalog.json                — dados do catálogo
-  output/preview/<slug>/index.html   — preview estático (local ou Vercel)
-  output/<slug>-AAAAMMDDHHMM.zip     — pacote para upload na bilds.com
+Saídas (<rel> = pasta do .aq relativa a input/):
+  output/geo/<rel>/<slug>/*.json          — geometria por produto
+  output/<rel>/<slug>-catalog.json        — dados do catálogo
+  output/<rel>/<slug>-AAAAMMDDHHMM.zip    — pacote para upload na bilds.com
+  output/preview/<slug>/index.html        — preview estático (local ou Vercel)
+  output/preview/<slug>/data/*.json       — geometria servida ao preview
+  output/preview/catalogs.json            — índice dos catálogos gerados
 
 Visualização local após o build:
   python3 -m http.server 8080 --directory output/preview
@@ -353,10 +367,11 @@ def build_catalog_from_aq(config, aq_path, geo_dir):
             n += 1
         usados.add(name)
 
+        # Mesma deduplicação do caminho IFC: o OQ3D indexa dentro de cada malha,
+        # mas as malhas de uma peça repetem vértices entre si (~79% de redução).
+        data, _, _, _ = dedup(data)
         with open(os.path.join(geo_dir, name + '.json'), 'w', encoding='utf-8') as f:
-            json.dump({'pos': [round(x, 5) for x in data['pos']],
-                       'col': [round(x, 4) for x in data['col']],
-                       'idx': data['idx']}, f)
+            json.dump(data, f, separators=(',', ':'))
         geo_por_sim[sid] = name
 
     # O nome da peça só recebe o prefixo do grupo quando sozinho é ambíguo —
@@ -432,11 +447,12 @@ def build_catalog_from_aq(config, aq_path, geo_dir):
 
 # ─── Parse dos IFCs ───────────────────────────────────────────────────────────
 
-def run_ifc_parse(config):
-    """Parseia todos os IFCs do file_map e salva JSONs deduplicados em output/geo/."""
+def run_ifc_parse(config, geo_dir=None):
+    """Parseia todos os IFCs do file_map e salva JSONs deduplicados em geo_dir."""
     file_map = config.get('file_map', {})
     ifc_dir = config.get('ifc_dir', 'input/')
-    os.makedirs(GEO_DIR, exist_ok=True)
+    geo_dir = geo_dir or GEO_DIR
+    os.makedirs(geo_dir, exist_ok=True)
 
     parsed = []
     for ifc_name, slug in file_map.items():
@@ -461,7 +477,7 @@ def run_ifc_parse(config):
             print(f'  AVISO: {ifc_name} não encontrado em {ifc_dir}')
             continue
 
-        out_path = os.path.join(GEO_DIR, f'{slug}.json')
+        out_path = os.path.join(geo_dir, f'{slug}.json')
         print(f'  Parseando: {ifc_name} → {slug}.json')
         try:
             raw = parse_ifc_file(ifc_path)
@@ -480,26 +496,31 @@ def run_ifc_parse(config):
 
 # ─── Build do preview HTML ────────────────────────────────────────────────────
 
-def build_preview(catalog, layout):
+def build_preview(catalog, layout, geo_dir=None):
     """
     Gera output/preview/{slug}/ com index.html, catalog.json e data/.
     Arquivos compartilhados (vendor/) ficam em output/preview/vendor/.
     Cada catálogo fica em seu próprio subdiretório para não sobrescrever o índice.
     """
+    geo_dir = geo_dir or GEO_DIR
     catalog_slug = catalog['slug']
     catalog_dir = os.path.join(PREVIEW_DIR, catalog_slug)
     os.makedirs(catalog_dir, exist_ok=True)
 
-    # data/ fica no root do preview (compartilhado entre catálogos)
-    data_dir = os.path.join(PREVIEW_DIR, 'data')
+    # data/ fica dentro do catálogo: é assim que o template resolve ('./data/'),
+    # e evita colisão entre bibliotecas — nomes como '50mm.json' se repetem.
+    data_dir = os.path.join(catalog_dir, 'data')
     os.makedirs(data_dir, exist_ok=True)
 
-    # Copia geo files para /data/ (prefixo do slug garante unicidade)
+    copiados = set()
     for produto in catalog['produtos']:
         geo_slug = produto['geo'].replace('.json', '')
-        src = os.path.join(GEO_DIR, f'{geo_slug}.json')
+        if geo_slug in copiados:
+            continue
+        src = os.path.join(geo_dir, f'{geo_slug}.json')
         if os.path.exists(src):
             shutil.copy(src, os.path.join(data_dir, f'{geo_slug}.json'))
+            copiados.add(geo_slug)
 
     # vendor/ fica no root do preview (compartilhado)
     vendor_src = os.path.join(TEMPLATES_DIR, 'vendor')
@@ -585,16 +606,21 @@ def update_catalog_registry(catalog):
 
 # ─── Empacotamento ZIP ────────────────────────────────────────────────────────
 
-def build_zip(catalog):
+def build_zip(catalog, out_dir=None, geo_dir=None):
     """
-    Gera output/<slug>-AAAAMMDDHHMM.zip com:
+    Gera <out_dir>/<slug>-AAAAMMDDHHMM.zip com:
       manifest.json    — slug, title, manufacturer, description, layout, filters, productCount
       catalog.json     — dados completos dos produtos (campos em português)
       geo/<slug>.json  — geometria de cada produto
+
+    out_dir espelha a pasta do .aq dentro de input/ (ver aq_rel_dir).
     """
+    out_dir = out_dir or OUTPUT_DIR
+    geo_dir = geo_dir or GEO_DIR
+    os.makedirs(out_dir, exist_ok=True)
     ts = datetime.datetime.now().strftime('%Y%m%d%H%M')
     zip_name = f"{catalog['slug']}-{ts}.zip"
-    zip_path = os.path.join(OUTPUT_DIR, zip_name)
+    zip_path = os.path.join(out_dir, zip_name)
     with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
         # manifest: campos em inglês conforme contrato da API bilds.com
         manifest = {
@@ -619,7 +645,7 @@ def build_zip(catalog):
             slug = produto['geo'].replace('.json', '')
             if slug in incluidos:
                 continue
-            geo_path = os.path.join(GEO_DIR, f'{slug}.json')
+            geo_path = os.path.join(geo_dir, f'{slug}.json')
             if os.path.exists(geo_path):
                 zf.write(geo_path, f'geo/{slug}.json')
                 incluidos.add(slug)
@@ -665,14 +691,50 @@ _AQ_NOISE = {'pecas', 'peca', 'biblioteca', 'lib', 'catalogo', 'catalog',
              'bim', 'ifc', 'altoqi', 'arquivo', 'dados', 'base'}
 
 
+# Palavras que ficam em minúscula no meio de um título
+_MINUSCULAS = {'de', 'da', 'do', 'das', 'dos', 'e', 'em', 'com', 'para', 'a', 'o'}
+
+
 def _tokens_from_aq_filename(aq_path):
-    """Extrai tokens significativos do nome do arquivo .aq."""
+    """
+    Tokens significativos do nome do arquivo .aq, com o case original preservado.
+
+    O case importa: 'CFTV' e 'PPCI' são siglas e devem continuar em caixa alta;
+    'EquipamentoDeRede' é CamelCase e precisa ser separado em palavras.
+    """
     stem = os.path.splitext(os.path.basename(aq_path))[0]
     stem = re.sub(r'\.\d+$', '', stem)                         # remove ".1" final
-    tokens = re.split(r'[_\-\s]+', stem.lower())
-    return [t for t in tokens if t
-            and t not in _AQ_NOISE
-            and not re.match(r'^\d{2,4}$', t)]                 # remove anos/versões
+    brutos = re.split(r'[_\-\s]+', stem)
+
+    tokens = []
+    for t in brutos:
+        if not t or t.lower() in _AQ_NOISE or re.match(r'^\d{2,4}$', t):
+            continue                                           # ruído, ano ou versão
+        # CamelCase → palavras, sem quebrar siglas ('EquipamentoDeRede', não 'CFTV')
+        if not t.isupper():
+            t = re.sub(r'(?<=[a-z0-9])(?=[A-Z])', ' ', t)
+        tokens.extend(p for p in t.split() if p)
+    return tokens
+
+
+def _format_titulo(tokens):
+    """
+    Junta tokens num título legível: siglas em caixa alta, preposições em
+    minúscula, o resto capitalizado.
+
+      ['CFTV']                            → 'CFTV'
+      ['Equipamento','De','Rede','Rack']  → 'Equipamento de Rede Rack'
+      ['PPCI','incendio']                 → 'PPCI Incendio'
+    """
+    saida = []
+    for i, t in enumerate(tokens):
+        if t.isupper() and len(t) > 1:
+            saida.append(t)                                    # sigla: preserva
+        elif i > 0 and t.lower() in _MINUSCULAS:
+            saida.append(t.lower())
+        else:
+            saida.append(t[:1].upper() + t[1:] if t.islower() else t.capitalize())
+    return ' '.join(saida)
 
 
 _GENERIC_DIRS = {'input', 'biblioteca', 'bibliotecas', 'bim', 'ifc', 'aq',
@@ -731,7 +793,7 @@ def peek_aq(aq_path):
         if not _is_generic(parent_dir) and slugify(parent_dir) == slugify(fn_tokens[0]):
             hints['fabricante'] = parent_dir
         else:
-            hints['fabricante'] = fn_tokens[0].capitalize()
+            hints['fabricante'] = _format_titulo([fn_tokens[0]])
 
     fab_slug = slugify(hints['fabricante']) if hints['fabricante'] else ''
 
@@ -741,9 +803,9 @@ def peek_aq(aq_path):
 
     if not hints['titulo'] and fn_tokens:
         fab_tokens = set(tokenize(hints['fabricante'])) if hints['fabricante'] else set()
-        rest = [t for t in fn_tokens if t not in fab_tokens]
+        rest = [t for t in fn_tokens if t.lower() not in fab_tokens]
         if rest:
-            hints['titulo'] = ' '.join(t.capitalize() for t in rest)
+            hints['titulo'] = _format_titulo(rest)
 
     if not hints['titulo'] and hints['linhas']:
         hints['titulo'] = _common_prefix(hints['linhas']) or hints['linhas'][0]
@@ -1076,12 +1138,182 @@ def interactive_config(input_dir, existing=None, com_ifc=False):
 
 # ─── Pipeline principal ───────────────────────────────────────────────────────
 
+def aq_rel_dir(aq_path, input_dir):
+    """
+    Pasta do .aq relativa ao input, para espelhar a estrutura na saída.
+
+      input/Amanco/linha/pecas.aq  →  'Amanco/linha'
+      input/pecas.aq               →  ''
+    """
+    rel = os.path.relpath(os.path.dirname(os.path.abspath(aq_path)),
+                          os.path.abspath(input_dir))
+    return '' if rel in ('.', os.curdir) else rel
+
+
+def find_existing_zip(out_dir, slug):
+    """ZIP mais recente já gerado para este slug, se houver."""
+    if not os.path.isdir(out_dir):
+        return None
+    hits = sorted(f for f in os.listdir(out_dir)
+                  if f.startswith(slug + '-') and f.endswith('.zip'))
+    return os.path.join(out_dir, hits[-1]) if hits else None
+
+
+def auto_config(aq_path, input_dir, com_ifc=False):
+    """
+    Config inferido sem perguntar nada — usado no modo --all.
+
+    Com --ifc, o file_map é montado a partir da pasta do próprio .aq (e não do
+    input inteiro), para não misturar IFCs de bibliotecas diferentes.
+    """
+    hints = peek_aq(aq_path)
+    titulo = hints['titulo']
+    fabricante = hints['fabricante']
+    n = hints.get('n_pecas') or 0
+    layout = ('series-rows' if hints.get('has_curves')
+              else ('catalog-grid' if n > 6 else 'series-rows'))
+
+    aq_dir = os.path.dirname(os.path.abspath(aq_path))
+    file_map = {}
+    if com_ifc:
+        ifc_entries, _, _ = scan_input(aq_dir)
+        file_map = {display: slug for display, slug in ifc_entries}
+
+    return {
+        'slug': slugify(titulo or fabricante or 'catalogo'),
+        'titulo': titulo,
+        'fabricante': fabricante,
+        'descricao': '',
+        'layout': layout,
+        'aq_file': aq_path,
+        'ifc_dir': aq_dir if com_ifc else input_dir,
+        'file_map': file_map,
+        'products_override': [],
+    }, hints
+
+
+def run_build(config, aq_path, geo_dir, zip_dir, args):
+    """
+    Executa o build de um catálogo: geometria → catalog.json → preview → ZIP.
+    Retorna (catalog, zip_path) — zip_path é None se --skip-zip.
+    """
+    os.makedirs(geo_dir, exist_ok=True)
+
+    if args.ifc:
+        if not args.skip_ifc:
+            print('  Parseando IFCs...')
+            geo_files = run_ifc_parse(config, geo_dir)
+            print(f'    {len(geo_files)} geometrias geradas')
+        else:
+            geo_files = [f[:-5] for f in os.listdir(geo_dir) if f.endswith('.json')] \
+                        if os.path.isdir(geo_dir) else []
+        print('  Lendo biblioteca .aq...')
+        aq_data = extract_aq(aq_path)
+        product_map = build_product_map(aq_data)
+        print(f'    {len(product_map)} grupos, '
+              f'{sum(len(g["pecas"]) for g in product_map.values())} peças')
+        catalog = build_catalog(config, product_map, set(geo_files))
+    else:
+        print('  Extraindo geometria do .aq...')
+        catalog, n_geo, sem_3d = build_catalog_from_aq(config, aq_path, geo_dir)
+        print(f'    {n_geo} geometrias extraídas'
+              + (f'; {sem_3d} peças sem 3D (tubos/kits) puladas' if sem_3d else ''))
+
+    print(f'    {len(catalog["produtos"])} produtos, layout: {catalog["layout"]}')
+    if not catalog['produtos']:
+        print('    ERRO: nenhum produto no catálogo — nada a publicar.')
+        return catalog, None
+
+    # catalog.json solto acompanha o ZIP, na mesma pasta espelhada
+    os.makedirs(zip_dir, exist_ok=True)
+    with open(os.path.join(zip_dir, f'{catalog["slug"]}-catalog.json'),
+              'w', encoding='utf-8') as f:
+        json.dump(catalog, f, ensure_ascii=False, indent=2)
+
+    if not args.skip_preview:
+        if build_preview(catalog, catalog['layout'], geo_dir=geo_dir):
+            update_catalog_registry(catalog)
+            print(f'    Preview: output/preview/{catalog["slug"]}/index.html')
+
+    zip_path = None
+    if not args.skip_zip:
+        zip_path = build_zip(catalog, out_dir=zip_dir, geo_dir=geo_dir)
+    return catalog, zip_path
+
+
+def run_all(input_dir, args):
+    """Processa todos os .aq do input, espelhando a estrutura de pastas na saída."""
+    _, _, aq_paths = scan_input(input_dir)
+    if not aq_paths:
+        print(f'Nenhuma biblioteca .aq encontrada em {input_dir}')
+        sys.exit(1)
+
+    print(f'\n=== bilds-bim-3d — lote: {len(aq_paths)} biblioteca(s) .aq ===\n')
+
+    feitos, pulados, falhas = [], [], []
+    for i, aq_path in enumerate(aq_paths, 1):
+        rel_dir = aq_rel_dir(aq_path, input_dir)
+        nome = os.path.basename(aq_path)
+        print(f'[{i}/{len(aq_paths)}] {os.path.join(rel_dir, nome) if rel_dir else nome}')
+
+        try:
+            config, hints = auto_config(aq_path, input_dir, com_ifc=args.ifc)
+        except Exception as e:
+            print(f'    ERRO ao ler metadados: {e}\n')
+            falhas.append((aq_path, str(e)))
+            continue
+
+        slug = config['slug']
+        zip_dir = os.path.join(OUTPUT_DIR, rel_dir) if rel_dir else OUTPUT_DIR
+
+        ja = find_existing_zip(zip_dir, slug)
+        if ja and not args.force:
+            print(f'    já processado: {os.path.relpath(ja, ROOT)} — pulando '
+                  f'(use --force para refazer)\n')
+            pulados.append(aq_path)
+            continue
+
+        print(f'    {config["fabricante"]} · {config["titulo"]} '
+              f'({hints.get("n_pecas", 0)} peças, {hints.get("n_simbologias", 0)} geometrias)')
+
+        geo_dir = os.path.join(GEO_DIR, rel_dir, slug) if rel_dir \
+            else os.path.join(GEO_DIR, slug)
+        try:
+            catalog, zip_path = run_build(config, aq_path, geo_dir, zip_dir, args)
+        except Exception as e:
+            print(f'    ERRO no build: {e}\n')
+            falhas.append((aq_path, str(e)))
+            continue
+
+        if zip_path:
+            print(f'    ZIP: {os.path.relpath(zip_path, ROOT)}')
+            feitos.append(zip_path)
+        print()
+
+    print('=== Lote concluído ===')
+    print(f'  gerados : {len(feitos)}')
+    if pulados:
+        print(f'  pulados : {len(pulados)} (já tinham ZIP)')
+    if falhas:
+        print(f'  falhas  : {len(falhas)}')
+        for p, e in falhas:
+            print(f'      {os.path.basename(p)}: {e[:70]}')
+    for z in feitos:
+        print(f'  → {os.path.relpath(z, ROOT)}')
+
+
 def main():
     parser = argparse.ArgumentParser(
-        description='bilds-bim-3d — gera catálogo BIM 3D a partir de uma biblioteca .aq',
+        description='bilds-bim-3d — gera catálogo BIM 3D a partir de bibliotecas .aq',
         epilog='Por padrão lê só o .aq. Use --ifc para também parsear os IFCs da pasta.')
     parser.add_argument('--config',       default='config.json', help='Arquivo de configuração')
-    parser.add_argument('--input-dir',    default='input',       help='Pasta com o .aq (e IFCs, se --ifc)')
+    parser.add_argument('--input-dir',    default='input',       help='Pasta com o(s) .aq (e IFCs, se --ifc)')
+    parser.add_argument('--all', '-a',    action='store_true',
+                        help='Processa TODOS os .aq de input/ e subpastas, sem perguntar. '
+                             'Cada ZIP sai em output/ espelhando a pasta de origem. '
+                             'Bibliotecas que já têm ZIP são puladas.')
+    parser.add_argument('--force',        action='store_true',
+                        help='Com --all: refaz também as bibliotecas que já têm ZIP')
     parser.add_argument('--ifc',          action='store_true',
                         help='Também lê os IFCs da pasta (modo antigo). '
                              'Sem esta flag, a geometria vem toda do .aq.')
@@ -1094,7 +1326,12 @@ def main():
 
     input_dir = os.path.join(ROOT, args.input_dir)
 
-    # Carrega config.json existente como defaults (se houver)
+    # ── Lote: todas as bibliotecas do input ───────────────────────────────
+    if args.all:
+        run_all(input_dir, args)
+        return
+
+    # ── Uma biblioteca, com perguntas ─────────────────────────────────────
     existing = None
     config_path = os.path.join(ROOT, args.config)
     if os.path.exists(config_path):
@@ -1114,63 +1351,18 @@ def main():
         print(f'ERRO: biblioteca .aq não encontrada: {aq_path}')
         sys.exit(1)
 
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    rel_dir = aq_rel_dir(aq_path, input_dir)
+    zip_dir = os.path.join(OUTPUT_DIR, rel_dir) if rel_dir else OUTPUT_DIR
+    geo_dir = os.path.join(GEO_DIR, rel_dir, config['slug']) if rel_dir \
+        else os.path.join(GEO_DIR, config['slug'])
 
-    if args.ifc:
-        # ── Modo antigo: geometria dos IFCs, dados do .aq ──────────────────
-        if not args.skip_ifc:
-            print('1/4 Parseando IFCs...')
-            geo_files = run_ifc_parse(config)
-            print(f'    {len(geo_files)} geometrias geradas\n')
-        else:
-            geo_files = [f.replace('.json', '') for f in os.listdir(GEO_DIR)
-                         if f.endswith('.json')] if os.path.exists(GEO_DIR) else []
-
-        print('2/4 Lendo biblioteca .aq...')
-        aq_data = extract_aq(aq_path)
-        product_map = build_product_map(aq_data)
-        print(f'    {len(product_map)} grupos, '
-              f'{sum(len(g["pecas"]) for g in product_map.values())} peças\n')
-
-        print('3/4 Gerando catalog.json...')
-        catalog = build_catalog(config, product_map, set(geo_files))
-    else:
-        # ── Modo padrão: tudo do .aq ───────────────────────────────────────
-        print('1/3 Extraindo geometria do .aq...')
-        catalog, n_geo, sem_3d = build_catalog_from_aq(config, aq_path, GEO_DIR)
-        print(f'    {n_geo} geometrias extraídas')
-        if sem_3d:
-            print(f'    {sem_3d} peças sem geometria 3D (tubos/kits) — puladas')
-        print()
-        print('2/3 Gerando catalog.json...')
-
-    cat_out = os.path.join(OUTPUT_DIR, 'catalog.json')
-    with open(cat_out, 'w', encoding='utf-8') as f:
-        json.dump(catalog, f, ensure_ascii=False, indent=2)
-    print(f'    {len(catalog["produtos"])} produtos, layout: {catalog["layout"]}\n')
-
-    if not catalog['produtos']:
-        print('ERRO: nenhum produto no catálogo — nada a publicar.')
-        sys.exit(1)
-
-    # 4a. Preview HTML
-    if not args.skip_preview:
-        print(f'{"4/4" if args.ifc else "3/3"} Gerando preview HTML...')
-        ok = build_preview(catalog, catalog['layout'])
-        if ok:
-            update_catalog_registry(catalog)
-            print(f'    Preview: output/preview/{catalog["slug"]}/index.html')
-            print(f'    Local:   python3 -m http.server 8080 --directory output/preview')
-            print(f'    URL:     http://localhost:8080/{catalog["slug"]}')
-            print()
-
-    # 4b. ZIP para bilds.com
-    if not args.skip_zip:
-        print('Empacotando ZIP...')
-        zip_path = build_zip(catalog)
-        print(f'    Upload na bilds.com: {zip_path}\n')
-
-    print('=== Build concluído ===')
+    catalog, zip_path = run_build(config, aq_path, geo_dir, zip_dir, args)
+    if catalog['produtos']:
+        print(f'    Local: python3 -m http.server 8080 --directory output/preview')
+        print(f'    URL:   http://localhost:8080/{catalog["slug"]}')
+    if zip_path:
+        print(f'\n    Upload na bilds.com: {os.path.relpath(zip_path, ROOT)}')
+    print('\n=== Build concluído ===')
 
 
 if __name__ == '__main__':

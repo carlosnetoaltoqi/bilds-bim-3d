@@ -1,7 +1,13 @@
 input/
+
+# Artefatos de build — o ZIP e a geometria são regeráveis a partir do .aq.
+# Os padrões usam ** porque a saída espelha a estrutura de input/
+# (output/Amanco/linha/<slug>-<ts>.zip), não fica só na raiz.
 output/geo/
+output/**/*.zip
+output/**/*-catalog.json
 output/*.json
-output/*.zip
+
 __pycache__/
 *.pyc
 *.pyo
