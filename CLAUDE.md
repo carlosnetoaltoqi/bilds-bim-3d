@@ -9,7 +9,7 @@ Leia tudo antes de modificar qualquer arquivo.
 
 **Toda mudança de comportamento, bug corrigido ou decisão de arquitetura deve ser registrada neste arquivo antes de encerrar a sessão.**
 
-A memória do agente (arquivo externo de memória) é auxiliar e pode não existir na próxima sessão. Este `CLAUDE.md` é a única fonte de verdade persistente e confiável. Se a informação não está aqui, ela não existe para o próximo agente.
+Memória de agente e skills são auxiliares e podem não existir na próxima sessão — nem na próxima máquina. Este `CLAUDE.md` é a única fonte de verdade persistente e confiável. **Se a informação não está no repositório, ela não existe para o próximo agente.**
 
 Fluxo obrigatório ao finalizar qualquer mudança:
 1. Corrigir/implementar o código
@@ -19,15 +19,36 @@ Fluxo obrigatório ao finalizar qualquer mudança:
 
 ---
 
-## Skills obrigatórias — carregar ao iniciar
+## Este documento é autossuficiente
 
-Ao começar qualquer sessão neste projeto, carregue as três skills abaixo antes de qualquer outra ação:
+**Nada aqui depende de skills, memória de agente ou conhecimento de fora do repositório.**
+Tudo o que é necessário para operar e evoluir o pipeline está neste `CLAUDE.md`, no
+`README.md`, nos docstrings dos scripts e em `docs/`. Se você precisou de algo que
+não está aqui, isso é uma falha desta documentação — registre-a antes de encerrar.
 
-- `leitor-biblioteca-aq`
-- `leitor-ifc`
-- `pagina-biblioteca`
+### Onde está cada conhecimento
 
-Invoque via Skill tool em paralelo.
+| Assunto | Onde |
+|---|---|
+| Como usar o pipeline, os dois modos, layout da saída | `README.md` |
+| Formato binário OQ3D, armadilhas do parser, API | este arquivo + docstring de `scripts/oq3d.py` |
+| Schema do `.aq` e o que cada tabela guarda | este arquivo, "Conhecimento crítico: read_aq.py" |
+| Inferência de fabricante e título | este arquivo + docstring de `peek_aq` em `scripts/build.py` |
+| Parsing de IFC (só modo `--ifc`) | este arquivo + docstring de `scripts/parse_ifc.py` |
+| Padrões dos templates HTML e Three.js | este arquivo, "Conhecimento crítico: templates HTML" |
+| Contrato do ZIP consumido pela bilds.com | `docs/bilds-bim-3d-zip-spec.md` |
+| Como a descoberta do OQ3D foi feita e validada | `docs/estudo-oq3d/` |
+| Integração com dashboard e API | `docs/plano-integracao-bilds.md` |
+
+### Skills auxiliares (opcionais)
+
+Existem três skills de agente com material sobreposto — `leitor-biblioteca-aq`,
+`leitor-ifc` e `pagina-biblioteca`. São **conveniência, não dependência**: úteis
+fora deste repositório, e podem não existir na máquina onde o projeto for clonado.
+Se estiverem disponíveis, ajudam; se não, este documento basta.
+
+Ao aprender algo novo sobre `.aq`, IFC ou os templates, registre **aqui primeiro**.
+Atualizar as skills depois é opcional.
 
 ---
 
@@ -147,7 +168,7 @@ bilds-bim-3d/
 │   ├── layouts/
 │   │   ├── series-rows.html     ← rows estilo Netflix por série (bombas)
 │   │   └── catalog-grid.html    ← grid denso com filtros (conexões)
-│   └── vendor/                  ← Three.js self-hosted (gitignored após setup)
+│   └── vendor/                  ← vazio no repo; setup_vendor.sh baixa o Three.js aqui
 ├── input/                       ← bibliotecas do usuário — gitignored
 │   └── <Fabricante>/[<Linha>/]<pecas>.aq
 └── output/                      ← gerado pelo build
@@ -157,7 +178,7 @@ bilds-bim-3d/
     └── preview/                        ← site estático, COMMITADO
         ├── index.html                  ← landing com a lista de catálogos
         ├── catalogs.json               ← índice dos catálogos gerados
-        ├── vendor/                     ← Three.js
+        ├── vendor/                     ← Three.js — VERSIONADO, é o que a Vercel serve
         └── <slug>/
             ├── index.html
             ├── catalog.json
@@ -485,19 +506,51 @@ Identificar pelo bounding box do JSON e filtrar com threshold por tipo de equipa
 Sempre tentar SQLite direto primeiro (alguns .aq são extraídos de outro ZIP).
 Encoding: `latin-1` (Windows-1252) — **sempre** configurar antes de qualquer query.
 
-### Tabelas principais
+### Tabelas — catálogo de produto
 
-- `GRUPO_PECA` — séries/famílias (NOME_GP = "CAM-W10", "CAM-W21")
-- `PECA` — variantes individuais (NOME_PECA, DESCRICAO_DADOS)
+- `GRUPO_PECA` — séries/famílias (`NOME_GP` = "CAM-W10", "Cap", "Pontos de comando")
+- `PECA` — variantes individuais (`NOME_PECA`, `DESCRICAO_DADOS`, dimensões em cm)
 - `DADOS_HIDRAULICOS` — parâmetros hidráulicos por peça
 - `MODELO_BOMBA` — nome e potência nominal do modelo
-- `ITEM_CURVA_BOMBA` — pontos Q-H (VAZAO_ICB, ALTURA_ICB, POTENCIA_ICB, RENDIMENTO_ICB)
+- `ITEM_CURVA_BOMBA` — pontos Q-H (`VAZAO_ICB`, `ALTURA_ICB`, `POTENCIA_ICB`, `RENDIMENTO_ICB`)
 - `PROPRIEDADE_PERSONALIZADA` / `VALOR_PROPRIEDADE_PERSONALIZADA` — specs livres
+- `DADOS_ELETRICOS` / `PONTO_ELETRICO` / `SUB_TIPO_PONTO` — bibliotecas elétricas
 
-### Propriedades observadas em bombas
+### Tabelas — geometria 3D (as que importam para o caminho padrão)
 
-Tensão, Corrente, Grau de Proteção, Isolamento, Sucção x Recalque,
+| Tabela | Papel |
+|---|---|
+| **`SIMBOLOGIA_3D`** | a geometria. Colunas: `SIMBOLOGIA_3D` (BLOB OQ3D — a malha), `IMAGEM` (BMP 100×100 pré-renderizado), `WIREFRAME` (arestas p/ CAD — **69–71% do arquivo, descartável**), `NOME`, `USA_CORES_PECA` |
+| **`PECA_SIMBOLOGIA_3D`** | o vínculo peça → geometria (`ID_PECA`, `ID_SIMBOLOGIA_3D`). Chave estrangeira: dispensa qualquer matching por nome. Várias peças compartilham a mesma malha |
+| `GRUPO_SIMBOLOGIA_3D` | agrupa geometrias (`NOME_GRUPO`, `ID_CLASSE`) |
+| **`CLASSE_SIMBOLOGIA_3D`** | `NOME_CLASSE` segue o padrão `"FABRICANTE - Linha"` (`'AMANCO - PVC Esgoto SN'`) — **a fonte confiável de fabricante** |
+| `ENTRADA_3D` | pontos de conexão hidráulica: `POSICAO_X/Y/Z`, `DIAMETRO`, `TIPO_SECAO`, `ID_SIMBOLOGIA_3D`. **O IFC não carrega isso.** Ainda não consumido pelo pipeline — oportunidade para conectividade BIM |
+| `CONTEUDO_SIMBOLOGIA` | símbolo 2D de planta baixa, formato proprietário distinto do OQ3D |
+| `IMAGEM` | **ícones da interface do AltoQi**, não fotos de produto. Vazia nas bibliotecas hidráulicas; preenchida nas elétricas, onde há `SUB_TIPO_PONTO` |
+
+> **Nunca use `SELECT *` em `SIMBOLOGIA_3D`** — traz o `WIREFRAME` (285 MB dos 412 MB
+> da Amanco). Selecione as colunas explicitamente.
+
+> A imagem do produto é **sempre** `SIMBOLOGIA_3D.IMAGEM`, nunca a tabela `IMAGEM`.
+
+### Propriedades personalizadas observadas
+
+**Bombas:** Tensão, Corrente, Grau de Proteção, Isolamento, Sucção x Recalque,
 Altura Máxima, Temperatura máxima, Motor, Rotor, Rotação.
+
+**Conexões:** Bolsa, Classe de rigidez, Temperatura máxima de operação, Encaixe,
+Distância máxima entre apoios, Fecho Hídrico, Vazão, Inclinação.
+
+**Elétrica:** Corrente máxima, Potência máxima da carga, Conectividade,
+Aplicativo compatível, Material do painel, Touch, Tensão de alimentação,
+Temperatura de cor, Vida útil, Dimerizável.
+
+### Peças sem geometria — comportamento correto
+
+Peças sem linha em `PECA_SIMBOLOGIA_3D` não têm forma fixa: **tubos** (o AltoQi gera
+o cilindro a partir de diâmetro × comprimento) e **kits de aparelho sanitário**
+(ramal de ventilação, tanque de lavar, vaso com tê) — entradas de projeto. Na Amanco
+são 312 de 1.168 (27%). Pular é o esperado; o build informa quantas.
 
 ---
 
@@ -654,9 +707,17 @@ via modo `'recursive'` do `scan_input()`.
 Verificar com `git config user.name` e `git config user.email`.
 Se necessário: `git config user.name "carlosnetoaltoqi"`
 
-**output/preview/** NÃO é gitignored (é o artefato de preview commitado).
-Inclui `output/preview/data/` — geo JSONs servidos pelo preview (commitados junto).
-**output/geo/** e **output/*.json** SÃO gitignored (cópias locais de trabalho).
+**output/preview/** NÃO é gitignored — é o artefato servido pela Vercel, e inclui:
+- `output/preview/<slug>/data/` — geometria de cada catálogo (dentro do catálogo,
+  não na raiz: o template resolve `'/' + slug + '/data/'`, e nomes como `50mm.json`
+  colidiriam entre bibliotecas)
+- `output/preview/vendor/` — Three.js **versionado**, é o que a Vercel serve.
+  `templates/vendor/` fica vazio no repo; o `setup_vendor.sh` só é necessário se
+  esse diretório precisar ser reconstruído.
+
+**Gitignored** (regeráveis a partir do `.aq`): `output/geo/`, `output/**/*.zip`,
+`output/**/*-catalog.json`, `output/*.json`. Os padrões precisam de `**` porque a
+saída espelha a estrutura de `input/`.
 
 ### Deploy na Vercel
 
