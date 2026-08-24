@@ -58,20 +58,15 @@ python3 scripts/build.py --skip-zip              # só gera preview
 
 ## Preview via Vercel
 
-Após o build, commite o `output/preview/` e faça deploy com o CLI da Vercel:
+Após o build, faça commit e push. O deploy acontece automaticamente via integração Vercel+git.
 
 ```bash
 git add output/preview/
 git commit -m "build: catálogo {slug}"
-
-# Deploy — rodar SEMPRE da raiz do repo
-vercel --prod --yes
+git push
 ```
 
 A página de índice fica em `bilds-bim-3d.vercel.app` e cada catálogo em `bilds-bim-3d.vercel.app/{slug}`.
-
-> **Atenção:** nunca passar `output/preview` como argumento posicional para o `vercel` CLI.
-> Isso cria um projeto novo indesejado. O `vercel.json` na raiz já aponta para `output/preview/`.
 
 ## Requisitos
 

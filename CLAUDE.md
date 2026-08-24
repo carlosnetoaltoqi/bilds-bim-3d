@@ -461,15 +461,25 @@ Se necessário: `git config user.name "carlosnetoaltoqi"`
 **Projeto:** `bilds/bilds-bim-3d` — **não criar outro projeto, nunca.**
 **URL de produção:** https://bilds-bim-3d.vercel.app
 
+O repositório está conectado à Vercel via integração git — **o push para `main` dispara o
+deploy automaticamente**. Fluxo normal:
+
 ```bash
-# CORRETO — rodar sempre da RAIZ do repo
+git add output/preview/
+git commit -m "build: catálogo {slug}"
+git push
+```
+
+O `vercel.json` na raiz configura `"outputDirectory": "output/preview"` — a Vercel serve
+esse diretório. Para deploy manual via CLI (ex: sem commit):
+
+```bash
+# SEMPRE da RAIZ do repo
 vercel --prod --yes
 ```
 
-O `vercel.json` na raiz já configura `"outputDirectory": "output/preview"` — a Vercel
-serve esse diretório automaticamente. **Nunca** passar `output/preview` como argumento
-posicional (`vercel deploy output/preview --prod`) — isso ignora o `.vercel/project.json`
-da raiz e cria um projeto novo indesejado.
+**Nunca** passar `output/preview` como argumento posicional (`vercel deploy output/preview --prod`)
+— isso ignora o `.vercel/project.json` da raiz e cria um projeto novo indesejado.
 
 **Preview local:**
 ```bash
