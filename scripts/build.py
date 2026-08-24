@@ -461,6 +461,16 @@ def ask(prompt, default=None):
     return resp if resp else (default or '')
 
 
+def ask_confirm(prompt, suggestion):
+    """Mostra sugestão inferida e pede confirmação s/n. Se 'n', pede valor livre."""
+    if not suggestion:
+        return ask(prompt)
+    resp = input(f'  {prompt}: {suggestion}  [S/n]: ').strip().lower()
+    if resp in ('', 's'):
+        return suggestion
+    return ask(prompt)
+
+
 def ask_choice(prompt, choices, default=None):
     """Pergunta com opções numeradas. Mostra padrão em destaque."""
     print(f'\n  {prompt}')
@@ -474,6 +484,16 @@ def ask_choice(prompt, choices, default=None):
         if resp.isdigit() and 1 <= int(resp) <= len(choices):
             return choices[int(resp) - 1][0]
         print(f'  Digite um número entre 1 e {len(choices)}.')
+
+
+def ask_confirm_choice(prompt, choices, suggestion):
+    """Mostra sugestão de layout e pede s/n. Se 'n', mostra menu completo."""
+    if not suggestion:
+        return ask_choice(prompt, choices)
+    resp = input(f'\n  {prompt}: {suggestion}  [S/n]: ').strip().lower()
+    if resp in ('', 's'):
+        return suggestion
+    return ask_choice(prompt, choices, default=suggestion)
 
 
 def peek_aq(aq_path):
@@ -709,14 +729,14 @@ def interactive_config(input_dir, existing=None):
         )
 
     # ── Perguntas de metadados ───────────────────────────────────
-    fabricante = ask('Fabricante', default=sug_fabricante)
+    fabricante = ask_confirm('Fabricante', sug_fabricante)
 
     sug_titulo = (
         hints['grupos'][0].rsplit(' ', 1)[0] if hints.get('grupos') else ''
     ) if aq_stale else (
         ec.get('titulo') or (hints['grupos'][0].rsplit(' ', 1)[0] if hints.get('grupos') else '')
     )
-    titulo = ask('Título do catálogo', default=sug_titulo)
+    titulo = ask_confirm('Título do catálogo', sug_titulo)
 
     sug_slug = ec.get('slug') or slugify(
         (fabricante + '-' + titulo.split()[0]) if titulo else fabricante or 'catalogo'
@@ -725,13 +745,13 @@ def interactive_config(input_dir, existing=None):
 
     descricao = ask('Descrição curta (opcional)', default=ec.get('descricao') or '')
 
-    layout = ask_choice(
-        'Layout de exibição:',
+    layout = ask_confirm_choice(
+        'Layout de exibição',
         [
             ('series-rows',  'linhas por série — estilo Netflix, ideal para poucas famílias com curva Q-H'),
             ('catalog-grid', 'grade densa com filtros — ideal para muitos itens heterogêneos'),
         ],
-        default=sug_layout,
+        sug_layout,
     )
 
     # ── Mapeamento produto → slug ────────────────────────────────
