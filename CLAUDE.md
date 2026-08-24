@@ -729,3 +729,38 @@ dados de input (fabricantes são variáveis e efêmeros).
 
 **Ponto estável: commit `6336f60`** — pipeline completo, documentação autocontida, preview dos dois catálogos no repo.
 Para retornar: `git checkout 6336f60`.
+
+### 2026-08-24 — Bug WebGL: shared renderer + JPEG capture (commits b73ee8a, 35d63db)
+
+**Problema:** ao rolar para baixo e carregar muitos cards 3D, depois voltar para cima,
+as miniaturas desapareciam. Console exibia: `WARNING: Too many active WebGL contexts. Oldest context will be lost.`
+
+O código anterior criava um `WebGLRenderer` por card via `IntersectionObserver` e nunca
+destruía o contexto — o browser limita a ~8–16 contextos simultâneos.
+
+**Arquitetura nova: shared renderer + JPEG capture**
+
+- `sharedRenderer`: um único `WebGLRenderer` com `preserveDrawingBuffer: true`, criado
+  sob demanda e reutilizado sequencialmente para todos os thumbnails.
+- Após render: `canvas.toDataURL('image/jpeg', 0.88)` → `<img>` tag. Zero contextos WebGL
+  persistentes por card.
+- `thumbCache (Map<id, dataURL>)`: sobrevive a filtros (DOM é destruído/recriado ao filtrar).
+  Quando card volta ao DOM, restaura do cache sem re-render.
+- `renderQueue + processQueue`: fila sequencial garante um render por vez.
+- `activeCard`: viewer interativo ao clicar no thumb (OrbitControls + loop de animação).
+  `IntersectionObserver` deativa automaticamente ao sair da viewport e restaura o thumb.
+- `disposeScene`: libera geometrias e materiais da GPU após cada thumbnail.
+- Máximo 3 contextos WebGL em qualquer momento: `sharedRenderer` + `activeCard.renderer`
+  + `modalViewer.renderer`.
+
+**Bug 12 — `observeCards()` não chamado no carregamento inicial (commit 35d63db)**
+
+O evento `cards-rendered` disparava no script síncrono (durante o parse do HTML), mas
+o listener no módulo ES só registrava após `DOMContentLoaded` — chegava tarde demais.
+Resultado: Amanco não carregava miniaturas até o primeiro clique em filtro.
+
+Correção: adicionar `observeCards()` direto após o `addEventListener` no módulo, além
+de manter o listener para re-renders (ao filtrar).
+
+**Ponto estável: commit `35d63db`** — WebGL context overflow resolvido, validado em produção.
+Para retornar: `git checkout 35d63db`.
