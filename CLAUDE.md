@@ -51,26 +51,28 @@ Clonado em qualquer máquina, produz o mesmo resultado dado os mesmos inputs.
 2. Rodar: bash scripts/setup_vendor.sh  (baixa Three.js para templates/vendor/)
 3. pip install -r requirements.txt      (instala Jinja2 + ifcopenshell)
 4. Copiar arquivos .IFC e .aq para input/
-5. python3 scripts/build.py --interactive   ← recomendado: detecta tudo e faz perguntas
+5. python3 scripts/build.py             ← detecta tudo e faz perguntas automaticamente
    (alternativa: copiar config.example.json → config.json, editar, e --config config.json)
 6. Preview local: python3 -m http.server 8080 --directory output/preview
 7. Abrir: http://localhost:8080
 8. Subir output/<slug>-AAAAMMDDHHMM.zip no dashboard.bilds.com → BIM 3D
 ```
 
-### Modo --interactive: o que é inferido automaticamente
+### O que é inferido automaticamente no modo interativo
 
-`--interactive` detecta e pré-preenche os campos para o usuário pressionar Enter:
+O build detecta e pré-preenche os campos; o usuário pressiona Enter para confirmar:
 
-| Campo | Fonte |
-|---|---|
-| Fabricante | Campo `BIBLIOTECA` do .aq → fallback: 1º token significativo do filename do .aq |
-| Título | Tokens do filename do .aq sem fabricante, ano, versão e ruído (ex: `pecas_dancor_bombas_incendio_2026_04.1.aq` → `Bombas Incendio`) |
-| Slug | Derivado de fabricante + 1ª palavra do título |
-| Layout | `series-rows` se .aq tem curvas Q-H; `catalog-grid` se > 6 produtos |
-| File map (>50 produtos) | Slugs automáticos — nenhuma pergunta por produto |
+| Campo | Fonte | Perguntas ao usuário |
+|---|---|---|
+| Fabricante | Campo `BIBLIOTECA` do .aq → pasta avô do .aq (ex: `input/Amanco/`) → 1º token do filename | Sim — confirma ou edita |
+| Título | Nome da pasta pai do .aq (ex: `input/Amanco/PVC Esgoto SN, SR e Silentium/`) → fallback por tokens do filename | Sim — confirma ou edita |
+| Slug | `slugify(titulo)` — **calculado automaticamente, sem pergunta** | Não — só exibido |
+| Descrição | Nenhuma fonte automática | Sim — campo livre, opcional |
+| Layout | `series-rows` se .aq tem curvas Q-H; `catalog-grid` se > 6 produtos | Sim — choice com padrão destacado |
+| File map (>50 produtos) | Slugs automáticos a partir do caminho relativo do IFC | Não — aceito sem confirmação |
+| File map (≤50 produtos) | Slug sugerido por token + match com GRUPO_PECA | Sim — confirma por produto |
 
-Quando o arquivo .aq detectado difere do `aq_file` salvo no `config.json` (`aq_stale`), fabricante, título, slug e file_map são resetados para não herdar valores do catálogo anterior.
+Quando o .aq detectado difere do `aq_file` no `config.json` (`aq_stale`), fabricante, título e file_map são resetados — nunca herdam do catálogo anterior.
 
 ---
 
@@ -474,7 +476,8 @@ via modo `'recursive'` do `scan_input()`.
 | Nome do produto é só dimensão ("100mm") | Esperado para catálogos flat no .aq — build.py prefixa com GRUPO_PECA automaticamente |
 | ZIP 0KB + "X não encontrado em input/" | scan_input escolheu modo subdir com múltiplos IFCs — fix: modo subdir só ativa quando cada subdir tem exatamente 1 IFC; caso contrário cai em recursive |
 | Fabricante/título stale do catálogo anterior | aq_stale não estava resetando titulo/slug — fix em commit 056e729; deletar config.json corrompido se necessário |
-| `Fabricante []` sem sugestão | BIBLIOTECA vazia no .aq — peek_aq extrai do filename como fallback (commit 8c2deff) |
+| `Fabricante []` sem sugestão | BIBLIOTECA vazia no .aq e pasta avô é genérica — peek_aq tenta pasta avô, depois filename |
+| Título sugerido ruim (ex: `"Esgoto Sn Sr"`) | Pasta pai do .aq é genérica (`input/`, `.`) — organizar como `input/Fabricante/Nome da Linha/pecas.aq` |
 | Slug com acento (`inc-ndio`) | slugify não normalizava unicode — corrigido com NFD + strip combining marks (commit 8e2f67d) |
 | Slug mostra valor antigo do config.json | ec.get('slug') tomava precedência sobre titulo atual — removido; slug sempre = slugify(titulo) (commit fefb627) |
 
