@@ -531,7 +531,21 @@ def peek_aq(aq_path):
     except Exception:
         pass
 
-    # Fallback: extrair fabricante e titulo do nome do arquivo .aq
+    # Hierarquia de pastas: pai = título, avô = fabricante (ex: input/Amanco/PVC Esgoto SN, SR/pecas.aq)
+    parent_dir  = os.path.basename(os.path.dirname(aq_path))
+    grandpa_dir = os.path.basename(os.path.dirname(os.path.dirname(aq_path)))
+
+    _generic_dirs = {'input', 'amanco', 'dancor', 'biblioteca', 'bim', 'ifc', 'aq', '.'}
+
+    # Título: nome da pasta pai se for descritivo (não genérico, não é o fabricante)
+    if not hints['titulo'] and parent_dir.lower() not in _generic_dirs:
+        hints['titulo'] = parent_dir
+
+    # Fabricante: avô se for nome de empresa (curto, sem espaço ou capitalizado)
+    if not hints['fabricante'] and grandpa_dir.lower() not in _generic_dirs:
+        hints['fabricante'] = grandpa_dir
+
+    # Fallback final: extrair do nome do arquivo .aq
     fn_tokens = _tokens_from_aq_filename(aq_path)
     fab_tokens = set(tokenize(hints['fabricante'])) if hints['fabricante'] else set()
 
@@ -773,8 +787,8 @@ def interactive_config(input_dir, existing=None):
     sug_titulo = _titulo_inf if aq_stale else (ec.get('titulo') or _titulo_inf)
     titulo = ask('Título do catálogo', default=sug_titulo)
 
-    sug_slug = slugify(titulo or fabricante or 'catalogo')
-    slug = ask('Slug da URL', default=sug_slug)
+    slug = slugify(titulo or fabricante or 'catalogo')
+    print(f'  Slug da URL: {slug}')
 
     descricao = ask('Descrição curta (opcional)', default=ec.get('descricao') or '')
 
