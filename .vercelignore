@@ -1,6 +1,11 @@
 input/
 output/geo/
-output/bilds-upload.zip
+
+# Os ZIPs de upload não são servidos pelo site — a saída espelha a estrutura
+# de input/, então precisam de ** para serem pegos em qualquer nível.
+output/**/*.zip
+output/**/*-catalog.json
+
 scripts/
 *.aq
 *.IFC

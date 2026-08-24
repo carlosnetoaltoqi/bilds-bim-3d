@@ -412,9 +412,17 @@ let activeCard = null; // { id, renderer, scene, controls, raf, observer }
 let modalViewer = null;
 
 // ─── Utilitários ──────────────────────────────────────────────────
+// Caminho absoluto, não './data/': com cleanUrls a página é servida em
+// /<slug> (sem barra final), e aí o relativo resolveria para /data/ — na raiz,
+// onde os arquivos não estão. Funciona igual com ou sem barra final.
+const DATA_BASE = '/' + CATALOG.slug + '/data/';
+
 async function fetchGeo(geoFile) {
   if (geoCache.has(geoFile)) return geoCache.get(geoFile);
-  const data = await fetch('./data/' + geoFile).then(r => r.json());
+  const data = await fetch(DATA_BASE + geoFile).then(r => {
+    if (!r.ok) throw new Error(`${r.status} ao buscar ${geoFile}`);
+    return r.json();
+  });
   geoCache.set(geoFile, data);
   return data;
 }
