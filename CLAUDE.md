@@ -395,6 +395,37 @@ O ZIP gerado por este projeto será consumido por:
 
 ---
 
+## Conhecimento crítico: build.py — matching IFC → .aq
+
+### find_aq_product — como o match funciona
+
+```python
+find_aq_product(slug, product_map, ifc_path_hint=None)
+```
+
+Quando o `file_map` usa caminhos relativos como chave (ex: `"Cap/PVC Esgoto SN/100mm.ifc"`),
+o `ifc_path_hint` é passado automaticamente por `build_catalog()`. O algoritmo extrai tokens
+de **todos** os componentes do caminho (pasta + filename) e calcula cobertura contra o GRUPO_PECA:
+
+```
+caminho: "Cap/PVC Esgoto SN/100mm.ifc"
+tokens query: {cap, pvc, esgoto, sn, 100mm}
+
+GRUPO_PECA "Cap" → tokens {cap} → cobertura 1/1 = 100% ✓
+→ dentro do grupo: PECA com maior sobreposição com leaf "100mm"
+→ nome final: "Cap 100mm" (gp + peca quando grupo não está no nome da peça)
+```
+
+Tenta cobertura ≥ 100%, relaxa para ≥ 75% se não encontrar. Se ainda falhar,
+cai no fallback por prefixo/número (compatível com IFCs flat como Dancor).
+
+**Para maximizar o match rate em catálogos hierárquicos:** a chave do `file_map`
+deve ser o caminho relativo completo a partir do `ifc_dir`, não só o filename.
+Para catálogos com > 50 produtos, o `interactive_config()` gera isso automaticamente
+via modo `'recursive'` do `scan_input()`.
+
+---
+
 ## Diagnóstico rápido de problemas
 
 | Sintoma | Causa provável |
@@ -411,6 +442,8 @@ O ZIP gerado por este projeto será consumido por:
 | ZIP vazio de geo files | IFCs não foram parseados — verificar output/geo/ após o build |
 | .aq não abre como SQLite | Tentar abrir como ZIP; se falhar: arquivo corrompido |
 | Texto com lixo | Encoding não configurado — usar `latin-1` |
+| Taxa de match IFC → .aq baixa | `file_map` usa só filename — chave deve ser o caminho relativo completo (`Cap/PVC SN/100mm.ifc`) para enriquecer tokens da busca fuzzy |
+| Nome do produto é só dimensão ("100mm") | Esperado para catálogos flat no .aq — build.py prefixa com GRUPO_PECA automaticamente |
 
 ---
 
@@ -546,3 +579,20 @@ r'[-+]?(?:[0-9]+\.?[0-9]*|[0-9]*\.[0-9]+)(?:[eE][-+]?[0-9]+)?'
 - ZIP renomeado de `bilds-upload.zip` para `<slug>-AAAAMMDDHHMM.zip`.
 - `output/preview/.gitignore` criado para excluir `*_raw.json` (artefatos do CLI do parse_ifc).
 - Skill `leitor-ifc` atualizada para v1.3.0 com todos os 5 bugs e suas correções documentadas.
+
+### 2026-08-24 — Matching fuzzy IFC → .aq por cobertura de tokens (commit d75cf7b)
+
+`find_aq_product(slug, product_map, ifc_path_hint=None)` — substituição do match por
+prefixo simples por scoring de cobertura de tokens:
+
+- **Tokenização do caminho**: todos os componentes do path relativo do IFC viram tokens
+  (ex: `"Cap/PVC Esgoto SN/100mm.ifc"` → `{cap, pvc, esgoto, sn, 100mm}`).
+- **Score de grupo**: `covered_tokens / total_gp_tokens`. Exige ≥ 100%; relaxa para ≥ 75%
+  se não encontrar nada. Em empate, prefere o grupo com mais tokens (mais específico).
+- **Score de peça**: dentro do grupo vencedor, a PECA com maior sobreposição com o leaf
+  (nome do arquivo sem extensão e sem pasta) é selecionada.
+- **Nome composto**: se o nome do GRUPO_PECA não está contido no nome da PECA, o build
+  produz `f"{nome_gp} {peca['nome']}"` como nome do produto (ex: `"Cap 100mm"`).
+- **Fallback**: prefixo/número preservado para IFCs flat sem hierarquia (Dancor).
+
+`build_catalog()` passa `ifc_name` (a chave do `file_map`) como `ifc_path_hint`.
