@@ -37,12 +37,26 @@ Clonado em qualquer máquina, produz o mesmo resultado dado os mesmos inputs.
 2. Rodar: bash scripts/setup_vendor.sh  (baixa Three.js para templates/vendor/)
 3. pip install -r requirements.txt      (instala Jinja2 + ifcopenshell)
 4. Copiar arquivos .IFC e .aq para input/
-5. Copiar config.example.json → config.json, editar com seus dados
-6. python3 scripts/build.py --config config.json
-7. Preview local: python3 -m http.server 8080 --directory output/preview
-8. Abrir: http://localhost:8080
-9. Subir output/<slug>-AAAAMMDDHHMM.zip no dashboard.bilds.com → BIM 3D
+5. python3 scripts/build.py --interactive   ← recomendado: detecta tudo e faz perguntas
+   (alternativa: copiar config.example.json → config.json, editar, e --config config.json)
+6. Preview local: python3 -m http.server 8080 --directory output/preview
+7. Abrir: http://localhost:8080
+8. Subir output/<slug>-AAAAMMDDHHMM.zip no dashboard.bilds.com → BIM 3D
 ```
+
+### Modo --interactive: o que é inferido automaticamente
+
+`--interactive` detecta e pré-preenche os campos para o usuário pressionar Enter:
+
+| Campo | Fonte |
+|---|---|
+| Fabricante | Campo `BIBLIOTECA` do .aq → fallback: 1º token significativo do filename do .aq |
+| Título | Tokens do filename do .aq sem fabricante, ano, versão e ruído (ex: `pecas_dancor_bombas_incendio_2026_04.1.aq` → `Bombas Incendio`) |
+| Slug | Derivado de fabricante + 1ª palavra do título |
+| Layout | `series-rows` se .aq tem curvas Q-H; `catalog-grid` se > 6 produtos |
+| File map (>50 produtos) | Slugs automáticos — nenhuma pergunta por produto |
+
+Quando o arquivo .aq detectado difere do `aq_file` salvo no `config.json` (`aq_stale`), fabricante, título, slug e file_map são resetados para não herdar valores do catálogo anterior.
 
 ---
 
@@ -444,6 +458,9 @@ via modo `'recursive'` do `scan_input()`.
 | Texto com lixo | Encoding não configurado — usar `latin-1` |
 | Taxa de match IFC → .aq baixa | `file_map` usa só filename — chave deve ser o caminho relativo completo (`Cap/PVC SN/100mm.ifc`) para enriquecer tokens da busca fuzzy |
 | Nome do produto é só dimensão ("100mm") | Esperado para catálogos flat no .aq — build.py prefixa com GRUPO_PECA automaticamente |
+| ZIP 0KB + "X não encontrado em input/" | scan_input escolheu modo subdir com múltiplos IFCs — fix: modo subdir só ativa quando cada subdir tem exatamente 1 IFC; caso contrário cai em recursive |
+| Fabricante/título stale do catálogo anterior | aq_stale não estava resetando titulo/slug — fix em commit 056e729; deletar config.json corrompido se necessário |
+| `Fabricante []` sem sugestão | BIBLIOTECA vazia no .aq — peek_aq extrai do filename como fallback (commit 8c2deff) |
 
 ---
 
@@ -606,3 +623,34 @@ prefixo simples por scoring de cobertura de tokens:
 - **Fallback**: prefixo/número preservado para IFCs flat sem hierarquia (Dancor).
 
 `build_catalog()` passa `ifc_name` (a chave do `file_map`) como `ifc_path_hint`.
+
+### 2026-08-24 — interactive_config: aq_stale, scan_input e inferência do .aq (commits 572956a…8c2deff)
+
+**Bug 7 — scan_input modo subdir com múltiplos IFCs quebrava o parse (commit fb7dcc8)**
+
+`input/Dancor/` com 14 IFCs era detectado como modo `subdir` (1 produto = subdir inteiro).
+O display name `"Dancor/ (14 IFCs)"` ia como chave do `file_map`; o parser tentava abrir
+esse string como arquivo → AVISO + ZIP 0KB.
+
+Correção: modo `subdir` só ativo quando cada subdir tem **exatamente 1 IFC**; caso contrário
+cai em modo `recursive` (cada IFC = um produto).
+
+**Bug 8 — aq_stale não resetava titulo/slug (commit 056e729)**
+
+Quando o .aq mudava (ex: Amanco → Dancor), `fabricante` era resetado mas `titulo` e `slug`
+continuavam vindo do `config.json` stale. Slugs errados (ex: `"amanco-conexoes"`) persistiam
+para o novo catálogo.
+
+Correção: quando `aq_stale=True`, `sug_titulo` e `sug_slug` derivam apenas dos hints/filename
+do novo .aq, não do `ec` (config existente).
+
+**Bug 9 — fabricante e título não inferidos do filename do .aq (commit 8c2deff)**
+
+Campo `BIBLIOTECA` na Dancor .aq está vazio → `hints['fabricante'] = ''` → prompt sem default.
+
+Correção: `peek_aq()` analisa o filename após falha no banco:
+- `pecas_dancor_bombas_incendio_2026_04.1.aq` → remove ruído (`pecas`, anos `2026`, versão `04`)
+- 1º token restante = fabricante (`Dancor`)
+- Tokens restantes = título (`Bombas Incendio`)
+
+Resultado: usuário passa por `--interactive` só com Enter em todos os campos.

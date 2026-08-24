@@ -21,7 +21,8 @@ bash scripts/setup_vendor.sh
 
 # 5. Rode o build em modo interativo
 python3 scripts/build.py --interactive
-# O CLI detecta os arquivos e faz perguntas sobre o catálogo
+# Detecta .aq e IFCs; infere fabricante, título e slug do nome do .aq
+# Basta pressionar Enter para aceitar as sugestões
 
 # 6. Visualize localmente
 python3 -m http.server 8080 --directory output/preview
