@@ -30,6 +30,7 @@ Visualização local após o build:
   Abrir: http://localhost:8080
 """
 import argparse
+import datetime
 import json
 import os
 import re
@@ -311,7 +312,6 @@ def build_preview(catalog, layout):
 
 def update_catalog_registry(catalog):
     """Atualiza output/preview/catalogs.json com a entrada do catálogo gerado."""
-    import datetime
     registry_path = os.path.join(PREVIEW_DIR, 'catalogs.json')
 
     registry = []
@@ -344,12 +344,14 @@ def update_catalog_registry(catalog):
 
 def build_zip(catalog):
     """
-    Gera output/bilds-upload.zip com:
+    Gera output/<slug>-AAAAMMDDHHMM.zip com:
       manifest.json    — slug, title, manufacturer, description, layout, filters, productCount
       catalog.json     — dados completos dos produtos (campos em português)
       geo/<slug>.json  — geometria de cada produto
     """
-    zip_path = os.path.join(OUTPUT_DIR, 'bilds-upload.zip')
+    ts = datetime.datetime.now().strftime('%Y%m%d%H%M')
+    zip_name = f"{catalog['slug']}-{ts}.zip"
+    zip_path = os.path.join(OUTPUT_DIR, zip_name)
     with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
         # manifest: campos em inglês conforme contrato da API bilds.com
         manifest = {
