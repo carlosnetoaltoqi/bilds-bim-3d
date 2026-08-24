@@ -15,7 +15,10 @@ Fluxo obrigatório ao finalizar qualquer mudança:
 1. Corrigir/implementar o código
 2. Commitar
 3. Atualizar este `CLAUDE.md` com o que mudou (seção "Histórico de sessões" e tabela de diagnóstico quando aplicável)
-4. Só então encerrar
+4. **Se aprendeu algo sobre ler `.aq`, ler IFC ou gerar as páginas de preview,
+   atualizar também a skill correspondente** — ver "Skills" abaixo. Elas servem
+   outros projetos e não podem ficar para trás.
+5. Só então encerrar
 
 ---
 
@@ -40,15 +43,31 @@ não está aqui, isso é uma falha desta documentação — registre-a antes de 
 | Como a descoberta do OQ3D foi feita e validada | `docs/estudo-oq3d/` |
 | Integração com dashboard e API | `docs/plano-integracao-bilds.md` |
 
-### Skills auxiliares (opcionais)
+### Skills: ler é opcional, escrever é obrigatório
 
-Existem três skills de agente com material sobreposto — `leitor-biblioteca-aq`,
-`leitor-ifc` e `pagina-biblioteca`. São **conveniência, não dependência**: úteis
-fora deste repositório, e podem não existir na máquina onde o projeto for clonado.
-Se estiverem disponíveis, ajudam; se não, este documento basta.
+Três skills de agente cobrem o mesmo terreno técnico:
 
-Ao aprender algo novo sobre `.aq`, IFC ou os templates, registre **aqui primeiro**.
-Atualizar as skills depois é opcional.
+| Skill | Assunto |
+|---|---|
+| `leitor-biblioteca-aq` | ler `.aq`, schema do banco, formato OQ3D |
+| `leitor-ifc` | parsear IFC4, geometria, cores, armadilhas STEP |
+| `pagina-biblioteca` | gerar as páginas de catálogo com viewer 3D |
+
+**Para trabalhar neste projeto, elas não são necessárias** — este repositório é
+autossuficiente e pode ser clonado numa máquina onde elas não existam.
+
+**Mas mantê-las atualizadas é obrigatório.** Elas servem outros projetos, e
+conhecimento que só existe aqui não chega até eles.
+
+> **Ao descobrir qualquer coisa nova sobre leitura de `.aq`, leitura de IFC ou
+> geração das páginas de preview, registre nos dois lugares: neste `CLAUDE.md` e
+> na skill correspondente.** Vale para formato de arquivo, armadilha de parser,
+> comportamento do AltoQi, padrão de template — qualquer aprendizado reaproveitável
+> fora deste repositório.
+
+Registre primeiro aqui (é o que garante a continuidade deste projeto), depois na
+skill — mas não encerre a sessão sem fazer as duas. Bump a `version` no
+frontmatter da skill e anote a mudança no seu `## Histórico`.
 
 ---
 
