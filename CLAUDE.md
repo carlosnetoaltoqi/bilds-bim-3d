@@ -183,8 +183,8 @@ Fallback sem Jinja2: `build.py` substitui `{{ catalog | tojson | safe }}` por st
 
 ```
 bilds-upload.zip
-├── manifest.json    { slug, titulo, fabricante, descricao, layout, filtros, n_produtos }
-├── catalog.json     dados completos dos produtos
+├── manifest.json    { slug, title, manufacturer, description, layout, filters, productCount }
+├── catalog.json     dados completos dos produtos (campos em português)
 └── geo/
     ├── cam-w10.json
     └── cam-w14.json
@@ -193,6 +193,9 @@ bilds-upload.zip
 
 O dashboard.bilds.com lê `manifest.json` para exibir o nome/slug antes de processar
 o zip inteiro. `catalog.json` e `geo/*.json` vão para S3, registrados no MongoDB.
+
+> **Atenção:** `manifest.json` usa campos em **inglês** (contrato da API bilds.com).
+> `catalog.json` usa campos em **português** (convenção de dados apresentados ao usuário).
 
 ---
 

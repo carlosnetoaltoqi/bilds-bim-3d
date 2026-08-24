@@ -70,9 +70,15 @@ def find_aq_product(slug, product_map):
     Retorna (nome_gp, peca_dict) ou None.
     """
     slug_norm = slugify(slug)
+    nums_slug = re.findall(r'\d+', slug_norm)
     for nome_gp, group in product_map.items():
         gp_norm = slugify(nome_gp)
-        if gp_norm.startswith(slug_norm[:12]) or slug_norm.startswith(gp_norm[:12]):
+        nums_gp = re.findall(r'\d+', gp_norm)
+        prefix_match = (gp_norm.startswith(slug_norm[:12]) or slug_norm.startswith(gp_norm[:12])
+                        or gp_norm in slug_norm)
+        # Correspondência numérica: identificadores do modelo (ex: 97-38, W21)
+        num_match = (bool(nums_gp) and nums_slug[:len(nums_gp)] == nums_gp)
+        if prefix_match or num_match:
             pecas = group['pecas']
             if pecas:
                 return nome_gp, pecas[0]  # pega a primeira variante do grupo
@@ -339,21 +345,21 @@ def update_catalog_registry(catalog):
 def build_zip(catalog):
     """
     Gera output/bilds-upload.zip com:
-      manifest.json    — slug, titulo, fabricante, descricao, layout
-      catalog.json     — dados completos dos produtos
+      manifest.json    — slug, title, manufacturer, description, layout, filters, productCount
+      catalog.json     — dados completos dos produtos (campos em português)
       geo/<slug>.json  — geometria de cada produto
     """
     zip_path = os.path.join(OUTPUT_DIR, 'bilds-upload.zip')
     with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
-        # manifest
+        # manifest: campos em inglês conforme contrato da API bilds.com
         manifest = {
-            'slug': catalog['slug'],
-            'titulo': catalog['titulo'],
-            'fabricante': catalog['fabricante'],
-            'descricao': catalog['descricao'],
-            'layout': catalog['layout'],
-            'filtros': catalog['filtros'],
-            'n_produtos': len(catalog['produtos']),
+            'slug':         catalog['slug'],
+            'title':        catalog['titulo'],
+            'manufacturer': catalog['fabricante'],
+            'description':  catalog.get('descricao', ''),
+            'layout':       catalog['layout'],
+            'filters':      catalog['filtros'],
+            'productCount': len(catalog['produtos']),
         }
         zf.writestr('manifest.json', json.dumps(manifest, ensure_ascii=False, indent=2))
 
@@ -440,26 +446,33 @@ def scan_input(input_dir):
     """
     Detecta arquivos e modo de mapeamento IFC → produto.
 
-    Dois modos:
-    - 'flat'  : IFCs direto em input_dir — cada .ifc = um produto
-    - 'subdir': subdirs com IFCs — cada subdir = um produto (caso Amanco)
+    Três modos:
+    - 'flat'     : IFCs direto em input_dir — cada .ifc = um produto (Dancor)
+    - 'subdir'   : subdirs imediatos com IFCs — cada subdir = um produto
+    - 'recursive': IFCs em qualquer nível — cada .ifc = um produto (Amanco)
 
     Retorna (ifc_entries, mode, aq_paths)
       ifc_entries: lista de (display_name, suggested_slug)
-      aq_paths:    lista de caminhos absolutos para arquivos .aq
+        - modo flat/subdir: display_name é o basename
+        - modo recursive: display_name é o caminho relativo a partir de input_dir
+      aq_paths: lista de caminhos absolutos para .aq (busca recursiva)
     """
     try:
         entries = os.listdir(input_dir)
     except FileNotFoundError:
         return [], 'flat', []
 
-    ifc_flat = sorted(f for f in entries if f.lower().endswith('.ifc'))
-    aq_paths = [
-        os.path.join(input_dir, f)
-        for f in sorted(entries) if f.lower().endswith('.aq')
-    ]
+    # .aq: busca recursiva para pegar bibliotecas em subdirs (ex: Amanco)
+    aq_paths = []
+    for root, dirs, files in os.walk(input_dir):
+        dirs.sort()
+        for f in sorted(files):
+            if f.lower().endswith('.aq'):
+                aq_paths.append(os.path.join(root, f))
 
-    # Detecta subdirs que contêm IFCs
+    ifc_flat = sorted(f for f in entries if f.lower().endswith('.ifc'))
+
+    # Detecta subdirs imediatos que contêm IFCs
     subdir_counts = {}
     for d in sorted(entries):
         dpath = os.path.join(input_dir, d)
@@ -468,18 +481,54 @@ def scan_input(input_dir):
             if n > 0:
                 subdir_counts[d] = n
 
-    if subdir_counts and not ifc_flat:
+    if ifc_flat:
+        entries_out = [
+            (f, slugify(os.path.splitext(f)[0])[:40])
+            for f in ifc_flat
+        ]
+        return entries_out, 'flat', aq_paths
+    elif subdir_counts:
         entries_out = [
             (f'{d}/ ({subdir_counts[d]} IFCs)', slugify(d))
             for d in subdir_counts
         ]
         return entries_out, 'subdir', aq_paths
     else:
-        entries_out = [
-            (f, slugify(os.path.splitext(f)[0])[:40])
-            for f in ifc_flat
-        ]
-        return entries_out, 'flat', aq_paths
+        # Busca recursiva: cada IFC é um produto; display_name = path relativo
+        all_ifcs = []
+        for root, dirs, files in os.walk(input_dir):
+            dirs.sort()
+            rel_root = os.path.relpath(root, input_dir)
+            for f in sorted(files):
+                if f.lower().endswith('.ifc'):
+                    rel_path = os.path.join(rel_root, f) if rel_root != '.' else f
+                    all_ifcs.append(rel_path)
+
+        # Calcular prefixo comum de diretório para stripping nos slugs
+        def common_dir_prefix(paths):
+            if not paths:
+                return ''
+            parts_list = [p.replace(os.sep, '/').split('/')[:-1] for p in paths]
+            common = parts_list[0]
+            for parts in parts_list[1:]:
+                common = [c for c, p in zip(common, parts) if c == p]
+            return '/'.join(common) + '/' if common else ''
+
+        import hashlib
+        prefix = common_dir_prefix(all_ifcs)
+        seen_slugs = {}
+        entries_out = []
+        for rel_path in all_ifcs:
+            slug_base = rel_path.replace(os.sep, '/').replace(prefix, '', 1)
+            slug_base = os.path.splitext(slug_base)[0].replace('/', '-')
+            slug = slugify(slug_base)[:55]
+            # garantir unicidade: sufixo de 4 chars do hash do path
+            h = hashlib.md5(rel_path.encode()).hexdigest()[:4]
+            if slug in seen_slugs and seen_slugs[slug] != rel_path:
+                slug = slug[:50] + '-' + h
+            seen_slugs[slug] = rel_path
+            entries_out.append((rel_path, slug))
+        return entries_out, 'recursive', aq_paths
 
 
 def match_slug_to_aq(slug, grupos):
@@ -526,7 +575,9 @@ def interactive_config(input_dir, existing=None):
 
     n_ifc = len(ifc_entries)
     n_aq  = len(aq_paths)
-    mode_label = 'subdirs de categoria' if mode == 'subdir' else 'arquivos individuais'
+    mode_labels = {'flat': 'arquivos individuais', 'subdir': 'subdirs de categoria',
+                   'recursive': 'busca recursiva'}
+    mode_label = mode_labels.get(mode, mode)
     print(f'  Encontrado(s): {n_ifc} produto(s) como {mode_label}, {n_aq} biblioteca(s) .aq')
     print()
 
@@ -592,25 +643,27 @@ def interactive_config(input_dir, existing=None):
     )
 
     # ── Mapeamento produto → slug ────────────────────────────────
-    if ifc_entries:
-        print(f'\n  Mapeamento de {n_ifc} produto(s) para slug:')
-        print('  (Enter para aceitar; o slug vira o nome do arquivo geo e da URL)\n')
-
     file_map = {}
     existing_fm = ec.get('file_map', {})
 
-    for display, sug_slug_prod in ifc_entries:
-        # Se já existe no config, usa como default
-        existing_slug = existing_fm.get(display, '')
-        # Tenta match com .aq para sugerir um slug mais preciso
-        if not existing_slug and hints.get('grupos'):
-            matched_gp = match_slug_to_aq(sug_slug_prod, hints['grupos'])
-            if matched_gp:
-                sug_slug_prod = slugify(matched_gp)[:40]
-        default_slug = existing_slug or sug_slug_prod
-        prod_slug = ask(display, default=default_slug)
-        if prod_slug:
-            file_map[display] = prod_slug
+    if ifc_entries and n_ifc > 50:
+        # Muitos produtos: aceitar slugs automáticos sem prompt por item
+        print(f'\n  {n_ifc} produto(s) detectados — aceitando slugs automáticos\n')
+        for display, sug_slug_prod in ifc_entries:
+            file_map[display] = existing_fm.get(display, '') or sug_slug_prod
+    elif ifc_entries:
+        print(f'\n  Mapeamento de {n_ifc} produto(s) para slug:')
+        print('  (Enter para aceitar; o slug vira o nome do arquivo geo e da URL)\n')
+        for display, sug_slug_prod in ifc_entries:
+            existing_slug = existing_fm.get(display, '')
+            if not existing_slug and hints.get('grupos'):
+                matched_gp = match_slug_to_aq(sug_slug_prod, hints['grupos'])
+                if matched_gp:
+                    sug_slug_prod = slugify(matched_gp)[:40]
+            default_slug = existing_slug or sug_slug_prod
+            prod_slug = ask(display, default=default_slug)
+            if prod_slug:
+                file_map[display] = prod_slug
 
     # ── Monta e salva config ─────────────────────────────────────
     config = {

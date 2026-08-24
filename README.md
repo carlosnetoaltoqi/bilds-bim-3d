@@ -71,6 +71,8 @@ A página de índice fica em `bilds-bim-3d.vercel.app` e cada catálogo em `bild
 ## Requisitos
 
 - Python 3.8+
-- `pip install jinja2`
+- `pip install -r requirements.txt` (instala Jinja2 + ifcopenshell)
 - bash (para setup_vendor.sh)
 - curl (para setup_vendor.sh)
+
+> `ifcopenshell` é necessário para parsear IFCs com geometria B-rep paramétrica (IFCADVANCEDBREP), como os exportados pelo AltoQi Hidráulico/Elétrico. IFCs tessellados (exportados pelo CATIA/3DEXPERIENCE) funcionam sem ele.

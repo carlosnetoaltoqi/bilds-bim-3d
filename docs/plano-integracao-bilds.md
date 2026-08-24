@@ -68,15 +68,17 @@ bilds-upload.zip
 
 ### manifest.json
 
+Campos em **inglês** — contrato da API bilds.com.
+
 ```json
 {
-  "slug": "bombas-incendio",
-  "titulo": "Bombas de Combate a Incêndio",
-  "fabricante": "Dancor",
-  "descricao": "Linha CAM-W e TJM para sistemas prediais.",
-  "layout": "series-rows",
-  "filtros": ["CAM-W", "TJM"],
-  "n_produtos": 14
+  "slug":         "bombas-incendio",
+  "title":        "Bombas de Combate a Incêndio",
+  "manufacturer": "Dancor",
+  "description":  "Linha CAM-W e TJM para sistemas prediais.",
+  "layout":       "series-rows",
+  "filters":      ["CAM-W", "TJM"],
+  "productCount": 14
 }
 ```
 
