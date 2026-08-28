@@ -173,7 +173,7 @@ Validado em três bibliotecas de domínios e schemas distintos; ver
 2. bash scripts/setup_vendor.sh   (baixa Three.js para templates/vendor/)
 3. pip install -r requirements.txt
 3b. npm install                   (miniaturas; opcional — sem isso o build só as pula)
-    sudo npx playwright install-deps chromium
+    sudo apt-get install -y libnss3 libnspr4 libasound2t64
 4. Copiar as bibliotecas .aq para input/, organizadas por fabricante:
        input/Dancor/pecas_dancor_bombas.aq
        input/Amanco/PVC Esgoto SN, SR e Silentium/pecas_amanco.aq
@@ -494,11 +494,21 @@ geometria compartilhada dá imagem idêntica. Amanco: 856 produtos → 448 minia
 Precisa de **Node >= 20** (exigência do Playwright) e do Chromium:
 
 ```bash
-npm install                                 # instala playwright + baixa o Chromium
-sudo npx playwright install-deps chromium   # libs de sistema (libnss3, libasound2)
+npm install                                            # playwright + Chromium
+sudo apt-get install -y libnss3 libnspr4 libasound2t64  # libs de sistema
 ```
 
-⚠️ **Armadilha dos dois Node.** É comum a máquina ter o Node do apt em `/usr/bin/node`
+⚠️ **Armadilha do `sudo`.** A documentação do Playwright manda rodar
+`sudo npx playwright install-deps chromium`. **Não funciona em máquina com nvm:** o
+`sudo` do Ubuntu usa `secure_path` e descarta o PATH do usuário, então o `npx` resolve
+`node` para `/usr/bin/node` — o do apt, v18 aqui — e o Playwright recusa com _"requires
+Node.js 20 or higher"_. O engano é convincente porque `node --version` no shell mostra a
+versão nova, e `nvm default` também. O `apt-get` acima instala as mesmas quatro libs
+(`libnspr4.so`, `libnss3.so`, `libnssutil3.so`, `libasound.so.2`) sem envolver Node.
+Querendo o comando do Playwright, repasse o PATH através do sudo:
+`sudo env "PATH=$PATH" npx playwright install-deps chromium` — validado nesta máquina.
+
+⚠️ **Armadilha dos dois Node** (distinta da anterior, e afeta o build, não a instalação). É comum a máquina ter o Node do apt em `/usr/bin/node`
 (velho) e um do nvm (novo). O nvm só entra no PATH em shell interativo, então um
 `subprocess` do Python pega o do apt — e o Playwright recusa com "requires Node.js 20 or
 higher", sem dizer que existe um Node bom instalado. Por isso `_find_node()` procura, em
@@ -1329,6 +1339,12 @@ num `package.json` próprio e degrada em silêncio quando ausente.
   Playwright recusava. Daí o `_find_node()`.
 - **Libs de sistema sem sudo.** `apt-get download` + `dpkg-deb -x` + `LD_LIBRARY_PATH`
   resolve sem root — foi como esta sessão validou. Receita no `README.md`.
+- **`sudo` descarta o PATH e derruba o `install-deps`.** `sudo npx playwright
+  install-deps chromium` — o comando que a própria documentação do Playwright manda —
+  falha em máquina com nvm: o `secure_path` do sudo faz o `npx` cair no Node do apt e o
+  Playwright recusa por versão. O sintoma engana, porque `node --version` e `nvm default`
+  no shell mostram a versão nova. Use `sudo apt-get install -y libnss3 libnspr4
+  libasound2t64`, ou `sudo env "PATH=$PATH" npx playwright install-deps chromium`.
 
 **Validado nos 9 catálogos — 622 geometrias, zero falhas:**
 

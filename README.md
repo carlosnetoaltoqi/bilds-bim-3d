@@ -14,7 +14,7 @@ pip install -r requirements.txt
 bash scripts/setup_vendor.sh          # baixa o Three.js — uma vez só
 
 npm install                           # miniaturas — opcional, ver "Requisitos"
-sudo npx playwright install-deps chromium
+sudo apt-get install -y libnss3 libnspr4 libasound2t64
 
 # copie as bibliotecas .aq para input/, organizadas por fabricante:
 #   input/Dancor/pecas_dancor_bombas.aq
@@ -135,11 +135,22 @@ O passo que pré-renderiza as miniaturas precisa de **Node 20+** (exigência do
 Playwright) e do Chromium:
 
 ```bash
-npm install                                 # playwright + download do Chromium
-sudo npx playwright install-deps chromium   # libs de sistema (libnss3, libasound2)
+npm install                                            # playwright + Chromium
+sudo apt-get install -y libnss3 libnspr4 libasound2t64  # libs de sistema
 ```
 
-⚠️ **Duas versões de Node na mesma máquina é o problema mais provável aqui.** O Node do
+⚠️ **Não use `sudo npx playwright install-deps chromium`.** É o comando que a
+documentação do Playwright manda, e ele falha em qualquer máquina com nvm: o `sudo` do
+Ubuntu usa `secure_path` e **descarta o PATH do usuário**, então o `npx` cai no Node do
+apt (v18 aqui) e o Playwright recusa com _"requires Node.js 20 or higher"_ — mesmo com
+o `nvm default` apontando para uma versão nova. O `apt-get` acima instala exatamente as
+mesmas libs sem envolver Node. Se preferir o comando do Playwright, repasse o PATH:
+
+```bash
+sudo env "PATH=$PATH" npx playwright install-deps chromium
+```
+
+⚠️ **Duas versões de Node na mesma máquina** é a outra armadilha. O Node do
 apt (`/usr/bin/node`) costuma ser antigo, e o do nvm só entra no PATH em shell
 interativo — um subprocess do `build.py` pega o do apt e o Playwright recusa. O build
 procura sozinho um Node >= 20 em `~/.nvm/versions/node/`, mas se você tiver o Node novo
