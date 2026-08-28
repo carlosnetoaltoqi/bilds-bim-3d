@@ -139,8 +139,6 @@ build avisar que pulou as miniaturas, não publique o ZIP: resolva as dependênc
 - **Resubir os 10 catálogos no admin da bilds.com** — os ZIPs estão prontos em `output/`.
   Enquanto não forem resubidos, os catálogos em produção servem render dinâmico (sem
   `thumbBaseUrl`) e nomes de produto quebrados (encoding antigo)
-- **Caminho S3 do bilds.com nunca foi exercitado de verdade** — só com mock; a máquina de
-  desenvolvimento não tem credencial
 - **Parafusos faltando na Dancor** — 13 de 18 instâncias não emitem geometria; ver
   "BUG ABERTO" na seção do `oq3d.py`
 
