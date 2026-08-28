@@ -116,13 +116,16 @@ Só `equipamento-de-rede-rack` chegou a ser regerado depois do conserto de encod
 
 ### Dependência cruzada com o bilds.com
 
-O lado que **consome** `thumbs/` está implementado, testado e **em review no PR #1244**
-(https://github.com/AltoQiTec/bilds.com/pull/1244), branch
-`perf/BILDS-552-bim-3d-miniatura-estatica`. Handoff completo em
-`bilds.com/.claude/sessions/bim-3d-miniatura-estatica/context.md`.
+O lado que **consome** `thumbs/` foi **mergeado no `develop` do bilds.com em 2026-08-28**
+— PR #1244 (https://github.com/AltoQiTec/bilds.com/pull/1244), merge commit `95ddb470`.
+Handoff completo em `bilds.com/.claude/sessions/bim-3d-miniatura-estatica/context.md`.
 
-Enquanto esse PR não mergear, `thumbs/` viaja no ZIP e a API ignora — inofensivo, e
-significa que os catálogos já ficam prontos para quando o outro lado subir.
+**A pasta `thumbs/` deixou de ser inerte:** a API agora extrai, grava `thumbBaseUrl` no
+catálogo e o viewer usa a imagem pronta em vez de gerar no browser. Consequência prática
+para este repo: **um ZIP gerado sem `thumbs/` faz o catálogo voltar ao render dinâmico**
+— que funciona, mas é o comportamento de 39,9 s de LCP que motivou toda a mudança. Se o
+build avisar que pulou as miniaturas, não publique o ZIP: resolva as dependências antes
+(ver "Miniaturas pré-renderizadas").
 
 > O ticket é **BILDS-552**. Uma sessão anterior usou `BILDS-555b`; o sufixo de letra não
 > passa no hook de commit-msg do bilds.com (`BILDS-[0-9]+`). Referências a `555b` em
