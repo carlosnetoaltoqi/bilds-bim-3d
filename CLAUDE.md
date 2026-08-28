@@ -83,7 +83,7 @@ originou — e não se perde se a máquina sumir.
 
 ## 👉 Próxima sessão — estado em 2026-08-28
 
-**Versão base estável:** commit `PLACEHOLDER` em `main`.
+**Versão base estável:** commit `059bd01` em `main`.
 
 `output/` está limpa — só `output/preview/index.html` (landing da Vercel, feita à mão).
 Para gerar os ZIPs de qualquer biblioteca em `input/`:
