@@ -1,5 +1,27 @@
 # Plano de integração: bilds-bim-3d → bilds.com
 
+> ## ⚠️ DOCUMENTO HISTÓRICO — o módulo já foi implementado e shipado
+>
+> Este plano foi escrito em **2026-08-16**, antes de o módulo existir, e descreve o que
+> *deveria* ser construído. Ele **não** descreve o que está em produção hoje, e em pelo
+> menos um ponto ensina um padrão que já foi aposentado: a seção de viewer usa **um
+> `WebGLRenderer` por card** (`thumbStates`), que estoura o limite de contextos WebGL do
+> browser e foi substituída por shared renderer + `thumbCache` (bug B-13), e depois por
+> miniaturas pré-renderizadas no build (B-17).
+>
+> **Fontes de verdade atuais:**
+>
+> | Assunto | Onde |
+> |---|---|
+> | Contrato do ZIP | `docs/bilds-bim-3d-zip-spec.md` — mantido e revisado contra produção |
+> | Módulo no bilds.com | `bilds.com/docs/modules/bim-3d-module.md` — inclui B-01…B-17 |
+> | Padrões de viewer 3D | `docs/skills/pagina-biblioteca/SKILL.md` |
+>
+> Mantido no repositório pelo registro de decisão: mostra o desenho original e o que a
+> realidade mudou. **Não use como guia de implementação.**
+
+---
+
 > ## 🔴 LEIA O `CLAUDE.md` DO REPOSITÓRIO BILDS.COM ANTES DE QUALQUER COISA
 >
 > O `CLAUDE.md` presente na raiz do repositório bilds.com é **soberano**. Ele se sobrepõe a qualquer instrução deste documento. Se houver conflito entre o que está escrito aqui e o que está no `CLAUDE.md`, siga o `CLAUDE.md` sem exceção. Este plano foi escrito sem acesso à versão atual do codebase — o `CLAUDE.md` tem a versão real das convenções, estruturas e regras do projeto.

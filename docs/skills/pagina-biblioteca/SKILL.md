@@ -1,7 +1,7 @@
 ---
 name: pagina-biblioteca
 description: Constrói páginas HTML de catálogo BIM com cards de produto, miniaturas 3D estáticas (click-to-activate), viewer 3D no modal, curvas Q-H em SVG e layout responsivo. Padrões validados em produção com Three.js self-hosted.
-version: 1.2.0
+version: 1.3.0
 author: Bilds / carlosnetoaltoqi
 ---
 
@@ -169,6 +169,73 @@ A solução é não manter contexto nenhum por card:
 - **`disposeScene`** — libera geometrias e materiais da GPU após cada thumbnail.
 
 Resultado: **no máximo 3 contextos WebGL** em qualquer momento — `sharedRenderer`, `activeCard.renderer` e `modalViewer.renderer`.
+
+### O shared renderer não resolve o carregamento — pré-renderize no build
+
+O padrão acima conserta o **estouro de contexto**. Ele não conserta o **custo de
+carregamento**, e essa distinção é fácil de perder: o card vira `<img>`, o que dá a
+impressão de que a página passou a servir imagem. Não passou — ela ainda baixa a
+geometria e roda WebGL a cada visita, porque o `thumbCache` é um `Map` em memória que
+morre no reload.
+
+Medido com Lighthouse numa página real (catálogo de bombas, 13 produtos):
+
+| Sinal | Valor |
+|---|---|
+| Elemento LCP | a própria `<img src="data:image/jpeg;base64,…">` do card |
+| LCP | **39,9 s** — TTFB 259 ms + **7.230 ms de _element render delay_** |
+| Geometria baixada | **3,75 MB para 2 cards** em viewport mobile |
+| Peso da página | 6.610 KiB, **57% geometria** |
+
+96,5% do LCP era esperar a miniatura ser gerada. A saída é gerar a imagem **uma vez, no
+build**, e servir arquivo estático — a grade passa a ter zero geometria e zero WebGL, e
+a malha só é baixada quando o modal abre.
+
+**Renderize com o mesmo Three.js, num browser headless.** A tentação é rasterizar no
+backend (numpy, pyrender, canvas server-side). Não faça: `MeshStandardMaterial` é PBR
+com metalness/roughness sobre múltiplas luzes, e qualquer reimplementação dá uma imagem
+*parecida* — o catálogo passa a exibir dois visuais conforme o produto tenha ou não
+miniatura pronta. Dirigir o próprio template no Chromium via Playwright entrega a imagem
+idêntica:
+
+```javascript
+// harness.html — página só do build, com cópia literal do buildScene() e da câmera
+window.renderThumb = async (geoUrl, W, H, mime, quality) => {
+  const data = await (await fetch(geoUrl)).json()
+  renderer ??= new THREE.WebGLRenderer({ antialias: false, preserveDrawingBuffer: true })
+  renderer.setPixelRatio(1)          // no runtime é min(dpr, 1.5); aqui o alvo é
+  renderer.setSize(W, H, false)      // um arquivo de dimensão previsível
+  renderer.setClearColor(0xF3F4F6, 1)
+  const { scene, size } = buildScene(data)
+  const camera = new THREE.PerspectiveCamera(38, W / H, 0.001, 500)
+  camera.position.set(size * .85, size * .32, size * .85)
+  camera.lookAt(0, 0, 0)
+  renderer.render(scene, camera)
+  const url = renderer.domElement.toDataURL(mime, quality)
+  disposeScene(scene)
+  return url
+}
+```
+
+Em máquina sem GPU (CI, WSL, container) o Chromium headless **não inicializa WebGL** sem
+`--use-gl=angle --use-angle=swiftshader --enable-unsafe-swiftshader`. Sem os flags todas
+as geometrias falham.
+
+**Uma miniatura por geometria, não por produto.** A câmera sai só do bounding box, então
+geometria compartilhada produz imagem idêntica. Num catálogo real: 856 produtos → 448
+arquivos.
+
+**Proporção fixa exige `object-fit: contain`.** A miniatura pré-gerada tem dimensão fixa
+e o card tem largura variável; com `fill` a peça estica. Com `contain` a sobra fica no
+fundo do card — pinte-o com a **mesma cor do `setClearColor`** e o letterbox some. O
+render dinâmico usa a largura real do card, então lá `fill` continua correto.
+
+**Mantenha o caminho dinâmico como fallback.** Produto sem miniatura pronta deve cair no
+render em runtime, senão catálogos já publicados quebram e todo build vira migração
+obrigatória.
+
+Medição em nove catálogos: **348,2 MB de geometria → 2,5 MB de miniaturas**, média de
+4 KB por arquivo, ~0,08 s de render por geometria.
 
 ### Estado por item — evitar reinicialização
 
@@ -639,6 +706,14 @@ Ambos usam o mesmo `buildScene`, `loadThumbnail`, `initModalViewer` e `buildChar
 ---
 
 ## Histórico
+
+**1.3.0** — **Pré-renderizar as miniaturas no build.** O shared renderer da 1.2.0 conserta
+o estouro de contexto WebGL, não o carregamento: medido em produção, o elemento LCP era a
+própria miniatura, com 39,9 s e 7.230 ms de render delay, e a geometria respondia por 57%
+do peso da página. Documentado o padrão de dirigir o próprio template num Chromium
+headless (Playwright) para obter imagem idêntica ao runtime, os flags de SwiftShader
+obrigatórios sem GPU, a regra de uma miniatura por geometria, o `object-fit: contain` que
+a proporção fixa exige, e a necessidade de manter o render dinâmico como fallback.
 
 **1.2.0** — Shared renderer + captura JPEG para catálogos grandes (o padrão de um renderer por card estoura o limite de contextos WebGL). Caminho absoluto para a geometria, obrigatório com `cleanUrls`. Checagem de `r.ok` antes do `JSON.parse`. Cache de geometria por URL, já que peças diferentes compartilham malha. Validado em produção com 9 catálogos, o maior com 856 produtos.
 

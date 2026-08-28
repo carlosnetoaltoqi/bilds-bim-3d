@@ -41,7 +41,7 @@ não está aqui, isso é uma falha desta documentação — registre-a antes de 
 | Padrões dos templates HTML e Three.js | este arquivo, "Conhecimento crítico: templates HTML" |
 | Contrato do ZIP consumido pela bilds.com | `docs/bilds-bim-3d-zip-spec.md` |
 | Como a descoberta do OQ3D foi feita e validada | `docs/estudo-oq3d/` |
-| Integração com dashboard e API | `docs/plano-integracao-bilds.md` |
+| Integração com dashboard e API | `docs/plano-integracao-bilds.md` — **histórico**, o módulo já foi shipado |
 | Skills de agente (versionadas aqui) | `docs/skills/` |
 
 ### Skills — versionadas aqui, em `docs/skills/`
@@ -78,6 +78,59 @@ serve **outros projetos** também.
 
 Como as skills estão no git, essa atualização entra no mesmo commit da mudança que a
 originou — e não se perde se a máquina sumir.
+
+---
+
+## 👉 Próxima sessão — estado em 2026-08-28
+
+**Três commits em `main`, nenhum pushado:**
+
+| Commit | O que fez |
+|---|---|
+| `aa114bb` | miniaturas pré-renderizadas no build, embutidas em `thumbs/` no ZIP |
+| `4a6919f` | escolhe Node ≥ 20 para o render; validação nos 9 catálogos |
+| `a2da9e9` | decodifica o `.aq` como cp1252 — travessão e aspas chegavam quebrados |
+
+**`output/` foi limpa** ao encerrar aquela sessão. Nada se perdeu: tudo é regenerável a
+partir dos `.aq` em `input/`. Para reconstruir:
+
+```bash
+export LD_LIBRARY_PATH=~/.local/chromium-libs/root/usr/lib/x86_64-linux-gnu   # se aplicável
+python3 scripts/build.py --all --force
+```
+
+**Por que `--force`:** sem ele o build pula biblioteca que já tem ZIP. Com a `output/`
+limpa não faria diferença, mas o hábito evita surpresa.
+
+### O que muda nesta rodada
+
+Os 9 ZIPs saem **diferentes dos que estão publicados hoje**, por dois motivos acumulados:
+
+1. **`thumbs/*.webp`** — pasta nova no ZIP, mais o campo `thumb` por produto no
+   `catalog.json`
+2. **Nomes corrigidos** — `5U – 19” x 570mm` em vez de `5U \x96 19\x94 x 570mm`
+
+Só `equipamento-de-rede-rack` chegou a ser regerado depois do conserto de encoding. **Os
+8 catálogos publicados na bilds.com estão com nome quebrado** até serem resubidos.
+
+### Dependência cruzada com o bilds.com
+
+O lado que **consome** `thumbs/` está implementado, testado e commitado — branch
+`perf/BILDS-555b-bim-3d-miniatura-estatica`, commits `03a1ac89` e `5d6fbbe0`, **também
+sem push**. Handoff completo em
+`bilds.com/.claude/sessions/bim-3d-miniatura-estatica/context.md`.
+
+Enquanto essa branch não mergear, `thumbs/` viaja no ZIP e a API ignora — inofensivo, e
+significa que os catálogos já ficam prontos para quando o outro lado subir.
+
+### Pendências conhecidas
+
+- **Push dos dois repositórios** (este e o bilds.com) — nenhum foi feito
+- **Deploy do preview na Vercel** — depende de commitar `output/preview/` regenerado
+- **Caminho S3 do bilds.com nunca foi exercitado de verdade** — só com mock; a máquina de
+  desenvolvimento não tem credencial
+- **Parafusos faltando na Dancor** — 13 de 18 instâncias não emitem geometria; ver
+  "BUG ABERTO" na seção do `oq3d.py`
 
 ---
 
@@ -225,6 +278,24 @@ bilds-bim-3d/
 > **`output/` espelha a estrutura de `input/`.** Os padrões do `.gitignore`
 > precisam de `**` (`output/**/*.zip`), porque a saída é aninhada — `output/*.zip`
 > só pegaria a raiz.
+
+⚠️ **`output/preview/index.html` é a única coisa em `output/` que NÃO é regenerável.**
+É a landing do demo na Vercel — feita à mão, versionada, e **nenhum script a gera**. O
+`build_preview()` só escreve `output/preview/<slug>/index.html`, um por catálogo.
+
+Isso torna `output/` enganosa: parece descartável inteira, e não é. Ao limpar, preserve
+esse arquivo:
+
+```bash
+cp output/preview/index.html /tmp/landing.html
+find output -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+mkdir -p output/preview && cp /tmp/landing.html output/preview/index.html
+```
+
+Todo o resto — `geo/`, `thumbs/`, ZIPs, `catalog.json`, os `preview/<slug>/` e o
+`preview/vendor/` — volta com `python3 scripts/build.py --all --force`. O `vendor/` é
+copiado de `templates/vendor/`, então rode `scripts/setup_vendor.sh` antes se estiver
+em clone novo.
 
 ---
 

@@ -1,7 +1,7 @@
 ---
 name: leitor-biblioteca-aq
 description: Lê arquivos de biblioteca BIM do AltoQi Builder (.aq) — SQLite com geometria 3D embutida — e extrai peças, dados hidráulicos, curvas de bomba, propriedades, miniaturas e a malha 3D completa (formato OQ3D), dispensando os IFCs.
-version: 2.0.0
+version: 2.1.0
 author: Bilds / carlosnetoaltoqi
 ---
 
@@ -40,6 +40,17 @@ Para abrir — tenta SQLite direto primeiro, cai para ZIP se falhar:
 ```python
 import zipfile, sqlite3, os, shutil, tempfile
 
+def _decode_texto(b):
+    """
+    Texto do .aq é cp1252 (AltoQi Builder é app Windows), não latin-1.
+    Fallback porque cp1252 deixa cinco bytes indefinidos e falharia neles.
+    """
+    try:
+        return b.decode('cp1252')
+    except UnicodeDecodeError:
+        return b.decode('latin-1')
+
+
 def open_aq(aq_path):
     """
     Abre um .aq como SQLite. Tenta direto primeiro (caso mais comum),
@@ -50,7 +61,7 @@ def open_aq(aq_path):
     # Tentativa 1: SQLite direto (alguns .aq são SQLite com extensão .aq)
     try:
         con = sqlite3.connect(aq_path)
-        con.text_factory = lambda b: b.decode('latin-1')
+        con.text_factory = _decode_texto
         con.row_factory = sqlite3.Row
         con.execute('SELECT 1 FROM GRUPO_PECA LIMIT 1')
         return con, None
@@ -69,12 +80,39 @@ def open_aq(aq_path):
     dest = os.path.join(tmp_dir, '_extracted.db')
     shutil.copy(os.path.join(tmp_dir, db_files[0]), dest)
     con = sqlite3.connect(dest)
-    con.text_factory = lambda b: b.decode('latin-1')
+    con.text_factory = _decode_texto
     con.row_factory = sqlite3.Row
     return con, tmp_dir
 ```
 
-> **Encoding:** strings no banco usam `latin-1` (Windows-1252). Sempre configure `con.text_factory = lambda b: b.decode('latin-1')` antes de qualquer query.
+> ### ⚠️ Encoding: cp1252, **não** latin-1
+>
+> O AltoQi Builder é aplicação Windows — o texto no SQLite é **cp1252**. Os dois codecs
+> são idênticos em toda a tabela **exceto na faixa 0x80–0x9F**, que é exatamente onde
+> moram travessão (`0x96`), aspas curvas (`0x93`/`0x94`) e reticências (`0x85`) — os
+> caracteres que aparecem em nome de produto.
+>
+> Lido como latin-1, `5U – 19” x 570mm MRD 557` vira `5U \x96 19\x94 x 570mm MRD 557`.
+> **O erro é silencioso:** latin-1 decodifica qualquer byte sem lançar, então nada quebra
+> — só sai errado, e vai parar na página pública.
+>
+> ```python
+> def _decode_texto(b):
+>     """cp1252 com fallback: os cinco bytes indefinidos do cp1252
+>     (0x81, 0x8D, 0x8F, 0x90, 0x9D) fariam o build inteiro falhar."""
+>     try:
+>         return b.decode('cp1252')
+>     except UnicodeDecodeError:
+>         return b.decode('latin-1')
+>
+> con.text_factory = _decode_texto
+> ```
+>
+> **Não troque o `text_factory` sem olhar as colunas binárias.** O latin-1 é
+> byte-preserving, e é comum o código reconstruir o BLOB da geometria com
+> `.encode('latin-1')` quando a coluna volta como `str`. Com cp1252 esse round-trip
+> **não é reversível** — corromperia a malha 3D em silêncio. Use `CAST(col AS BLOB)` na
+> query para forçar bytes e eliminar o re-encode.
 >
 > **Por que tentar SQLite direto primeiro:** versões recentes do AltoQi Builder distribuem o .aq como SQLite puro (sem ZIP). O ZIP é o caso legado. Tentar SQLite primeiro evita `zipfile.BadZipFile` desnecessário.
 
@@ -149,7 +187,7 @@ def open_aq(aq_path):
 | Coluna | Tipo | Descrição |
 |---|---|---|
 | `ID_MODELO_BOMBA` | INTEGER PK | |
-| `NOME_MB` | TEXT | Nome completo do modelo (encoding latin-1) |
+| `NOME_MB` | TEXT | Nome completo do modelo (encoding cp1252 — ver aviso acima) |
 | `POTENCIA_MB` | REAL | Potência nominal (CV) |
 | `ATIVO` | INTEGER | 1 = ativo |
 
@@ -471,20 +509,21 @@ import oq3d   # scripts/oq3d.py do projeto bilds-bim-3d
 
 # Nunca use SELECT * aqui: traria o WIREFRAME (centenas de MB).
 cur.execute("""
-    SELECT s.ID_SIMBOLOGIA_3D, s.NOME, s.SIMBOLOGIA_3D, s.IMAGEM, g.NOME_GRUPO
+    SELECT s.ID_SIMBOLOGIA_3D, s.NOME,
+           CAST(s.SIMBOLOGIA_3D AS BLOB), CAST(s.IMAGEM AS BLOB), g.NOME_GRUPO
     FROM SIMBOLOGIA_3D s
     LEFT JOIN GRUPO_SIMBOLOGIA_3D g
            ON g.ID_GRUPO_SIMBOLOGIA_3D = s.ID_GRUPO_SIMBOLOGIA_3D
 """)
 for sid, nome, blob, bmp, grupo in cur.fetchall():
-    blob = blob if isinstance(blob, bytes) else blob.encode('latin-1')
+    # CAST AS BLOB acima garante bytes — sem re-encode, que com cp1252
+    # não seria reversível
     if not oq3d.is_oq3d(blob):
         continue
     data = oq3d.to_buffers(blob)          # {'pos','col','idx'} em metros, Y-up
     with open(f'geo/{sid}.json', 'w') as f:
         json.dump(data, f)
     if bmp:                                # miniatura BMP 100×100 já pronta
-        bmp = bmp if isinstance(bmp, bytes) else bmp.encode('latin-1')
         open(f'thumb/{sid}.bmp', 'wb').write(bmp)
 ```
 
@@ -522,6 +561,13 @@ Uso: python3 leitor_aq.py <arquivo.aq> <saida.json>
 """
 import sys, json, zipfile, sqlite3, os, shutil, tempfile
 
+def _decode_texto(b):
+    """cp1252, não latin-1 — ver o aviso de encoding acima."""
+    try:
+        return b.decode('cp1252')
+    except UnicodeDecodeError:
+        return b.decode('latin-1')
+
 def open_aq(aq_path):
     with tempfile.TemporaryDirectory() as tmp:
         with zipfile.ZipFile(aq_path, 'r') as z:
@@ -533,7 +579,7 @@ def open_aq(aq_path):
         dest = aq_path + '._db'
         shutil.copy(os.path.join(tmp, db_files[0]), dest)
     con = sqlite3.connect(dest)
-    con.text_factory = lambda b: b.decode('latin-1')
+    con.text_factory = _decode_texto
     con.row_factory = sqlite3.Row
     return con, dest
 
@@ -709,7 +755,8 @@ const DATA_BASE = '/' + CATALOG.slug + '/data/';
 
 | Sintoma | Causa | Solução |
 |---|---|---|
-| `UnicodeDecodeError` ou lixo nos textos | Encoding padrão UTF-8 | `con.text_factory = lambda b: b.decode('latin-1')` |
+| `UnicodeDecodeError` ou lixo nos textos | Encoding padrão UTF-8 | `con.text_factory = _decode_texto` (cp1252) |
+| Travessão/aspas viram `\x96`, `\x94` | Decodificado como latin-1 em vez de cp1252 | Ver o aviso de encoding — latin-1 e cp1252 diferem em 0x80–0x9F |
 | `zipfile.BadZipFile` | Arquivo não é ZIP / corrompido | Verificar extensão real com `file arquivo.aq` |
 | SQLite dentro do ZIP tem nome inesperado | Cada versão do AltoQi pode nomear diferente | Listar todos os arquivos no ZIP e pegar o que não é `.xml` |
 | `MODELO_BOMBA` vazio / sem curvas | Biblioteca não contém bombas | Verificar `PROJETO_APLICACAO` em `GRUPO_PECA` — 22 = incêndio, outros tipos não têm curva Q-H |
@@ -732,6 +779,15 @@ const DATA_BASE = '/' + CATALOG.slug + '/data/';
 ---
 
 ## Histórico
+
+**2.1.0** — **Correção de encoding: o `.aq` é cp1252, não latin-1.** A versão anterior
+afirmava "latin-1 (Windows-1252)" tratando os dois como sinônimo. Diferem na faixa
+0x80–0x9F, onde estão travessão, aspas curvas e reticências — nomes de produto chegavam
+quebrados em produção (`5U \x96 19\x94 x 570mm`) sem nunca lançar exceção. Documentado
+também por que trocar o `text_factory` exige `CAST(col AS BLOB)` nas colunas binárias: o
+latin-1 era byte-preserving e o round-trip `.encode('latin-1')` do BLOB de geometria não
+sobrevive à troca. Verificado com hash SHA-256 dos blobs antes e depois, e zero bytes de
+controle nos nomes de 1.441 peças em nove bibliotecas.
 
 **2.0.0** — Formato OQ3D documentado e validado em nove bibliotecas, seis versões de schema (552–607) e três domínios: o `.aq` dispensa os IFCs para gerar 3D com forma, cor e miniatura. Adicionados: tabelas de geometria, vínculo determinístico peça → malha, cascata de inferência de fabricante/título, regra de prefixo por grupo, armadilhas do parser binário, análise de cobertura (variantes com/sem luva, peças sem forma fixa) e armadilhas de publicação web. Em produção no bilds-bim-3d desde o commit `9b85f6c`.
 
