@@ -925,8 +925,10 @@ def peek_aq(aq_path):
     Título, em ordem:
       1. Pasta pai, quando descritiva e diferente do fabricante
          (input/Amanco/PVC Esgoto SN, SR e Silentium/pecas.aq)
-      2. Tokens do nome do arquivo, menos o fabricante
-      3. Sufixo comum das classes ("PVC Esgoto SN" → "PVC Esgoto")
+      2. Tokens do nome do arquivo, menos o fabricante — exceto quando o
+         único token restante é um bloco todo-minúsculo > 10 chars (palavra
+         composta sem separador, ex: 'barramentoblindado'); nesse caso pula.
+      3. Prefixo comum das linhas do banco (CLASSE_SIMBOLOGIA_3D.NOME_CLASSE)
       4. Último recurso: o próprio fabricante
     """
     from read_aq import peek_metadata
@@ -971,7 +973,10 @@ def peek_aq(aq_path):
     if not hints['titulo'] and fn_tokens:
         fab_tokens = set(tokenize(hints['fabricante'])) if hints['fabricante'] else set()
         rest = [t for t in fn_tokens if t.lower() not in fab_tokens]
-        if rest:
+        # Token único todo-minúsculo longo é palavra composta sem separador no
+        # filename (ex: 'barramentoblindado'). O CamelCase split não ajuda aqui;
+        # deixa o título vazio para cair no passo seguinte (linhas do banco).
+        if rest and not (len(rest) == 1 and rest[0].islower() and len(rest[0]) > 10):
             hints['titulo'] = _format_titulo(rest)
 
     if not hints['titulo'] and hints['linhas']:
