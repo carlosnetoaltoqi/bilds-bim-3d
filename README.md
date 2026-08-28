@@ -13,6 +13,9 @@ cd bilds-bim-3d
 pip install -r requirements.txt
 bash scripts/setup_vendor.sh          # baixa o Three.js — uma vez só
 
+npm install                           # miniaturas — opcional, ver "Requisitos"
+sudo npx playwright install-deps chromium
+
 # copie as bibliotecas .aq para input/, organizadas por fabricante:
 #   input/Dancor/pecas_dancor_bombas.aq
 #   input/Amanco/PVC Esgoto SN, SR e Silentium/pecas_amanco.aq
@@ -67,6 +70,7 @@ input/Dancor/pecas_dancor_bombas.aq
 | `output/<origem>/<slug>-<timestamp>.zip` | **o pacote para subir no dashboard.bilds.com** |
 | `output/<origem>/<slug>-catalog.json` | catálogo solto, para inspeção |
 | `output/geo/<origem>/<slug>/*.json` | geometria por produto |
+| `output/thumbs/<origem>/<slug>/*.webp` | miniatura por geometria, embutida no ZIP |
 | `output/preview/<slug>/index.html` | preview navegável do catálogo |
 | `output/preview/catalogs.json` | índice dos catálogos gerados |
 
@@ -81,6 +85,7 @@ python3 scripts/build.py --ifc              # geometria dos IFCs (ver acima)
 python3 scripts/build.py --input-dir PASTA  # varre outra pasta
 python3 scripts/build.py --skip-preview     # só catalog.json e ZIP
 python3 scripts/build.py --skip-zip         # só preview
+python3 scripts/build.py --skip-thumbs      # não renderiza as miniaturas
 ```
 
 Sem `--all`, o build pergunta fabricante, título, descrição e layout — com tudo pré-preenchido a partir do `.aq`. Basta ir dando Enter. Com `--all` nada é perguntado: os campos são inferidos.
@@ -123,6 +128,21 @@ python3 scripts/read_aq.py caminho/para/pecas.aq --meta
 - bash e curl, para o `setup_vendor.sh`
 
 `ifcopenshell` só é necessário para o modo `--ifc` com IFCs B-rep (`IFCADVANCEDBREP`), como os do AltoQi Hidráulico. O modo padrão não usa.
+
+### Miniaturas (opcional, mas recomendado)
+
+O passo que pré-renderiza as miniaturas precisa de **Node 18+** e do Chromium do
+Playwright:
+
+```bash
+npm install                                 # playwright + download do Chromium
+sudo npx playwright install-deps chromium   # libs de sistema (libnss3, libasound2)
+```
+
+**Não instalar não quebra nada:** o build avisa, pula o passo e o ZIP sai sem `thumbs/`.
+A página do catálogo volta a gerar as miniaturas no browser do visitante — que é o
+comportamento antigo, e é justamente o que custa 39,9 s de LCP nos catálogos com
+geometria pesada. Vale instalar.
 
 ## Uma peça não apareceu no catálogo
 

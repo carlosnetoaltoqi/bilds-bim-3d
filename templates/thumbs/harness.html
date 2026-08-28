@@ -1,0 +1,104 @@
+<!doctype html>
+<!--
+  harness.html — página de render usada SÓ pelo pipeline (scripts/thumbs.py).
+  Não vai para o ZIP nem para o preview.
+
+  Existe para que a miniatura pré-gerada seja a MESMA imagem que a página produz
+  em runtime. O `buildScene()` e a câmera abaixo são cópia literal de:
+
+    templates/layouts/catalog-grid.html   (buildScene / renderThumbnailId)
+    templates/layouts/series-rows.html    (idem)
+    bilds.com apps/web/src/components/b-bim-3d/bim-viewer-engine.ts
+
+  Ao mexer no material, nas luzes ou na câmera de qualquer um desses, mexa aqui
+  junto — senão a miniatura pré-gerada passa a divergir do fallback dinâmico e o
+  catálogo fica com dois visuais diferentes.
+
+  Diferenças deliberadas em relação ao runtime:
+    - pixelRatio fixo em 1: o tamanho do drawing buffer passa a ser exatamente
+      W×H, então o arquivo tem dimensão previsível. No runtime é
+      min(devicePixelRatio, 1.5) porque lá o alvo é a tela do visitante.
+-->
+<meta charset="utf-8" />
+<title>BIM thumb harness</title>
+<script type="importmap">
+  { "imports": { "three": "/templates/vendor/three.module.js" } }
+</script>
+<canvas id="c"></canvas>
+<script type="module">
+  import * as THREE from 'three'
+
+  // ── cópia literal de buildScene() dos layouts ───────────────────────────────
+  function buildScene(data) {
+    const scene = new THREE.Scene()
+    const geom = new THREE.BufferGeometry()
+    geom.setAttribute('position', new THREE.Float32BufferAttribute(data.pos, 3))
+    const hasCol = data.col && data.col.length > 0
+    if (hasCol) geom.setAttribute('color', new THREE.Float32BufferAttribute(data.col, 3))
+    if (data.idx) geom.setIndex(data.idx)
+    geom.computeVertexNormals()
+    geom.computeBoundingBox()
+    const center = geom.boundingBox.getCenter(new THREE.Vector3())
+    const size = geom.boundingBox.getSize(new THREE.Vector3()).length()
+    const mat = new THREE.MeshStandardMaterial({
+      vertexColors: hasCol,
+      color: hasCol ? 0xffffff : 0x8896aa,
+      metalness: 0.25,
+      roughness: 0.55,
+    })
+    const mesh = new THREE.Mesh(geom, mat)
+    mesh.position.copy(center.negate())
+    scene.add(mesh)
+    scene.add(new THREE.AmbientLight(0xffffff, 0.7))
+    const key = new THREE.DirectionalLight(0xffffff, 0.9)
+    key.position.set(2, 3, 2)
+    scene.add(key)
+    const fill = new THREE.DirectionalLight(0xc8d8f0, 0.35)
+    fill.position.set(-2, 1, -1)
+    scene.add(fill)
+    return { scene, size }
+  }
+
+  function disposeScene(scene) {
+    scene.traverse((obj) => {
+      if (obj.isMesh) {
+        obj.geometry.dispose()
+        const mats = Array.isArray(obj.material) ? obj.material : [obj.material]
+        mats.forEach((m) => m.dispose())
+      }
+    })
+  }
+
+  let renderer = null
+
+  window.renderThumb = async function (geoUrl, W, H, mime, quality) {
+    const res = await fetch(geoUrl)
+    if (!res.ok) throw new Error(`fetch ${geoUrl}: ${res.status}`)
+    const data = await res.json()
+
+    if (!renderer) {
+      renderer = new THREE.WebGLRenderer({
+        canvas: document.getElementById('c'),
+        antialias: false,
+        alpha: false,
+        preserveDrawingBuffer: true,
+      })
+    }
+    renderer.setPixelRatio(1)
+    renderer.setSize(W, H, false)
+    renderer.setClearColor(0xf3f4f6, 1)
+
+    const { scene, size } = buildScene(data)
+    const camera = new THREE.PerspectiveCamera(38, W / H, 0.001, 500)
+    camera.position.set(size * 0.85, size * 0.32, size * 0.85)
+    camera.lookAt(0, 0, 0)
+
+    renderer.render(scene, camera)
+    const url = renderer.domElement.toDataURL(mime, quality)
+    disposeScene(scene)
+    return url
+  }
+
+  // Sinaliza que o módulo carregou (o import de three é assíncrono)
+  window.__thumbReady = true
+</script>

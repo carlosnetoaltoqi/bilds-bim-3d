@@ -13,15 +13,20 @@
 bilds-upload.zip
 ├── manifest.json        ← obrigatório
 ├── catalog.json         ← obrigatório
-└── geo/
-    ├── produto-a.json   ← um arquivo por produto com geometria 3D
-    ├── produto-b.json
+├── geo/
+│   ├── produto-a.json   ← um arquivo por geometria 3D
+│   ├── produto-b.json
+│   └── ...
+└── thumbs/              ← opcional (ver seção 4.1)
+    ├── produto-a.webp   ← miniatura pré-renderizada da geometria
+    ├── produto-b.webp
     └── ...
 ```
 
 Regras gerais:
 - `manifest.json` e `catalog.json` devem estar na **raiz** do ZIP (não em subpastas).
 - Os arquivos de geometria devem estar **exatamente** em `geo/<nome>.json` (um nível de profundidade).
+- As miniaturas, quando existirem, ficam em `thumbs/<nome>.webp` (mesmo nível único).
 - O ZIP não pode ter mais de **10.000 entradas** nem ultrapassar **500 MB** descomprimido.
 - Cada arquivo geo não pode ultrapassar **10 MB**.
 - O arquivo enviado ao endpoint deve ter MIME `application/zip` ou extensão `.zip`.
@@ -121,6 +126,7 @@ Lido pelo browser para montar a página pública. Campos em **português** (conv
 | `nome`  | string                            | sim         | Nome completo exibido no card e no modal.                                 |
 | `serie` | string                            | sim         | Série ou família do produto (ex.: `"W"`, `"TJM"`). Usado para agrupamento no `series-rows` e filtro no `catalog-grid`. |
 | `geo`   | string                            | sim         | Nome do arquivo de geometria dentro da pasta `geo/` do ZIP. Deve terminar em `.json`. Exemplo: `"cam-w10.json"`. |
+| `thumb` | string                            | não         | Nome do arquivo de miniatura dentro da pasta `thumbs/` do ZIP. Exemplo: `"cam-w10.webp"`. Ausente = o viewer gera a miniatura no browser (comportamento legado). Ver seção 4.1. |
 | `specs` | Record\<string, string \| number\>| não         | Especificações técnicas em pares chave/valor. Exibidos na aba "Especificações" do modal. |
 | `curva` | [Q, H, P, eff][] \| null          | não         | Pontos da curva Q-H para o gráfico. Cada ponto é `[vazão_m³/h, altura_mca, potência_cv, rendimento_%]`. `null` ou ausente = sem gráfico. |
 
@@ -196,6 +202,88 @@ THREE.z = -IFC.y   ← Y do IFC inverte e vira Z
 O nome deve corresponder exatamente ao valor do campo `geo` no produto de `catalog.json`.
 
 Regex de validação do servidor: `^[a-z0-9][a-z0-9\-_.]{0,100}\.json$` (case-insensitive).
+
+---
+
+## 4.1. Miniaturas — `thumbs/<nome>.webp`
+
+### Por que existem
+
+Sem miniatura pronta, o card do catálogo é desenhado assim: o browser baixa o JSON de
+geometria, monta uma `BufferGeometry`, renderiza com WebGL e converte o canvas em
+dataURL. Isso acontece **por card visível, a cada carregamento de página** — o cache do
+viewer é um `Map` em memória, que morre no reload.
+
+Medido em produção (Lighthouse, `bilds.com/dancor/bombas-incendio`, 2026-08-27):
+
+| Sinal | Valor |
+|-------|-------|
+| Elemento LCP | o próprio `<img src="data:image/jpeg;base64,…">` do card |
+| LCP | 39,9 s (score 0) — dos quais **7.230 ms de _element render delay_** |
+| Geometria baixada | 3,75 MB para **2 cards** (viewport mobile) |
+| Compressão | nenhuma — `transfer 1.765 KB / resource 1.763 KB` |
+| Peso da página | 6.610 KiB, dos quais 57% é geometria |
+
+Com `thumbs/` no ZIP, a grade vira imagem estática: **zero geometria e zero WebGL** no
+carregamento. A geometria passa a ser baixada só quando o visitante abre o modal 3D.
+
+### Formato
+
+| Propriedade | Valor |
+|-------------|-------|
+| Container | WebP |
+| Dimensão | **448 × 324 px** — 2× o card de 224×162 do bilds.com, para DPR 2 |
+| Qualidade | 0,85 |
+| Fundo | `#F3F4F6` opaco (mesmo `setClearColor` do viewer) |
+
+O fundo opaco é deliberado: ele é idêntico ao `bg-gray-100` do card, então a imagem
+encaixa sem emenda mesmo quando o card é mais largo que 448/324 e sobra letterbox.
+
+> **Consequência para quem consome:** como a miniatura tem proporção fixa e o card tem
+> largura variável, o `<img>` deve usar `object-fit: contain`, não `fill`. Com `fill` a
+> peça estica em cards largos. Com `contain` a sobra é preenchida pelo fundo do card, que
+> é a mesma cor.
+
+### Uma miniatura por geometria, não por produto
+
+Vale a mesma regra da seção 12: produtos diferentes compartilham geometria, e a câmera é
+derivada só do bounding box — logo, mesma geometria produz miniatura idêntica.
+
+| Biblioteca | Produtos | Geometrias | Miniaturas |
+|------------|----------|------------|------------|
+| Amanco     | 856      | 448        | 448        |
+| Intelbras  | 32       | 18         | 18         |
+
+O nome do arquivo é o do `geo` com a extensão trocada: `cam-w10.json` → `cam-w10.webp`.
+
+### Câmera e material — precisam bater com o viewer
+
+A miniatura só é útil se for a mesma imagem que o viewer produziria; senão o catálogo
+mostra dois visuais conforme o produto tenha ou não `thumb`. Parâmetros obrigatórios:
+
+```js
+renderer.setClearColor(0xF3F4F6, 1)          // antialias: false, alpha: false
+camera = new THREE.PerspectiveCamera(38, W / H, 0.001, 500)
+camera.position.set(size * 0.85, size * 0.32, size * 0.85)   // size = bbox diagonal
+camera.lookAt(0, 0, 0)                                       // malha centrada na origem
+
+material = new THREE.MeshStandardMaterial({
+  vertexColors: hasCol, color: hasCol ? 0xffffff : 0x8896AA,
+  metalness: 0.25, roughness: 0.55,
+})
+luzes: AmbientLight(0xffffff, 0.7)
+     + DirectionalLight(0xffffff, 0.9)  em (2, 3, 2)
+     + DirectionalLight(0xC8D8F0, 0.35) em (-2, 1, -1)
+```
+
+No pipeline isso vive em `templates/thumbs/harness.html`, dirigido por
+`scripts/thumbs.mjs`.
+
+### Opcional por design
+
+`thumbs/` inteira pode faltar, e produtos individuais podem ficar sem `thumb` dentro de um
+catálogo que tem a pasta. Nos dois casos o viewer cai no render dinâmico de sempre. Isso
+mantém compatível todo catálogo publicado antes desta seção existir.
 
 ---
 
@@ -478,6 +566,11 @@ Antes de gerar o ZIP, verificar:
   - [ ] Tamanho do arquivo ≤ 10 MB
   - [ ] Referenciado por **pelo menos um** produto em `catalog.produtos`
 - [ ] Nenhum arquivo órfão em `geo/` — todos são referenciados por algum produto
+- [ ] Se o catálogo tem `thumbs/`:
+  - [ ] Todo `produto.thumb` preenchido existe em `thumbs/` dentro do ZIP
+  - [ ] Nenhum arquivo órfão em `thumbs/` — todos são referenciados por algum produto
+  - [ ] Uma miniatura por **geometria**, não uma por produto
+  - [ ] Miniaturas em 448×324 WebP com fundo `#F3F4F6`
 - [ ] ZIP total ≤ 100 MB comprimido
 - [ ] ZIP descomprimido ≤ 500 MB
 - [ ] ZIP tem ≤ 10.000 entradas
@@ -495,4 +588,8 @@ Antes de gerar o ZIP, verificar:
 _Gerado por engenharia reversa em: 2026-08-23_
 _Revisado em 2026-08-24 contra 9 catálogos em produção — seções 4 (cor + `idx`, unidades
 do OQ3D) e 12 (geometria compartilhada entre produtos)._
+_2026-08-27 — seção 4.1 (miniaturas `thumbs/`) e campo `produto.thumb`. **Extensão
+proposta pelo pipeline; ainda não implementada no lado bilds.com** — enquanto a API não
+extrair `thumbs/`, a pasta é ignorada no upload e o viewer segue gerando as miniaturas no
+browser. Ver BILDS-555b._
 _Fonte: `bilds.com/apps/api/src/b-bim-3d/` · `bilds.com/apps/web/src/components/b-bim-3d/` · `bilds.com/docs/modules/bim-3d-module.md`_

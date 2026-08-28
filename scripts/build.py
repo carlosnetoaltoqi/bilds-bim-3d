@@ -45,6 +45,7 @@ config.json (gerado pelo fluxo interativo; editável à mão):
 
 Saídas (<rel> = pasta do .aq relativa a input/):
   output/geo/<rel>/<slug>/*.json          — geometria por produto
+  output/thumbs/<rel>/<slug>/*.webp       — miniatura por geometria (--skip-thumbs pula)
   output/<rel>/<slug>-catalog.json        — dados do catálogo
   output/<rel>/<slug>-AAAAMMDDHHMM.zip    — pacote para upload na bilds.com
   output/preview/<slug>/index.html        — preview estático (local ou Vercel)
@@ -60,6 +61,7 @@ import json
 import os
 import re
 import shutil
+import subprocess
 import sys
 import unicodedata
 import zipfile
@@ -82,6 +84,11 @@ TEMPLATES_DIR = os.path.join(ROOT, 'templates')
 OUTPUT_DIR = os.path.join(ROOT, 'output')
 PREVIEW_DIR = os.path.join(OUTPUT_DIR, 'preview')
 GEO_DIR = os.path.join(OUTPUT_DIR, 'geo')
+THUMBS_DIR = os.path.join(OUTPUT_DIR, 'thumbs')
+
+# Miniaturas: 2× o card de 224×162 do bilds.com, para ficar nítido em DPR 2.
+THUMB_W, THUMB_H = 448, 324
+THUMB_MIME, THUMB_EXT, THUMB_QUALITY = 'image/webp', 'webp', 0.85
 
 
 # ─── Matching IFC → AQ ───────────────────────────────────────────────────────
@@ -604,14 +611,107 @@ def update_catalog_registry(catalog):
     print(f'    Índice: {len(registry)} catálogo(s) registrado(s)')
 
 
+# ─── Miniaturas pré-renderizadas ──────────────────────────────────────────────
+
+def build_thumbs(catalog, geo_dir, thumbs_dir):
+    """
+    Pré-renderiza uma miniatura por geometria e anota `thumb` nos produtos.
+
+    Por que existe: sem isso o browser do visitante baixa o JSON de geometria de
+    cada card visível (324 KB a 3,5 MB cada, servidos sem compressão) e roda um
+    render WebGL só para desenhar o thumbnail. Medido em produção na página da
+    Dancor: o elemento LCP É essa miniatura, com 7.230 ms de render delay, e as
+    geometrias respondem por 57% do peso da página.
+
+    O render roda no Chromium via scripts/thumbs.mjs, com o mesmo Three.js e a
+    mesma câmera dos layouts — a imagem pré-gerada é a que a página produziria.
+
+    Uma miniatura por GEOMETRIA, não por produto: 856 produtos da Amanco
+    compartilham 448 geometrias.
+
+    Degrada em silêncio: sem Node, sem playwright ou sem browser, o passo é
+    pulado e os produtos ficam sem `thumb`. O bilds.com cai no render dinâmico
+    de hoje, que continua funcionando.
+
+    Retorna a quantidade de miniaturas geradas.
+    """
+    geos = []
+    for produto in catalog['produtos']:
+        g = produto.get('geo')
+        if g and g not in geos and os.path.exists(os.path.join(geo_dir, g)):
+            geos.append(g)
+    if not geos:
+        return 0
+
+    os.makedirs(thumbs_dir, exist_ok=True)
+    cfg = {
+        'root': ROOT,
+        'geoDir': os.path.abspath(geo_dir),
+        'outDir': os.path.abspath(thumbs_dir),
+        'geos': geos,
+        'width': THUMB_W, 'height': THUMB_H,
+        'mime': THUMB_MIME, 'quality': THUMB_QUALITY, 'ext': THUMB_EXT,
+    }
+    cfg_path = os.path.join(thumbs_dir, '.thumbs-config.json')
+    with open(cfg_path, 'w', encoding='utf-8') as f:
+        json.dump(cfg, f)
+
+    driver = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'thumbs.mjs')
+    try:
+        proc = subprocess.run(['node', driver, cfg_path],
+                              capture_output=True, text=True, timeout=1800)
+    except FileNotFoundError:
+        print('  AVISO: node não encontrado — miniaturas puladas '
+              '(a página cai no render dinâmico)')
+        return 0
+    except subprocess.TimeoutExpired:
+        print('  AVISO: render de miniaturas excedeu 30 min — pulado')
+        return 0
+    finally:
+        if os.path.exists(cfg_path):
+            os.remove(cfg_path)
+
+    if proc.returncode == 1:
+        print(f'  AVISO: miniaturas puladas — {proc.stderr.strip()[:160]}')
+        return 0
+
+    ok, erros = {}, []
+    for linha in proc.stdout.splitlines():
+        try:
+            r = json.loads(linha)
+        except json.JSONDecodeError:
+            continue
+        if 'error' in r:
+            erros.append((r['geo'], r['error']))
+        else:
+            ok[r['geo']] = r['bytes']
+
+    for produto in catalog['produtos']:
+        stem = os.path.splitext(produto.get('geo', ''))[0]
+        if stem in ok:
+            produto['thumb'] = f'{stem}.{THUMB_EXT}'
+
+    if erros:
+        print(f'  AVISO: {len(erros)} miniatura(s) falharam '
+              f'(esses produtos usam render dinâmico)')
+        for g, e in erros[:3]:
+            print(f'      {g}: {e[:70]}')
+
+    if ok:
+        media = sum(ok.values()) / len(ok) / 1024
+        print(f'    {len(ok)} miniaturas ({media:.0f} KB em média)')
+    return len(ok)
+
+
 # ─── Empacotamento ZIP ────────────────────────────────────────────────────────
 
-def build_zip(catalog, out_dir=None, geo_dir=None):
+def build_zip(catalog, out_dir=None, geo_dir=None, thumbs_dir=None):
     """
     Gera <out_dir>/<slug>-AAAAMMDDHHMM.zip com:
-      manifest.json    — slug, title, manufacturer, description, layout, filters, productCount
-      catalog.json     — dados completos dos produtos (campos em português)
-      geo/<slug>.json  — geometria de cada produto
+      manifest.json     — slug, title, manufacturer, description, layout, filters, productCount
+      catalog.json      — dados completos dos produtos (campos em português)
+      geo/<slug>.json   — geometria de cada produto
+      thumbs/<slug>.webp — miniatura pré-renderizada, quando houver (ver build_thumbs)
 
     out_dir espelha a pasta do .aq dentro de input/ (ver aq_rel_dir).
     """
@@ -655,6 +755,19 @@ def build_zip(catalog, out_dir=None, geo_dir=None):
                     print(f'  AVISO: geo/{slug}.json não encontrado — fora do ZIP')
         if faltando > 5:
             print(f'  AVISO: +{faltando - 5} geometrias ausentes')
+
+        # thumbs — só as que build_thumbs conseguiu gerar; produto sem `thumb`
+        # simplesmente cai no render dinâmico do viewer
+        if thumbs_dir and os.path.isdir(thumbs_dir):
+            enviadas = set()
+            for produto in catalog['produtos']:
+                nome = produto.get('thumb')
+                if not nome or nome in enviadas:
+                    continue
+                src = os.path.join(thumbs_dir, nome)
+                if os.path.exists(src):
+                    zf.write(src, f'thumbs/{nome}')
+                    enviadas.add(nome)
 
     size_kb = os.path.getsize(zip_path) / 1024
     print(f'ZIP: {zip_path} ({size_kb:.0f}KB)')
@@ -1224,6 +1337,14 @@ def run_build(config, aq_path, geo_dir, zip_dir, args):
         print('    ERRO: nenhum produto no catálogo — nada a publicar.')
         return catalog, None
 
+    # Miniaturas antes do catalog.json: build_thumbs anota `thumb` nos produtos,
+    # e tanto o arquivo solto quanto o do ZIP precisam sair já com o campo.
+    # thumbs/ espelha a árvore de geo/ para não colidir entre bibliotecas.
+    thumbs_dir = os.path.join(THUMBS_DIR, os.path.relpath(geo_dir, GEO_DIR))
+    if not args.skip_thumbs:
+        print('  Renderizando miniaturas...')
+        build_thumbs(catalog, geo_dir, thumbs_dir)
+
     # catalog.json solto acompanha o ZIP, na mesma pasta espelhada
     os.makedirs(zip_dir, exist_ok=True)
     with open(os.path.join(zip_dir, f'{catalog["slug"]}-catalog.json'),
@@ -1237,7 +1358,8 @@ def run_build(config, aq_path, geo_dir, zip_dir, args):
 
     zip_path = None
     if not args.skip_zip:
-        zip_path = build_zip(catalog, out_dir=zip_dir, geo_dir=geo_dir)
+        zip_path = build_zip(catalog, out_dir=zip_dir, geo_dir=geo_dir,
+                             thumbs_dir=thumbs_dir)
     return catalog, zip_path
 
 
@@ -1318,6 +1440,8 @@ def main():
                         help='Também lê os IFCs da pasta (modo antigo). '
                              'Sem esta flag, a geometria vem toda do .aq.')
     parser.add_argument('--skip-preview', action='store_true',   help='Pula geração do preview HTML')
+    parser.add_argument('--skip-thumbs',  action='store_true',
+                        help='Pula o render das miniaturas (a página volta a gerá-las no browser)')
     parser.add_argument('--skip-zip',     action='store_true',   help='Pula geração do ZIP')
     parser.add_argument('--skip-ifc',     action='store_true',   help=argparse.SUPPRESS)
     # --interactive mantido por compatibilidade, mas agora é sempre o modo padrão

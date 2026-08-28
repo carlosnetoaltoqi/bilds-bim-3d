@@ -4,9 +4,17 @@ input/
 # Os padrões usam ** porque a saída espelha a estrutura de input/
 # (output/Amanco/linha/<slug>-<ts>.zip), não fica só na raiz.
 output/geo/
+output/thumbs/
 output/**/*.zip
 output/**/*-catalog.json
 output/*.json
+
+node_modules/
+
+# Three.js baixado por setup_vendor.sh. A cópia versionada é a de
+# output/preview/vendor/, que é o que a Vercel serve.
+templates/vendor/*
+!templates/vendor/.gitkeep
 
 __pycache__/
 *.pyc

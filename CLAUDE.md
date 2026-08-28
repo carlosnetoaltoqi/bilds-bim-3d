@@ -114,6 +114,8 @@ Validado em três bibliotecas de domínios e schemas distintos; ver
 1. Clonar este repo
 2. bash scripts/setup_vendor.sh   (baixa Three.js para templates/vendor/)
 3. pip install -r requirements.txt
+3b. npm install                   (miniaturas; opcional — sem isso o build só as pula)
+    sudo npx playwright install-deps chromium
 4. Copiar as bibliotecas .aq para input/, organizadas por fabricante:
        input/Dancor/pecas_dancor_bombas.aq
        input/Amanco/PVC Esgoto SN, SR e Silentium/pecas_amanco.aq
@@ -185,6 +187,7 @@ bilds-bim-3d/
 ├── config.example.json          ← template de configuração
 ├── config.json                  ← criado pelo build, gitignored
 ├── requirements.txt             ← Jinja2 + numpy (ifcopenshell só p/ --ifc)
+├── package.json                 ← playwright, só para o passo de miniaturas
 ├── vercel.json                  ← serve output/preview/ como site estático
 ├── scripts/
 │   ├── build.py                 ← pipeline principal (entry point)
@@ -192,12 +195,15 @@ bilds-bim-3d/
 │   ├── read_aq.py               ← .aq AltoQi → dados, metadados e simbologias
 │   ├── parse_ifc.py             ← IFC4 → JSON de geometria (só no modo --ifc)
 │   ├── dedup.py                 ← deduplicação de vértices (~79% redução)
+│   ├── thumbs.mjs               ← render das miniaturas no Chromium (Node)
 │   ├── setup_vendor.sh          ← baixa Three.js para templates/vendor/
 │   └── link_skills.sh           ← liga docs/skills/ a ~/.claude/skills/
 ├── templates/
 │   ├── layouts/
 │   │   ├── series-rows.html     ← rows estilo Netflix por série (bombas)
 │   │   └── catalog-grid.html    ← grid denso com filtros (conexões)
+│   ├── thumbs/
+│   │   └── harness.html         ← página de render das miniaturas (não vai ao ZIP)
 │   └── vendor/                  ← vazio no repo; setup_vendor.sh baixa o Three.js aqui
 ├── input/                       ← bibliotecas do usuário — gitignored
 │   └── <Fabricante>/[<Linha>/]<pecas>.aq
@@ -205,6 +211,7 @@ bilds-bim-3d/
     ├── <origem>/<slug>-<ts>.zip        ← ZIP para bilds.com (gitignored)
     ├── <origem>/<slug>-catalog.json    ← catálogo solto (gitignored)
     ├── geo/<origem>/<slug>/*.json      ← geometria por produto (gitignored)
+    ├── thumbs/<origem>/<slug>/*.webp   ← miniatura por geometria (gitignored)
     └── preview/                        ← site estático, COMMITADO
         ├── index.html                  ← landing com a lista de catálogos
         ├── catalogs.json               ← índice dos catálogos gerados
@@ -331,9 +338,13 @@ O arquivo é gerado em `output/<slug>-AAAAMMDDHHMM.zip` (ex: `dancor-bombas-ince
 <slug>-AAAAMMDDHHMM.zip
 ├── manifest.json    { slug, title, manufacturer, description, layout, filters, productCount }
 ├── catalog.json     dados completos dos produtos (campos em português)
-└── geo/
-    ├── cam-w10.json
-    └── cam-w14.json
+├── geo/
+│   ├── cam-w10.json
+│   └── cam-w14.json
+│   ...
+└── thumbs/          ← miniaturas pré-renderizadas (ver seção abaixo)
+    ├── cam-w10.webp
+    └── cam-w14.webp
     ...
 ```
 
@@ -342,6 +353,82 @@ o zip inteiro. `catalog.json` e `geo/*.json` vão para S3, registrados no MongoD
 
 > **Atenção:** `manifest.json` usa campos em **inglês** (contrato da API bilds.com).
 > `catalog.json` usa campos em **português** (convenção de dados apresentados ao usuário).
+
+⚠️ **`thumbs/` ainda não é lido pela API do bilds.com.** A pasta é uma extensão proposta
+(BILDS-555b) e é ignorada no upload até que `apps/api/src/b-bim-3d/` passe a extraí-la.
+Enquanto isso ela só ocupa espaço no ZIP — mas é inofensiva, e gerar desde já significa
+que os catálogos já estarão prontos quando o outro lado subir. Contrato completo:
+`docs/bilds-bim-3d-zip-spec.md` seção 4.1.
+
+---
+
+## Miniaturas pré-renderizadas — por que e como
+
+### O problema que elas resolvem
+
+O card do catálogo sempre foi `<img>`, mas a imagem era **gerada no browser do
+visitante**: baixa o JSON de geometria, monta a `BufferGeometry`, renderiza com WebGL,
+`toDataURL`. Por card visível, a cada carregamento — o cache do viewer é um `Map` em
+memória, que morre no reload.
+
+Lighthouse em produção, `bilds.com/dancor/bombas-incendio` (2026-08-27):
+
+| Sinal | Valor |
+|---|---|
+| Elemento LCP | o próprio `<img src="data:image/jpeg;base64,…">` do card |
+| LCP | **39,9 s** (score 0) — **7.230 ms** só de _element render delay_ |
+| Geometria baixada | **3,75 MB para 2 cards** (viewport mobile) |
+| Compressão | **nenhuma** — `transfer 1.765 KB / resource 1.763 KB` |
+| Peso total | 6.610 KiB, 57% geometria |
+
+No desktop são ~12 cards na primeira viewport: **40 MB** na Dancor.
+
+### Como funciona
+
+```
+build.py  →  build_thumbs()  →  node scripts/thumbs.mjs <config.json>
+                                    ├── sobe servidor estático sobre ROOT
+                                    ├── abre templates/thumbs/harness.html no Chromium
+                                    └── window.renderThumb() por geometria → .webp
+```
+
+`harness.html` carrega o **mesmo Three.js** de `templates/vendor/` e tem cópia literal do
+`buildScene()` e da câmera dos layouts. É o que garante que a miniatura pré-gerada seja a
+imagem que a página produziria.
+
+> ⚠️ **Ao mexer em material, luz ou câmera nos layouts, mexa no `harness.html` junto.**
+> São três cópias hoje — os dois layouts, o harness, e o `bim-viewer-engine.ts` do
+> bilds.com. Divergir faz o catálogo exibir dois visuais conforme o produto tenha ou não
+> miniatura pronta.
+
+### Parâmetros
+
+| Item | Valor | Onde |
+|---|---|---|
+| Dimensão | 448 × 324 (2× o card de 224×162, para DPR 2) | `THUMB_W/H` em `build.py` |
+| Formato | WebP q=0,85 | `THUMB_MIME/QUALITY` |
+| Fundo | `#F3F4F6` opaco, igual ao `setClearColor` do viewer | `harness.html` |
+| pixelRatio | fixo em 1 (no runtime é `min(dpr, 1.5)`) | `harness.html` |
+
+**Uma miniatura por geometria, não por produto** — a câmera sai só do bounding box, então
+geometria compartilhada dá imagem idêntica. Amanco: 856 produtos → 448 miniaturas.
+
+### Dependências e degradação
+
+Precisa de Node e do Chromium do Playwright:
+
+```bash
+npm install                              # instala playwright + baixa o Chromium
+sudo npx playwright install-deps chromium   # libs de sistema (libnss3, libasound2)
+```
+
+**Sem isso o build não quebra.** `build_thumbs()` avisa e segue: os produtos ficam sem
+`thumb`, o ZIP sai sem `thumbs/`, e o viewer do bilds.com usa o render dinâmico de
+sempre. Mesma coisa com `--skip-thumbs`.
+
+Em máquina sem GPU (WSL, CI, container) o Chromium roda WebGL por SwiftShader — os flags
+`--use-gl=angle --use-angle=swiftshader --enable-unsafe-swiftshader` estão no
+`thumbs.mjs` e são obrigatórios; sem eles o WebGL não inicializa em headless.
 
 ---
 
@@ -1087,3 +1174,58 @@ do `oq3d.py`.
 
 **Ponto estável: commit `9b85f6c`** — 9 catálogos em produção, geometria servindo
 200 em todos. Para retornar: `git checkout 9b85f6c`.
+
+### 2026-08-27 — Miniaturas pré-renderizadas no build (BILDS-555b)
+
+**O gatilho.** Lighthouse em `bilds.com/dancor/bombas-incendio` mostrou LCP de 39,9 s com
+score 0. O elemento LCP é o `<img src="data:image/jpeg;base64,…">` do card — a miniatura
+que o próprio browser gera. Decomposição: 259 ms de TTFB e **7.230 ms de element render
+delay**. Ou seja, 96,5% do LCP é esperar o browser baixar geometria e rodar WebGL.
+
+**O que a medição mostrou, além do LCP:**
+
+- **Zero compressão nos `geo/*.json`.** `transfer 1.765 KB / resource 1.763 KB` — razão
+  1,00×. A API serve cru. No ZIP o deflate dá 5,8×, então há um ganho grande parado ali.
+- **3,75 MB para desenhar 2 miniaturas** em viewport mobile; 57% das 6.610 KiB da página.
+- As geometrias carregam **em série** — a fila de render é um `while` sequencial.
+
+**O que foi construído.** `build_thumbs()` em `build.py`, dirigindo
+`scripts/thumbs.mjs` (Node + Playwright), que abre `templates/thumbs/harness.html` no
+Chromium e chama `window.renderThumb()` por geometria. Saída em
+`output/thumbs/<origem>/<slug>/*.webp`, empacotada em `thumbs/` no ZIP, com o campo
+`produto.thumb` anotado no `catalog.json`.
+
+**Por que browser e não rasterizador em Python.** O pedido era usar *a imagem que a página
+gera*, não uma aproximação. `MeshStandardMaterial` é PBR com metalness/roughness sobre três
+luzes; reproduzir isso em numpy daria algo parecido e diferente. Dirigir o mesmo Three.js
+no Chromium dá a imagem idêntica — ao custo de uma dependência de browser, que foi isolada
+num `package.json` próprio e degrada em silêncio quando ausente.
+
+**Decisões que valem lembrar:**
+
+- **Uma miniatura por geometria, não por produto.** A câmera sai só do bounding box, então
+  geometria compartilhada produz imagem idêntica. Amanco: 856 produtos → 448 arquivos.
+- **`pixelRatio` fixo em 1** no harness, com `setSize(448, 324)`. No runtime é
+  `min(devicePixelRatio, 1.5)` porque lá o alvo é a tela do visitante; aqui o alvo é um
+  arquivo de dimensão previsível.
+- **Fundo `#F3F4F6` opaco**, igual ao `setClearColor` do viewer e ao `bg-gray-100` do card.
+  É o que permite letterbox invisível quando o card é mais largo que a proporção da imagem.
+- **Tudo opcional.** Sem Node, sem Playwright, sem browser ou com `--skip-thumbs`, o build
+  avisa e segue. Produto sem `thumb` cai no render dinâmico. Catálogo publicado antes disso
+  continua funcionando sem re-upload.
+
+**Armadilha paga:** o Chromium headless não inicializa WebGL sem
+`--use-gl=angle --use-angle=swiftshader --enable-unsafe-swiftshader`. Não há GPU em WSL,
+CI nem container; sem os flags o `renderThumb` falha em todas as geometrias.
+
+**Estado — não validado ponta a ponta.** O Chromium do Playwright está instalado, mas
+faltam as libs de sistema (`libnss3`, `libasound2`): o binário morre com
+`libnspr4.so: cannot open shared object file`. Resolve com
+`sudo npx playwright install-deps chromium`. Até rodar, os números de tamanho de arquivo
+das miniaturas neste documento e na spec são **projeção, não medição**.
+
+**Dependência do outro lado.** `thumbs/` e `produto.thumb` são extensão proposta: a API do
+bilds.com ainda não extrai a pasta. Enquanto não extrair, o ZIP carrega os arquivos e
+ninguém os lê. O trabalho correspondente está em `bilds.com`, branch
+`perf/BILDS-555b-bim-3d-miniatura-estatica`, com o estudo em
+`.claude/sessions/bim-3d-miniatura-estatica/context.md`.
