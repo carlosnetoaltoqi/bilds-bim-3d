@@ -83,38 +83,15 @@ originou — e não se perde se a máquina sumir.
 
 ## 👉 Próxima sessão — estado em 2026-08-28
 
-**Commits em `main`, todos pushados:**
+**Versão base estável:** commit `PLACEHOLDER` em `main`.
 
-| Commit | O que fez |
-|---|---|
-| `aa114bb` | miniaturas pré-renderizadas no build, embutidas em `thumbs/` no ZIP |
-| `4a6919f` | escolhe Node ≥ 20 para o render; validação nos 9 catálogos |
-| `a2da9e9` | decodifica o `.aq` como cp1252 — travessão e aspas chegavam quebrados |
-| `e26d8cb` | handoff da sessão e limpeza da `output/` |
-| `8f52232` | regenera os 9 catálogos com nomes corrigidos; restaura preview da Vercel |
-| `48a0f65` | fix(peek_aq): título correto para filename com palavra composta toda-minúscula |
-
-**`output/` tem 10 ZIPs prontos** (9 catálogos anteriores + Maxbar), todos com `thumbs/`
-e encoding cp1252. Os ZIPs da rodada `202608281712-1714` substituem os anteriores:
-
-```
-output/Amanco/PVC Esgoto SN, SR e Silentium/pvc-esgoto-sn-sr-e-silentium-202608281712.zip
-output/Dancor/bombas-incendio-202608281713.zip
-output/Intelbras/cftv-202608281713.zip
-output/Intelbras/cont-acesso-cond-202608281713.zip
-output/Intelbras/dispositivos-eletricos-inteligentes-202608281713.zip
-output/Intelbras/equipamento-de-rede-rack-202608281713.zip
-output/Intelbras/ppci-incendio-202608281713.zip
-output/Intelbras/sdai-fiacao-202608281713.zip
-output/Intelbras/sensor-alarme-202608281713.zip
-output/Maxbar/barramento-blindado-202608281714.zip   ← novo
-```
-
-Para reconstruir do zero (se `output/` for limpa):
+`output/` está limpa — só `output/preview/index.html` (landing da Vercel, feita à mão).
+Para gerar os ZIPs de qualquer biblioteca em `input/`:
 
 ```bash
 export LD_LIBRARY_PATH=~/.local/chromium-libs/root/usr/lib/x86_64-linux-gnu
-python3 scripts/build.py --all --force
+python3 scripts/build.py --all          # só as novas
+python3 scripts/build.py --all --force  # refaz todas
 ```
 
 ### Dependência cruzada com o bilds.com
@@ -130,17 +107,10 @@ para este repo: **um ZIP gerado sem `thumbs/` faz o catálogo voltar ao render d
 build avisar que pulou as miniaturas, não publique o ZIP: resolva as dependências antes
 (ver “Miniaturas pré-renderizadas”).
 
-> O ticket é **BILDS-552**. Uma sessão anterior usou `BILDS-555b`; o sufixo de letra não
-> passa no hook de commit-msg do bilds.com (`BILDS-[0-9]+`). Referências a `555b` em
-> qualquer lugar são resíduo.
+### Pendência conhecida
 
-### Pendências conhecidas
-
-- **Resubir os 10 catálogos no admin da bilds.com** — os ZIPs estão prontos em `output/`.
-  Enquanto não forem resubidos, os catálogos em produção servem render dinâmico (sem
-  `thumbBaseUrl`) e nomes de produto quebrados (encoding antigo)
 - **Parafusos faltando na Dancor** — 13 de 18 instâncias não emitem geometria; ver
-  "BUG ABERTO" na seção do `oq3d.py`
+  “BUG ABERTO” na seção do `oq3d.py`
 
 ---
 
