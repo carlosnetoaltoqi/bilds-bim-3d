@@ -131,12 +131,32 @@ python3 scripts/read_aq.py caminho/para/pecas.aq --meta
 
 ### Miniaturas (opcional, mas recomendado)
 
-O passo que pré-renderiza as miniaturas precisa de **Node 18+** e do Chromium do
-Playwright:
+O passo que pré-renderiza as miniaturas precisa de **Node 20+** (exigência do
+Playwright) e do Chromium:
 
 ```bash
 npm install                                 # playwright + download do Chromium
 sudo npx playwright install-deps chromium   # libs de sistema (libnss3, libasound2)
+```
+
+⚠️ **Duas versões de Node na mesma máquina é o problema mais provável aqui.** O Node do
+apt (`/usr/bin/node`) costuma ser antigo, e o do nvm só entra no PATH em shell
+interativo — um subprocess do `build.py` pega o do apt e o Playwright recusa. O build
+procura sozinho um Node >= 20 em `~/.nvm/versions/node/`, mas se você tiver o Node novo
+em outro lugar, aponte:
+
+```bash
+BILDS_NODE=/caminho/para/node python3 scripts/build.py --all
+```
+
+**Sem sudo?** Dá para resolver as libs de sistema sem root, baixando os `.deb` e
+extraindo num diretório local:
+
+```bash
+mkdir -p ~/.local/chromium-libs && cd ~/.local/chromium-libs
+apt-get download libnspr4 libnss3 libasound2t64
+for d in *.deb; do dpkg-deb -x "$d" root/; done
+export LD_LIBRARY_PATH=~/.local/chromium-libs/root/usr/lib/x86_64-linux-gnu
 ```
 
 **Não instalar não quebra nada:** o build avisa, pula o passo e o ZIP sai sem `thumbs/`.

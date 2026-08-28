@@ -415,12 +415,21 @@ geometria compartilhada dá imagem idêntica. Amanco: 856 produtos → 448 minia
 
 ### Dependências e degradação
 
-Precisa de Node e do Chromium do Playwright:
+Precisa de **Node >= 20** (exigência do Playwright) e do Chromium:
 
 ```bash
-npm install                              # instala playwright + baixa o Chromium
+npm install                                 # instala playwright + baixa o Chromium
 sudo npx playwright install-deps chromium   # libs de sistema (libnss3, libasound2)
 ```
+
+⚠️ **Armadilha dos dois Node.** É comum a máquina ter o Node do apt em `/usr/bin/node`
+(velho) e um do nvm (novo). O nvm só entra no PATH em shell interativo, então um
+`subprocess` do Python pega o do apt — e o Playwright recusa com "requires Node.js 20 or
+higher", sem dizer que existe um Node bom instalado. Por isso `_find_node()` procura, em
+ordem: `$BILDS_NODE`, o `node` do PATH, e a maior versão em `~/.nvm/versions/node/`.
+
+Sem sudo para as libs de sistema, dá para extrair os `.deb` localmente e exportar
+`LD_LIBRARY_PATH` — receita no `README.md`, seção "Miniaturas".
 
 **Sem isso o build não quebra.** `build_thumbs()` avisa e segue: os produtos ficam sem
 `thumb`, o ZIP sai sem `thumbs/`, e o viewer do bilds.com usa o render dinâmico de
@@ -1214,15 +1223,37 @@ num `package.json` próprio e degrada em silêncio quando ausente.
   avisa e segue. Produto sem `thumb` cai no render dinâmico. Catálogo publicado antes disso
   continua funcionando sem re-upload.
 
-**Armadilha paga:** o Chromium headless não inicializa WebGL sem
-`--use-gl=angle --use-angle=swiftshader --enable-unsafe-swiftshader`. Não há GPU em WSL,
-CI nem container; sem os flags o `renderThumb` falha em todas as geometrias.
+**Armadilhas pagas:**
 
-**Estado — não validado ponta a ponta.** O Chromium do Playwright está instalado, mas
-faltam as libs de sistema (`libnss3`, `libasound2`): o binário morre com
-`libnspr4.so: cannot open shared object file`. Resolve com
-`sudo npx playwright install-deps chromium`. Até rodar, os números de tamanho de arquivo
-das miniaturas neste documento e na spec são **projeção, não medição**.
+- O Chromium headless não inicializa WebGL sem
+  `--use-gl=angle --use-angle=swiftshader --enable-unsafe-swiftshader`. Não há GPU em
+  WSL, CI nem container; sem os flags o `renderThumb` falha em todas as geometrias.
+- **Dois Node na mesma máquina.** `/usr/bin/node` é v18 aqui e o nvm tem v24; o nvm só
+  entra no PATH de shell interativo, então o `subprocess` do `build.py` pegava o v18 e o
+  Playwright recusava. Daí o `_find_node()`.
+- **Libs de sistema sem sudo.** `apt-get download` + `dpkg-deb -x` + `LD_LIBRARY_PATH`
+  resolve sem root — foi como esta sessão validou. Receita no `README.md`.
+
+**Validado nos 9 catálogos — 622 geometrias, zero falhas:**
+
+| Catálogo | Geometrias | geo | thumbs | Razão |
+|---|---|---|---|---|
+| `pvc-esgoto-sn-sr-e-silentium` | 457 | 145,0 MB | 1.858 KB | 80× |
+| `cftv` | 55 | 54,3 MB | 222 KB | 251× |
+| `sdai-fiacao` | 25 | 29,2 MB | 111 KB | 270× |
+| `sensor-alarme` | 16 | 16,6 MB | 61 KB | 281× |
+| `equipamento-de-rede-rack` | 17 | 17,0 MB | 68 KB | 256× |
+| `ppci-incendio` | 11 | 15,3 MB | 48 KB | 328× |
+| `cont-acesso-cond` | 10 | 19,9 MB | 46 KB | 442× |
+| `bombas-incendio` | 13 | 44,7 MB | 74 KB | **620×** |
+| `dispositivos-eletricos-inteligentes` | 18 | 6,3 MB | 70 KB | 92× |
+| **TOTAL** | **622** | **348,2 MB** | **2,5 MB** | **136×** |
+
+Média de **4 KB por miniatura**. Render a ~0,08 s por geometria depois do browser subir
+(os 457 do Amanco em 36 s).
+
+O que isso faz com a primeira viewport da Dancor, que era o pior caso: **3,75 MB → 12 KB**
+em mobile (2 cards) e **40 MB → ~72 KB** em desktop (12 cards).
 
 **Dependência do outro lado.** `thumbs/` e `produto.thumb` são extensão proposta: a API do
 bilds.com ainda não extrai a pasta. Enquanto não extrair, o ZIP carrega os arquivos e

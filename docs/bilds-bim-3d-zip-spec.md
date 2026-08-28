@@ -235,6 +235,10 @@ carregamento. A geometria passa a ser baixada só quando o visitante abre o moda
 | Dimensão | **448 × 324 px** — 2× o card de 224×162 do bilds.com, para DPR 2 |
 | Qualidade | 0,85 |
 | Fundo | `#F3F4F6` opaco (mesmo `setClearColor` do viewer) |
+| Tamanho típico | **~4 KB** (medido em 622 geometrias dos 9 catálogos em produção) |
+
+Peso agregado real: os 9 catálogos somam **348,2 MB de geometria** e **2,5 MB de
+miniaturas** — razão de 136×, chegando a 620× na Dancor, cuja geometria é a mais pesada.
 
 O fundo opaco é deliberado: ele é idêntico ao `bg-gray-100` do card, então a imagem
 encaixa sem emenda mesmo quando o card é mais largo que 448/324 e sobra letterbox.
@@ -588,8 +592,8 @@ Antes de gerar o ZIP, verificar:
 _Gerado por engenharia reversa em: 2026-08-23_
 _Revisado em 2026-08-24 contra 9 catálogos em produção — seções 4 (cor + `idx`, unidades
 do OQ3D) e 12 (geometria compartilhada entre produtos)._
-_2026-08-27 — seção 4.1 (miniaturas `thumbs/`) e campo `produto.thumb`. **Extensão
-proposta pelo pipeline; ainda não implementada no lado bilds.com** — enquanto a API não
-extrair `thumbs/`, a pasta é ignorada no upload e o viewer segue gerando as miniaturas no
-browser. Ver BILDS-555b._
+_2026-08-27 — seção 4.1 (miniaturas `thumbs/`) e campo `produto.thumb`. Geração validada
+nos 9 catálogos (622 geometrias, zero falhas). **Extensão proposta pelo pipeline; ainda
+não implementada no lado bilds.com** — enquanto a API não extrair `thumbs/`, a pasta é
+ignorada no upload e o viewer segue gerando as miniaturas no browser. Ver BILDS-555b._
 _Fonte: `bilds.com/apps/api/src/b-bim-3d/` · `bilds.com/apps/web/src/components/b-bim-3d/` · `bilds.com/docs/modules/bim-3d-module.md`_

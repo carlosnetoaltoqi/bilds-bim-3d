@@ -613,6 +613,50 @@ def update_catalog_registry(catalog):
 
 # ─── Miniaturas pré-renderizadas ──────────────────────────────────────────────
 
+NODE_MINIMO = 20  # exigência do Playwright
+
+
+def _node_versao(exe):
+    """Major do Node em `exe`, ou None se não executar."""
+    try:
+        out = subprocess.run([exe, '--version'], capture_output=True,
+                             text=True, timeout=10)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    m = re.match(r'v(\d+)\.', out.stdout.strip())
+    return int(m.group(1)) if m else None
+
+
+def _find_node():
+    """
+    Node com major >= NODE_MINIMO, ou None.
+
+    Existe porque é comum a máquina ter dois Node: o do apt em /usr/bin (velho)
+    e um do nvm (novo). O nvm só entra no PATH de shell interativo — um
+    subprocess do Python normalmente pega o do apt. Sem esta busca, quem roda o
+    build fora de um shell com nvm carregado recebe "Playwright requires
+    Node.js 20 or higher" sem pista de que existe um Node bom instalado.
+
+    Ordem: $BILDS_NODE > `node` do PATH > maior versão em ~/.nvm.
+    """
+    forcado = os.environ.get('BILDS_NODE')
+    if forcado:
+        return forcado if (_node_versao(forcado) or 0) >= NODE_MINIMO else None
+
+    if (_node_versao('node') or 0) >= NODE_MINIMO:
+        return 'node'
+
+    nvm = os.path.expanduser('~/.nvm/versions/node')
+    candidatos = []
+    if os.path.isdir(nvm):
+        for v in os.listdir(nvm):
+            exe = os.path.join(nvm, v, 'bin', 'node')
+            major = _node_versao(exe) if os.path.exists(exe) else None
+            if major and major >= NODE_MINIMO:
+                candidatos.append((major, exe))
+    return max(candidatos)[1] if candidatos else None
+
+
 def build_thumbs(catalog, geo_dir, thumbs_dir):
     """
     Pré-renderiza uma miniatura por geometria e anota `thumb` nos produtos.
@@ -656,9 +700,19 @@ def build_thumbs(catalog, geo_dir, thumbs_dir):
     with open(cfg_path, 'w', encoding='utf-8') as f:
         json.dump(cfg, f)
 
+    node = _find_node()
+    if not node:
+        atual = _node_versao('node')
+        print(f'  AVISO: miniaturas puladas — Playwright exige Node >= {NODE_MINIMO}'
+              + (f', e o do PATH é v{atual}' if atual else ', e não há node no PATH'))
+        print('         Use `nvm use 20` (ou superior), ou aponte BILDS_NODE '
+              'para um executável compatível.')
+        os.remove(cfg_path)
+        return 0
+
     driver = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'thumbs.mjs')
     try:
-        proc = subprocess.run(['node', driver, cfg_path],
+        proc = subprocess.run([node, driver, cfg_path],
                               capture_output=True, text=True, timeout=1800)
     except FileNotFoundError:
         print('  AVISO: node não encontrado — miniaturas puladas '
