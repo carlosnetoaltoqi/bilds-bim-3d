@@ -83,13 +83,14 @@ originou — e não se perde se a máquina sumir.
 
 ## 👉 Próxima sessão — estado em 2026-08-28
 
-**Três commits em `main`, nenhum pushado:**
+**Quatro commits em `main`, todos pushados:**
 
 | Commit | O que fez |
 |---|---|
 | `aa114bb` | miniaturas pré-renderizadas no build, embutidas em `thumbs/` no ZIP |
 | `4a6919f` | escolhe Node ≥ 20 para o render; validação nos 9 catálogos |
 | `a2da9e9` | decodifica o `.aq` como cp1252 — travessão e aspas chegavam quebrados |
+| `e26d8cb` | handoff da sessão e limpeza da `output/` |
 
 **`output/` foi limpa** ao encerrar aquela sessão. Nada se perdeu: tudo é regenerável a
 partir dos `.aq` em `input/`. Para reconstruir:
@@ -115,18 +116,22 @@ Só `equipamento-de-rede-rack` chegou a ser regerado depois do conserto de encod
 
 ### Dependência cruzada com o bilds.com
 
-O lado que **consome** `thumbs/` está implementado, testado e commitado — branch
-`perf/BILDS-555b-bim-3d-miniatura-estatica`, commits `03a1ac89` e `5d6fbbe0`, **também
-sem push**. Handoff completo em
+O lado que **consome** `thumbs/` está implementado, testado e **em review no PR #1244**
+(https://github.com/AltoQiTec/bilds.com/pull/1244), branch
+`perf/BILDS-552-bim-3d-miniatura-estatica`. Handoff completo em
 `bilds.com/.claude/sessions/bim-3d-miniatura-estatica/context.md`.
 
-Enquanto essa branch não mergear, `thumbs/` viaja no ZIP e a API ignora — inofensivo, e
+Enquanto esse PR não mergear, `thumbs/` viaja no ZIP e a API ignora — inofensivo, e
 significa que os catálogos já ficam prontos para quando o outro lado subir.
+
+> O ticket é **BILDS-552**. Uma sessão anterior usou `BILDS-555b`; o sufixo de letra não
+> passa no hook de commit-msg do bilds.com (`BILDS-[0-9]+`). Referências a `555b` em
+> qualquer lugar são resíduo.
 
 ### Pendências conhecidas
 
-- **Push dos dois repositórios** (este e o bilds.com) — nenhum foi feito
-- **Deploy do preview na Vercel** — depende de commitar `output/preview/` regenerado
+- **Deploy do preview na Vercel** — o commit de limpeza removeu os 9 catálogos, então o
+  demo está **só com a landing** até rodar o build e commitar `output/preview/` de volta
 - **Caminho S3 do bilds.com nunca foi exercitado de verdade** — só com mock; a máquina de
   desenvolvimento não tem credencial
 - **Parafusos faltando na Dancor** — 13 de 18 instâncias não emitem geometria; ver
@@ -426,7 +431,7 @@ o zip inteiro. `catalog.json` e `geo/*.json` vão para S3, registrados no MongoD
 > `catalog.json` usa campos em **português** (convenção de dados apresentados ao usuário).
 
 ⚠️ **`thumbs/` ainda não é lido pela API do bilds.com.** A pasta é uma extensão proposta
-(BILDS-555b) e é ignorada no upload até que `apps/api/src/b-bim-3d/` passe a extraí-la.
+(BILDS-552) e é ignorada no upload até que `apps/api/src/b-bim-3d/` passe a extraí-la.
 Enquanto isso ela só ocupa espaço no ZIP — mas é inofensiva, e gerar desde já significa
 que os catálogos já estarão prontos quando o outro lado subir. Contrato completo:
 `docs/bilds-bim-3d-zip-spec.md` seção 4.1.
@@ -1275,7 +1280,7 @@ do `oq3d.py`.
 **Ponto estável: commit `9b85f6c`** — 9 catálogos em produção, geometria servindo
 200 em todos. Para retornar: `git checkout 9b85f6c`.
 
-### 2026-08-27 — Miniaturas pré-renderizadas no build (BILDS-555b)
+### 2026-08-27 — Miniaturas pré-renderizadas no build (BILDS-552)
 
 **O gatilho.** Lighthouse em `bilds.com/dancor/bombas-incendio` mostrou LCP de 39,9 s com
 score 0. O elemento LCP é o `<img src="data:image/jpeg;base64,…">` do card — a miniatura
@@ -1349,12 +1354,12 @@ em mobile (2 cards) e **40 MB → ~72 KB** em desktop (12 cards).
 **Dependência do outro lado.** `thumbs/` e `produto.thumb` são extensão proposta: a API do
 bilds.com ainda não extrai a pasta. Enquanto não extrair, o ZIP carrega os arquivos e
 ninguém os lê. O trabalho correspondente está em `bilds.com`, branch
-`perf/BILDS-555b-bim-3d-miniatura-estatica`, com o estudo em
+`perf/BILDS-552-bim-3d-miniatura-estatica`, com o estudo em
 `.claude/sessions/bim-3d-miniatura-estatica/context.md`.
 
 ### 2026-08-28 — Encoding cp1252: nomes de peça chegavam quebrados na bilds.com
 
-**Achado durante a verificação do BILDS-555b.** Com a página do catálogo finalmente
+**Achado durante a verificação do BILDS-552.** Com a página do catálogo finalmente
 carregando rápido, deu para ler os nomes — e eles estavam errados:
 `5U \x96 19\x94 x 570mm MRD 557` em vez de `5U – 19” x 570mm MRD 557`.
 

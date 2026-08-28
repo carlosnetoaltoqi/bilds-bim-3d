@@ -595,5 +595,5 @@ do OQ3D) e 12 (geometria compartilhada entre produtos)._
 _2026-08-27 — seção 4.1 (miniaturas `thumbs/`) e campo `produto.thumb`. Geração validada
 nos 9 catálogos (622 geometrias, zero falhas). **Extensão proposta pelo pipeline; ainda
 não implementada no lado bilds.com** — enquanto a API não extrair `thumbs/`, a pasta é
-ignorada no upload e o viewer segue gerando as miniaturas no browser. Ver BILDS-555b._
+ignorada no upload e o viewer segue gerando as miniaturas no browser. Ver BILDS-552._
 _Fonte: `bilds.com/apps/api/src/b-bim-3d/` · `bilds.com/apps/web/src/components/b-bim-3d/` · `bilds.com/docs/modules/bim-3d-module.md`_
