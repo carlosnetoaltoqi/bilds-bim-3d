@@ -7,7 +7,12 @@ Um .aq pode ser de dois tipos:
   2. SQLite direto — ocorre quando o .aq foi extraído de outro ZIP
 
 Sempre tenta SQLite direto primeiro (método robusto).
-Encoding: latin-1 (Windows-1252) — sempre configurar antes de qualquer query.
+
+Encoding: **cp1252**, não latin-1. Os dois são idênticos exceto na faixa
+0x80–0x9F, que é justamente onde moram travessão (0x96), aspas curvas
+(0x93/0x94) e reticências (0x85) — os caracteres que aparecem em nome de peça.
+Lidos como latin-1 eles viram caracteres de controle e chegam quebrados na
+página do catálogo. Ver `_decode_texto`.
 
 Uso:
   python3 scripts/read_aq.py <arquivo.aq> <saida.json>
@@ -22,6 +27,22 @@ import tempfile
 import argparse
 
 
+def _decode_texto(b):
+    """
+    Decodifica texto do .aq. O AltoQi Builder é aplicação Windows, então grava
+    cp1252 — usar latin-1 corrompe travessão, aspas curvas e reticências.
+
+    cp1252 deixa cinco bytes indefinidos (0x81, 0x8D, 0x8F, 0x90, 0x9D) e falha
+    neles; latin-1 nunca falha. O fallback existe para que uma biblioteca com
+    esses bytes continue abrindo, em vez de derrubar o build inteiro por causa
+    de um caractere.
+    """
+    try:
+        return b.decode('cp1252')
+    except UnicodeDecodeError:
+        return b.decode('latin-1')
+
+
 def open_aq(aq_path):
     """
     Abre um .aq como SQLite. Tenta direto primeiro, cai para ZIP se falhar.
@@ -31,7 +52,7 @@ def open_aq(aq_path):
     # Tentativa 1: SQLite direto
     try:
         con = sqlite3.connect(aq_path)
-        con.text_factory = lambda b: b.decode('latin-1')
+        con.text_factory = _decode_texto
         con.row_factory = sqlite3.Row
         con.execute('SELECT 1 FROM GRUPO_PECA LIMIT 1')
         return con, None
@@ -56,7 +77,7 @@ def open_aq(aq_path):
     dest = os.path.join(tmp_dir, '_extracted.db')
     shutil.copy(os.path.join(tmp_dir, db_files[0]), dest)
     con = sqlite3.connect(dest)
-    con.text_factory = lambda b: b.decode('latin-1')
+    con.text_factory = _decode_texto
     con.row_factory = sqlite3.Row
     return con, tmp_dir
 
@@ -311,7 +332,8 @@ def extract_simbologias(aq_path):
     try:
         try:
             rows = con.execute("""
-                SELECT s.ID_SIMBOLOGIA_3D, s.NOME, s.SIMBOLOGIA_3D, s.IMAGEM,
+                SELECT s.ID_SIMBOLOGIA_3D, s.NOME,
+                       CAST(s.SIMBOLOGIA_3D AS BLOB), CAST(s.IMAGEM AS BLOB),
                        g.NOME_GRUPO, c.NOME_CLASSE
                 FROM SIMBOLOGIA_3D s
                 LEFT JOIN GRUPO_SIMBOLOGIA_3D g
@@ -321,18 +343,19 @@ def extract_simbologias(aq_path):
             """).fetchall()
         except sqlite3.OperationalError:
             rows = con.execute(
-                'SELECT ID_SIMBOLOGIA_3D, NOME, SIMBOLOGIA_3D, IMAGEM, NULL, NULL '
-                'FROM SIMBOLOGIA_3D').fetchall()
+                'SELECT ID_SIMBOLOGIA_3D, NOME, '
+                'CAST(SIMBOLOGIA_3D AS BLOB), CAST(IMAGEM AS BLOB), '
+                'NULL, NULL FROM SIMBOLOGIA_3D').fetchall()
 
         for r in rows:
             blob = r[2]
             img = r[3]
             simbologias[r[0]] = {
                 'nome': r[1] or '',
-                'blob': blob if isinstance(blob, bytes) else (
-                    blob.encode('latin-1') if blob else None),
-                'imagem': img if isinstance(img, bytes) else (
-                    img.encode('latin-1') if img else None),
+                # CAST AS BLOB na query garante bytes — sem re-encode, que
+                # com cp1252 não seria reversível
+                'blob': blob,
+                'imagem': img,
                 'grupo': r[4] or '',
                 'classe': r[5] or '',
             }
