@@ -83,7 +83,7 @@ originou — e não se perde se a máquina sumir.
 
 ## 👉 Próxima sessão — estado em 2026-08-28
 
-**Quatro commits em `main`, todos pushados:**
+**Commits em `main`, todos pushados:**
 
 | Commit | O que fez |
 |---|---|
@@ -91,28 +91,31 @@ originou — e não se perde se a máquina sumir.
 | `4a6919f` | escolhe Node ≥ 20 para o render; validação nos 9 catálogos |
 | `a2da9e9` | decodifica o `.aq` como cp1252 — travessão e aspas chegavam quebrados |
 | `e26d8cb` | handoff da sessão e limpeza da `output/` |
+| `8f52232` | regenera os 9 catálogos com nomes corrigidos; restaura preview da Vercel |
+| `48a0f65` | fix(peek_aq): título correto para filename com palavra composta toda-minúscula |
 
-**`output/` foi limpa** ao encerrar aquela sessão. Nada se perdeu: tudo é regenerável a
-partir dos `.aq` em `input/`. Para reconstruir:
+**`output/` tem 10 ZIPs prontos** (9 catálogos anteriores + Maxbar), todos com `thumbs/`
+e encoding cp1252. Os ZIPs da rodada `202608281712-1714` substituem os anteriores:
 
-```bash
-export LD_LIBRARY_PATH=~/.local/chromium-libs/root/usr/lib/x86_64-linux-gnu   # se aplicável
-python3 scripts/build.py --all --force
+```
+output/Amanco/PVC Esgoto SN, SR e Silentium/pvc-esgoto-sn-sr-e-silentium-202608281712.zip
+output/Dancor/bombas-incendio-202608281713.zip
+output/Intelbras/cftv-202608281713.zip
+output/Intelbras/cont-acesso-cond-202608281713.zip
+output/Intelbras/dispositivos-eletricos-inteligentes-202608281713.zip
+output/Intelbras/equipamento-de-rede-rack-202608281713.zip
+output/Intelbras/ppci-incendio-202608281713.zip
+output/Intelbras/sdai-fiacao-202608281713.zip
+output/Intelbras/sensor-alarme-202608281713.zip
+output/Maxbar/barramento-blindado-202608281714.zip   ← novo
 ```
 
-**Por que `--force`:** sem ele o build pula biblioteca que já tem ZIP. Com a `output/`
-limpa não faria diferença, mas o hábito evita surpresa.
+Para reconstruir do zero (se `output/` for limpa):
 
-### O que muda nesta rodada
-
-Os 9 ZIPs saem **diferentes dos que estão publicados hoje**, por dois motivos acumulados:
-
-1. **`thumbs/*.webp`** — pasta nova no ZIP, mais o campo `thumb` por produto no
-   `catalog.json`
-2. **Nomes corrigidos** — `5U – 19” x 570mm` em vez de `5U \x96 19\x94 x 570mm`
-
-Só `equipamento-de-rede-rack` chegou a ser regerado depois do conserto de encoding. **Os
-8 catálogos publicados na bilds.com estão com nome quebrado** até serem resubidos.
+```bash
+export LD_LIBRARY_PATH=~/.local/chromium-libs/root/usr/lib/x86_64-linux-gnu
+python3 scripts/build.py --all --force
+```
 
 ### Dependência cruzada com o bilds.com
 
@@ -125,7 +128,7 @@ catálogo e o viewer usa a imagem pronta em vez de gerar no browser. Consequênc
 para este repo: **um ZIP gerado sem `thumbs/` faz o catálogo voltar ao render dinâmico**
 — que funciona, mas é o comportamento de 39,9 s de LCP que motivou toda a mudança. Se o
 build avisar que pulou as miniaturas, não publique o ZIP: resolva as dependências antes
-(ver "Miniaturas pré-renderizadas").
+(ver “Miniaturas pré-renderizadas”).
 
 > O ticket é **BILDS-552**. Uma sessão anterior usou `BILDS-555b`; o sufixo de letra não
 > passa no hook de commit-msg do bilds.com (`BILDS-[0-9]+`). Referências a `555b` em
@@ -133,8 +136,9 @@ build avisar que pulou as miniaturas, não publique o ZIP: resolva as dependênc
 
 ### Pendências conhecidas
 
-- **Deploy do preview na Vercel** — o commit de limpeza removeu os 9 catálogos, então o
-  demo está **só com a landing** até rodar o build e commitar `output/preview/` de volta
+- **Resubir os 10 catálogos no admin da bilds.com** — os ZIPs estão prontos em `output/`.
+  Enquanto não forem resubidos, os catálogos em produção servem render dinâmico (sem
+  `thumbBaseUrl`) e nomes de produto quebrados (encoding antigo)
 - **Caminho S3 do bilds.com nunca foi exercitado de verdade** — só com mock; a máquina de
   desenvolvimento não tem credencial
 - **Parafusos faltando na Dancor** — 13 de 18 instâncias não emitem geometria; ver
@@ -925,6 +929,7 @@ via modo `'recursive'` do `scan_input()`.
 | **Fabricante vazio na página publicada** | `PECA.BIBLIOTECA` está vazia nas três bibliotecas testadas — usar o prefixo de `CLASSE_SIMBOLOGIA_3D.NOME_CLASSE` |
 | **Título vira o nome do fabricante** | Pasta pai é o fabricante (`input/Intelbras/pecas_Intelbras_*.aq`) — comparar o slug da pasta com o 1º token do arquivo antes de usá-la como título |
 | **Título em forma de slug** na página | Derivado do filename sem limpeza — remover ruído (`pecas`, anos, versões), preservar siglas (CFTV, PPCI) e separar CamelCase |
+| **Título colado** (`"Barramentoblindado"`) | Filename com palavra composta toda-minúscula (ex: `pecas_maxbar_barramentoblindado.aq`) — CamelCase split não actua, token fica capitalizado só na 1ª letra. Fix (commit 48a0f65): token único todo-minúsculo > 10 chars é ignorado; a cascata cai para `linhas` do banco, que devolve `'Barramento Blindado'`. Organizar o filename como `barramento_blindado.aq` ou `BarramentoBlindado.aq` evita o problema. |
 | Nome do produto redundante (`Pontos de comando Interruptor…`) | Prefixo do grupo aplicado sem necessidade — prefixar só quando o nome é ambíguo, decidindo **por grupo** |
 | **Preview 404 em `data/*.json`, erro `Unexpected token 'T'`** | Template usava `./data/`; com `cleanUrls` a página é servida em `/<slug>` sem barra final e o relativo vai para a raiz. Usar caminho absoluto `'/' + CATALOG.slug + '/data/'`. O `'T'` é a página 404 da Vercel ("The page…") caindo no `JSON.parse` |
 | Preview gigante (centenas de MB) | Faltou `dedup()` no caminho `.aq` — reduz ~79% dos vértices |
