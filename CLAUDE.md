@@ -92,9 +92,15 @@ originou — e não se perde se a máquina sumir.
    É o que o resto deste arquivo documenta. Estável e em produção.
 2. **POC de catálogo dinâmico** — `.aq` → **MongoDB** → aplicação Node + React, para
    descobrir como o módulo deve ser reconstruído na bilds.com. Documento âncora:
-   **`docs/plano-produto-dinamico.md`**. Quem for trabalhar nessa linha lê aquele arquivo
-   inteiro antes de tocar em qualquer coisa; ele é autocontido e quebrado em 11 sessões.
-   O código dela vive em `www/`, fora do deploy da Vercel.
+   **`docs/plano-produto-dinamico.md`**. O código dela vive em `www/`, fora do deploy da
+   Vercel.
+
+   **Essa linha roda em sessões curtas, independentes e amnésicas**, ligadas só pela
+   documentação commitada. Quem for trabalhar nela lê o plano inteiro antes de tocar em
+   qualquer coisa, mais o registro da última sessão em `docs/sessoes/` — e ao encerrar
+   deixa o seu próprio registro, seguindo `docs/sessoes/TEMPLATE.md`. O protocolo
+   completo está na seção 2.1 do plano. Nada de memória de agente ou de sessão anterior:
+   se não está em arquivo commitado, não existe.
 
 ```bash
 python3 scripts/build.py --all          # só as novas

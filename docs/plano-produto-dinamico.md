@@ -55,6 +55,10 @@ node -e "const {MongoClient}=require('/home/foltz/bilds.com/node_modules/mongodb
 Leia também o `CLAUDE.md` da raiz: ele governa o repositório inteiro, inclusive a regra
 de documentar antes de encerrar a sessão.
 
+> **Antes de tocar em qualquer coisa, leia a seção 2.1.** Ela define como estas sessões
+> se comunicam entre si — e este trabalho depende inteiramente disso funcionar. Cada
+> sessão é amnésica: só sabe o que está em arquivo commitado.
+
 ---
 
 ## 1. O que estamos fazendo — e o que explicitamente não estamos
@@ -104,14 +108,78 @@ As duas trilhas convivem no mesmo repo.
 
 ---
 
-## 2. Regras invioláveis desta linha de trabalho
+## 2. Regras invioláveis e protocolo de sessão
+
+### 2.1 O modelo de trabalho: sessões independentes e amnésicas
+
+Este trabalho **não** é uma sessão longa. São **onze sessões curtas e independentes**,
+cada uma com uma janela de contexto pequena, ligadas **exclusivamente pela documentação
+versionada no repositório**.
+
+> **A sessão que vem depois desta não lembra de nada.** Não tem o contexto desta
+> conversa, não tem memória de agente, não tem o histórico do terminal, não sabe o que
+> foi decidido "há pouco". Ela sabe **apenas o que está escrito em arquivos commitados**.
+
+Disso saem três regras absolutas:
+
+**R1 — Ao iniciar, leia; não lembre.** A sessão começa lendo, nesta ordem:
+
+1. `CLAUDE.md` da raiz — governa o repositório inteiro
+2. **este plano, inteiro**
+3. o registro da **última sessão concluída** em `docs/sessoes/` (só o último — não a pilha toda)
+4. os ADRs já fechados (seção 9)
+
+É proibido tratar como fonte de verdade: memória de agente, `~/.claude`, histórico de
+sessões anteriores da máquina, "eu me lembro que", ou qualquer coisa fora do repositório.
+Se a informação não está num arquivo commitado, **ela não existe**.
+
+**R2 — Confirme o estado; não confie no que está escrito.** Documentação envelhece. Antes
+de agir, verifique no disco e no banco o que o documento afirma — pasta existe mesmo?
+coleção tem os documentos que o registro diz? o comando ainda roda?
+
+> Isto não é zelo teórico. Ao auditar este plano em 2026-08-29 apareceram **três desvios
+> reais**: o `CLAUDE.md` dizia que o `output/` estava limpo quando as deleções nunca
+> tinham sido commitadas; mandava exportar um `LD_LIBRARY_PATH` apontando para um
+> diretório inexistente; e um critério de aceite citava "622 geometrias" quando o
+> `input/` já tinha uma biblioteca a mais. Documento é ponto de partida, não prova.
+
+**R3 — Ao encerrar, persista tudo.** Uma sessão só termina quando o próximo agente
+consegue continuar sem perguntar nada a ninguém. Antes de encerrar, obrigatoriamente:
+
+1. Código implementado **e commitado**
+2. **Registro da sessão** criado em `docs/sessoes/S<id>-<slug>.md`, seguindo
+   `docs/sessoes/TEMPLATE.md`
+3. **ADRs** da seção 9 preenchidos, se alguma decisão de arquitetura foi tomada
+4. **Tabela de progresso** (seção 11) atualizada, com o link para o registro
+5. Se o plano se mostrou errado em algo, **corrija o plano** — ele é vivo
+6. Se aprendeu algo sobre `.aq`, IFC ou páginas de catálogo, atualize também a skill
+   correspondente em `docs/skills/`, como manda o `CLAUDE.md`
+
+**Sessão sem registro é sessão perdida.** O trabalho pode até estar no disco, mas o
+próximo agente não vai saber por que ele está lá, nem o que ficou pela metade.
+
+### 2.2 Por que assim
+
+O objetivo é **contexto pequeno e trabalho atômico e incremental**. Uma janela grande
+carregando o repositório inteiro degrada: o agente perde precisão, mistura camadas e toma
+decisões que contradizem as anteriores. Onze sessões de escopo estreito, cada uma lendo
+um plano estável e o registro da anterior, produzem trabalho mais previsível — e deixam
+um rastro auditável que é, ele próprio, o entregável da POC: é isso que a reconstrução na
+bilds.com vai consumir.
+
+Por isso o custo de leitura é **limitado de propósito**: o plano é estável (muda pouco),
+os registros de sessão ficam em arquivos separados, e cada sessão lê **só o último**.
+A pilha cresce sem que o custo de entrada cresça junto.
+
+### 2.3 Regras de escopo
 
 1. **Não editar nada em `/home/foltz/bilds.com`.** Somente leitura — é referência de
    arquitetura e fonte dos formulários. Toda implementação acontece em `bilds-bim-3d`.
-2. **A POC não vai para a Vercel.** A Vercel serve `output/preview/` e só. `www/` entra
-   no `.vercelignore` **na mesma sessão que criar a pasta** — não depois.
-3. **Uma sessão = um passo da seção 10.** Sem emendar passos para "adiantar": cada sessão
-   precisa caber em contexto sem carregar o repo inteiro.
+2. **A POC não vai para a Vercel.** A Vercel serve `output/preview/` e só. `www/` está
+   no `.vercelignore`.
+3. **Uma sessão = um passo da seção 10.** Sem emendar passos para "adiantar". Se sobrar
+   tempo, use para verificar e documentar melhor — não para invadir a sessão seguinte.
+   Se um passo não couber, **divida-o** e registre a divisão no plano.
 4. **Credenciais só em `.env` gitignored.** Nunca no git, nunca neste documento.
 5. **Toda decisão de arquitetura vira ADR na seção 9** antes de virar código.
 6. **Simples por padrão.** Numa POC descartável, a solução mais direta que responde à
@@ -333,7 +401,10 @@ senha, sem papéis. A empresa tem um `ownerId` e o dono faz tudo. Fecha em S3.1.
 bilds-bim-3d/
 ├── scripts/ templates/ output/     ← pipeline Python (trilha Vercel) — INTOCADO
 ├── docs/
-│   └── plano-produto-dinamico.md   ← este arquivo
+│   ├── plano-produto-dinamico.md   ← este arquivo: plano estável, muda pouco
+│   └── sessoes/                    ← um registro por sessão (regra R3)
+│       ├── TEMPLATE.md             ← copie ao encerrar
+│       └── S<id>-<slug>.md
 └── www/                            ← A POC — fora do deploy Vercel
     ├── .env                        ← credenciais do Atlas (gitignored)
     ├── package.json                ← workspace pnpm
@@ -401,19 +472,25 @@ carregar o contexto da anterior além deste documento.
 
 ## 11. Progresso
 
-| Sessão | Status | Data | Observação |
-|---|---|---|---|
-| S0 | não iniciada | — | — |
-| S1.1 | não iniciada | — | — |
-| S1.2 | não iniciada | — | — |
-| S2.1 | não iniciada | — | — |
-| S2.2 | não iniciada | — | — |
-| S2.3 | não iniciada | — | — |
-| S3.1 | não iniciada | — | — |
-| S3.2 | não iniciada | — | — |
-| S3.3 | não iniciada | — | — |
-| S4.1 | não iniciada | — | — |
-| S4.2 | não iniciada | — | — |
+Preenchido ao **encerrar** cada sessão (regra R3). O campo "Registro" é o que a sessão
+seguinte lê — e ela lê **só o mais recente**.
+
+| Sessão | Status | Data | Registro | Deixou pendente |
+|---|---|---|---|---|
+| S0 | não iniciada | — | — | — |
+| S1.1 | não iniciada | — | — | — |
+| S1.2 | não iniciada | — | — | — |
+| S2.1 | não iniciada | — | — | — |
+| S2.2 | não iniciada | — | — | — |
+| S2.3 | não iniciada | — | — | — |
+| S3.1 | não iniciada | — | — | — |
+| S3.2 | não iniciada | — | — | — |
+| S3.3 | não iniciada | — | — | — |
+| S4.1 | não iniciada | — | — | — |
+| S4.2 | não iniciada | — | — | — |
+
+Status possíveis: `não iniciada` · `em andamento` · `concluída` · `concluída com ressalva`
+· `bloqueada`. As três últimas **exigem** registro em `docs/sessoes/`.
 
 ---
 
