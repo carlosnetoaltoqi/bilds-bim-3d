@@ -82,9 +82,9 @@ originou — e não se perde se a máquina sumir.
 
 ---
 
-## 👉 Próxima sessão — estado em 2026-08-28
+## 👉 Próxima sessão — estado em 2026-08-29
 
-**Versão base estável:** commit `b67f734` em `main`.
+**Versão base estável:** commit `c1ba215` em `main` (S1.2 concluída).
 
 ### Duas linhas de trabalho ativas
 
@@ -94,6 +94,14 @@ originou — e não se perde se a máquina sumir.
    descobrir como o módulo deve ser reconstruído na bilds.com. Documento âncora:
    **`docs/plano-produto-dinamico.md`**. O código dela vive em `www/`, fora do deploy da
    Vercel.
+
+   **S1.2 foi concluída** (2026-08-29). O Atlas já contém dados reais da Dancor
+   (13 produtos, 13 geometrias). A próxima sessão é **S2.1 — Spike da fronteira
+   (formato B)**. Disparar com:
+
+   ```
+   /ce-plan Executar SOMENTE a sessão S2.1 de docs/plano-produto-dinamico.md.
+   ```
 
    **Essa linha roda em sessões curtas, independentes e amnésicas**, ligadas só pela
    documentação commitada. Quem for trabalhar nela lê o plano inteiro antes de tocar em
@@ -130,6 +138,8 @@ pré-renderizadas”).
 
 - **Parafusos faltando na Dancor** — 13 de 18 instâncias não emitem geometria; ver
   “BUG ABERTO” na seção do `oq3d.py`
+- **GET /geometrias sem auth** — endpoint intencional para a POC; adicionar guard antes
+  de qualquer exposição de rede (ver finding A1 do review S1.2)
 
 ---
 
@@ -1390,3 +1400,68 @@ bibliotecas (1.441 peças).
 
 **Regra que fica:** ao mexer em decodificação, medir o binário antes e depois. Texto
 errado é visível; binário corrompido não é.
+
+### 2026-08-29 — S1.2: carga de prova ponta a ponta (POC dinâmico)
+
+**Contexto:** primeira carga real de dados no Atlas. Três entregáveis independentes,
+todos no `www/`.
+
+**1 — Proteção anti-path-traversal no `DiskGeometryStore`**
+(`www/apps/api/src/geometry-store/disk-geometry-store.ts`)
+
+`validateKey(key)` adicionado como método privado e chamado na entrada de todos os quatro
+métodos públicos (`put`, `get`, `delete`, `deleteByPrefix`). Usa `path.resolve(baseDir,
+key).startsWith(baseDir + path.sep)` — verificação léxica, não segue symlinks.
+Para `deleteByPrefix`, valida `prefix + '/placeholder'` em vez do prefix nu (que não
+terminaria dentro do baseDir pelo critério de `sep`). Código de erro: `ETRAVERSAL`.
+
+O smoke test (`www/tools/smoke-geometry-store.ts`) ganhou três padrões de traversal
+(`'../etc/passwd'`, `'geo/../../etc/passwd'`, `'/etc/passwd'`), todos via `store.get()`.
+Saída mudou de `'OK'` para `'smoke test passed'`.
+
+**Limitação conhecida e aceita:** `path.resolve` é léxico — um symlink dentro de
+`STORAGE_PATH` criado por outro processo escaparia a proteção. Requer `fs.realpath` para
+fechar completamente; postergado (registrado no review S1.2 como finding A1 suprimido).
+
+**2 — Endpoint `GET /geometrias/:productId` e `GeometriasModule`**
+(`www/apps/api/src/geometrias/`)
+
+Novo módulo NestJS com `GeometriasController` e `GeometriasModule`. O controller:
+- Busca o `BimProduct` por `_id` via Mongoose `findById(productId).lean()`
+- Chama `store.get(product.geoKey)` e devolve o Buffer com `Content-Type: application/json`
+- Converte `ENOENT` em 404; outros erros propagam como 500
+- Usa `@Res()` (bypassa interceptors NestJS — trade-off aceito para POC)
+
+`GeometriasModule` importado em `AppModule`. Endpoint disponível em `http://localhost:4000/geometrias/:id`.
+
+**Pendências abertas do endpoint** (registradas no review S1.2):
+- Sem `@UseGuards()` — intencional para POC; **não expor em rede sem adicionar guard**
+- `findById` com string bruta → CastError vira HTTP 500 em vez de 400; corrigir em S2.x
+  com `Types.ObjectId.isValid(productId)` antes da query
+
+**3 — Script de ingestão `ingest-library.ts`**
+(`www/tools/ingest-library.ts`, `www/package.json`)
+
+Script TypeScript que lê `output/Dancor/bombas-incendio-catalog.json`, chama o pipeline
+Python para gerar os JSONs de geometria, grava no `GeometryStore` e insere documentos no
+Atlas (`bim_companies`, `bim_catalogs`, `bim_products`). Roda com `pnpm ingest`.
+
+**Armadilha nova — NODE_PATH para scripts fora do workspace pnpm:**
+`www/tools/` fica fora do workspace pnpm (`www/apps/api`, `www/apps/web`), então os
+módulos do `node_modules` não são encontrados por `ts-node` normalmente. Workaround:
+
+```bash
+NODE_PATH=$(pwd)/node_modules node --require ts-node/register/transpile-only \
+  --require reflect-metadata ../../tools/ingest-library.ts
+```
+
+Encapsulado no script `pnpm ingest` via filtro `--filter api exec sh -c '...'`.
+
+**Medições registradas** (Dancor, 13 produtos com geometria):
+- Gravação: ~722 ms total (~55 ms/produto), pico de memória ~45 MB
+- Leitura via API (`GET /geometrias/:id`): mediana ~30,5 ms
+- Leitura estática de arquivo: mediana ~1,9 ms
+- Overhead da API (NestJS + Mongoose + disco): ~28,6 ms por request no POC local
+
+**Estado do Atlas após S1.2:** 1 empresa (`Dancor`), 1 catálogo (`bombas-incendio`),
+13 produtos com `geoKey` no formato `geo/{importId}/{p.id}.json`.
