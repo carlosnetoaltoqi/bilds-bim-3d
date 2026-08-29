@@ -49,8 +49,9 @@ node -e "const {MongoClient}=require('/home/foltz/bilds.com/node_modules/mongodb
 > produção**, feita antes de a Maxbar entrar em `input/`. Regenerar hoje produz **10**
 > catálogos e uma contagem diferente. Onde este plano fala em regressão contra o Python
 > (S2.1, S2.2), o oráculo é **a saída que o pipeline Python produzir agora a partir de
-> `input/`** — não o número histórico. Os 348,2 MB e as 622 geometrias servem só como
-> ordem de grandeza para dimensionar o teto de 512 MB.
+> `input/`** — não o número histórico. Os 348,2 MB e as 622 geometrias hoje servem só
+> como ordem de grandeza do volume de **arquivos** que o `GeometryStore` vai guardar em
+> disco; o banco não os vê (ver seção 3).
 
 Leia também o `CLAUDE.md` da raiz: ele governa o repositório inteiro, inclusive a regra
 de documentar antes de encerrar a sessão.
@@ -90,8 +91,10 @@ com os aprendizados desta POC. Isso muda tudo no que diz respeito a esforço:
 
 ### O que a POC precisa de fato responder
 
-1. **Cabe no banco?** Geometria 3D em MongoDB — em que formato, com que custo de espaço
-   e de leitura, comparado com arquivo estático em CDN.
+1. **O catálogo dinâmico funciona?** Dados BIM do produto no MongoDB — buscáveis e
+   filtráveis — com a geometria em arquivo referenciada por ponteiro. O pipeline
+   consegue gravar arquivo e registro de forma associada, e servir de volta sem
+   regredir contra o modelo estático de hoje?
 2. **O parse do `.aq` roda no servidor?** Hoje é Python na máquina do dev. Na AWS/k8s
    precisa ser um serviço. Qual runtime, qual modelo de execução.
 3. **As miniaturas sobrevivem à mudança?** O passo que hoje usa Playwright + Chromium é
@@ -112,7 +115,7 @@ As duas trilhas convivem no mesmo repo.
 
 ### 2.1 O modelo de trabalho: sessões independentes e amnésicas
 
-Este trabalho **não** é uma sessão longa. São **onze sessões curtas e independentes**,
+Este trabalho **não** é uma sessão longa. São **doze sessões curtas e independentes**,
 cada uma com uma janela de contexto pequena, ligadas **exclusivamente pela documentação
 versionada no repositório**.
 
@@ -162,7 +165,7 @@ próximo agente não vai saber por que ele está lá, nem o que ficou pela metad
 
 O objetivo é **contexto pequeno e trabalho atômico e incremental**. Uma janela grande
 carregando o repositório inteiro degrada: o agente perde precisão, mistura camadas e toma
-decisões que contradizem as anteriores. Onze sessões de escopo estreito, cada uma lendo
+decisões que contradizem as anteriores. Doze sessões de escopo estreito, cada uma lendo
 um plano estável e o registro da anterior, produzem trabalho mais previsível — e deixam
 um rastro auditável que é, ele próprio, o entregável da POC: é isso que a reconstrução na
 bilds.com vai consumir.
@@ -196,7 +199,7 @@ que a seção 2.1 existe para evitar.
 |---|---|---|
 | **S-rev** | `ce-doc-review` | revisar este plano com lentes de papéis |
 | **S0** | `ce-work` → `ce-code-review` | scaffold é mecânico; não há o que planejar |
-| **S1.1** | **ciclo completo** — `ce-brainstorm` → `ce-plan` → `ce-work` → `ce-code-review` | único ponto com espaço de design real e consequência dura (512 MB): precisão, cor, índices, compressão |
+| **S1.1** | `ce-plan` → `ce-work` → `ce-code-review` | com a arquitetura fechada (ADR-001), resta desenhar schemas e o contrato do `GeometryStore` — sem espaço de brainstorm |
 | **S1.2** | `ce-work` | é medição: o script ou mede, ou não mede |
 | **S2.1 · S2.2** | `ce-work` → `ce-code-review` | o critério é "saída idêntica ao Python". Não há o que brainstormar |
 | **S2.3** | `ce-plan` → `ce-work` → `ce-code-review` | o modelo de execução tem alternativas reais |
@@ -204,9 +207,9 @@ que a seção 2.1 existe para evitar.
 | **S4.1** | `ce-work` | medição comparativa |
 | **S4.2** | `ce-compound` | destilar aprendizado é literalmente o propósito da skill |
 
-**`ce-brainstorm` só aparece em S1.1.** Nas demais o escopo já está decidido — e rodá-lo
-sobre trabalho já especificado convida a reabrir decisões que foram tomadas de propósito,
-sem que o agente saiba disso.
+**`ce-brainstorm` não aparece em nenhuma sessão.** Depois do ADR-001 o escopo está
+decidido em toda parte — e rodá-lo sobre trabalho já especificado convida a reabrir
+decisões tomadas de propósito, sem que o agente saiba disso.
 
 **`ce-work` para no commit.** Em uso avulso ele assume o "shipping tail" e pode abrir PR.
 Aqui trabalhamos direto na `main`, sem PR: commitar, e parar.
@@ -228,42 +231,71 @@ R2 tenta pegar.
 
 ---
 
-## 3. O banco — Atlas, e o teto que ele impõe
+## 3. A arquitetura de dados — decidida, não a medir
 
-Cluster já criado e **validado nesta sessão**:
+> **Esta seção registra uma decisão fechada pelo dono do projeto em 2026-08-29
+> (ADR-001, seção 9). Não é hipótese, não é recomendação, e nenhuma sessão a reabre
+> sem uma evidência de inviabilidade.**
+
+### 3.1 Que dado vai para onde
+
+| Dado | Onde mora | Por quê |
+|---|---|---|
+| **Produtos, specs, curvas Q-H, série, filtros, layout, metadados do catálogo** — tudo o que aparece no modal como dado BIM | **MongoDB** | é sobre isso que se faz busca, filtro e atualização. É a mudança de produto que a POC existe para provar. |
+| **Geometria (`pos`/`col`/`idx`) e miniaturas** | **arquivo** — disco local na POC, **S3 na bilds.com** | blob opaco: ninguém consulta, ninguém filtra. O viewer pede um e desenha. Guardar em banco só ocupa. |
+| **O vínculo entre os dois** | **ponteiro no documento do produto** | é o que o pipeline precisa gravar para que a busca no banco chegue ao arquivo certo. |
+
+### 3.2 A geometria continua sendo servida pela API
+
+Não vai direto do storage para o browser. É o que a bilds.com já faz hoje, e por um
+motivo concreto: `fetch()` exige CORS, e o proxy da API resolve isso. A miniatura é a
+exceção — `<img src>` não passa por CORS, então pode ir direto ao CDN em produção.
+
+### 3.3 O storage fica atrás de um driver
+
+Na POC o destino é disco local; na bilds.com é S3. **Isso não é detalhe de
+implementação — é a condição para o aprendizado viajar.** No k8s o filesystem do pod é
+efêmero e some no restart, e com mais de uma réplica nem compartilhado é; "disco" lá vira
+PersistentVolume RWX (EFS) ou S3. Se a POC gravar direto com `fs.writeFileSync` espalhado
+pelo código, ela conclui "disco funciona bem" e a conclusão não sobrevive à mudança de
+ambiente.
+
+Por isso o acesso ao blob passa por uma interface — `GeometryStore`, com `put`, `get` e
+`delete` — que a POC implementa em disco e a bilds.com implementaria em S3. A troca tem
+de ser de uma linha.
+
+### 3.4 O que sobrou do teto de 512 MB: nada
+
+Versões anteriores deste plano tratavam os 512 MB do Atlas M0 como "a restrição que molda
+o plano inteiro", a partir dos 348,2 MB de geometria medidos em produção. **Com a
+geometria fora do banco isso deixa de existir**: o que fica são produtos, specs, curvas e
+ponteiros — texto e arrays pequenos, uns poucos MB para as 10 bibliotecas.
+
+Duas coisas morreram junto e não devem ser ressuscitadas por nenhuma sessão: o **codec
+binário** da geometria (`Float32`/`Uint8`/`Uint16`, compressão, round-trip) e o **portão
+go/no-go de volumetria**. Se aparecer referência a eles em algum lugar do repositório, é
+resíduo — corrija.
+
+> Registro do que não se confirmou, para ninguém refazer a conta: a justificativa
+> original do binário era o espaço. Ela não se sustentava nem no desenho antigo — o M0
+> cobra armazenamento **já comprimido** pelo WiredTiger, e medindo 4 geometrias reais da
+> Dancor o JSON comprimido (2,21 MB) sai **menor que o binário cru** (2,93 MB). Os 9
+> catálogos dariam ~110–140 MB em JSON comprimido: cabiam. O binário nunca foi requisito.
+
+### 3.5 O cluster
+
+Já criado e validado nesta sessão:
 
 | Item | Valor |
 |---|---|
 | Host | `bilds-bim-3d.ivrkmbe.mongodb.net` |
 | Base | `bilds-bim-3d` |
-| Coleção existente | `catalog` (vazia) |
 | Versão | MongoDB **8.0.30** |
-| Usuário da aplicação | `bilds-bim-3d` — `readWriteAnyDatabase` |
-| Tier | **M0 free** |
-| Acesso de rede | IP desta máquina já liberado — conexão testada e funcionando |
+| Usuário da aplicação | `bilds-bim-3d` |
+| Tier | M0 free — agora folgado, ver 3.4 |
+| Acesso de rede | IP desta máquina liberado; conexão testada |
 
-Credenciais já estão em `www/.env` (gitignored, `chmod 600`) — criado em 2026-08-29.
-
-### ⚠️ A restrição que molda o plano inteiro: 512 MB
-
-O tier **M0 gratuito tem teto de 512 MB de armazenamento**. Contra isso, a volumetria
-real medida nos 9 catálogos em produção:
-
-| Métrica | Valor |
-|---|---|
-| Geometrias | 622 |
-| **Geometria total, como JSON** | **348,2 MB** — média ~560 KB por geometria |
-| Miniaturas (WebP 448×324) | 2,5 MB — média ~4 KB cada |
-
-Ou seja: **os 9 catálogos em JSON consomem 68% do cluster inteiro** — e isso ignorando
-índices e overhead do BSON. Três consequências diretas:
-
-1. **Codificar a geometria em binário deixa de ser otimização e vira requisito.** Em
-   JSON um float custa ~12 bytes; em `Float32` custa 4.
-2. **A POC começa com uma ou duas bibliotecas, não com nove.** Só depois de medir é que
-   se sabe quantas cabem.
-3. **A medição vira portão, não etapa.** A sessão **S1.2** é go/no-go: se nem uma
-   biblioteca couber com folga, a decisão de armazenamento muda antes de existir API.
+Credenciais em `www/.env` (gitignored, `chmod 600`).
 
 ---
 
@@ -304,9 +336,11 @@ metadados e URLs** (`companyId`, `companyCustomLink`, `slug`, `title`, `manufact
 dado de produto entra no Mongo — é exatamente isso que a POC inverte. O serviço recebe o
 ZIP, valida (zip bomb, path traversal, 10 MB/geo, 2 MB/thumb) e grava em S3 ou disco.
 
-**Frontend público — `apps/web/src/components/b-bim-3d/`** (13 arquivos):
-`BimCatalogView`, `SeriesRowsLayout`, `CatalogGridLayout`, `LazyBimCard`, `ProductModal`,
-`CurveChart`, `bim-viewer-engine.ts`, `types.ts`. Rota
+**Frontend público — `apps/web/src/components/b-bim-3d/`** (13 arquivos, dos quais 3 são
+testes — a superfície de port são 9 arquivos / ~925 linhas): `BimCatalogView`,
+**`BimViewer`**, `SeriesRowsLayout`, `CatalogGridLayout`, `LazyBimCard`, `ProductModal`,
+`CurveChart`, `bim-viewer-engine.ts`, `types.ts`. O `buildCatalogJsonLd.ts` é SEO e fica
+fora da POC. Rota
 `apps/web/src/app/[customLink]/[catalogSlug]/page.tsx`.
 **Estes são os componentes que mais valem ser aproveitados** — a lógica de viewer,
 layouts e curva Q-H é a mesma; só muda de onde vêm os dados.
@@ -326,7 +360,7 @@ Caminhos exatos, para a sessão que precisar deles não ter de procurar:
 | Seção BIM na página da empresa | `apps/web/src/containers/Company/sections/CompanyBimSection.tsx` (421) |
 | Edição da empresa | `apps/web/src/containers/Company/EditCompany/EditCompany.tsx` |
 
-> **Atenção ao copiar.** São 5.690 linhas no wizard, e elas arrastam `@workspace/ui`,
+> **Atenção ao copiar.** São 5.269 linhas no wizard, e elas arrastam `@workspace/ui`,
 > i18next, Redux, drawer, modais de descarte e rascunho automático. Copiar literalmente
 > traz o monorepo inteiro junto. **A POC copia o conjunto de campos e o fluxo**, com UI
 > mínima — e usa o original como especificação do que perguntar ao usuário.
@@ -370,28 +404,14 @@ banco é o Atlas remoto, nada disso faz falta.
 
 Cada uma vira ADR na seção 9 quando fechada.
 
-### 7.1 Como a geometria é gravada — a decisão central
+### 7.1 · 7.2 Onde mora cada dado — FECHADO
 
-| Opção | A favor | Contra |
-|---|---|---|
-| **A.** JSON como está, num documento | trivial | ~560 KB por geometria: **9 catálogos = 348 MB de um teto de 512 MB** |
-| **B.** Binário (`Float32Array` + índices) em `BinData`, coleção própria | ~3–4× menor que JSON de texto; um doc por geometria, longe do teto de 16 MB | precisa de encoder/decoder dos dois lados |
-| **C.** GridFS | feito para blob grande | complexidade sem ganho — as geometrias cabem num documento |
-| **D.** Continuar em object storage | é o que já escala hoje | contraria a pergunta que a POC existe para responder |
+**Decidido em 2026-08-29 pelo dono do projeto. Ver seção 3 e ADR-001.**
+Produtos e dados BIM no MongoDB; geometria e miniaturas em arquivo atrás do
+`GeometryStore`; ponteiro no documento do produto; a API serve a geometria.
 
-**Recomendação: B.** Não por elegância — por caber. Fecha em **S1.1**, com o número
-medido em **S1.2**.
-
-Subdecisões de B, todas para S1.1: `Float32` basta para as posições (precisão de ~7
-dígitos em peça de 0,01–5 m) ou precisa `Float64`? Cor como `Uint8` (3 bytes/vértice em
-vez de 12)? Índices em `Uint16` quando cabem? Comprimir por cima, ou o ganho não paga a
-CPU na leitura?
-
-### 7.2 Onde moram as miniaturas
-
-~4 KB cada, 2,5 MB nos 9 catálogos. **Recomendação: `BinData` no Mongo**, coleção
-própria, servidas por rota com `Cache-Control` longo e `ETag`. Nesse tamanho não há o que
-discutir. Fecha em S1.1.
+Não há nada a medir nem a escolher aqui. O que resta para S1.1 é **desenhar os schemas e
+o contrato do `GeometryStore`**, não comparar formatos.
 
 ### 7.3 Em que runtime o `.aq` é parseado
 
@@ -460,13 +480,13 @@ bilds-bim-3d/
 
 | # | Decisão | Status | Sessão |
 |---|---|---|---|
-| — | — | _nenhuma fechada ainda_ | — |
+| **ADR-001** | **Onde mora cada dado.** Produtos e dados BIM no MongoDB (é o que se busca); geometria e miniaturas em arquivo atrás do driver `GeometryStore` — disco na POC, S3 na bilds.com; ponteiro no documento do produto; a API serve a geometria para evitar CORS. Rejeitado: geometria em `BinData` no Mongo, e com ela o codec binário e o portão de volumetria. Detalhe na seção 3. | **fechada** — decisão do dono do projeto | S-rev (2026-08-29) |
 
 ---
 
 ## 10. As sessões
 
-Onze sessões. Cada uma com entregável fechado e verificável, que não obriga a próxima a
+Doze sessões, a começar pela S-rev, que não escreve código. Cada uma com entregável fechado e verificável, que não obriga a próxima a
 carregar o contexto da anterior além deste documento.
 
 ### Fase de revisão — antes de escrever qualquer código
@@ -483,15 +503,16 @@ carregar o contexto da anterior além deste documento.
 |---|---|---|---|
 | **S0** | Scaffold da POC | `www/` com workspace pnpm, `apps/api` (NestJS) e `apps/web` (Next.js) mínimos, lendo o `www/.env` que já existe | `GET /health` responde e mostra a versão do Mongo lida do Atlas |
 
-### Fase 1 — Modelo de dados e o portão de volumetria
+### Fase 1 — Modelo de dados
 
 | # | Sessão | Entregável | Pronto quando |
 |---|---|---|---|
-| **S1.1** | Desenho do schema | ADR fechando 7.1 e 7.2 + schemas: `companies`, `bim_catalogs`, `bim_products`, `bim_geometries`, `bim_thumbnails`, `bim_imports`; codec binário da geometria especificado | o ADR responde precisão, cor, índices e compressão com justificativa |
-| **S1.2** | **Portão de volumetria** | script que ingere **uma** biblioteca real medindo JSON × binário × binário comprimido: bytes no banco, tempo de escrita, tempo de leitura de uma geometria | há tabela com números reais e uma projeção de **quantas bibliotecas cabem em 512 MB** |
+| **S1.1** | Schemas e contrato do storage | schemas `companies`, `bim_catalogs`, `bim_products` (dados BIM completos + ponteiro), `bim_imports`; interface `GeometryStore` (`put`/`get`/`delete`) com implementação em disco; índices que sustentam a busca por specs | os schemas existem em arquivo commitado, o `GeometryStore` grava e lê um blob de teste, e os índices de busca estão declarados |
+| **S1.2** | Carga de prova ponta a ponta | script que ingere **uma** biblioteca real: grava os arquivos pelo `GeometryStore`, cria os documentos com o ponteiro, e mede tempo de escrita, ocupação do banco, ocupação em disco e tempo de leitura de uma geometria **pela API** contra o arquivo estático como baseline | toda geometria ingerida é recuperável pelo ponteiro, uma busca por spec devolve os produtos certos, e há tabela comparando a leitura via API contra o baseline estático |
 
-> S1.2 é go/no-go. Se a projeção não fechar, a decisão 7.1 é revista **antes** de existir
-> qualquer API. Medir é barato agora e caríssimo depois.
+> S1.2 deixou de ser portão de volumetria — com a geometria fora do banco não há teto a
+> testar. Ela agora prova a **amarração arquivo↔registro**, que é o coração do ADR-001, e
+> estabelece o baseline de leitura que S4.1 vai reusar.
 
 ### Fase 2 — O núcleo: `.aq` → banco
 
@@ -499,7 +520,7 @@ carregar o contexto da anterior além deste documento.
 |---|---|---|---|
 | **S2.1** | Port do OQ3D para TS | parser TypeScript do formato binário + suíte de regressão contra o Python | saída idêntica à do Python em **todas as geometrias que `build.py --all` produzir a partir de `input/`** (ver seção 0) |
 | **S2.2** | Port do leitor `.aq` para TS | SQLite, cp1252, peças, specs, curvas Q-H, vínculo peça→geometria | catálogo gerado em TS == catálogo gerado em Python, nos 10 `.aq` de `input/` |
-| **S2.3** | Importação server-side | `POST` do `.aq` → `bim_imports` → processamento fora do request → catálogo no banco; decisão 7.4 sobre miniaturas | subir um `.aq` gera catálogo consultável, com status observável do início ao fim |
+| **S2.3** | Importação server-side | `POST` do `.aq` → `bim_imports` → processamento fora do request → catálogo no banco; decisão 7.4 sobre miniaturas e decisão 7.5 sobre modelo de execução | subir um `.aq` gera catálogo consultável, com status observável do início ao fim |
 
 ### Fase 3 — A aplicação
 
@@ -548,7 +569,7 @@ Status possíveis: `não iniciada` · `em andamento` · `concluída` · `conclu�
 Nenhum bloqueia a S0.
 
 1. **Guardar o `.aq` original (S2.3)?** Permite reprocessar sem novo upload, mas ocupa
-   espaço num cluster de 512 MB. Provável: guardar só o hash, para deduplicação.
+   espaço em disco. Provável: guardar só o hash, para deduplicação.
 2. **Quantas bibliotecas a POC carrega?** Depende de S1.2. Começar por Dancor (a menor,
    com curva Q-H, exercita o layout `series-rows`).
 3. **Miniatura entra na POC ou fica de fora (7.4)?** Decidir em S2.3, à luz do tempo.
