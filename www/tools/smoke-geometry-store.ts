@@ -44,10 +44,21 @@ async function run() {
   const deepBuf = await store.get('nested/deep/file.bin');
   if (deepBuf.toString() !== 'deep') throw new Error('put aninhado: conteúdo incorreto');
 
+  // path traversal: chave com ../ deve ser rejeitada
+  const traversalKeys = ['../etc/passwd', 'geo/../../etc/passwd', '/etc/passwd'];
+  for (const bad of traversalKeys) {
+    try {
+      await store.get(bad);
+      throw new Error(`traversal não rejeitado: ${bad}`);
+    } catch (err: any) {
+      if (err.code !== 'ETRAVERSAL') throw err;
+    }
+  }
+
   // Limpeza do diretório de smoke test
   await fs.rm(process.env.STORAGE_PATH as string, { recursive: true, force: true });
 
-  console.log('OK');
+  console.log('smoke test passed');
 }
 
 run().catch((err) => {
