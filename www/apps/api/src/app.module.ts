@@ -10,7 +10,10 @@ import { BimImport, BimImportSchema } from './bim-imports/bim-imports.schema';
 
 @Module({
   imports: [
-    MongooseModule.forRoot(process.env.MONGODB_URI ?? (() => { throw new Error('MONGODB_URI env var is required'); })()),
+    MongooseModule.forRoot(
+      process.env.MONGODB_URI ?? (() => { throw new Error('MONGODB_URI env var is required'); })(),
+      { dbName: process.env.MONGODB_DB ?? 'bilds-bim-3d' },
+    ),
     GeometryStoreModule,
     GeometriasModule,
     MongooseModule.forFeature([

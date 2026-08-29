@@ -6,7 +6,7 @@ export class DiskGeometryStore implements IGeometryStore {
   private readonly baseDir: string;
 
   constructor() {
-    this.baseDir = process.env.STORAGE_PATH ?? path.join(process.cwd(), 'storage');
+    this.baseDir = path.resolve(process.env.STORAGE_PATH ?? path.join(process.cwd(), 'storage'));
   }
 
   private validateKey(key: string): void {
