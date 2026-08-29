@@ -3,13 +3,16 @@ import { HydratedDocument } from 'mongoose';
 
 export type BimImportDocument = HydratedDocument<BimImport>;
 
-export type ImportStatus =
-  | 'recebido'
-  | 'parseando'
-  | 'gravando'
-  | 'publicado'
-  | 'vazio'
-  | 'falhou';
+const IMPORT_STATUSES = [
+  'recebido',
+  'parseando',
+  'gravando',
+  'publicado',
+  'vazio',
+  'falhou',
+] as const;
+
+export type ImportStatus = (typeof IMPORT_STATUSES)[number];
 
 @Schema({ collection: 'bim_imports' })
 export class BimImport {
@@ -22,11 +25,7 @@ export class BimImport {
   @Prop()
   catalogId: string;
 
-  @Prop({
-    type: String,
-    enum: ['recebido', 'parseando', 'gravando', 'publicado', 'vazio', 'falhou'],
-    required: true,
-  })
+  @Prop({ type: String, enum: IMPORT_STATUSES, required: true })
   status: ImportStatus;
 
   /** Mensagem de erro quando status === 'falhou' */

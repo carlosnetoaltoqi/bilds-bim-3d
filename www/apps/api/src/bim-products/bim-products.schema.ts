@@ -1,6 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument } from 'mongoose';
-import * as mongoose from 'mongoose';
+import { HydratedDocument, Schema as MongooseSchema } from 'mongoose';
 
 export type BimProductDocument = HydratedDocument<BimProduct>;
 
@@ -26,7 +25,7 @@ export class BimProduct {
   serie: string;
 
   /** Especificações técnicas: { "Tensão": "220V", "Rotação": "3500 rpm" } */
-  @Prop({ type: mongoose.Schema.Types.Mixed })
+  @Prop({ type: MongooseSchema.Types.Mixed })
   specs: Record<string, string>;
 
   /** Pontos da curva Q-H: [[vazao, altura, potencia, rendimento]] */
