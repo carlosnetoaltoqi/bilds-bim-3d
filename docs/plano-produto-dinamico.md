@@ -722,7 +722,7 @@ seguinte lê — e ela lê **só o mais recente**.
 |---|---|---|---|---|
 | S-rev | **concluída** | 2026-08-29 | [S-rev](sessoes/S-rev-revisao-do-plano.md) | grant do Atlas (pendência 1); 3 achados recusados pelo dono, ver §5 do registro |
 | S0 | **concluída** | 2026-08-29 | [S0](sessoes/S0-scaffold-poc.md) | — |
-| S1.1 | não iniciada | — | — | — |
+| S1.1 | **concluída com ressalva** | 2026-08-29 | [S1.1](sessoes/S1.1-schemas-geometry-store.md) | path traversal latente (achado #1 do review — ver registro S1.1 §5) |
 | S1.2 | não iniciada | — | — | — |
 | S2.1 | não iniciada | — | — | — |
 | S2.2 | não iniciada | — | — | — |

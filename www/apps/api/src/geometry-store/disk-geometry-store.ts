@@ -26,10 +26,23 @@ export class DiskGeometryStore implements IGeometryStore {
   }
 
   async deleteByPrefix(prefix: string): Promise<void> {
-    const entries = await fs.readdir(this.baseDir, { recursive: true });
-    const toDelete = (entries as string[]).filter((e) => e.startsWith(prefix));
+    let entries: import('fs').Dirent[];
+    try {
+      entries = await fs.readdir(this.baseDir, { recursive: true, withFileTypes: true }) as import('fs').Dirent[];
+    } catch (err: any) {
+      if (err.code === 'ENOENT') return;
+      throw err;
+    }
+    const toDelete = entries
+      .filter((e) => e.isFile())
+      .map((e) => path.relative(this.baseDir, path.join(e.parentPath ?? (e as any).path, e.name)))
+      .filter((rel) => rel === prefix || rel.startsWith(prefix + '/'));
     await Promise.all(
-      toDelete.map((e) => fs.unlink(path.join(this.baseDir, e)).catch(() => undefined)),
+      toDelete.map((rel) =>
+        fs.unlink(path.join(this.baseDir, rel)).catch((err: any) => {
+          if (err.code !== 'ENOENT') throw err;
+        }),
+      ),
     );
   }
 }

@@ -9,7 +9,7 @@ import { BimImport, BimImportSchema } from './bim-imports/bim-imports.schema';
 
 @Module({
   imports: [
-    MongooseModule.forRoot(process.env.MONGODB_URI as string),
+    MongooseModule.forRoot(process.env.MONGODB_URI ?? (() => { throw new Error('MONGODB_URI env var is required'); })()),
     GeometryStoreModule,
     MongooseModule.forFeature([
       { name: Company.name, schema: CompanySchema },
