@@ -688,7 +688,7 @@ seguinte lê — e ela lê **só o mais recente**.
 
 | Sessão | Status | Data | Registro | Deixou pendente |
 |---|---|---|---|---|
-| S-rev | não iniciada | — | — | — |
+| S-rev | **concluída** | 2026-08-29 | [S-rev](sessoes/S-rev-revisao-do-plano.md) | grant do Atlas (pendência 1); 3 achados recusados pelo dono, ver §5 do registro |
 | S0 | não iniciada | — | — | — |
 | S1.1 | não iniciada | — | — | — |
 | S1.2 | não iniciada | — | — | — |
