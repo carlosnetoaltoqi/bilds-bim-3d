@@ -346,6 +346,25 @@ fora da POC. Rota
 **Estes são os componentes que mais valem ser aproveitados** — a lógica de viewer,
 layouts e curva Q-H é a mesma; só muda de onde vêm os dados.
 
+> **Atenção ao copiar — vale o mesmo aviso do wizard.** Cinco deles importam
+> `react-i18next`, que a seção 1 exclui do escopo da POC. Copie a lógica, não o import.
+> Levantado arquivo a arquivo em 2026-08-29:
+>
+> | Componente | Linhas | Dependências externas | A remover |
+> |---|---|---|---|
+> | `BimCatalogView` | 36 | — | — |
+> | `BimViewer` | 154 | react, **react-i18next**, three, OrbitControls | i18n |
+> | `SeriesRowsLayout` | 98 | react, **react-i18next** | i18n |
+> | `CatalogGridLayout` | 134 | react, **react-i18next** | i18n |
+> | `LazyBimCard` | 133 | react | — |
+> | `ProductModal` | 77 | **react-i18next** | i18n |
+> | `CurveChart` | 123 | **react-i18next** | i18n |
+> | `bim-viewer-engine` | 133 | three | — |
+> | `types` | 37 | — | — |
+>
+> Só `three` e o `OrbitControls` são dependências de verdade — precisam entrar no
+> `www/apps/web`. Todo o resto é local ou removível.
+
 **Upload hoje:** `apps/admin/src/app/b-bim-3d/[companyId]/novo/page.tsx` — backoffice,
 admin da plataforma, aceita `.zip`. A POC inverte para: **www, dono da empresa, `.aq`**.
 
@@ -606,14 +625,14 @@ carregar o contexto da anterior além deste documento.
 |---|---|---|---|
 | **S3.1** | Login e empresa | usuário semente, sessão por cookie, criação de empresa com o punhado de campos de `CreateCompany` | dá para entrar e criar uma empresa com nome, URL pública e logo |
 | **S3.2** | Upload da biblioteca | tela de upload do `.aq` na empresa + acompanhamento do job, tomando `LibrariesAndFiles.tsx` como referência de UX | o dono da empresa sobe um `.aq` e acompanha até "publicado" |
-| **S3.3** | Página pública do catálogo | componentes `b-bim-3d` adaptados para consumir a API/banco em vez de `catalogUrl`/`geoBaseUrl` | `/{empresa}/{catalogo}` renderiza com viewer 3D lendo do banco |
+| **S3.3** | Página pública do catálogo | componentes `b-bim-3d` adaptados para consumir as rotas de S2.3 em vez de `catalogUrl`/`geoBaseUrl`, **com `react-i18next` removido** (tabela na seção 5) | `/{empresa}/{catalogo}` renderiza com viewer 3D lendo geometria pela API, sem nenhum import de i18n |
 
 ### Fase 4 — Colher o aprendizado
 
 | # | Sessão | Entregável | Pronto quando |
 |---|---|---|---|
 | **S4.1** | Medição comparativa | bytes na rede, LCP e tempo até o primeiro card: banco × o modelo atual de CDN | há veredito com números, não com impressão |
-| **S4.2** | Documento de aprendizados | as respostas às quatro perguntas da seção 1, o que deu errado, e o que a reconstrução na bilds.com deve fazer diferente | dá para desenhar o módulo definitivo lendo só esse documento |
+| **S4.2** | Documento de aprendizados | as respostas às quatro perguntas da seção 1, o que deu errado, o que a reconstrução deve fazer diferente, **e a seção obrigatória "o que a POC não implementou" destilada da seção 13** | dá para desenhar o módulo definitivo lendo só esse documento, **e nenhuma omissão da POC chega lá sem explicação** |
 
 ---
 
@@ -657,3 +676,27 @@ Nenhum bloqueia a S0.
 3. **Quantas bibliotecas a POC carrega?** Começar por Dancor (a menor, com curva Q-H,
    exercita o layout `series-rows`).
 3. _(resolvido em 2026-08-29: a miniatura ganhou a sessão S2.4 — ver 7.4.)_
+
+---
+
+## 13. O que a POC não implementa — lista viva
+
+Alimentada **por qualquer sessão** que decidir deixar algo de fora, e destilada por S4.2
+no documento final. Existe porque a ausência é silenciosa: quem reconstruir na bilds.com
+não tem como distinguir "decidimos não fazer aqui" de "não é necessário".
+
+Uma linha por item: o que é, por que ficou de fora, e se é obrigatório na reconstrução.
+
+| Não implementado na POC | Por quê | Na reconstrução |
+|---|---|---|
+| SuperTokens, sessões, papéis, permissão fina | Já existe e é obrigatório na bilds.com; reproduzir não ensina nada | **obrigatório** |
+| Autorização por dono/administrador da empresa (`assertPermission`) | A POC tem um usuário só | **obrigatório** |
+| Soft delete (`deletedAt`) em todas as entidades | Convenção da casa, sem valor de aprendizado aqui | **obrigatório** |
+| Validação em duas camadas (DTO + schema) | Idem | **obrigatório** |
+| i18n, `@workspace/ui`, RTK Query, Swagger | Convenções da casa | **obrigatório** |
+| Grant do Atlas restrito por base | Cluster descartável da POC; ver pendência 1 da seção 12 | **obrigatório** |
+| Rate limiting no endpoint de upload | Um usuário, sem entrada hostil | **obrigatório** |
+
+_Sessões: acrescentem linhas aqui em vez de deixar a decisão só no registro da sessão._
+
+---
