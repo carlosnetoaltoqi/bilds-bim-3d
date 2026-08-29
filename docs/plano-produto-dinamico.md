@@ -204,7 +204,7 @@ que a seção 2.1 existe para evitar.
 | **S-rev** | `ce-doc-review` | revisar este plano com lentes de papéis |
 | **S0** | `ce-work` → `ce-code-review` | scaffold é mecânico; não há o que planejar |
 | **S1.1** | `ce-plan` → `ce-work` → `ce-code-review` | com a arquitetura fechada (ADR-001), resta desenhar schemas e o contrato do `GeometryStore` — sem espaço de brainstorm |
-| **S1.2** | `ce-work` | é medição: o script ou mede, ou não mede |
+| **S1.2** | `ce-work` → `ce-code-review` | prova a amarração arquivo↔registro do ADR-001 e produz a projeção de escala; um erro no script contamina as duas em silêncio |
 | **S2.1 · S2.2** | `ce-plan` → `ce-work` → `ce-code-review` | são dois spikes comparativos — o desenho da fronteira e o do oráculo semântico têm o que planejar |
 | **S2.3** | `ce-plan` → `ce-work` → `ce-code-review` | o modelo de execução tem alternativas reais |
 | **S2.4** | `ce-plan` → `ce-work` → `ce-code-review` | dois caminhos com custos de produção diferentes — há o que planejar |
@@ -529,6 +529,12 @@ isso `falhou` é um estado com trabalho: apagar, pelo `GeometryStore`, todo arqu
 gravado sob aquele `importId`, e só então encerrar. O banco e o disco voltam ao estado
 anterior ao upload.
 
+**O parse roda em processo filho.** In-process, um `.aq` que estoure memória ou entre em
+laço mata o mesmo processo que deveria escrever `falhou` — e o import fica preso em
+`parseando` para sempre, com a tela de acompanhamento mentindo. O filho tem teto de
+memória e timeout; a API marca `falhou` quando ele morre ou estoura o prazo. É também o
+formato que o worker separado da 7.3 exige, então as duas decisões convergem.
+
 #### A máquina de estados, fechada
 
 | Estado | Significa | Transições |
@@ -636,8 +642,8 @@ carregar o contexto da anterior além deste documento.
 | # | Sessão | Entregável | Pronto quando |
 |---|---|---|---|
 | **S2.1** | Spike da fronteira (formato B) | o pipeline Python empacotado como **worker isolado**, recebendo o `.aq` como stream e escrevendo pelo `GeometryStore` — do jeito que rodaria como Deployment/Job no k8s, com contrato de fila | uma biblioteca entra pelo contrato do worker e sai como arquivos + documentos, sem o worker tocar em `input/` nem em `output/`; pico de memória medido e registrado |
-| **S2.2** | Spike do port (formato A) | port TypeScript de `oq3d.py` + `read_aq.py` para **uma** biblioteca (Dancor), atravessando os dois riscos da 7.3: `CAST AS BLOB` + cp1252 manual, e comparação **semântica** com o Python | a Dancor gera em TS o mesmo catálogo que em Python sob comparação semântica, e o ADR registra o custo real do port contra o do worker de S2.1 |
-| **S2.3** | Importação server-side **e as rotas de leitura** | `POST` do `.aq` → `bim_imports` → processamento fora do request → arquivos no `GeometryStore` + documentos no banco; decisão 7.4 sobre miniaturas e decisão 7.5 sobre modelo de execução. Mais as três rotas de leitura (contrato abaixo) | subir um `.aq` gera catálogo consultável com status observável do início ao fim, **as três rotas respondem via `curl` com o `ETag` correto**, e **os limites de entrada abaixo rejeitam sem gravar nada** |
+| **S2.2** | Spike do port (formato A) | port TypeScript de `oq3d.py` + `read_aq.py` para **uma** biblioteca (Dancor), atravessando os dois riscos da 7.3: `CAST AS BLOB` + cp1252 manual, e comparação **semântica** com o Python | a Dancor gera em TS o mesmo catálogo que em Python sob comparação semântica; **o parser rejeita com erro tipado blob truncado, contagem maior que o buffer restante e assinatura ausente, sem alocar buffer proporcional à contagem declarada**; e o ADR registra o custo real do port contra o do worker de S2.1 |
+| **S2.3** | Importação server-side **e as rotas de leitura** | `POST` do `.aq` → `bim_imports` → processamento fora do request → arquivos no `GeometryStore` + documentos no banco; decisão 7.4 sobre miniaturas e decisão 7.5 sobre modelo de execução. Mais as três rotas de leitura (contrato abaixo) | subir um `.aq` gera catálogo consultável com status observável do início ao fim, **as três rotas respondem via `curl` com o `ETag` correto**, **os limites de entrada abaixo rejeitam sem gravar nada**, e **subir o mesmo `.aq` uma segunda vez sobre o catálogo publicado deixa registrado o que aconteceu com documentos e arquivos antigos** |
 | **S2.4** | Miniaturas no servidor | worker de miniaturas isolado do fluxo de upload, medindo os dois caminhos da 7.4: Chromium+SwiftShader (tempo por geometria, memória, tamanho de imagem) e o rasterizador TS | há números para os dois caminhos e um ADR dizendo qual sai mais barato em produção — ou, se um deles falhar, o registro do fracasso, que também responde à pergunta 3 |
 
 > **Contrato das rotas de leitura (S2.3).** Com o ADR-001, é a API que serve a
