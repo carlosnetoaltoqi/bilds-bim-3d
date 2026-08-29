@@ -2,3 +2,4 @@ packages:
   - 'apps/*'
 allowBuilds:
   '@nestjs/core': true
+  '@nestjs/mongoose': true
