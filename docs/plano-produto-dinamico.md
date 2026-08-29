@@ -201,7 +201,7 @@ que a seção 2.1 existe para evitar.
 | **S0** | `ce-work` → `ce-code-review` | scaffold é mecânico; não há o que planejar |
 | **S1.1** | `ce-plan` → `ce-work` → `ce-code-review` | com a arquitetura fechada (ADR-001), resta desenhar schemas e o contrato do `GeometryStore` — sem espaço de brainstorm |
 | **S1.2** | `ce-work` | é medição: o script ou mede, ou não mede |
-| **S2.1 · S2.2** | `ce-work` → `ce-code-review` | o critério é "saída idêntica ao Python". Não há o que brainstormar |
+| **S2.1 · S2.2** | `ce-plan` → `ce-work` → `ce-code-review` | são dois spikes comparativos — o desenho da fronteira e o do oráculo semântico têm o que planejar |
 | **S2.3** | `ce-plan` → `ce-work` → `ce-code-review` | o modelo de execução tem alternativas reais |
 | **S2.4** | `ce-plan` → `ce-work` → `ce-code-review` | dois caminhos com custos de produção diferentes — há o que planejar |
 | **S3.1 · S3.2 · S3.3** | `ce-work` → `ce-code-review` | os formulários da bilds.com já servem de especificação |
@@ -414,23 +414,53 @@ Produtos e dados BIM no MongoDB; geometria e miniaturas em arquivo atrás do
 Não há nada a medir nem a escolher aqui. O que resta para S1.1 é **desenhar os schemas e
 o contrato do `GeometryStore`**, não comparar formatos.
 
-### 7.3 Em que runtime o `.aq` é parseado
+### 7.3 Onde o parse roda — a questão é portabilidade, não linguagem
 
-Esta é a pergunta nº 2 da POC, então merece resposta real e não atalho.
+**Python nunca foi a objeção.** O critério é: o que a POC construir tem de funcionar na
+AWS **como ela é lá**, sem depender de nenhuma liberdade que só uma máquina local tem.
+Python containerizado direito passa nesse critério.
 
-| Opção | Nota |
-|---|---|
-| **Portar `read_aq.py` + `oq3d.py` para TypeScript** | `oq3d.py` são 317 linhas de parsing binário puro, muito portável; `read_aq.py` são consultas SQLite (`better-sqlite3` ou `node:sqlite`). Resultado: um serviço Node só, imagem enxuta, sem Python no pod |
-| Manter Python como worker separado | preserva código testado, mas são duas stacks, duas imagens e um contrato entre elas |
+Isso desloca a decisão da linguagem para a **fronteira de execução**:
 
-**Recomendação: portar para TypeScript**, com o **Python como oráculo de regressão** — o
-port só é aceito quando produz saída idêntica à do Python em toda a saída gerada a partir
-de `input/` (ver seção 0 sobre o número 622).
-O pipeline Python continua no repo servindo a trilha Vercel.
+| Formato | Portabilidade | Custo |
+|---|---|---|
+| **A. Tudo em TypeScript, um processo** | trivial: uma imagem, um runtime | port de ~720 linhas, com dois riscos concretos (ver abaixo) |
+| **B. Python como worker separado**, contrato por fila ou HTTP | **formato nativo do k8s** — Deployment de worker ou Job, imagem própria com as próprias deps | reusa ~3.000 linhas testadas, zero risco de port. Preço: dois artefatos de deploy e um contrato |
+| **C. Python como subprocesso dentro da imagem Node** | **a armadilha** | mais fácil localmente, pior no pod: uma imagem com dois runtimes. É exatamente a liberdade local que não viaja |
 
-> Vale notar a tensão: a POC é descartável, mas o port não é trabalho jogado fora — ele
-> **é** a resposta à pergunta nº 2, e o que a reconstrução na bilds.com vai reaproveitar
-> como conhecimento. Sessões **S2.1** e **S2.2**.
+Note que **B é o mesmo formato que a decisão 7.5 já quer para a importação**: o worker de
+parse e o worker de importação são a mesma coisa.
+
+**Decidido: provar A e B e comparar.** S2.1 é o spike da fronteira (worker Python isolado)
+e S2.2 é o spike do port (uma biblioteca, atravessando o ponto de risco). O ADR registra
+o custo real de cada um, em vez de escolher no papel. C não é testado — está aqui só para
+ser reconhecido e recusado quando alguém propuser.
+
+#### Os dois riscos concretos do caminho A
+
+Levantados na revisão de 2026-08-29, verificados nos dois runtimes:
+
+1. **`cp1252` não tem equivalente em Node.** O `read_aq.py` usa `con.text_factory`, hook
+   de conexão do SQLite que não existe no `better-sqlite3` nem no `node:sqlite`. O port
+   precisa de `CAST(col AS BLOB)` em toda coluna de texto e decodificação manual — e o
+   `TextDecoder('windows-1252')` **não falha** nos cinco bytes indefinidos
+   (0x81, 0x8D, 0x8F, 0x90, 0x9D) onde o Python falha e cai no fallback latin-1.
+2. **Comparação textual com o Python é impossível.** Para o mesmo array, Python emite
+   `[-0.0,0.0,1e-05,1e+21]` e Node emite `[0,0,0.00001,1e+21]`. Como o `to_buffers` faz
+   `-verts[:,1]*scale`, **todo vértice com y=0 — modelo apoiado no plano, o caso comum**
+   — produz `-0.0`. O oráculo tem de ser **semântico**: `JSON.parse` dos dois lados e
+   igualdade elemento a elemento com `Object.is` tratando `-0` e `0` como iguais.
+
+#### Portabilidade: vale para qualquer formato escolhido
+
+O pipeline atual tem quebras que aparecem em A, B **e** C, e que são critério de aceite de
+quem for dono do parse:
+
+- o `.aq` é lido **de um caminho em `input/`**; num pod ele chega como stream de upload
+- a saída vai **direto para `output/` no disco**, em vez de passar pelo `GeometryStore`
+- a biblioteca inteira é carregada em memória — a Amanco tem 457 geometrias e **ninguém
+  mediu o pico**
+- o Chromium sobe dentro do processo (endereçado pela S2.4)
 
 ### 7.4 Miniaturas no servidor — sessão própria (S2.4)
 
@@ -536,12 +566,12 @@ carregar o contexto da anterior além deste documento.
 > testar. Ela agora prova a **amarração arquivo↔registro**, que é o coração do ADR-001, e
 > estabelece o baseline de leitura que S4.1 vai reusar.
 
-### Fase 2 — O núcleo: `.aq` → banco
+### Fase 2 — O núcleo: `.aq` → arquivo + banco
 
 | # | Sessão | Entregável | Pronto quando |
 |---|---|---|---|
-| **S2.1** | Port do OQ3D para TS | parser TypeScript do formato binário + suíte de regressão contra o Python | saída idêntica à do Python em **todas as geometrias que `build.py --all` produzir a partir de `input/`** (ver seção 0) |
-| **S2.2** | Port do leitor `.aq` para TS | SQLite, cp1252, peças, specs, curvas Q-H, vínculo peça→geometria | catálogo gerado em TS == catálogo gerado em Python, nos 10 `.aq` de `input/` |
+| **S2.1** | Spike da fronteira (formato B) | o pipeline Python empacotado como **worker isolado**, recebendo o `.aq` como stream e escrevendo pelo `GeometryStore` — do jeito que rodaria como Deployment/Job no k8s, com contrato de fila | uma biblioteca entra pelo contrato do worker e sai como arquivos + documentos, sem o worker tocar em `input/` nem em `output/`; pico de memória medido e registrado |
+| **S2.2** | Spike do port (formato A) | port TypeScript de `oq3d.py` + `read_aq.py` para **uma** biblioteca (Dancor), atravessando os dois riscos da 7.3: `CAST AS BLOB` + cp1252 manual, e comparação **semântica** com o Python | a Dancor gera em TS o mesmo catálogo que em Python sob comparação semântica, e o ADR registra o custo real do port contra o do worker de S2.1 |
 | **S2.3** | Importação server-side **e as rotas de leitura** | `POST` do `.aq` → `bim_imports` → processamento fora do request → arquivos no `GeometryStore` + documentos no banco; decisão 7.4 sobre miniaturas e decisão 7.5 sobre modelo de execução. Mais as três rotas de leitura (contrato abaixo) | subir um `.aq` gera catálogo consultável com status observável do início ao fim, **e as três rotas respondem via `curl` com o `ETag` correto** |
 | **S2.4** | Miniaturas no servidor | worker de miniaturas isolado do fluxo de upload, medindo os dois caminhos da 7.4: Chromium+SwiftShader (tempo por geometria, memória, tamanho de imagem) e o rasterizador TS | há números para os dois caminhos e um ADR dizendo qual sai mais barato em produção — ou, se um deles falhar, o registro do fracasso, que também responde à pergunta 3 |
 
