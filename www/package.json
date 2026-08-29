@@ -3,6 +3,7 @@
   "private": true,
   "scripts": {
     "dev:api": "pnpm --filter api dev",
-    "dev:web": "pnpm --filter web dev"
+    "dev:web": "pnpm --filter web dev",
+    "smoke:geo": "pnpm --filter api exec node --require ts-node/register --require reflect-metadata ../../tools/smoke-geometry-store.ts"
   }
 }
