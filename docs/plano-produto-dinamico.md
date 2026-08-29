@@ -100,8 +100,12 @@ com os aprendizados desta POC. Isso muda tudo no que diz respeito a esforço:
 3. **As miniaturas sobrevivem à mudança?** O passo que hoje usa Playwright + Chromium é
    o mais difícil de levar para um cluster.
 4. **A página fica boa lendo do banco?** Comparada com o modelo atual de CDN.
+5. **Isso escala?** O que acontece com disco/S3, com o tamanho do banco e com o volume
+   lido por página quando forem 200 catálogos em vez de 9. A POC roda com uma
+   biblioteca — a resposta é uma **projeção** a partir do que S1.2 medir, não uma
+   medição de carga.
 
-Tudo o que não serve a essas quatro perguntas está fora de escopo.
+Tudo o que não serve a essas cinco perguntas está fora de escopo.
 
 ### O caminho estático continua vivo
 
@@ -525,6 +529,41 @@ isso `falhou` é um estado com trabalho: apagar, pelo `GeometryStore`, todo arqu
 gravado sob aquele `importId`, e só então encerrar. O banco e o disco voltam ao estado
 anterior ao upload.
 
+#### A máquina de estados, fechada
+
+| Estado | Significa | Transições |
+|---|---|---|
+| `recebido` | upload aceito, limites validados, `.aq` em disco temporário | → `parseando` |
+| `parseando` | lendo o `.aq`, extraindo peças e geometrias | → `gravando` · `falhou` · `vazio` |
+| `gravando` | escrevendo arquivos pelo `GeometryStore` e documentos no banco | → `publicado` · `falhou` |
+| `publicado` | catálogo consultável pelas rotas de S2.3 | terminal |
+| `vazio` | parseou sem erro e não achou **nenhuma** geometria | terminal |
+| `falhou` | erro em qualquer ponto; **limpou** arquivos e documentos do `importId` | terminal |
+
+Três casos que a versão anterior não tratava:
+
+- **`vazio` é um estado próprio, não `falhou`.** Um `.aq` só de tubos e kits parseia
+  perfeitamente e não rende geometria — é o comportamento correto do pipeline, não erro.
+  Sem esse estado, a tela mostra "falhou" para um arquivo que está certo.
+- **Upload duplicado.** Subir o mesmo `.aq` sobre um catálogo publicado: ver a pendência
+  correspondente na seção 12.
+- **Geometria acima do teto do BSON.** Não se aplica mais desde o ADR-001 — a geometria
+  vai para arquivo. Fica registrado para ninguém reintroduzir a preocupação.
+
+#### A tela de acompanhamento (S3.2)
+
+A referência de UX do plano (`LibrariesAndFiles.tsx`) cobre upload **síncrono** de ZIP já
+processado — **não resolve nada disto**, que é a parte genuinamente nova:
+
+- **um estado visual por valor da máquina** acima, com `vazio` distinto de `falhou`
+- **atualização por polling em intervalo fixo** — a POC roda in-process, não há evento a
+  assinar; SSE é complexidade que não responde a nenhuma das cinco perguntas
+- **em `falhou`, o motivo** (qual limite estourou, em que etapa), não uma mensagem
+  genérica; e o botão de subir de novo, já que `falhou` deixou tudo limpo
+- **reabrir a página recupera o estado** lendo `bim_imports` — o progresso não vive na
+  memória do browser
+
+
 ### 7.6 Autenticação
 
 **Recomendação: o mínimo que existe.** Usuário semente com as mesmas credenciais do
@@ -586,7 +625,7 @@ carregar o contexto da anterior além deste documento.
 | # | Sessão | Entregável | Pronto quando |
 |---|---|---|---|
 | **S1.1** | Schemas e contrato do storage | schemas `companies`, `bim_catalogs`, `bim_products` (dados BIM completos + ponteiro), `bim_imports`; interface `GeometryStore` (`put`/`get`/`delete`) com implementação em disco; índices que sustentam a busca por specs | os schemas existem em arquivo commitado, o `GeometryStore` grava e lê um blob de teste, e os índices de busca estão declarados |
-| **S1.2** | Carga de prova ponta a ponta | script que ingere **uma** biblioteca real: grava os arquivos pelo `GeometryStore`, cria os documentos com o ponteiro, e mede tempo de escrita, ocupação do banco, ocupação em disco e tempo de leitura de uma geometria **pela API** contra o arquivo estático como baseline | toda geometria ingerida é recuperável pelo ponteiro, uma busca por spec devolve os produtos certos, e há tabela comparando a leitura via API contra o baseline estático |
+| **S1.2** | Carga de prova ponta a ponta | script que ingere **uma** biblioteca real: grava os arquivos pelo `GeometryStore`, cria os documentos com o ponteiro, e mede tempo de escrita, ocupação do banco, ocupação em disco e tempo de leitura de uma geometria **pela API** contra o arquivo estático como baseline. **Mais a projeção da pergunta 5** para 10, 50 e 200 catálogos | toda geometria ingerida é recuperável pelo ponteiro, uma busca por spec devolve os produtos certos, há tabela comparando a leitura via API contra o baseline estático, **e a projeção de escala está registrada** |
 
 > S1.2 deixou de ser portão de volumetria — com a geometria fora do banco não há teto a
 > testar. Ela agora prova a **amarração arquivo↔registro**, que é o coração do ADR-001, e
@@ -632,7 +671,7 @@ carregar o contexto da anterior além deste documento.
 | # | Sessão | Entregável | Pronto quando |
 |---|---|---|---|
 | **S4.1** | Medição comparativa | bytes na rede, LCP e tempo até o primeiro card: banco × o modelo atual de CDN | há veredito com números, não com impressão |
-| **S4.2** | Documento de aprendizados | as respostas às quatro perguntas da seção 1, o que deu errado, o que a reconstrução deve fazer diferente, **e a seção obrigatória "o que a POC não implementou" destilada da seção 13** | dá para desenhar o módulo definitivo lendo só esse documento, **e nenhuma omissão da POC chega lá sem explicação** |
+| **S4.2** | Documento de aprendizados | as respostas às cinco perguntas da seção 1, o que deu errado, o que a reconstrução deve fazer diferente, **e a seção obrigatória "o que a POC não implementou" destilada da seção 13** | dá para desenhar o módulo definitivo lendo só esse documento, **e nenhuma omissão da POC chega lá sem explicação** |
 
 ---
 
