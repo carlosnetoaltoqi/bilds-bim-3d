@@ -26,3 +26,7 @@ __pycache__/
 !**/.env.example
 config.json
 .vercel
+
+# POC — www/
+.next/
+www/**/dist/
