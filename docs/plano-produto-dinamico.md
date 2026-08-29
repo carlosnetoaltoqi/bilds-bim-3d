@@ -87,7 +87,7 @@ com os aprendizados desta POC. Isso muda tudo no que diz respeito a esforço:
 | Copiar o schema de `companies` da bilds | Empresa aqui é genérica: o mínimo para ter dono, nome e URL pública. |
 | Espelhar `companies`/`profiles` do banco da bilds | O dado real não acrescenta nada à pergunta que a POC responde. |
 | i18n, `@workspace/ui`, RTK Query, soft delete rigoroso, Swagger, dupla validação | Convenções da casa. Lá serão obedecidas por padrão; aqui só atrapalham. |
-| Reproduzir o www inteiro | São dezenas de rotas. A POC tem três telas. |
+| Reproduzir o www inteiro | São dezenas de rotas. A POC tem quatro telas. |
 
 ### O que a POC precisa de fato responder
 
@@ -499,6 +499,13 @@ publicado | falhou`), processada fora do request. Na POC pode ser in-process; o 
 importa é que o **estado seja observável**, porque é isso que a tela de acompanhamento
 consome e é isso que na AWS vira fila. Fecha em S2.3.
 
+**A transição para `falhou` limpa.** Antes do ADR-001, uma importação abortada no meio
+deixava documentos órfãos no Mongo — achaveis com uma query. Agora ela deixa **arquivos
+órfãos em disco, que nenhuma query encontra** e que ninguém nota até o disco encher. Por
+isso `falhou` é um estado com trabalho: apagar, pelo `GeometryStore`, todo arquivo
+gravado sob aquele `importId`, e só então encerrar. O banco e o disco voltam ao estado
+anterior ao upload.
+
 ### 7.6 Autenticação
 
 **Recomendação: o mínimo que existe.** Usuário semente com as mesmas credenciais do
@@ -553,7 +560,7 @@ carregar o contexto da anterior além deste documento.
 
 | # | Sessão | Entregável | Pronto quando |
 |---|---|---|---|
-| **S0** | Scaffold da POC | `www/` com workspace pnpm, `apps/api` (NestJS) e `apps/web` (Next.js) mínimos, lendo o `www/.env` que já existe | `GET /health` responde e mostra a versão do Mongo lida do Atlas |
+| **S0** | Scaffold da POC | `www/` com workspace pnpm, `apps/api` (NestJS) e `apps/web` (Next.js) mínimos, lendo o `www/.env` que já existe | `GET /health` responde mostrando a versão do Mongo lida do Atlas, **e a página inicial do `apps/web` carrega no navegador** |
 
 ### Fase 1 — Modelo de dados
 
@@ -572,7 +579,7 @@ carregar o contexto da anterior além deste documento.
 |---|---|---|---|
 | **S2.1** | Spike da fronteira (formato B) | o pipeline Python empacotado como **worker isolado**, recebendo o `.aq` como stream e escrevendo pelo `GeometryStore` — do jeito que rodaria como Deployment/Job no k8s, com contrato de fila | uma biblioteca entra pelo contrato do worker e sai como arquivos + documentos, sem o worker tocar em `input/` nem em `output/`; pico de memória medido e registrado |
 | **S2.2** | Spike do port (formato A) | port TypeScript de `oq3d.py` + `read_aq.py` para **uma** biblioteca (Dancor), atravessando os dois riscos da 7.3: `CAST AS BLOB` + cp1252 manual, e comparação **semântica** com o Python | a Dancor gera em TS o mesmo catálogo que em Python sob comparação semântica, e o ADR registra o custo real do port contra o do worker de S2.1 |
-| **S2.3** | Importação server-side **e as rotas de leitura** | `POST` do `.aq` → `bim_imports` → processamento fora do request → arquivos no `GeometryStore` + documentos no banco; decisão 7.4 sobre miniaturas e decisão 7.5 sobre modelo de execução. Mais as três rotas de leitura (contrato abaixo) | subir um `.aq` gera catálogo consultável com status observável do início ao fim, **e as três rotas respondem via `curl` com o `ETag` correto** |
+| **S2.3** | Importação server-side **e as rotas de leitura** | `POST` do `.aq` → `bim_imports` → processamento fora do request → arquivos no `GeometryStore` + documentos no banco; decisão 7.4 sobre miniaturas e decisão 7.5 sobre modelo de execução. Mais as três rotas de leitura (contrato abaixo) | subir um `.aq` gera catálogo consultável com status observável do início ao fim, **as três rotas respondem via `curl` com o `ETag` correto**, e **os limites de entrada abaixo rejeitam sem gravar nada** |
 | **S2.4** | Miniaturas no servidor | worker de miniaturas isolado do fluxo de upload, medindo os dois caminhos da 7.4: Chromium+SwiftShader (tempo por geometria, memória, tamanho de imagem) e o rasterizador TS | há números para os dois caminhos e um ADR dizendo qual sai mais barato em produção — ou, se um deles falhar, o registro do fracasso, que também responde à pergunta 3 |
 
 > **Contrato das rotas de leitura (S2.3).** Com o ADR-001, é a API que serve a
@@ -585,6 +592,13 @@ carregar o contexto da anterior além deste documento.
 > | `GET /thumbs/:id` | a miniatura (WebP) | `ETag`, `Cache-Control` longo |
 >
 > S3.3 assume estas rotas prontas e cuida só de adaptar os componentes.
+
+> **Limites de entrada (S2.3).** O `.aq` é um ZIP arbitrário chegando por HTTP e
+> extraído para disco antes de virar SQLite. O endpoint rejeita, **com erro tipado e sem
+> gravar nada**: arquivo acima de um teto de bytes declarado; ZIP com mais de N entradas
+> ou soma descomprimida acima de um teto; entrada cujo nome resolvido saia do diretório
+> temporário. São as mesmas classes de defesa que a bilds.com já aplica ao caminho ZIP
+> (seção 5), com números menores.
 
 ### Fase 3 — A aplicação
 
@@ -633,8 +647,13 @@ Status possíveis: `não iniciada` · `em andamento` · `concluída` · `conclu�
 
 Nenhum bloqueia a S0.
 
-1. **Guardar o `.aq` original (S2.3)?** Permite reprocessar sem novo upload, mas ocupa
+1. **Restringir o grant do usuário do Atlas.** Hoje é `readWriteAnyDatabase` — escrita
+   em qualquer base do cluster. Como a URI circula por scripts e pelo `.env` de treze
+   sessões, um bug de script alcança o cluster inteiro, não só os dados descartáveis da
+   POC. Correção: no console do Atlas, Database Access → `bilds-bim-3d` → `readWrite`
+   restrito à base `bilds-bim-3d`. **Depende de ação no console, fora do repositório.**
+2. **Guardar o `.aq` original (S2.3)?** Permite reprocessar sem novo upload, mas ocupa
    espaço em disco. Provável: guardar só o hash, para deduplicação.
-2. **Quantas bibliotecas a POC carrega?** Depende de S1.2. Começar por Dancor (a menor,
-   com curva Q-H, exercita o layout `series-rows`).
+3. **Quantas bibliotecas a POC carrega?** Começar por Dancor (a menor, com curva Q-H,
+   exercita o layout `series-rows`).
 3. _(resolvido em 2026-08-29: a miniatura ganhou a sessão S2.4 — ver 7.4.)_
