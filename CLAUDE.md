@@ -102,10 +102,27 @@ originou — e não se perde se a máquina sumir.
    (`ETRAVERSAL` em toda chave com `STORAGE_PATH` relativo). Detalhes em
    `docs/sessoes/S1.2-carga-prova-ponta-a-ponta.md` seção 6. O Atlas já contém dados
    reais da Dancor (13 produtos, 13 geometrias). A próxima sessão é **S2.1 — Spike da
-   fronteira (formato B)**. Disparar com:
+   fronteira (formato B)**. Prompt completo para sessão limpa (sem contexto,
+   inclusive em outra máquina):
 
    ```
-   /ce-plan Executar SOMENTE a sessão S2.1 de docs/plano-produto-dinamico.md.
+   vamos trabalhar no projeto bilds-bim-3d. ce-work /home/foltz/bilds-bim-3d/docs/plano-produto-dinamico.md
+
+   Executar SOMENTE a sessão S2.1.
+
+   Antes de qualquer coisa:
+   1. Ler o plano inteiro em /home/foltz/bilds-bim-3d/docs/plano-produto-dinamico.md
+      (protocolo na seção 2.1, escopo de S2.1 na seção 10, decisão de formato na seção 7.3)
+   2. Ler /home/foltz/bilds-bim-3d/docs/sessoes/S1.2-carga-prova-ponta-a-ponta.md
+      (seção 6 tem dois bugs corrigidos pós-sessão que afetam o ambiente)
+   3. Verificar baseline: cd /home/foltz/bilds-bim-3d/www && pnpm smoke:geo
+      → deve imprimir "smoke test passed"
+
+   Estado atual (commit 72853d9 em main):
+   - Atlas já contém Dancor: 13 produtos, 13 geometrias — não reingerir
+   - GET /geometrias/:productId funciona end-to-end (HTTP 200, ~2 MB geometry JSON)
+   - www/.env (gitignored) deve ter MONGODB_URI, MONGODB_DB=bilds-bim-3d, STORAGE_PATH=../../storage/bim
+   - Código da POC em /home/foltz/bilds-bim-3d/www/
    ```
 
    **Essa linha roda em sessões curtas, independentes e amnésicas**, ligadas só pela
