@@ -186,6 +186,46 @@ A pilha cresce sem que o custo de entrada cresça junto.
    pergunta vence a mais correta. Quando a diferença importar, registre o porquê no ADR —
    é justamente esse registro que a reconstrução na bilds.com vai consumir.
 
+### 2.4 Compound engineering — qual skill entra em cada sessão
+
+O pipeline do `compound-engineering` é usado **por sessão, nunca sobre o plano inteiro**.
+Rodar brainstorm + plan + work + review de uma vez reconstrói exatamente o super-contexto
+que a seção 2.1 existe para evitar.
+
+| Sessão | Skills | Por quê |
+|---|---|---|
+| **S-rev** | `ce-doc-review` | revisar este plano com lentes de papéis |
+| **S0** | `ce-work` → `ce-code-review` | scaffold é mecânico; não há o que planejar |
+| **S1.1** | **ciclo completo** — `ce-brainstorm` → `ce-plan` → `ce-work` → `ce-code-review` | único ponto com espaço de design real e consequência dura (512 MB): precisão, cor, índices, compressão |
+| **S1.2** | `ce-work` | é medição: o script ou mede, ou não mede |
+| **S2.1 · S2.2** | `ce-work` → `ce-code-review` | o critério é "saída idêntica ao Python". Não há o que brainstormar |
+| **S2.3** | `ce-plan` → `ce-work` → `ce-code-review` | o modelo de execução tem alternativas reais |
+| **S3.1 · S3.2 · S3.3** | `ce-work` → `ce-code-review` | os formulários da bilds.com já servem de especificação |
+| **S4.1** | `ce-work` | medição comparativa |
+| **S4.2** | `ce-compound` | destilar aprendizado é literalmente o propósito da skill |
+
+**`ce-brainstorm` só aparece em S1.1.** Nas demais o escopo já está decidido — e rodá-lo
+sobre trabalho já especificado convida a reabrir decisões que foram tomadas de propósito,
+sem que o agente saiba disso.
+
+**`ce-work` para no commit.** Em uso avulso ele assume o "shipping tail" e pode abrir PR.
+Aqui trabalhamos direto na `main`, sem PR: commitar, e parar.
+
+#### Autoridade documental
+
+O compound-engineering grava artefatos próprios (`spec.md`, `acceptance.md`,
+`review-*.md`), tipicamente em `.claude/sessions/<slug>/`. Sem uma regra, o projeto
+termina com dois sistemas paralelos de documentação — e é assim que nasce o desvio que a
+R2 tenta pegar.
+
+1. **`docs/plano-produto-dinamico.md` é autoridade única.** Em qualquer divergência, o
+   plano vence — ou o plano é corrigido. Nunca "os dois valem".
+2. **Artefatos do CE são insumo de trabalho, não documentação do projeto.** O que
+   sobrevive deles é **destilado** no registro da sessão (`docs/sessoes/`) e nos ADRs.
+3. **Se o CE gravar em `.claude/`, esse diretório é commitado.** Artefato não commitado
+   viola a R1 — para a próxima sessão, ele não existe. (Precedente: na bilds.com
+   `.claude/sessions/` é rastreado no git.)
+
 ---
 
 ## 3. O banco — Atlas, e o teto que ele impõe
@@ -429,6 +469,14 @@ bilds-bim-3d/
 Onze sessões. Cada uma com entregável fechado e verificável, que não obriga a próxima a
 carregar o contexto da anterior além deste documento.
 
+### Fase de revisão — antes de escrever qualquer código
+
+| # | Sessão | Entregável | Pronto quando |
+|---|---|---|---|
+| **S-rev** | Revisão do plano com `ce-doc-review` | emendas a este plano, ADRs que a revisão conseguir fechar, registro em `docs/sessoes/` | o plano incorporou o que a revisão apontou — ou registrou por que não incorporou |
+
+> S-rev não escreve código. O entregável é o próprio plano, melhor.
+
 ### Fase 0 — Fundação
 
 | # | Sessão | Entregável | Pronto quando |
@@ -477,6 +525,7 @@ seguinte lê — e ela lê **só o mais recente**.
 
 | Sessão | Status | Data | Registro | Deixou pendente |
 |---|---|---|---|---|
+| S-rev | não iniciada | — | — | — |
 | S0 | não iniciada | — | — | — |
 | S1.1 | não iniciada | — | — | — |
 | S1.2 | não iniciada | — | — | — |
