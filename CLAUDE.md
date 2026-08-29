@@ -43,6 +43,7 @@ não está aqui, isso é uma falha desta documentação — registre-a antes de 
 | Como a descoberta do OQ3D foi feita e validada | `docs/estudo-oq3d/` |
 | Integração com dashboard e API | `docs/plano-integracao-bilds.md` — **histórico**, o módulo já foi shipado |
 | Skills de agente (versionadas aqui) | `docs/skills/` |
+| **POC de catálogo dinâmico (banco de dados, Node+React)** | **`docs/plano-produto-dinamico.md`** |
 
 ### Skills — versionadas aqui, em `docs/skills/`
 
@@ -83,13 +84,31 @@ originou — e não se perde se a máquina sumir.
 
 ## 👉 Próxima sessão — estado em 2026-08-28
 
-**Versão base estável:** commit `059bd01` em `main`.
+**Versão base estável:** commit `b67f734` em `main`.
+
+### Duas linhas de trabalho ativas
+
+1. **Pipeline estático (esta é a linha madura).** `.aq` → catálogo → ZIP/preview → Vercel.
+   É o que o resto deste arquivo documenta. Estável e em produção.
+2. **POC de catálogo dinâmico** — `.aq` → **MongoDB** → aplicação Node + React, para
+   descobrir como o módulo deve ser reconstruído na bilds.com. Documento âncora:
+   **`docs/plano-produto-dinamico.md`**. Quem for trabalhar nessa linha lê aquele arquivo
+   inteiro antes de tocar em qualquer coisa; ele é autocontido e quebrado em 11 sessões.
+   O código dela vive em `www/`, fora do deploy da Vercel.
 
 ```bash
-export LD_LIBRARY_PATH=~/.local/chromium-libs/root/usr/lib/x86_64-linux-gnu
 python3 scripts/build.py --all          # só as novas
 python3 scripts/build.py --all --force  # refaz todas
 ```
+
+> Versões antigas deste arquivo mandavam exportar
+> `LD_LIBRARY_PATH=~/.local/chromium-libs/...` antes do build. **Nesta máquina esse
+> diretório não existe** — as libs do Chromium (`libnss3`, `libnspr4`, `libasound2t64`)
+> vieram do apt e já estão em `/usr/lib/x86_64-linux-gnu`. O export é inofensivo, mas
+> inútil. A receita sem sudo continua documentada no `README.md`, para outras máquinas.
+
+**`output/` está vazia** desde o commit `e391a8f` — só a landing da Vercel sobrevive.
+Os 10 catálogos de `input/` são todos regeráveis com o comando acima.
 
 ### Dependência cruzada com o bilds.com
 
