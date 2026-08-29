@@ -592,8 +592,6 @@ Antes de gerar o ZIP, verificar:
 _Gerado por engenharia reversa em: 2026-08-23_
 _Revisado em 2026-08-24 contra 9 catálogos em produção — seções 4 (cor + `idx`, unidades
 do OQ3D) e 12 (geometria compartilhada entre produtos)._
-_2026-08-27 — seção 4.1 (miniaturas `thumbs/`) e campo `produto.thumb`. Geração validada
-nos 9 catálogos (622 geometrias, zero falhas). **Extensão proposta pelo pipeline; ainda
-não implementada no lado bilds.com** — enquanto a API não extrair `thumbs/`, a pasta é
-ignorada no upload e o viewer segue gerando as miniaturas no browser. Ver BILDS-552._
+_2026-08-27 — seção 4.1 (miniaturas `thumbs/`) e campo `produto.thumb`._
+_2026-08-28 — `thumbs/` implementado no lado bilds.com (BILDS-552, PR #1244, mergeado em `develop`)._
 _Fonte: `bilds.com/apps/api/src/b-bim-3d/` · `bilds.com/apps/web/src/components/b-bim-3d/` · `bilds.com/docs/modules/bim-3d-module.md`_

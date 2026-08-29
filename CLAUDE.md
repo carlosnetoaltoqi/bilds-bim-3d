@@ -85,9 +85,6 @@ originou — e não se perde se a máquina sumir.
 
 **Versão base estável:** commit `059bd01` em `main`.
 
-`output/` está limpa — só `output/preview/index.html` (landing da Vercel, feita à mão).
-Para gerar os ZIPs de qualquer biblioteca em `input/`:
-
 ```bash
 export LD_LIBRARY_PATH=~/.local/chromium-libs/root/usr/lib/x86_64-linux-gnu
 python3 scripts/build.py --all          # só as novas
@@ -96,16 +93,13 @@ python3 scripts/build.py --all --force  # refaz todas
 
 ### Dependência cruzada com o bilds.com
 
-O lado que **consome** `thumbs/` foi **mergeado no `develop` do bilds.com em 2026-08-28**
-— PR #1244 (https://github.com/AltoQiTec/bilds.com/pull/1244), merge commit `95ddb470`.
-Handoff completo em `bilds.com/.claude/sessions/bim-3d-miniatura-estatica/context.md`.
-
-**A pasta `thumbs/` deixou de ser inerte:** a API agora extrai, grava `thumbBaseUrl` no
-catálogo e o viewer usa a imagem pronta em vez de gerar no browser. Consequência prática
-para este repo: **um ZIP gerado sem `thumbs/` faz o catálogo voltar ao render dinâmico**
-— que funciona, mas é o comportamento de 39,9 s de LCP que motivou toda a mudança. Se o
-build avisar que pulou as miniaturas, não publique o ZIP: resolva as dependências antes
-(ver “Miniaturas pré-renderizadas”).
+**A pasta `thumbs/` deixou de ser inerte:** a API do bilds.com (PR #1244, mergeado em
+`develop` em 2026-08-28) agora extrai `thumbs/`, grava `thumbBaseUrl` no catálogo e o
+viewer usa a imagem pronta em vez de gerar no browser. Consequência prática para este
+repo: **um ZIP gerado sem `thumbs/` faz o catálogo voltar ao render dinâmico** — que
+funciona, mas é o comportamento de 39,9 s de LCP que motivou toda a mudança. Se o build
+avisar que pulou as miniaturas, resolva as dependências antes (ver “Miniaturas
+pré-renderizadas”).
 
 ### Pendência conhecida
 
@@ -405,11 +399,7 @@ o zip inteiro. `catalog.json` e `geo/*.json` vão para S3, registrados no MongoD
 > **Atenção:** `manifest.json` usa campos em **inglês** (contrato da API bilds.com).
 > `catalog.json` usa campos em **português** (convenção de dados apresentados ao usuário).
 
-⚠️ **`thumbs/` ainda não é lido pela API do bilds.com.** A pasta é uma extensão proposta
-(BILDS-552) e é ignorada no upload até que `apps/api/src/b-bim-3d/` passe a extraí-la.
-Enquanto isso ela só ocupa espaço no ZIP — mas é inofensiva, e gerar desde já significa
-que os catálogos já estarão prontos quando o outro lado subir. Contrato completo:
-`docs/bilds-bim-3d-zip-spec.md` seção 4.1.
+Contrato completo do ZIP: `docs/bilds-bim-3d-zip-spec.md`.
 
 ---
 
