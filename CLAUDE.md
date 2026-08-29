@@ -84,7 +84,7 @@ originou — e não se perde se a máquina sumir.
 
 ## 👉 Próxima sessão — estado em 2026-08-29
 
-**Versão base estável:** commit `c1ba215` em `main` (S1.2 concluída).
+**Versão base estável:** commit `9bf64a0` em `main` (S1.2 + bugs de infraestrutura corrigidos).
 
 ### Duas linhas de trabalho ativas
 
@@ -95,9 +95,14 @@ originou — e não se perde se a máquina sumir.
    **`docs/plano-produto-dinamico.md`**. O código dela vive em `www/`, fora do deploy da
    Vercel.
 
-   **S1.2 foi concluída** (2026-08-29). O Atlas já contém dados reais da Dancor
-   (13 produtos, 13 geometrias). A próxima sessão é **S2.1 — Spike da fronteira
-   (formato B)**. Disparar com:
+   **S1.2 foi concluída** (2026-08-29), incluindo verificação end-to-end do endpoint
+   HTTP (`GET /geometrias/:productId` → 200, ~2 MB geometry JSON). Dois bugs de
+   infraestrutura foram corrigidos no commit `9bf64a0`: `MongooseModule.forRoot()` sem
+   `dbName` (conectava a `test`) e `DiskGeometryStore` sem `path.resolve()` no construtor
+   (`ETRAVERSAL` em toda chave com `STORAGE_PATH` relativo). Detalhes em
+   `docs/sessoes/S1.2-carga-prova-ponta-a-ponta.md` seção 6. O Atlas já contém dados
+   reais da Dancor (13 produtos, 13 geometrias). A próxima sessão é **S2.1 — Spike da
+   fronteira (formato B)**. Disparar com:
 
    ```
    /ce-plan Executar SOMENTE a sessão S2.1 de docs/plano-produto-dinamico.md.
@@ -140,6 +145,10 @@ pré-renderizadas”).
   “BUG ABERTO” na seção do `oq3d.py`
 - **GET /geometrias sem auth** — endpoint intencional para a POC; adicionar guard antes
   de qualquer exposição de rede (ver finding A1 do review S1.2)
+- **`STORAGE_PATH` é variável de ambiente, não commitada.** Está em `www/.env` (gitignored)
+  como `STORAGE_PATH=../../storage/bim` (relativo a `apps/api/`). Sem ela a API lê de
+  `apps/api/storage` e não encontra as geometrias. O `DiskGeometryStore` faz
+  `path.resolve()` no construtor — caminhos relativos são aceitos desde que o `.env` exista.
 
 ---
 
