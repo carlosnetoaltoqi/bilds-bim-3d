@@ -115,7 +115,7 @@ As duas trilhas convivem no mesmo repo.
 
 ### 2.1 O modelo de trabalho: sessões independentes e amnésicas
 
-Este trabalho **não** é uma sessão longa. São **doze sessões curtas e independentes**,
+Este trabalho **não** é uma sessão longa. São **treze sessões curtas e independentes**,
 cada uma com uma janela de contexto pequena, ligadas **exclusivamente pela documentação
 versionada no repositório**.
 
@@ -165,7 +165,7 @@ próximo agente não vai saber por que ele está lá, nem o que ficou pela metad
 
 O objetivo é **contexto pequeno e trabalho atômico e incremental**. Uma janela grande
 carregando o repositório inteiro degrada: o agente perde precisão, mistura camadas e toma
-decisões que contradizem as anteriores. Doze sessões de escopo estreito, cada uma lendo
+decisões que contradizem as anteriores. Treze sessões de escopo estreito, cada uma lendo
 um plano estável e o registro da anterior, produzem trabalho mais previsível — e deixam
 um rastro auditável que é, ele próprio, o entregável da POC: é isso que a reconstrução na
 bilds.com vai consumir.
@@ -203,6 +203,7 @@ que a seção 2.1 existe para evitar.
 | **S1.2** | `ce-work` | é medição: o script ou mede, ou não mede |
 | **S2.1 · S2.2** | `ce-work` → `ce-code-review` | o critério é "saída idêntica ao Python". Não há o que brainstormar |
 | **S2.3** | `ce-plan` → `ce-work` → `ce-code-review` | o modelo de execução tem alternativas reais |
+| **S2.4** | `ce-plan` → `ce-work` → `ce-code-review` | dois caminhos com custos de produção diferentes — há o que planejar |
 | **S3.1 · S3.2 · S3.3** | `ce-work` → `ce-code-review` | os formulários da bilds.com já servem de especificação |
 | **S4.1** | `ce-work` | medição comparativa |
 | **S4.2** | `ce-compound` | destilar aprendizado é literalmente o propósito da skill |
@@ -431,13 +432,34 @@ O pipeline Python continua no repo servindo a trilha Vercel.
 > **é** a resposta à pergunta nº 2, e o que a reconstrução na bilds.com vai reaproveitar
 > como conhecimento. Sessões **S2.1** e **S2.2**.
 
-### 7.4 Miniaturas no servidor
+### 7.4 Miniaturas no servidor — sessão própria (S2.4)
 
-Playwright + Chromium é o passo mais difícil de levar para k8s: imagem grande, memória,
-`--no-sandbox`. **Recomendação preliminar: manter a miniatura opcional** — o catálogo já
-sabe funcionar sem ela, caindo no render no browser. Assim uma falha de Chromium nunca
-derruba a importação. Se couber no tempo, testar como passo separado do fluxo de upload.
-Fecha em **S2.3**.
+É a **pergunta 3** das quatro que a POC existe para responder, então não pode ficar na
+fila do "se sobrar tempo": ganha sessão dedicada, aberta pelo ADR-001 quando S1.1 perdeu
+o codec binário.
+
+Há **dois caminhos viáveis com custos de produção bem diferentes**, e S2.4 mede os dois:
+
+**A — Chromium + SwiftShader**, o que o `thumbs.mjs` já faz. Roda na AWS sem GPU: o
+pipeline já usa `--use-gl=angle --use-angle=swiftshader --enable-unsafe-swiftshader`, que
+é WebGL por software. Obstáculos conhecidos no k8s, nenhum impeditivo:
+
+| Obstáculo | Custo |
+|---|---|
+| Imagem | Playwright + Chromium ≈ 1,5–2 GB — inviável no pod da API, daí o worker separado |
+| `/dev/shm` | 64 MB por padrão em container derruba o Chromium: montar `emptyDir{medium:Memory}` em `/dev/shm` ou usar `--disable-dev-shm-usage` |
+| Sandbox | `--no-sandbox` em pod isolado, ou seccomp permitindo user namespaces |
+| **CPU** | SwiftShader rasteriza na CPU. **É o número que ninguém tem** — e é o que decide worker permanente × Job sob demanda |
+
+**B — rasterizador em TypeScript, sem browser.** A geometria já está em `pos`/`col`/`idx`:
+projeção, z-buffer, sombreamento plano, e `sharp` para o WebP. ~250 linhas, imagem
+minúscula, milissegundos por peça. O preço é real: a spec exige que **câmera e material
+batam com o viewer** (`docs/bilds-bim-3d-zip-spec.md`, seção 4.1), então B reimplementa
+esse casamento — e é aí que nasce divergência entre a miniatura e o que o usuário vê ao
+abrir o modal.
+
+A miniatura continua **opcional em runtime** — falha de renderização nunca derruba a
+importação. O que deixa de ser opcional é **medir**.
 
 ### 7.5 Modelo de execução da importação
 
@@ -486,7 +508,7 @@ bilds-bim-3d/
 
 ## 10. As sessões
 
-Doze sessões, a começar pela S-rev, que não escreve código. Cada uma com entregável fechado e verificável, que não obriga a próxima a
+Treze sessões, a começar pela S-rev, que não escreve código. Cada uma com entregável fechado e verificável, que não obriga a próxima a
 carregar o contexto da anterior além deste documento.
 
 ### Fase de revisão — antes de escrever qualquer código
@@ -520,7 +542,19 @@ carregar o contexto da anterior além deste documento.
 |---|---|---|---|
 | **S2.1** | Port do OQ3D para TS | parser TypeScript do formato binário + suíte de regressão contra o Python | saída idêntica à do Python em **todas as geometrias que `build.py --all` produzir a partir de `input/`** (ver seção 0) |
 | **S2.2** | Port do leitor `.aq` para TS | SQLite, cp1252, peças, specs, curvas Q-H, vínculo peça→geometria | catálogo gerado em TS == catálogo gerado em Python, nos 10 `.aq` de `input/` |
-| **S2.3** | Importação server-side | `POST` do `.aq` → `bim_imports` → processamento fora do request → catálogo no banco; decisão 7.4 sobre miniaturas e decisão 7.5 sobre modelo de execução | subir um `.aq` gera catálogo consultável, com status observável do início ao fim |
+| **S2.3** | Importação server-side **e as rotas de leitura** | `POST` do `.aq` → `bim_imports` → processamento fora do request → arquivos no `GeometryStore` + documentos no banco; decisão 7.4 sobre miniaturas e decisão 7.5 sobre modelo de execução. Mais as três rotas de leitura (contrato abaixo) | subir um `.aq` gera catálogo consultável com status observável do início ao fim, **e as três rotas respondem via `curl` com o `ETag` correto** |
+| **S2.4** | Miniaturas no servidor | worker de miniaturas isolado do fluxo de upload, medindo os dois caminhos da 7.4: Chromium+SwiftShader (tempo por geometria, memória, tamanho de imagem) e o rasterizador TS | há números para os dois caminhos e um ADR dizendo qual sai mais barato em produção — ou, se um deles falhar, o registro do fracasso, que também responde à pergunta 3 |
+
+> **Contrato das rotas de leitura (S2.3).** Com o ADR-001, é a API que serve a
+> geometria — então estas rotas são o produto, não encanamento:
+>
+> | Rota | Devolve | Cabeçalhos |
+> |---|---|---|
+> | `GET /catalogos/:empresa/:slug` | metadados + produtos, com filtro por spec | — |
+> | `GET /geometrias/:id` | o blob lido pelo `GeometryStore` | `ETag`, `Cache-Control` longo |
+> | `GET /thumbs/:id` | a miniatura (WebP) | `ETag`, `Cache-Control` longo |
+>
+> S3.3 assume estas rotas prontas e cuida só de adaptar os componentes.
 
 ### Fase 3 — A aplicação
 
@@ -553,6 +587,7 @@ seguinte lê — e ela lê **só o mais recente**.
 | S2.1 | não iniciada | — | — | — |
 | S2.2 | não iniciada | — | — | — |
 | S2.3 | não iniciada | — | — | — |
+| S2.4 | não iniciada | — | — | — |
 | S3.1 | não iniciada | — | — | — |
 | S3.2 | não iniciada | — | — | — |
 | S3.3 | não iniciada | — | — | — |
@@ -572,4 +607,4 @@ Nenhum bloqueia a S0.
    espaço em disco. Provável: guardar só o hash, para deduplicação.
 2. **Quantas bibliotecas a POC carrega?** Depende de S1.2. Começar por Dancor (a menor,
    com curva Q-H, exercita o layout `series-rows`).
-3. **Miniatura entra na POC ou fica de fora (7.4)?** Decidir em S2.3, à luz do tempo.
+3. _(resolvido em 2026-08-29: a miniatura ganhou a sessão S2.4 — ver 7.4.)_
