@@ -239,10 +239,17 @@ Regras desta linha de trabalho (seção 2 do plano):
   - Pare no commit: direto na main, sem push automático e sem PR.
   - Ao encerrar, deixe o registro em docs/sessoes/ seguindo o TEMPLATE.md,
     e atualize a tabela de progresso da seção 11.
+  - Termine imprimindo, em bloco de código pronto para copiar, o prompt da
+    PRÓXIMA sessão da seção 10 — mesma forma deste, com o identificador e a
+    skill que a tabela da seção 2.4 manda usar nela.
 ```
 
 Troque `S0` pelo identificador da sessão da vez, e a skill pelo que a tabela acima manda
 usar naquela linha.
+
+**O encadeamento é esse último item, e só ele.** Uma sessão nunca executa a seguinte —
+ela deixa o prompt pronto para você abrir uma sessão limpa e colar. É o que mantém a
+janela pequena e a amnésia intacta.
 
 #### Autoridade documental
 
