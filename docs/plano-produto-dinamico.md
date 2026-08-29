@@ -219,6 +219,31 @@ decisões tomadas de propósito, sem que o agente saiba disso.
 **`ce-work` para no commit.** Em uso avulso ele assume o "shipping tail" e pode abrir PR.
 Aqui trabalhamos direto na `main`, sem PR: commitar, e parar.
 
+#### Como disparar uma sessão
+
+⚠️ **Nunca aponte uma skill do CE para este arquivo sem dizer qual sessão.** Ele descreve
+treze sessões; sem escopo, o `ce-work` tenta executar o plano inteiro — exatamente o
+super-contexto que a 2.1 existe para evitar. Use esta forma:
+
+```
+/ce-work Executar SOMENTE a sessão S0 de docs/plano-produto-dinamico.md.
+
+Antes de qualquer coisa, leia:
+  1. CLAUDE.md da raiz
+  2. docs/plano-produto-dinamico.md inteiro
+  3. docs/sessoes/S-rev-revisao-do-plano.md  (registro da última sessão)
+
+Regras desta linha de trabalho (seção 2 do plano):
+  - Não avance para a sessão seguinte, mesmo que sobre tempo.
+  - Não edite nada em /home/foltz/bilds.com — é referência somente leitura.
+  - Pare no commit: direto na main, sem push automático e sem PR.
+  - Ao encerrar, deixe o registro em docs/sessoes/ seguindo o TEMPLATE.md,
+    e atualize a tabela de progresso da seção 11.
+```
+
+Troque `S0` pelo identificador da sessão da vez, e a skill pelo que a tabela acima manda
+usar naquela linha.
+
 #### Autoridade documental
 
 O compound-engineering grava artefatos próprios (`spec.md`, `acceptance.md`,
