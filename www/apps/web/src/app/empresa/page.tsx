@@ -10,9 +10,16 @@ interface Company {
   logoUrl: string | null;
 }
 
+interface ImportStatus {
+  status: string;
+  catalogSlug: string | null;
+  productCount: number | null;
+}
+
 export default function EmpresaPage() {
   const router = useRouter();
   const [company, setCompany] = useState<Company | null>(null);
+  const [importStatus, setImportStatus] = useState<ImportStatus | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -29,7 +36,16 @@ export default function EmpresaPage() {
         return r.json();
       })
       .then((data) => {
-        if (data) setCompany(data);
+        if (!data) return;
+        setCompany(data);
+        return fetch('/api/importacoes/ultima');
+      })
+      .then((r) => {
+        if (!r || !r.ok) return;
+        return r.json();
+      })
+      .then((imp) => {
+        if (imp) setImportStatus({ status: imp.status, catalogSlug: imp.catalogSlug ?? null, productCount: imp.productCount ?? null });
       })
       .finally(() => setLoading(false));
   }, [router]);
@@ -62,6 +78,16 @@ export default function EmpresaPage() {
           <a href="/empresa/importar" style={styles.btnPrimary}>
             Subir biblioteca .aq
           </a>
+          {importStatus?.status === 'publicado' && importStatus.catalogSlug && (
+            <a
+              href={`/${company?.customUrl}/${importStatus.catalogSlug}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={styles.btnSecondary}
+            >
+              Ver catálogo ({importStatus.productCount ?? '?'} produtos)
+            </a>
+          )}
           <button onClick={logout} style={styles.btnSecondary}>
             Sair
           </button>

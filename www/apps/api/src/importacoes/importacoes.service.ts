@@ -52,6 +52,11 @@ export class ImportacoesService {
       .lean()
       .exec();
     if (!imp) return null;
+    let catalogSlug: string | null = null;
+    if (imp.catalogId) {
+      const cat = await this.catalogModel.findById(imp.catalogId).select('slug').lean().exec();
+      catalogSlug = cat?.slug ?? null;
+    }
     return {
       importId: imp._id,
       status: imp.status,
@@ -59,6 +64,7 @@ export class ImportacoesService {
       error: imp.error ?? null,
       note: (imp as any).note ?? null,
       catalogId: imp.catalogId ?? null,
+      catalogSlug,
       createdAt: imp.createdAt,
       updatedAt: (imp as any).updatedAt ?? null,
     };
