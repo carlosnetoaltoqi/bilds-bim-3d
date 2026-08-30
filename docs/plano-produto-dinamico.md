@@ -734,7 +734,7 @@ seguinte lê — e ela lê **só o mais recente**.
 | S3.2 | **concluída** | 2026-08-30 | [S3.2](sessoes/S3.2-upload-biblioteca.md) | upload direto à API (dev mode limit 10 MB no proxy Next.js); link para catálogo depende de S3.3 |
 | S3.3 | **concluída** | 2026-08-30 | [S3.3](sessoes/S3.3-pagina-publica-catalogo.md) | Tailwind v4 (@tailwindcss/postcss); PocProduct/PocCatalog próprios; URLs absolutas no Server Component; catalogSlug adicionado ao findLatestByOwnerId |
 | S4.1 | **concluída** | 2026-08-30 | [S4.1](sessoes/S4.1-medicao-comparativa.md) | LCP não medido com Lighthouse real (WSL sem browser headless); import ativo sem dedup (geo 4× maior); ver §4 do registro para números completos |
-| S4.2 | não iniciada | — | — | — |
+| S4.2 | **concluída** | 2026-08-30 | [S4.2](sessoes/S4.2-documento-de-aprendizados.md) | ce-compound; documento em inglês em docs/solutions/architecture-patterns/; CONCEPTS.md criado; validação mecânica e semântica passaram |
 
 Status possíveis: `não iniciada` · `em andamento` · `concluída` · `concluída com ressalva`
 · `bloqueada`. As três últimas **exigem** registro em `docs/sessoes/`.

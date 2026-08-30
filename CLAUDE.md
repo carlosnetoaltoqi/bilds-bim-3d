@@ -44,6 +44,8 @@ não está aqui, isso é uma falha desta documentação — registre-a antes de 
 | Integração com dashboard e API | `docs/plano-integracao-bilds.md` — **histórico**, o módulo já foi shipado |
 | Skills de agente (versionadas aqui) | `docs/skills/` |
 | **POC de catálogo dinâmico (banco de dados, Node+React)** | **`docs/plano-produto-dinamico.md`** |
+| Aprendizados arquiteturais da POC (ADRs, bugs, diretrizes para a reconstrução) | `docs/solutions/architecture-patterns/` |
+| Vocabulário do domínio (GeometryStore, Import, Geometry Pointer) | `CONCEPTS.md` |
 
 ### Skills — versionadas aqui, em `docs/skills/`
 
