@@ -82,9 +82,9 @@ originou — e não se perde se a máquina sumir.
 
 ---
 
-## 👉 Próxima sessão — estado em 2026-08-29
+## 👉 Próxima sessão — estado em 2026-08-30
 
-**Versão base estável:** commit `9bf64a0` em `main` (S1.2 + bugs de infraestrutura corrigidos).
+**Versão base estável:** commit S2.2 em `main`.
 
 ### Duas linhas de trabalho ativas
 
@@ -95,34 +95,34 @@ originou — e não se perde se a máquina sumir.
    **`docs/plano-produto-dinamico.md`**. O código dela vive em `www/`, fora do deploy da
    Vercel.
 
-   **S1.2 foi concluída** (2026-08-29), incluindo verificação end-to-end do endpoint
-   HTTP (`GET /geometrias/:productId` → 200, ~2 MB geometry JSON). Dois bugs de
-   infraestrutura foram corrigidos no commit `9bf64a0`: `MongooseModule.forRoot()` sem
-   `dbName` (conectava a `test`) e `DiskGeometryStore` sem `path.resolve()` no construtor
-   (`ETRAVERSAL` em toda chave com `STORAGE_PATH` relativo). Detalhes em
-   `docs/sessoes/S1.2-carga-prova-ponta-a-ponta.md` seção 6. O Atlas já contém dados
-   reais da Dancor (13 produtos, 13 geometrias). A próxima sessão é **S2.1 — Spike da
-   fronteira (formato B)**. Prompt completo para sessão limpa (sem contexto,
-   inclusive em outra máquina):
+   **S2.2 foi concluída** (2026-08-30). Port TypeScript de `oq3d.py` + `read_aq.py`
+   concluído e validado. 13/13 produtos Dancor passam na comparação semântica. O ADR-002
+   fechou em favor do port TS (59× mais rápido que o worker Python, 2,2× mais memória —
+   gerenciável). Código em `www/tools/oq3d-parser.ts` e `www/tools/aq-reader.ts`.
+   A próxima sessão é **S2.3 — Importação server-side e rotas de leitura**.
+   Prompt completo para sessão limpa (sem contexto, inclusive em outra máquina):
 
    ```
    vamos trabalhar no projeto bilds-bim-3d. ce-work /home/foltz/bilds-bim-3d/docs/plano-produto-dinamico.md
 
-   Executar SOMENTE a sessão S2.1.
+   Executar SOMENTE a sessão S2.3.
 
    Antes de qualquer coisa:
    1. Ler o plano inteiro em /home/foltz/bilds-bim-3d/docs/plano-produto-dinamico.md
-      (protocolo na seção 2.1, escopo de S2.1 na seção 10, decisão de formato na seção 7.3)
-   2. Ler /home/foltz/bilds-bim-3d/docs/sessoes/S1.2-carga-prova-ponta-a-ponta.md
-      (seção 6 tem dois bugs corrigidos pós-sessão que afetam o ambiente)
+      (protocolo na seção 2.1, escopo de S2.3 na seção 10, ADR-001 e ADR-002 na seção 9)
+   2. Ler /home/foltz/bilds-bim-3d/docs/sessoes/S2.2-spike-port-typescript.md
+      (seção 7 tem armadilhas concretas para S2.3, especialmente DatabaseSync e memória)
    3. Verificar baseline: cd /home/foltz/bilds-bim-3d/www && pnpm smoke:geo
       → deve imprimir "smoke test passed"
 
-   Estado atual (commit 72853d9 em main):
-   - Atlas já contém Dancor: 13 produtos, 13 geometrias — não reingerir
+   Estado atual (commit S2.2 em main):
+   - Atlas contém Dancor: 13 produtos, 13 geometrias — não reingerir
+   - Port TS pronto: www/tools/oq3d-parser.ts + www/tools/aq-reader.ts
+   - ADR-002 fechado: usar port TS (não worker Python)
    - GET /geometrias/:productId funciona end-to-end (HTTP 200, ~2 MB geometry JSON)
    - www/.env (gitignored) deve ter MONGODB_URI, MONGODB_DB=bilds-bim-3d, STORAGE_PATH=../../storage/bim
    - Código da POC em /home/foltz/bilds-bim-3d/www/
+   - Arquivo .aq da Dancor: input/Dancor/pecas_dancor_bombas_incendio_2026_04.1.aq
    ```
 
    **Essa linha roda em sessões curtas, independentes e amnésicas**, ligadas só pela
@@ -1491,3 +1491,35 @@ Encapsulado no script `pnpm ingest` via filtro `--filter api exec sh -c '...'`.
 
 **Estado do Atlas após S1.2:** 1 empresa (`Dancor`), 1 catálogo (`bombas-incendio`),
 13 produtos com `geoKey` no formato `geo/{importId}/{p.id}.json`.
+
+### 2026-08-30 — S2.2: spike do port TypeScript
+
+**Port TypeScript de `oq3d.py` + `read_aq.py` (Dancor).**
+
+**Arquivos criados:**
+- `www/tools/oq3d-parser.ts` — parser OQ3D binário. Exporta `isOQ3D`, `parse`,
+  `toBuffers`, `OQ3DError`. Segurança: valida `nCoord × 8` e `nIdx × 4` contra
+  `buf.length` antes de qualquer `new Array(n)`.
+- `www/tools/aq-reader.ts` — leitor `.aq` via `node:sqlite` (`DatabaseSync`, Node v24,
+  sem flags). Usa `CAST(col AS BLOB)` em toda coluna de texto +
+  `TextDecoder('windows-1252')`. Exporta `extract` e `extractSimboloias`.
+- `www/tools/test-port-s2-2.ts` — teste de comparação semântica contra oráculo Python.
+
+**Resultado do teste (`pnpm port:test`):**
+- 13/13 produtos Dancor passam na comparação elemento a elemento
+- Rejeição de blobs maliciosos: OK (sem assinatura, contagem > buffer, blob truncado)
+- Tempo: 658 ms (Python S2.1: ~39 000 ms) — **59× mais rápido**
+- RSS delta: 422 MB (Python S2.1: 189 MB) — 2.2× mais
+
+**ADR-002 fechado:** prosseguir com port TS. Ganho de latência e eliminação de Python
+superam o custo de memória (gerenciável; candidato a otimização com `Float64Array`
+na representação interna em vez de `Array<[number,number,number]>`).
+
+**Sobre `node:sqlite`:** `DatabaseSync` está disponível em Node v24 sem flags
+experimentais. Retorna `Uint8Array` para colunas BLOB. `TextDecoder('windows-1252')`
+não lança nos 5 bytes indefinidos do cp1252 (0x81, 0x8D, 0x8F, 0x90, 0x9D).
+
+**Sobre a comparação semântica:** divergências de 1-2 ULPs (~10⁻¹⁵ relativo) são
+esperadas entre numpy (BLAS/FMA) e aritmética escalar JS. A tolerância 1e-10 relativo
+é usada no teste — rejeita erros reais (CM_TO_M ausente → 100×) e aceita ruído de
+precisão de máquina.

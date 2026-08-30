@@ -636,6 +636,7 @@ bilds-bim-3d/
 | # | Decisão | Status | Sessão |
 |---|---|---|---|
 | **ADR-001** | **Onde mora cada dado.** Produtos e dados BIM no MongoDB (é o que se busca); geometria e miniaturas em arquivo atrás do driver `GeometryStore` — disco na POC, S3 na bilds.com; ponteiro no documento do produto; a API serve a geometria para evitar CORS. Rejeitado: geometria em `BinData` no Mongo, e com ela o codec binário e o portão de volumetria. Detalhe na seção 3. | **fechada** — decisão do dono do projeto | S-rev (2026-08-29) |
+| **ADR-002** | **Port TS vs worker Python para parsing de `.aq` + OQ3D.** Medido na S2.2 com a Dancor (13 produtos, 10,9 M elementos). Port TS: 658 ms, RSS +422 MB. Worker Python (S2.1): ~39 000 ms, RSS +189 MB. Ganho de latência: **59×**. Custo de memória: **2,2×** (representação intermédia em arrays JS antes de achatar). **Decisão: port TS (Formato A).** Eliminação da dependência de Python e do cold start de 2-5 s superam o aumento de memória, que é gerenciável e otimizável (candidato: substituir `Array<[number,number,number]>` por `Float64Array` na representação interna). Não reabrir sem medição nova. | **fechada** | S2.2 (2026-08-30) |
 
 ---
 
@@ -725,7 +726,7 @@ seguinte lê — e ela lê **só o mais recente**.
 | S1.1 | **concluída com ressalva** | 2026-08-29 | [S1.1](sessoes/S1.1-schemas-geometry-store.md) | path traversal latente (achado #1 do review — ver registro S1.1 §5) |
 | S1.2 | **concluída** | 2026-08-29 | [S1.2](sessoes/S1.2-carga-prova-ponta-a-ponta.md) | endpoint GET /geometrias sem teste HTTP; projeção linear (ver §5 do registro) |
 | S2.1 | **concluída** | 2026-08-29 | [S2.1](sessoes/S2.1-spike-fronteira-python-worker.md) | peakMemoryMb=189 MB (RSS delta) / 119 MB heap; elapsedWorker≈39s Dancor |
-| S2.2 | não iniciada | — | — | — |
+| S2.2 | **concluída** | 2026-08-30 | [S2.2](sessoes/S2.2-spike-port-typescript.md) | port TS: 658 ms / 422 MB RSS; memória 2.2× maior que Python mas latência 59×; ADR-002 fechado |
 | S2.3 | não iniciada | — | — | — |
 | S2.4 | não iniciada | — | — | — |
 | S3.1 | não iniciada | — | — | — |
