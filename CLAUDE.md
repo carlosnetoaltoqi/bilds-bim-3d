@@ -84,7 +84,7 @@ originou — e não se perde se a máquina sumir.
 
 ## 👉 Próxima sessão — estado em 2026-08-30
 
-**Versão base estável:** commit S2.4 (esta sessão) em `main`.
+**Versão base estável:** commit S3.1 em `main`.
 
 ### Duas linhas de trabalho ativas
 
@@ -95,33 +95,37 @@ originou — e não se perde se a máquina sumir.
    **`docs/plano-produto-dinamico.md`**. O código dela vive em `www/`, fora do deploy da
    Vercel.
 
-   **S2.4 foi concluída** (2026-08-30). Worker de miniaturas isolado em
-   `child_process.fork`, rasterizador TS software (`www/tools/thumb-rasterizer.ts`),
-   ffmpeg libwebp. Abordagem B escolhida sobre Playwright: 65 ms/geo, 4,3 KB/WebP,
-   3,7× mais rápido. `GET /thumbs/:productId` retorna 200 WebP. ADR-003 fechado.
-   A próxima sessão é **S3.1 — Login e empresa**.
+   **S3.1 foi concluída** (2026-08-30). Auth via JWT + cookie httpOnly no Next.js,
+   `POST /auth/login`, `GET /auth/me`, `POST /empresas`, `GET /empresas/minha`,
+   `GET /logos/:companyId`. Middleware de proteção no Next.js. Formulários de login e
+   criação de empresa funcionais. Env vars: `JWT_SECRET` adicionada ao `www/.env`.
+   A próxima sessão é **S3.2 — Upload da biblioteca**.
    Prompt completo para sessão limpa (sem contexto, inclusive em outra máquina):
 
    ```
    vamos trabalhar no projeto bilds-bim-3d. ce-work /home/foltz/bilds-bim-3d/docs/plano-produto-dinamico.md
 
-   Executar SOMENTE a sessão S3.1.
+   Executar SOMENTE a sessão S3.2.
 
    Antes de qualquer coisa:
    1. Ler o plano inteiro em /home/foltz/bilds-bim-3d/docs/plano-produto-dinamico.md
-      (protocolo na seção 2.1, escopo de S3.1 na seção 10)
-   2. Ler /home/foltz/bilds-bim-3d/docs/sessoes/S2.4-miniaturas-servidor.md
-      (seção 7 tem armadilhas e perguntas em aberto para S3.1)
+      (protocolo na seção 2.1, escopo de S3.2 na seção 10)
+   2. Ler /home/foltz/bilds-bim-3d/docs/sessoes/S3.1-login-e-empresa.md
+      (seção 7 tem armadilhas e perguntas em aberto para S3.2)
    3. Verificar baseline: cd /home/foltz/bilds-bim-3d/www && pnpm smoke:geo
       → deve imprimir "smoke test passed"
 
-   Estado atual (commit S2.4 em main):
-   - Atlas contém Dancor: 13 produtos com thumbKey, geometrias e thumbs em disco
-   - POST /importacoes + GET /thumbs/:id funcionam ponta a ponta
-   - GET /thumbs retorna 200 WebP (image/webp, ETag, Cache-Control imutável)
-   - www/.env (gitignored) deve ter MONGODB_URI, MONGODB_DB=bilds-bim-3d, STORAGE_PATH=../../storage/bim
+   Estado atual (commit S3.1 em main):
+   - Auth: POST /auth/login + GET /auth/me funcionam na API (porta 4000)
+   - Empresa: POST /empresas + GET /empresas/minha + GET /logos/:id funcionam
+   - Next.js (porta 3000): /login, /empresa, /empresa/criar, middleware de proteção
+   - Cookie httpOnly "session" set pelo route handler /api/auth/login do Next.js
+   - www/.env (gitignored): MONGODB_URI, MONGODB_DB, SEED_USER, SEED_PASSWORD, JWT_SECRET, STORAGE_PATH
    - ffmpeg disponível em ~/.local/bin/ffmpeg (com libwebp)
    - Port TS (toBuffers) em www/tools/oq3d-parser.ts — não reescrever
+   - Arquivo .aq da Dancor: input/Dancor/pecas_dancor_bombas_incendio_2026_04.1.aq
+   - IMPORTANTE: @types/multer deve estar instalado no pacote api (já está); sem ele o
+     ts-node falha com "Express.Multer.File not exported" ao usar FileInterceptor
    ```
 
    **Essa linha roda em sessões curtas, independentes e amnésicas**, ligadas só pela
@@ -1490,6 +1494,27 @@ Encapsulado no script `pnpm ingest` via filtro `--filter api exec sh -c '...'`.
 
 **Estado do Atlas após S1.2:** 1 empresa (`Dancor`), 1 catálogo (`bombas-incendio`),
 13 produtos com `geoKey` no formato `geo/{importId}/{p.id}.json`.
+
+### 2026-08-30 — S3.1: login e empresa (POC dinâmico)
+
+**Auth mínima para a POC:** JWT assinado com `JWT_SECRET` (env). `POST /auth/login` valida
+`SEED_USER`/`SEED_PASSWORD` (env). `AuthGuard` NestJS lê `Authorization: Bearer <token>`.
+
+**Padrão de auth em dev (portas diferentes):** NestJS (`:4000`) retorna `{ token }` no body;
+Next.js route handler (`/api/auth/login` em `:3000`) define cookie `session` httpOnly para
+`:3000`. Requests protegidos passam pelo route handler que adiciona o header `Authorization`.
+Em produção (mesmo domínio), o token poderia ir direto como cookie da API.
+
+**Empresas criadas via `POST /empresas` (guarded).** Slug de `customUrl` sanitizado no servidor
+(`lowercase + [^a-z0-9-] → '-'`). Logo: multipart opcional até 2 MB, armazenado em
+`STORAGE_PATH/logos/{companyId}.{ext}` via `fs.writeFileSync`. Servido por `GET /logos/:id`.
+
+**Armadilha: `@types/multer` ausente causa falha `TS2694`** no `ts-node` ao usar
+`FileInterceptor` (o tipo `Express.Multer.File` não é exportado sem ele). Solução:
+`pnpm add --filter api -D @types/multer`. Já instalado.
+
+**Novos env vars em `www/.env`:** `JWT_SECRET` (gerado com `secrets.token_hex(32)`). Já
+existiam `SEED_USER` e `SEED_PASSWORD`.
 
 ### 2026-08-30 — S2.4: miniaturas no servidor (ADR-003)
 

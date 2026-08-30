@@ -730,7 +730,7 @@ seguinte lê — e ela lê **só o mais recente**.
 | S2.2 | **concluída** | 2026-08-30 | [S2.2](sessoes/S2.2-spike-port-typescript.md) | port TS: 658 ms / 422 MB RSS; memória 2.2× maior que Python mas latência 59×; ADR-002 fechado |
 | S2.3 | **concluída** | 2026-08-30 | [S2.3](sessoes/S2.3-importacao-server-side.md) | diretórios geo vazios não removidos (inofensivo); endpoint sem auth (finding A1 aberto); sem teste HTTP automatizado |
 | S2.4 | **concluída** | 2026-08-30 | [S2.4](sessoes/S2.4-miniaturas-servidor.md) | rasterizador TS (B) escolhido: 65 ms/geo, 4,3 KB/WebP, 3,7× mais rápido que Playwright (A); ADR-003 fechado; GET /thumbs/:productId retorna 200 WebP |
-| S3.1 | não iniciada | — | — | — |
+| S3.1 | **concluída** | 2026-08-30 | [S3.1](sessoes/S3.1-login-e-empresa.md) | refresh de token não tratado na UI; auth no POST /importacoes para S3.2 |
 | S3.2 | não iniciada | — | — | — |
 | S3.3 | não iniciada | — | — | — |
 | S4.1 | não iniciada | — | — | — |
