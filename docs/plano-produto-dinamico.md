@@ -775,6 +775,7 @@ Uma linha por item: o que é, por que ficou de fora, e se é obrigatório na rec
 | i18n, `@workspace/ui`, RTK Query, Swagger | Convenções da casa | **obrigatório** |
 | Grant do Atlas restrito por base | Cluster descartável da POC; ver pendência 1 da seção 12 | **obrigatório** |
 | Rate limiting no endpoint de upload | Um usuário, sem entrada hostil | **obrigatório** |
+| **Fidelidade visual das miniaturas server-side** | ADR-003 escolheu rasterizador TS (flat shading, 65 ms) sobre Playwright+PBR (240 ms). Na prática a diferença é visível: thumbnails do rasterizador ficam sem especular e sem ambient occlusion, contra o PBR completo do pipeline estático. A decisão correta (rasterizador × Playwright × deixar o browser renderizar) depende do requisito de LCP vs. fidelidade — que S4.1 vai medir. **Reavaliar com os números de S4.1 antes de fechar ADR-003 para a reconstrução.** | **avaliar com S4.1** |
 
 _Sessões: acrescentem linhas aqui em vez de deixar a decisão só no registro da sessão._
 
