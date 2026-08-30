@@ -84,7 +84,7 @@ originou — e não se perde se a máquina sumir.
 
 ## 👉 Próxima sessão — estado em 2026-08-30
 
-**Versão base estável:** commit S2.2 em `main`.
+**Versão base estável:** commit S2.3 (`cb4f110`) em `main`.
 
 ### Duas linhas de trabalho ativas
 
@@ -95,33 +95,33 @@ originou — e não se perde se a máquina sumir.
    **`docs/plano-produto-dinamico.md`**. O código dela vive em `www/`, fora do deploy da
    Vercel.
 
-   **S2.2 foi concluída** (2026-08-30). Port TypeScript de `oq3d.py` + `read_aq.py`
-   concluído e validado. 13/13 produtos Dancor passam na comparação semântica. O ADR-002
-   fechou em favor do port TS (59× mais rápido que o worker Python, 2,2× mais memória —
-   gerenciável). Código em `www/tools/oq3d-parser.ts` e `www/tools/aq-reader.ts`.
-   A próxima sessão é **S2.3 — Importação server-side e rotas de leitura**.
+   **S2.3 foi concluída** (2026-08-30). `POST /importacoes` recebe `.aq`, processa em
+   worker isolado (`child_process.fork`), publica catálogo no Atlas com máquina de estados
+   completa. Três rotas de leitura funcionam com ETag. Upload duplicado substitui catálogo
+   e registra `note`. A próxima sessão é **S2.4 — Miniaturas no servidor**.
    Prompt completo para sessão limpa (sem contexto, inclusive em outra máquina):
 
    ```
    vamos trabalhar no projeto bilds-bim-3d. ce-work /home/foltz/bilds-bim-3d/docs/plano-produto-dinamico.md
 
-   Executar SOMENTE a sessão S2.3.
+   Executar SOMENTE a sessão S2.4.
 
    Antes de qualquer coisa:
    1. Ler o plano inteiro em /home/foltz/bilds-bim-3d/docs/plano-produto-dinamico.md
-      (protocolo na seção 2.1, escopo de S2.3 na seção 10, ADR-001 e ADR-002 na seção 9)
-   2. Ler /home/foltz/bilds-bim-3d/docs/sessoes/S2.2-spike-port-typescript.md
-      (seção 7 tem armadilhas concretas para S2.3, especialmente DatabaseSync e memória)
+      (protocolo na seção 2.1, escopo de S2.4 na seção 10, ADRs na seção 9)
+   2. Ler /home/foltz/bilds-bim-3d/docs/sessoes/S2.3-importacao-server-side.md
+      (seção 7 tem armadilhas e perguntas em aberto para S2.4)
    3. Verificar baseline: cd /home/foltz/bilds-bim-3d/www && pnpm smoke:geo
       → deve imprimir "smoke test passed"
 
-   Estado atual (commit S2.2 em main):
-   - Atlas contém Dancor: 13 produtos, 13 geometrias — não reingerir
-   - Port TS pronto: www/tools/oq3d-parser.ts + www/tools/aq-reader.ts
-   - ADR-002 fechado: usar port TS (não worker Python)
-   - GET /geometrias/:productId funciona end-to-end (HTTP 200, ~2 MB geometry JSON)
+   Estado atual (commit S2.3 cb4f110 em main):
+   - Atlas contém Dancor: 13 produtos, 13 geometrias (import 1d3bc546-...)
+   - POST /importacoes funciona com máquina de estados completa
+   - GET /catalogos/:empresa/:slug, GET /geometrias/:productId (com ETag), GET /thumbs/:id (→ 404)
+   - GET /thumbs retorna 404 "miniatura não disponível" — S2.4 deve preencher essa lógica
    - www/.env (gitignored) deve ter MONGODB_URI, MONGODB_DB=bilds-bim-3d, STORAGE_PATH=../../storage/bim
-   - Código da POC em /home/foltz/bilds-bim-3d/www/
+   - Chromium do Playwright está instalado em ~/.cache/ms-playwright
+   - Port TS (toBuffers) em www/tools/oq3d-parser.ts — não reescrever
    - Arquivo .aq da Dancor: input/Dancor/pecas_dancor_bombas_incendio_2026_04.1.aq
    ```
 
@@ -1491,6 +1491,41 @@ Encapsulado no script `pnpm ingest` via filtro `--filter api exec sh -c '...'`.
 
 **Estado do Atlas após S1.2:** 1 empresa (`Dancor`), 1 catálogo (`bombas-incendio`),
 13 produtos com `geoKey` no formato `geo/{importId}/{p.id}.json`.
+
+### 2026-08-30 — S2.3: importação server-side e rotas de leitura
+
+**Novos módulos em `www/apps/api/src/`:**
+
+- `importacoes/` — `POST /importacoes`: recebe `.aq` (até 300 MB), valida ZIP se ZIP
+  (parsing manual de LFH sem lib externa), grava temp, cria registro de importação e
+  dispara `processAsync()` fire-and-forget.
+- `importacoes/parse-worker.ts` — worker em `child_process.fork()` para isolar o
+  `DatabaseSync` bloqueante. Recebe `{ aqPath, importId }` via IPC, usa `extract()` +
+  `extractSimboloias()` + `toBuffers()` do port TS, escreve arquivos geo em
+  `$STORAGE_PATH/geo/{importId}/{id}.json`. Timeout de 5 min (SIGKILL).
+- `catalogos/` — `GET /catalogos/:empresa/:slug?serie=`
+- `thumbs/` — `GET /thumbs/:productId` → 404 (S2.4)
+
+**Modificados:**
+- `geometrias/geometrias.controller.ts` — ETag (`sha1(geoKey)[0:16]`) + `Cache-Control: public, max-age=31536000, immutable`
+- `bim-imports/bim-imports.schema.ts` — campo `note: string` para registrar substituição de catálogo
+
+**Máquina de estados:** `recebido → parseando → gravando → publicado | vazio | falhou`.
+Cleanup em `falhou`: `store.deleteByPrefix('geo/{importId}')` + `productModel.deleteMany({ importId })`.
+Upload duplicado (mesmo `companyId + slug`): deleta produtos antigos, apaga arquivos geo do
+import anterior, registra `note` no documento de importação.
+
+**Limite de 300 MB para `.aq`:** o `.aq` é SQLite raw com BLOBs de geometria (Dancor ~153 MB,
+Amanco >400 MB) — diferente dos ZIPs comprimidos da bilds.com. Limite inicial de 50 MB deu
+413 no primeiro upload.
+
+**multer via transitive dep:** multer v2.0.2 chega como transitive dep de
+`@nestjs/platform-express`. `FileInterceptor` de `@nestjs/platform-express` o resolve do
+virtual store do pnpm — sem necessidade de dependência direta.
+
+**`deleteByPrefix` apaga arquivos, não diretórios.** O diretório do import substituído fica
+vazio no disco. Comportamento aceitável — inofensivo, e o custo de remover o diretório não
+vale a complexidade.
 
 ### 2026-08-30 — S2.2: spike do port TypeScript
 

@@ -727,7 +727,7 @@ seguinte lê — e ela lê **só o mais recente**.
 | S1.2 | **concluída** | 2026-08-29 | [S1.2](sessoes/S1.2-carga-prova-ponta-a-ponta.md) | endpoint GET /geometrias sem teste HTTP; projeção linear (ver §5 do registro) |
 | S2.1 | **concluída** | 2026-08-29 | [S2.1](sessoes/S2.1-spike-fronteira-python-worker.md) | peakMemoryMb=189 MB (RSS delta) / 119 MB heap; elapsedWorker≈39s Dancor |
 | S2.2 | **concluída** | 2026-08-30 | [S2.2](sessoes/S2.2-spike-port-typescript.md) | port TS: 658 ms / 422 MB RSS; memória 2.2× maior que Python mas latência 59×; ADR-002 fechado |
-| S2.3 | não iniciada | — | — | — |
+| S2.3 | **concluída** | 2026-08-30 | [S2.3](sessoes/S2.3-importacao-server-side.md) | diretórios geo vazios não removidos (inofensivo); endpoint sem auth (finding A1 aberto); sem teste HTTP automatizado |
 | S2.4 | não iniciada | — | — | — |
 | S3.1 | não iniciada | — | — | — |
 | S3.2 | não iniciada | — | — | — |
