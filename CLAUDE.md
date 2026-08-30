@@ -95,37 +95,40 @@ originou — e não se perde se a máquina sumir.
    **`docs/plano-produto-dinamico.md`**. O código dela vive em `www/`, fora do deploy da
    Vercel.
 
-   **S3.1 foi concluída** (2026-08-30). Auth via JWT + cookie httpOnly no Next.js,
-   `POST /auth/login`, `GET /auth/me`, `POST /empresas`, `GET /empresas/minha`,
-   `GET /logos/:companyId`. Middleware de proteção no Next.js. Formulários de login e
-   criação de empresa funcionais. Env vars: `JWT_SECRET` adicionada ao `www/.env`.
-   A próxima sessão é **S3.2 — Upload da biblioteca**.
+   **S3.2 foi concluída** (2026-08-30). Upload de `.aq` via `/empresa/importar` com
+   acompanhamento dos estados `recebido → parseando → gravando → publicado | vazio | falhou`.
+   Polling a cada 3 s. Recovery de página via `GET /importacoes/ultima`. Auth em todos os
+   endpoints de importação. Upload direto para a API NestJS (contornar limite 10 MB do
+   Next.js dev mode). A próxima sessão é **S3.3 — Página pública do catálogo**.
    Prompt completo para sessão limpa (sem contexto, inclusive em outra máquina):
 
    ```
    vamos trabalhar no projeto bilds-bim-3d. ce-work /home/foltz/bilds-bim-3d/docs/plano-produto-dinamico.md
 
-   Executar SOMENTE a sessão S3.2.
+   Executar SOMENTE a sessão S3.3.
 
    Antes de qualquer coisa:
    1. Ler o plano inteiro em /home/foltz/bilds-bim-3d/docs/plano-produto-dinamico.md
-      (protocolo na seção 2.1, escopo de S3.2 na seção 10)
-   2. Ler /home/foltz/bilds-bim-3d/docs/sessoes/S3.1-login-e-empresa.md
-      (seção 7 tem armadilhas e perguntas em aberto para S3.2)
+      (protocolo na seção 2.1, escopo de S3.3 na seção 10)
+   2. Ler /home/foltz/bilds-bim-3d/docs/sessoes/S3.2-upload-biblioteca.md
+      (seção 7 tem armadilhas e perguntas em aberto para S3.3)
    3. Verificar baseline: cd /home/foltz/bilds-bim-3d/www && pnpm smoke:geo
       → deve imprimir "smoke test passed"
 
-   Estado atual (commit S3.1 em main):
+   Estado atual (commit S3.2 em main):
    - Auth: POST /auth/login + GET /auth/me funcionam na API (porta 4000)
    - Empresa: POST /empresas + GET /empresas/minha + GET /logos/:id funcionam
-   - Next.js (porta 3000): /login, /empresa, /empresa/criar, middleware de proteção
+   - Importação: POST /importacoes (auth, empresa derivada do JWT) + GET /importacoes/ultima + GET /importacoes/:id
+   - Next.js (porta 3000): /login, /empresa, /empresa/criar, /empresa/importar, middleware de proteção
    - Cookie httpOnly "session" set pelo route handler /api/auth/login do Next.js
    - www/.env (gitignored): MONGODB_URI, MONGODB_DB, SEED_USER, SEED_PASSWORD, JWT_SECRET, STORAGE_PATH
    - ffmpeg disponível em ~/.local/bin/ffmpeg (com libwebp)
    - Port TS (toBuffers) em www/tools/oq3d-parser.ts — não reescrever
    - Arquivo .aq da Dancor: input/Dancor/pecas_dancor_bombas_incendio_2026_04.1.aq
-   - IMPORTANTE: @types/multer deve estar instalado no pacote api (já está); sem ele o
-     ts-node falha com "Express.Multer.File not exported" ao usar FileInterceptor
+   - Rotas de leitura prontas desde S2.3: GET /catalogos/:empresa/:slug, GET /geometrias/:id, GET /thumbs/:productId
+   - IMPORTANTE: upload direto para localhost:4000 (não via proxy Next.js) — dev mode trunca body em 10 MB
+   - IMPORTANTE: @types/multer deve estar instalado no pacote api (já está)
+   - IMPORTANTE: verificar processos antigos nas portas 3000 E 4000 antes de iniciar
    ```
 
    **Essa linha roda em sessões curtas, independentes e amnésicas**, ligadas só pela
@@ -1494,6 +1497,27 @@ Encapsulado no script `pnpm ingest` via filtro `--filter api exec sh -c '...'`.
 
 **Estado do Atlas após S1.2:** 1 empresa (`Dancor`), 1 catálogo (`bombas-incendio`),
 13 produtos com `geoKey` no formato `geo/{importId}/{p.id}.json`.
+
+### 2026-08-30 — S3.2: upload da biblioteca (POC dinâmico)
+
+**Endpoints de importação protegidos por auth.** `POST /importacoes` agora exige Bearer
+token e deriva a empresa do `ownerId` do JWT (elimina possibilidade de subir para empresa
+de outro usuário via query param). `GET /importacoes/ultima` retorna a última importação
+do usuário para recovery de página. `GET /importacoes/:id` verifica dono.
+
+**Página `/empresa/importar`.** Upload de `.aq` com acompanhamento visual dos estados da
+máquina (`recebido → parseando → gravando → publicado | vazio | falhou`). Polling a cada
+3 s. Recovery: ao recarregar, chama `GET /api/importacoes/ultima` e retoma polling se
+estado não-terminal. `vazio` (arquivo sem geometrias) exibe box amarelo distinto de `falhou`.
+
+**Armadilha nova: Next.js dev mode trunca body em 10 MB.** O arquivo `.aq` da Dancor tem
+~153 MB — o proxy `POST /api/importacoes` no Next.js dev mode tronca o body e o parse
+falha. Workaround: o browser faz upload direto para `http://localhost:4000/importacoes`
+(CORS configurado); o Bearer token é obtido via `GET /api/auth/token` (expõe JWT ao JS
+do cliente — aceitável na POC). Em produção: upload direto para S3 com presigned URL.
+
+**Armadilha confirmada: processo antigo na porta 3000 OU 4000.** Matar e reiniciar antes
+de testar qualquer mudança nos dois servidores.
 
 ### 2026-08-30 — S3.1: login e empresa (POC dinâmico)
 
