@@ -10,13 +10,21 @@ import {
   Req,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import * as os from 'node:os';
+import * as crypto from 'node:crypto';
 import { Request } from 'express';
 import { ImportacoesService } from './importacoes.service';
 import { AuthGuard } from '../auth/auth.guard';
 
-// .aq contém BLOBs de geometria raw (SQLite): Dancor ~153 MB, Amanco >400 MB.
-// ZIP na bilds.com é comprimido e pós-processado — limites não comparáveis.
-const MAX_FILE_BYTES = 300 * 1024 * 1024;
+// .aq são SQLite raw: Dancor ~153 MB, Amanco ~394 MB, Maxbar ~618 MB.
+// diskStorage evita buffer inteiro em RAM; multer escreve direto em /tmp.
+const MAX_FILE_BYTES = 750 * 1024 * 1024;
+
+const storage = diskStorage({
+  destination: (_req, _file, cb) => cb(null, os.tmpdir()),
+  filename: (_req, _file, cb) => cb(null, `bim-${crypto.randomUUID()}.aq`),
+});
 
 @Controller('importacoes')
 export class ImportacoesController {
@@ -24,11 +32,11 @@ export class ImportacoesController {
 
   @UseGuards(AuthGuard)
   @Post()
-  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_FILE_BYTES } }))
+  @UseInterceptors(FileInterceptor('file', { storage, limits: { fileSize: MAX_FILE_BYTES } }))
   async upload(@Req() req: Request, @UploadedFile() file: Express.Multer.File) {
     if (!file) throw new BadRequestException('campo "file" obrigatório');
     const ownerId = (req as any).user.sub as string;
-    return this.importacoesService.create(ownerId, file.buffer, file.originalname ?? 'upload.aq');
+    return this.importacoesService.create(ownerId, file.path, file.size, file.originalname ?? 'upload.aq');
   }
 
   // Deve vir antes de :importId para não capturar "ultima" como param
