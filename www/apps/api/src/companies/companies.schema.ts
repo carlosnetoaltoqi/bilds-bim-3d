@@ -17,6 +17,9 @@ export class Company {
   @Prop({ required: true })
   ownerId: string;
 
+  @Prop()
+  logoKey?: string;
+
   @Prop({ default: Date.now })
   createdAt: Date;
 }
