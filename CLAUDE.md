@@ -84,7 +84,7 @@ originou — e não se perde se a máquina sumir.
 
 ## 👉 Próxima sessão — estado em 2026-08-30
 
-**Versão base estável:** commit S3.1 em `main`.
+**Versão base estável:** commit S3.2b em `main`.
 
 ### Duas linhas de trabalho ativas
 
@@ -95,11 +95,12 @@ originou — e não se perde se a máquina sumir.
    **`docs/plano-produto-dinamico.md`**. O código dela vive em `www/`, fora do deploy da
    Vercel.
 
-   **S3.2 foi concluída** (2026-08-30). Upload de `.aq` via `/empresa/importar` com
+   **S3.2 + S3.2b concluídas** (2026-08-30). Upload de `.aq` via `/empresa/importar` com
    acompanhamento dos estados `recebido → parseando → gravando → publicado | vazio | falhou`.
    Polling a cada 3 s. Recovery de página via `GET /importacoes/ultima`. Auth em todos os
    endpoints de importação. Upload direto para a API NestJS (contornar limite 10 MB do
-   Next.js dev mode). A próxima sessão é **S3.3 — Página pública do catálogo**.
+   Next.js dev mode). Deduplicação de vértices aplicada no `parse-worker.ts` (S3.2b).
+   A próxima sessão é **S3.3 — Página pública do catálogo**.
    Prompt completo para sessão limpa (sem contexto, inclusive em outra máquina):
 
    ```
@@ -110,12 +111,12 @@ originou — e não se perde se a máquina sumir.
    Antes de qualquer coisa:
    1. Ler o plano inteiro em /home/foltz/bilds-bim-3d/docs/plano-produto-dinamico.md
       (protocolo na seção 2.1, escopo de S3.3 na seção 10)
-   2. Ler /home/foltz/bilds-bim-3d/docs/sessoes/S3.2-upload-biblioteca.md
+   2. Ler /home/foltz/bilds-bim-3d/docs/sessoes/S3.2b-dedup-ipc-progresso.md
       (seção 7 tem armadilhas e perguntas em aberto para S3.3)
    3. Verificar baseline: cd /home/foltz/bilds-bim-3d/www && pnpm smoke:geo
       → deve imprimir "smoke test passed"
 
-   Estado atual (commit S3.2 em main):
+   Estado atual (commit S3.2b em main):
    - Auth: POST /auth/login + GET /auth/me funcionam na API (porta 4000)
    - Empresa: POST /empresas + GET /empresas/minha + GET /logos/:id funcionam
    - Importação: POST /importacoes (auth, empresa derivada do JWT) + GET /importacoes/ultima + GET /importacoes/:id
@@ -126,9 +127,11 @@ originou — e não se perde se a máquina sumir.
    - Port TS (toBuffers) em www/tools/oq3d-parser.ts — não reescrever
    - Arquivo .aq da Dancor: input/Dancor/pecas_dancor_bombas_incendio_2026_04.1.aq
    - Rotas de leitura prontas desde S2.3: GET /catalogos/:empresa/:slug, GET /geometrias/:id, GET /thumbs/:productId
+   - Deduplicação de vértices ativa em parse-worker.ts (dedupBuffers, float32 bit-cast)
    - IMPORTANTE: upload direto para localhost:4000 (não via proxy Next.js) — dev mode trunca body em 10 MB
    - IMPORTANTE: @types/multer deve estar instalado no pacote api (já está)
    - IMPORTANTE: verificar processos antigos nas portas 3000 E 4000 antes de iniciar
+   - IMPORTANTE: process.send!(msg, callback) — sempre usar callback form no IPC (sem callback, payloads grandes são descartados)
    ```
 
    **Essa linha roda em sessões curtas, independentes e amnésicas**, ligadas só pela
@@ -1497,6 +1500,24 @@ Encapsulado no script `pnpm ingest` via filtro `--filter api exec sh -c '...'`.
 
 **Estado do Atlas após S1.2:** 1 empresa (`Dancor`), 1 catálogo (`bombas-incendio`),
 13 produtos com `geoKey` no formato `geo/{importId}/{p.id}.json`.
+
+### 2026-08-30 — S3.2b: deduplicação, fix de IPC e progresso de upload (POC dinâmico)
+
+**Deduplicação de vértices implementada em `parse-worker.ts`.** O `dedupBuffers()` em
+TypeScript é equivalente ao `scripts/dedup.py` Python: usa bit-cast float32 (mesmo `DataView`
+trick que o Three.js `Float32BufferAttribute` usa internamente) como chave de lookup.
+Redução de 61–83% nos vértices; geometrias 3–5× menores. Validado com Amanco 393 MB →
+856 produtos em 12 s.
+
+**Bug crítico de IPC corrigido.** `process.send!(result)` seguido de `process.exit(0)` imediato
+descartava o payload IPC quando o buffer não tinha terminado de ser entregue ao pipe do kernel.
+Para a Dancor (13 produtos, payload pequeno) o flush era síncrono na prática e não se manifestava.
+Para a Amanco (856 produtos) o `child.on('message')` nunca disparava — import ficava preso
+em `parseando` até o timeout de 5 min. Fix: `process.send!(result, () => process.exit(0))`.
+
+**Progresso de upload com XHR.** `fetch()` não tem `upload.onprogress`; migrado para
+`XMLHttpRequest`. Barra de progresso CSS com `transition` e label que muda de
+`"Enviando… X%"` para `"Processando…"` quando o upload termina.
 
 ### 2026-08-30 — S3.2: upload da biblioteca (POC dinâmico)
 

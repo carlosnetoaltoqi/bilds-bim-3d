@@ -11,9 +11,52 @@
  */
 
 import { extract, extractSimboloias } from '../../../../tools/aq-reader';
-import { toBuffers, OQ3DError } from '../../../../tools/oq3d-parser';
+import { toBuffers, OQ3DBuffers, OQ3DError } from '../../../../tools/oq3d-parser';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+
+// Shared buffer for float32 bit-casting (float32 quantization matches Three.js Float32BufferAttribute)
+const _f32ab = new ArrayBuffer(4);
+const _f32view = new DataView(_f32ab);
+function f32bits(v: number): number {
+  _f32view.setFloat32(0, v, true);
+  return _f32view.getUint32(0, true);
+}
+
+/**
+ * Deduplicação de vértices com quantização float32 — equivalente ao scripts/dedup.py.
+ * Redução típica: ~79% menos vértices, arquivo 3–5× menor.
+ * Usa a mesma precisão do Float32BufferAttribute do Three.js como chave de lookup.
+ */
+function dedupBuffers(b: OQ3DBuffers): OQ3DBuffers {
+  const { pos, col, idx } = b;
+  const hasCol = col.length > 0;
+  const seen = new Map<string, number>();
+  const newPos: number[] = [];
+  const newCol: number[] = [];
+  const newIdx: number[] = [];
+
+  for (const vi of idx) {
+    const px = pos[vi * 3], py = pos[vi * 3 + 1], pz = pos[vi * 3 + 2];
+    let key: string;
+    if (hasCol) {
+      const cr = col[vi * 3], cg = col[vi * 3 + 1], cb = col[vi * 3 + 2];
+      key = `${f32bits(px)},${f32bits(py)},${f32bits(pz)},${f32bits(cr)},${f32bits(cg)},${f32bits(cb)}`;
+    } else {
+      key = `${f32bits(px)},${f32bits(py)},${f32bits(pz)}`;
+    }
+    let ni = seen.get(key);
+    if (ni === undefined) {
+      ni = newPos.length / 3;
+      seen.set(key, ni);
+      newPos.push(px, py, pz);
+      if (hasCol) newCol.push(col[vi * 3], col[vi * 3 + 1], col[vi * 3 + 2]);
+    }
+    newIdx.push(ni);
+  }
+
+  return { pos: newPos, col: newCol, idx: newIdx };
+}
 
 const STORAGE_PATH = path.resolve(
   process.env.STORAGE_PATH ?? path.join(process.cwd(), 'storage'),
@@ -59,11 +102,19 @@ function slugify(s: string): string {
     .replace(/^-|-$/g, '');
 }
 
+function ts() { return new Date().toISOString().slice(11, 23); }
+
 async function run(input: WorkerInput): Promise<WorkerResult> {
   const { aqPath, importId } = input;
+  const t0 = Date.now();
+  const fileMb = (require('node:fs').statSync(aqPath).size / 1024 / 1024).toFixed(1);
+  console.log(`[worker ${ts()}] início — ${fileMb} MB`);
 
   const aqData = extract(aqPath);
+  console.log(`[worker ${ts()}] extract() concluído — ${((Date.now() - t0) / 1000).toFixed(1)}s — pecas=${aqData.pecas.length}`);
+
   const { simbologias, porPeca } = extractSimboloias(aqPath);
+  console.log(`[worker ${ts()}] extractSimboloias() concluído — ${((Date.now() - t0) / 1000).toFixed(1)}s — simbologias=${simbologias.size}`);
 
   // Catalog metadata from CLASSE_SIMBOLOGIA_3D
   let classe = '';
@@ -109,6 +160,7 @@ async function run(input: WorkerInput): Promise<WorkerResult> {
 
   const products: ProductResult[] = [];
   const filters = new Set<string>();
+  let geoCount = 0;
 
   for (const peca of aqData.pecas) {
     const simId = porPeca.get(peca.ID_PECA);
@@ -118,9 +170,14 @@ async function run(input: WorkerInput): Promise<WorkerResult> {
     if (!simbologia) continue;
 
     let geoBuffer: Buffer;
+    let rawVertCount = 0;
+    let dedupVertCount = 0;
     try {
-      const buffers = toBuffers(simbologia.blob);
-      geoBuffer = Buffer.from(JSON.stringify(buffers));
+      const raw = toBuffers(simbologia.blob);
+      const deduped = dedupBuffers(raw);
+      rawVertCount = raw.pos.length / 3;
+      dedupVertCount = deduped.pos.length / 3;
+      geoBuffer = Buffer.from(JSON.stringify(deduped));
     } catch (err) {
       if (err instanceof OQ3DError) continue;
       throw err;
@@ -137,6 +194,12 @@ async function run(input: WorkerInput): Promise<WorkerResult> {
     await fs.mkdir(path.dirname(geoPath), { recursive: true });
     await fs.writeFile(geoPath, geoBuffer);
 
+    geoCount++;
+    if (geoCount === 1 || geoCount % 50 === 0) {
+      const pct = rawVertCount > 0 ? ((1 - dedupVertCount / rawVertCount) * 100).toFixed(0) : '0';
+      console.log(`[worker ${ts()}] ${geoCount} geo gravadas — ${((Date.now() - t0) / 1000).toFixed(1)}s — ${(geoBuffer.length / 1024).toFixed(0)} KB (dedup -${pct}%)`);
+    }
+
     products.push({
       id,
       nome: peca.NOME_PECA,
@@ -148,12 +211,17 @@ async function run(input: WorkerInput): Promise<WorkerResult> {
     });
   }
 
+  console.log(`[worker ${ts()}] loop concluído — ${geoCount} geos em ${((Date.now() - t0) / 1000).toFixed(1)}s`);
+
   if (products.length === 0) {
     return { status: 'vazio', productCount: 0 };
   }
 
   const hasCurvas = products.some((p) => p.curva && p.curva.length > 0);
   const layout = hasCurvas ? 'series-rows' : 'catalog-grid';
+
+  const totalSec = ((Date.now() - t0) / 1000).toFixed(1);
+  console.log(`[worker ${ts()}] PRONTO — ${products.length} produtos — total ${totalSec}s`);
 
   return {
     status: 'ok',
@@ -172,11 +240,11 @@ async function run(input: WorkerInput): Promise<WorkerResult> {
 process.on('message', (msg: WorkerInput) => {
   run(msg)
     .then((result) => {
-      process.send!(result);
-      process.exit(0);
+      // Aguardar flush do IPC antes de sair — processo sair antes do flush perde
+      // a mensagem quando o payload é grande (856 produtos = vários KB de IPC).
+      process.send!(result, () => process.exit(0));
     })
     .catch((err: any) => {
-      process.send!({ status: 'error', error: err.message ?? String(err) } satisfies WorkerResult);
-      process.exit(1);
+      process.send!({ status: 'error', error: err.message ?? String(err) } satisfies WorkerResult, () => process.exit(1));
     });
 });
