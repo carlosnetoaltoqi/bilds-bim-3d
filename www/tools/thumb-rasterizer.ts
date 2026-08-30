@@ -264,31 +264,44 @@ export async function renderThumbTs(
     }
   }
 
-  // ── 7. Encode WebP via ffmpeg (downscala SS×→1× com lanczos → AA natural) ───
-  return encodeWebP(Buffer.from(rgba.buffer), W, H, width, height);
+  // ── 7. Box-average SS×SS blocos → buffer de saída final ─────────────────────
+  // SSAA real: cada pixel de saída é a média dos SS×SS amostras correspondentes.
+  // Sem ffmpeg scaling → sem ringing de Lanczos, sem blur de sinc.
+  const outRgba = new Uint8Array(width * height * 4);
+  const n = SS * SS;
+  for (let oy = 0; oy < height; oy++) {
+    for (let ox = 0; ox < width; ox++) {
+      let r = 0, g = 0, b = 0;
+      for (let sy = 0; sy < SS; sy++) {
+        for (let sx = 0; sx < SS; sx++) {
+          const idx = ((oy * SS + sy) * W + (ox * SS + sx)) * 4;
+          r += rgba[idx];
+          g += rgba[idx + 1];
+          b += rgba[idx + 2];
+        }
+      }
+      const outIdx = (oy * width + ox) * 4;
+      outRgba[outIdx]     = (r / n + 0.5) | 0;
+      outRgba[outIdx + 1] = (g / n + 0.5) | 0;
+      outRgba[outIdx + 2] = (b / n + 0.5) | 0;
+      outRgba[outIdx + 3] = 255;
+    }
+  }
+
+  return encodeWebP(Buffer.from(outRgba.buffer), width, height);
 }
 
-/**
- * @param srcW/srcH  dimensões do buffer de entrada (pode ser SS× o alvo)
- * @param outW/outH  dimensões do WebP de saída (alvo real)
- * Quando srcW !== outW, adiciona `-vf scale=outW:outH:flags=lanczos` que
- * downscala com filtro Lanczos — equivalente a supersampling com AA natural.
- */
-function encodeWebP(rawRgba: Buffer, srcW: number, srcH: number, outW: number, outH: number): Promise<Buffer> {
+function encodeWebP(rawRgba: Buffer, width: number, height: number): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
-    const scaleArgs: string[] = srcW !== outW || srcH !== outH
-      ? ['-vf', `scale=${outW}:${outH}:flags=lanczos`]
-      : [];
     // libwebp: -quality 85 equivale ao mime quality=0.85 do canvas
     const ff = spawn('ffmpeg', [
       '-f', 'rawvideo',
       '-vcodec', 'rawvideo',
-      '-s', `${srcW}x${srcH}`,
+      '-s', `${width}x${height}`,
       '-pix_fmt', 'rgba',
       '-i', 'pipe:0',
       // rawvideo + rgba: row 0 = topo, igual ao nosso buffer — sem vflip
-      ...scaleArgs,
       '-c:v', 'libwebp',
       '-quality', '85',
       '-f', 'image2pipe',
