@@ -86,7 +86,7 @@ originou — e não se perde se a máquina sumir.
 
 ## 👉 Próxima sessão — estado em 2026-08-30
 
-**Versão base estável:** commit `d4f6b1e` (S3.3) em `main`.
+**Versão base estável:** commit `ceefef0` (S4.2) em `main`.
 
 ### Duas linhas de trabalho ativas
 
@@ -97,7 +97,7 @@ originou — e não se perde se a máquina sumir.
    **`docs/plano-produto-dinamico.md`**. O código dela vive em `www/`, fora do deploy da
    Vercel.
 
-   **S4.1 concluída** (2026-08-30). Medição comparativa com números:
+   **S4.1 e S4.2 concluídas** (2026-08-30). Aprendizados destilados em `docs/solutions/architecture-patterns/poc-catalogo-bim-dinamico-aprendizados.md`. Próxima: S4.3 (miniaturas com baixa resolução visual). Números de medição de S4.1:
    - HTML inicial: 71.9 KB (SSR) vs 44 KB (estático) — 1.6× maior
    - 13 thumbs: 57 KB total (≈ igual nos dois modelos)
    - TTFB SSR: 177–254ms vs ~2ms local (CDN ~50ms)
@@ -107,34 +107,48 @@ originou — e não se perde se a máquina sumir.
    - Import ativo do Dancor (`563e5794`) não tem dedup; import `5c60cb4e` tem e é equivalente ao Python (44.7 MB)
    - Registro completo: `docs/sessoes/S4.1-medicao-comparativa.md`
 
-   A próxima sessão é **S4.2 — Documento de aprendizados** (skill `ce-compound`).
+   A próxima sessão é **S4.3 — Resolução das miniaturas**.
    Prompt completo para sessão limpa:
 
    ```
-   vamos trabalhar no projeto bilds-bim-3d. ce-compound /home/foltz/bilds-bim-3d/docs/plano-produto-dinamico.md
-
-   Executar SOMENTE a sessão S4.2.
+   vamos trabalhar no projeto bilds-bim-3d. Executar SOMENTE a sessão S4.3.
 
    Antes de qualquer coisa:
    1. Ler o plano inteiro em /home/foltz/bilds-bim-3d/docs/plano-produto-dinamico.md
-      (protocolo na seção 2.1, escopo de S4.2 na seção 10)
-   2. Ler /home/foltz/bilds-bim-3d/docs/sessoes/S4.1-medicao-comparativa.md
-      (seção 4 tem os números de medição; seção 5 responde às 5 perguntas da seção 1 do plano)
-   3. Ler os ADRs 001, 002, 003 na seção 9 do plano
-   4. Ler a seção 13 do plano (o que a POC não implementa)
-   5. Verificar baseline: cd /home/foltz/bilds-bim-3d/www && pnpm smoke:geo
+      (protocolo na seção 2.1, S4.3 na tabela da seção 11)
+   2. Ler /home/foltz/bilds-bim-3d/docs/sessoes/S4.2-documento-de-aprendizados.md
+      (seção 7 descreve o problema e os arquivos-chave de S4.3)
+   3. Ler /home/foltz/bilds-bim-3d/docs/solutions/architecture-patterns/poc-catalogo-bim-dinamico-aprendizados.md
+      (ADR-003 documenta a escolha do rasterizador TS e seus parâmetros atuais)
+   4. Verificar baseline: cd /home/foltz/bilds-bim-3d/www && pnpm smoke:geo
       → deve imprimir "smoke test passed"
 
-   Estado atual (commit S3.3 d4f6b1e em main):
-   - S4.1 concluída sem código — apenas medição (registro em docs/sessoes/S4.1-medicao-comparativa.md)
+   Estado atual (commit ceefef0, S4.2 concluída em main):
    - API (porta 4000): auth + empresa + importação + /catalogos/:empresa/:slug + /geometrias/:id + /thumbs/:productId
    - Next.js (porta 3000): /login, /empresa, /empresa/criar, /empresa/importar, /{empresa}/{catalogo}
-   - Dancor no Atlas: 13 produtos, import 563e5794 (SEM dedup — geo 14 MB/arquivo); import 5c60cb4e TEM dedup (3.4 MB/arquivo)
+   - Dancor no Atlas: 13 produtos com thumbs geradas pelo rasterizador TS (thumb-rasterizer.ts)
    - www/.env (gitignored): MONGODB_URI, MONGODB_DB, SEED_USER, SEED_PASSWORD, JWT_SECRET, STORAGE_PATH
-   - S4.2 é document-only — não precisa de API nem Next.js rodando
    - IMPORTANTE: verificar processos antigos nas portas 3000 E 4000 antes de iniciar qualquer server
    - IMPORTANTE: o slug do catálogo Dancor no banco é "bomba-de-combate-a-incencio" (typo original do .aq)
    - IMPORTANTE: GET /geometrias/:id não tem auth guard (intencional POC; não expor em rede)
+
+   Problema a resolver: as miniaturas geradas pelo rasterizador TS (www/tools/thumb-rasterizer.ts)
+   apresentam baixa resolução visual. Investigar toda a pipeline:
+   - Geração: www/tools/thumb-rasterizer.ts (parâmetros: 448×324, ambient 0.7 + key 0.9 + fill 0.35, ffmpeg libwebp)
+   - Worker: www/apps/api/src/importacoes/thumb-worker.ts
+   - Serviço: www/apps/api/src/thumbs/ (GET /thumbs/:productId)
+   - Exibição: www/apps/web/src/components/bim-catalog/LazyBimCard.tsx
+
+   Diagnóstico sugerido: subir os dois servidores, abrir /{empresa}/{catalogo} no browser,
+   inspecionar o elemento <img> das miniaturas (tamanho natural vs tamanho exibido, DPR,
+   atributos width/height/srcset), comparar com o arquivo WebP em STORAGE_PATH/thumbs/.
+   Depois corrigir o que estiver causando a baixa qualidade — pode ser dimensão, qualidade
+   do codec, ausência de antialiasing, ou mismatch entre tamanho da imagem e CSS.
+   Re-importar o Dancor (ou regenerar só os thumbs) para validar o fix.
+
+   Ao encerrar: registrar a sessão em docs/sessoes/S4.3-resolucao-miniaturas.md
+   conforme docs/sessoes/TEMPLATE.md, atualizar seção 11 do plano (S4.3 → concluída),
+   atualizar CLAUDE.md seção "Próxima sessão", commitar em main.
    ```
 
    **Essa linha roda em sessões curtas, independentes e amnésicas**, ligadas só pela
