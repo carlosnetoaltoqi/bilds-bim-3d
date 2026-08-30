@@ -104,7 +104,7 @@ originou — e não se perde se a máquina sumir.
    - Thumbs gerados com supersampling 2× (rasterizador TS, Abordagem B do ADR-003)
 
    **Correções da S4.3 (miniaturas):**
-   - Supersampling 2× em `www/tools/thumb-rasterizer.ts`: render interno 896×648, ffmpeg Lanczos → WebP 448×324
+   - Supersampling 2× (SSAA box-average) em `www/tools/thumb-rasterizer.ts`: render interno 896×648, box-average 2×2 em código → saída 448×324 sem ffmpeg scaling. Abordagem anterior (Lanczos ffmpeg) foi descartada por introduzir blur excessivo a quality=85.
    - IPC exit bug corrigido em `www/apps/api/src/importacoes/thumb-worker.ts`
    - Thumbs de todos os catálogos (Dancor + Amanco) regenerados com a nova qualidade
 
