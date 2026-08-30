@@ -8,6 +8,7 @@
     "ingest": "pnpm --filter api exec sh -c 'NODE_PATH=$(pwd)/node_modules node --require ts-node/register/transpile-only --require reflect-metadata ../../tools/ingest-library.ts'",
     "worker:test": "pnpm --filter api exec sh -c 'NODE_PATH=$(pwd)/node_modules node --require ts-node/register/transpile-only --require reflect-metadata ../../tools/test-worker.ts'",
     "port:test": "pnpm --filter api exec sh -c 'NODE_PATH=$(pwd)/node_modules node --require ts-node/register/transpile-only --require reflect-metadata ../../tools/test-port-s2-2.ts'",
-    "thumb:measure": "pnpm --filter api exec sh -c 'NODE_PATH=$(pwd)/node_modules node --require ts-node/register/transpile-only --require reflect-metadata ../../tools/measure-thumbs.ts'"
+    "thumb:measure": "pnpm --filter api exec sh -c 'NODE_PATH=$(pwd)/node_modules node --require ts-node/register/transpile-only --require reflect-metadata ../../tools/measure-thumbs.ts'",
+    "thumb:regen": "pnpm --filter api exec sh -c 'NODE_PATH=$(pwd)/node_modules node --require ts-node/register/transpile-only --require reflect-metadata ../../tools/regen-thumbs.ts'"
   }
 }

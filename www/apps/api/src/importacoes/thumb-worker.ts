@@ -62,6 +62,6 @@ process.on('message', async (msg: ThumbWorkerInput) => {
     }
   }
 
-  process.send!({ type: 'done', count } satisfies ThumbWorkerMessage);
-  process.exit(0);
+  // Aguarda flush do IPC antes de sair — evita perda de payload em respostas grandes
+  process.send!({ type: 'done', count } satisfies ThumbWorkerMessage, () => process.exit(0));
 });

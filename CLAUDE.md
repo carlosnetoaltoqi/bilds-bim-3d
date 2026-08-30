@@ -84,79 +84,40 @@ originou — e não se perde se a máquina sumir.
 
 ---
 
-## 👉 Próxima sessão — estado em 2026-08-30
+## 👉 Estado em 2026-08-30 — POC de catálogo dinâmico concluída
 
-**Versão base estável:** commit `ceefef0` (S4.2) em `main`.
+**Versão base estável:** commit da S4.3 em `main`.
 
-### Duas linhas de trabalho ativas
+### Duas linhas de trabalho
 
 1. **Pipeline estático (esta é a linha madura).** `.aq` → catálogo → ZIP/preview → Vercel.
    É o que o resto deste arquivo documenta. Estável e em produção.
-2. **POC de catálogo dinâmico** — `.aq` → **MongoDB** → aplicação Node + React, para
-   descobrir como o módulo deve ser reconstruído na bilds.com. Documento âncora:
-   **`docs/plano-produto-dinamico.md`**. O código dela vive em `www/`, fora do deploy da
-   Vercel.
+2. **POC de catálogo dinâmico** — **CONCLUÍDA em 2026-08-30.** Todas as 14 sessões
+   (S-rev a S4.3) foram executadas. Aprendizados destilados em
+   `docs/solutions/architecture-patterns/poc-catalogo-bim-dinamico-aprendizados.md`.
+   O documento registra as respostas às cinco perguntas da POC, os bugs encontrados e
+   as diretrizes para a reconstrução na bilds.com.
 
-   **S4.1 e S4.2 concluídas** (2026-08-30). Aprendizados destilados em `docs/solutions/architecture-patterns/poc-catalogo-bim-dinamico-aprendizados.md`. Próxima: S4.3 (miniaturas com baixa resolução visual). Números de medição de S4.1:
+   **Estado final do banco de dados Atlas:**
+   - Catálogo Dancor ativo: importId `5c60cb4e`, 13 produtos com thumbKey em `thumbs/5c60cb4e-*/`
+   - Catálogo Amanco ativo: importId `f7097e2e`, 856 produtos
+   - Thumbs gerados com supersampling 2× (rasterizador TS, Abordagem B do ADR-003)
+
+   **Correções da S4.3 (miniaturas):**
+   - Supersampling 2× em `www/tools/thumb-rasterizer.ts`: render interno 896×648, ffmpeg Lanczos → WebP 448×324
+   - IPC exit bug corrigido em `www/apps/api/src/importacoes/thumb-worker.ts`
+   - Thumbs de todos os catálogos (Dancor + Amanco) regenerados com a nova qualidade
+
+   Números de medição de S4.1 (para referência):
    - HTML inicial: 71.9 KB (SSR) vs 44 KB (estático) — 1.6× maior
    - 13 thumbs: 57 KB total (≈ igual nos dois modelos)
    - TTFB SSR: 177–254ms vs ~2ms local (CDN ~50ms)
-   - Geo por modal: 3.4 MB (com dedup) = igual ao estático; 14 MB sem dedup (import ativo)
    - LCP estimado: ~300ms (POC) vs ~100ms (CDN com thumbs) — 3× mais lento
-   - LCP histórico sem thumbs (pré-BILDS-552): 39.9s
-   - Import ativo do Dancor (`563e5794`) não tem dedup; import `5c60cb4e` tem e é equivalente ao Python (44.7 MB)
    - Registro completo: `docs/sessoes/S4.1-medicao-comparativa.md`
 
-   A próxima sessão é **S4.3 — Resolução das miniaturas**.
-   Prompt completo para sessão limpa:
-
-   ```
-   vamos trabalhar no projeto bilds-bim-3d. Executar SOMENTE a sessão S4.3.
-
-   Antes de qualquer coisa:
-   1. Ler o plano inteiro em /home/foltz/bilds-bim-3d/docs/plano-produto-dinamico.md
-      (protocolo na seção 2.1, S4.3 na tabela da seção 11)
-   2. Ler /home/foltz/bilds-bim-3d/docs/sessoes/S4.2-documento-de-aprendizados.md
-      (seção 7 descreve o problema e os arquivos-chave de S4.3)
-   3. Ler /home/foltz/bilds-bim-3d/docs/solutions/architecture-patterns/poc-catalogo-bim-dinamico-aprendizados.md
-      (ADR-003 documenta a escolha do rasterizador TS e seus parâmetros atuais)
-   4. Verificar baseline: cd /home/foltz/bilds-bim-3d/www && pnpm smoke:geo
-      → deve imprimir "smoke test passed"
-
-   Estado atual (commit ceefef0, S4.2 concluída em main):
-   - API (porta 4000): auth + empresa + importação + /catalogos/:empresa/:slug + /geometrias/:id + /thumbs/:productId
-   - Next.js (porta 3000): /login, /empresa, /empresa/criar, /empresa/importar, /{empresa}/{catalogo}
-   - Dancor no Atlas: 13 produtos com thumbs geradas pelo rasterizador TS (thumb-rasterizer.ts)
-   - www/.env (gitignored): MONGODB_URI, MONGODB_DB, SEED_USER, SEED_PASSWORD, JWT_SECRET, STORAGE_PATH
-   - IMPORTANTE: verificar processos antigos nas portas 3000 E 4000 antes de iniciar qualquer server
-   - IMPORTANTE: o slug do catálogo Dancor no banco é "bomba-de-combate-a-incencio" (typo original do .aq)
-   - IMPORTANTE: GET /geometrias/:id não tem auth guard (intencional POC; não expor em rede)
-
-   Problema a resolver: as miniaturas geradas pelo rasterizador TS (www/tools/thumb-rasterizer.ts)
-   apresentam baixa resolução visual. Investigar toda a pipeline:
-   - Geração: www/tools/thumb-rasterizer.ts (parâmetros: 448×324, ambient 0.7 + key 0.9 + fill 0.35, ffmpeg libwebp)
-   - Worker: www/apps/api/src/importacoes/thumb-worker.ts
-   - Serviço: www/apps/api/src/thumbs/ (GET /thumbs/:productId)
-   - Exibição: www/apps/web/src/components/bim-catalog/LazyBimCard.tsx
-
-   Diagnóstico sugerido: subir os dois servidores, abrir /{empresa}/{catalogo} no browser,
-   inspecionar o elemento <img> das miniaturas (tamanho natural vs tamanho exibido, DPR,
-   atributos width/height/srcset), comparar com o arquivo WebP em STORAGE_PATH/thumbs/.
-   Depois corrigir o que estiver causando a baixa qualidade — pode ser dimensão, qualidade
-   do codec, ausência de antialiasing, ou mismatch entre tamanho da imagem e CSS.
-   Re-importar o Dancor (ou regenerar só os thumbs) para validar o fix.
-
-   Ao encerrar: registrar a sessão em docs/sessoes/S4.3-resolucao-miniaturas.md
-   conforme docs/sessoes/TEMPLATE.md, atualizar seção 11 do plano (S4.3 → concluída),
-   atualizar CLAUDE.md seção "Próxima sessão", commitar em main.
-   ```
-
-   **Essa linha roda em sessões curtas, independentes e amnésicas**, ligadas só pela
-   documentação commitada. Quem for trabalhar nela lê o plano inteiro antes de tocar em
-   qualquer coisa, mais o registro da última sessão em `docs/sessoes/` — e ao encerrar
-   deixa o seu próprio registro, seguindo `docs/sessoes/TEMPLATE.md`. O protocolo
-   completo está na seção 2.1 do plano. Nada de memória de agente ou de sessão anterior:
-   se não está em arquivo commitado, não existe.
+   **Não há próxima sessão desta linha.** Quem for iniciar a reconstrução na bilds.com
+   deve ler `docs/solutions/architecture-patterns/poc-catalogo-bim-dinamico-aprendizados.md`
+   e `docs/plano-produto-dinamico.md` (seção 13 — o que a POC não implementa).
 
 ```bash
 python3 scripts/build.py --all          # só as novas
@@ -1743,3 +1704,34 @@ import ativo é o legado sem dedup.
 baseadas na soma de componentes medidos com `curl`.
 
 **Respostas às 5 perguntas da seção 1:** ver registro da sessão §5.
+
+### 2026-08-30 — S4.3: resolução das miniaturas (POC dinâmico)
+
+**Causa raiz da baixa qualidade visual:** ausência de antialiasing no rasterizador TS.
+O frame buffer era gerado em 448×324 sem supersampling, produzindo bordas serrilhadas.
+
+**Diagnóstico:**
+- CSS e dimensionamento OK: imagem 448×324 (ratio 1.383) + container h-[162px] min-w-[200px]
+  com bg-gray-100 (#F3F4F6) bate o background da imagem → sem letterboxing visível
+- Serviço `/thumbs/:productId` OK: HTTP 200, ETag, Cache-Control corretos
+- Bug IPC em `thumb-worker.ts`: `process.exit(0)` imediato após `process.send!` (padrão errado)
+
+**Correção: supersampling 2× em `www/tools/thumb-rasterizer.ts`:**
+- `const SS = 2` adicionado — frame buffer interno: `width×SS` × `height×SS` = 896×648
+- `encodeWebP` atualizado para receber srcW/srcH + outW/outH
+- ffmpeg usa `-vf scale=448:324:flags=lanczos` quando src ≠ out → AA natural por downscaling
+- Resultado: WebP 448×324 com bordas suaves; ~50% menor que antes (~2000–2500 vs ~4000–5500 bytes)
+  (downscaling elimina ruído de borda → melhor compressão WebP)
+- Tempo: ~90ms/thumb vs 65ms anterior (+38%; aceitável para fire-and-forget)
+
+**Bug IPC corrigido em `www/apps/api/src/importacoes/thumb-worker.ts`:**
+- `process.send!(...); process.exit(0)` → `process.send!(..., () => process.exit(0))`
+- Padrão consistente com S2.2 e ADR do IPC
+
+**Thumbs regenerados:**
+- Dancor: 13 produtos (importId `5c60cb4e`) — o catálogo ativo no Atlas aponta para esse import
+- Amanco: 856 produtos (importId `f7097e2e`)
+- Nota: o importId `563e5794` existe no disco mas NÃO está ativo no banco (produtos do catálogo Dancor usam `5c60cb4e`)
+
+**Arquivos modificados:** `www/tools/thumb-rasterizer.ts`, `www/apps/api/src/importacoes/thumb-worker.ts`,
+`www/tools/regen-thumbs.ts` (novo), `www/package.json` (script `thumb:regen`)

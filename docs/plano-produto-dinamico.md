@@ -735,7 +735,7 @@ seguinte lê — e ela lê **só o mais recente**.
 | S3.3 | **concluída** | 2026-08-30 | [S3.3](sessoes/S3.3-pagina-publica-catalogo.md) | Tailwind v4 (@tailwindcss/postcss); PocProduct/PocCatalog próprios; URLs absolutas no Server Component; catalogSlug adicionado ao findLatestByOwnerId |
 | S4.1 | **concluída** | 2026-08-30 | [S4.1](sessoes/S4.1-medicao-comparativa.md) | LCP não medido com Lighthouse real (WSL sem browser headless); import ativo sem dedup (geo 4× maior); ver §4 do registro para números completos |
 | S4.2 | **concluída** | 2026-08-30 | [S4.2](sessoes/S4.2-documento-de-aprendizados.md) | ce-compound; documento em inglês em docs/solutions/architecture-patterns/; CONCEPTS.md criado; validação mecânica e semântica passaram |
-| S4.3 | não iniciada | — | — | miniaturas com baixa resolução visual; investigar e corrigir pipeline completa: rasterizador → armazenamento → serviço → exibição |
+| S4.3 | **concluída** | 2026-08-30 | [S4.3](sessoes/S4.3-resolucao-miniaturas.md) | supersampling 2× implementado (SS=2, render 896×648 → Lanczos 448×324); IPC exit bug corrigido em thumb-worker; thumbs Dancor (13) e Amanco (856) regenerados |
 
 Status possíveis: `não iniciada` · `em andamento` · `concluída` · `concluída com ressalva`
 · `bloqueada`. As três últimas **exigem** registro em `docs/sessoes/`.
