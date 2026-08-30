@@ -84,7 +84,7 @@ originou — e não se perde se a máquina sumir.
 
 ## 👉 Próxima sessão — estado em 2026-08-30
 
-**Versão base estável:** commit S3.2b em `main`.
+**Versão base estável:** commit `d4f6b1e` (S3.3) em `main`.
 
 ### Duas linhas de trabalho ativas
 
@@ -95,43 +95,37 @@ originou — e não se perde se a máquina sumir.
    **`docs/plano-produto-dinamico.md`**. O código dela vive em `www/`, fora do deploy da
    Vercel.
 
-   **S3.2 + S3.2b concluídas** (2026-08-30). Upload de `.aq` via `/empresa/importar` com
-   acompanhamento dos estados `recebido → parseando → gravando → publicado | vazio | falhou`.
-   Polling a cada 3 s. Recovery de página via `GET /importacoes/ultima`. Auth em todos os
-   endpoints de importação. Upload direto para a API NestJS (contornar limite 10 MB do
-   Next.js dev mode). Deduplicação de vértices aplicada no `parse-worker.ts` (S3.2b).
-   A próxima sessão é **S3.3 — Página pública do catálogo**.
+   **S3.1–S3.3 concluídas** (2026-08-30). S3.3: página pública `/{empresa}/{catalogo}` com
+   viewer 3D lendo geometria da API. Componentes `bim-catalog/` adaptados da bilds.com sem
+   `react-i18next`. Tailwind v4 (`@tailwindcss/postcss`). URLs absolutas no Server Component.
+   Link "Ver catálogo" na empresa page quando importação está publicada.
+   A próxima sessão é **S4.1 — Medição comparativa**.
    Prompt completo para sessão limpa (sem contexto, inclusive em outra máquina):
 
    ```
    vamos trabalhar no projeto bilds-bim-3d. ce-work /home/foltz/bilds-bim-3d/docs/plano-produto-dinamico.md
 
-   Executar SOMENTE a sessão S3.3.
+   Executar SOMENTE a sessão S4.1.
 
    Antes de qualquer coisa:
    1. Ler o plano inteiro em /home/foltz/bilds-bim-3d/docs/plano-produto-dinamico.md
-      (protocolo na seção 2.1, escopo de S3.3 na seção 10)
-   2. Ler /home/foltz/bilds-bim-3d/docs/sessoes/S3.2b-dedup-ipc-progresso.md
-      (seção 7 tem armadilhas e perguntas em aberto para S3.3)
+      (protocolo na seção 2.1, escopo de S4.1 na seção 10)
+   2. Ler /home/foltz/bilds-bim-3d/docs/sessoes/S3.3-pagina-publica-catalogo.md
+      (seção 7 tem armadilhas e perguntas em aberto para S4.1)
    3. Verificar baseline: cd /home/foltz/bilds-bim-3d/www && pnpm smoke:geo
       → deve imprimir "smoke test passed"
 
-   Estado atual (commit S3.2b em main):
-   - Auth: POST /auth/login + GET /auth/me funcionam na API (porta 4000)
-   - Empresa: POST /empresas + GET /empresas/minha + GET /logos/:id funcionam
-   - Importação: POST /importacoes (auth, empresa derivada do JWT) + GET /importacoes/ultima + GET /importacoes/:id
-   - Next.js (porta 3000): /login, /empresa, /empresa/criar, /empresa/importar, middleware de proteção
-   - Cookie httpOnly "session" set pelo route handler /api/auth/login do Next.js
+   Estado atual (commit S3.3 d4f6b1e em main):
+   - API (porta 4000): auth + empresa + importação + /catalogos/:empresa/:slug + /geometrias/:id + /thumbs/:productId
+   - Next.js (porta 3000): /login, /empresa, /empresa/criar, /empresa/importar, /{empresa}/{catalogo}
+   - Dancor importada: 13 produtos com geoKey + thumbKey no Atlas (bim_products)
+   - Página pública: http://localhost:3000/dancor/bomba-de-combate-a-incencio → HTTP 200, 13 produtos
+   - Thumbnails estáticas para todos os 13 produtos Dancor (S2.4, rasterizador TS)
    - www/.env (gitignored): MONGODB_URI, MONGODB_DB, SEED_USER, SEED_PASSWORD, JWT_SECRET, STORAGE_PATH
-   - ffmpeg disponível em ~/.local/bin/ffmpeg (com libwebp)
-   - Port TS (toBuffers) em www/tools/oq3d-parser.ts — não reescrever
-   - Arquivo .aq da Dancor: input/Dancor/pecas_dancor_bombas_incendio_2026_04.1.aq
-   - Rotas de leitura prontas desde S2.3: GET /catalogos/:empresa/:slug, GET /geometrias/:id, GET /thumbs/:productId
-   - Deduplicação de vértices ativa em parse-worker.ts (dedupBuffers, float32 bit-cast)
-   - IMPORTANTE: upload direto para localhost:4000 (não via proxy Next.js) — dev mode trunca body em 10 MB
-   - IMPORTANTE: @types/multer deve estar instalado no pacote api (já está)
    - IMPORTANTE: verificar processos antigos nas portas 3000 E 4000 antes de iniciar
-   - IMPORTANTE: process.send!(msg, callback) — sempre usar callback form no IPC (sem callback, payloads grandes são descartados)
+   - IMPORTANTE: upload direto para localhost:4000 (não via proxy Next.js) — dev mode trunca body em 10 MB
+   - IMPORTANTE: o slug do catálogo Dancor no banco é "bomba-de-combate-a-incencio" (typo original do .aq)
+   - IMPORTANTE: GET /geometrias/:id não tem auth guard (intencional POC; não expor em rede)
    ```
 
    **Essa linha roda em sessões curtas, independentes e amnésicas**, ligadas só pela
@@ -1500,6 +1494,34 @@ Encapsulado no script `pnpm ingest` via filtro `--filter api exec sh -c '...'`.
 
 **Estado do Atlas após S1.2:** 1 empresa (`Dancor`), 1 catálogo (`bombas-incendio`),
 13 produtos com `geoKey` no formato `geo/{importId}/{p.id}.json`.
+
+### 2026-08-30 — S3.3: página pública do catálogo (POC dinâmico)
+
+**Entregável:** `/{empresa}/{catalogo}` renderizando com viewer 3D lendo geometria da API,
+sem nenhum import de `react-i18next`. Commit `d4f6b1e`.
+
+**`www/apps/web/src/components/bim-catalog/`** — 9 arquivos novos, todos sem i18n:
+`types.ts`, `bim-viewer-engine.ts`, `BimViewer.tsx`, `LazyBimCard.tsx`, `CurveChart.tsx`,
+`ProductModal.tsx`, `SeriesRowsLayout.tsx`, `CatalogGridLayout.tsx`, `BimCatalogView.tsx`.
+
+**`www/apps/web/src/app/[empresa]/[catalogo]/page.tsx`** — Server Component. Busca
+`/catalogos/{empresa}/{catalogo}`, converte `geoUrl`/`thumbUrl` para URLs absolutas
+(`http://localhost:4000`), passa para `BimCatalogView`. `notFound()` em 404 ou erro.
+
+**Tailwind v4:** `postcss.config.mjs` + `globals.css` + import em `layout.tsx`.
+`pnpm add --filter web tailwindcss @tailwindcss/postcss` + `three @types/three`.
+
+**`findLatestByOwnerId` enriquecido** com `catalogSlug` (join com `bim_catalogs`);
+empresa page mostra link "Ver catálogo" quando status é `publicado`.
+
+**Decisões de arquitetura:**
+- Tipos próprios `PocProduct`/`PocCatalog` em vez de reutilizar tipos da bilds.com —
+  a interface da POC difere (`geoUrl` absoluto por produto vs. `geo` filename + baseUrl)
+- URLs absolutas no Server Component, não em cada componente cliente
+- Strings em português hardcoded ("Fechar", "Especificações", "Curva Q-H", etc.)
+
+**Verificado:** `pnpm smoke:geo` → passed; `curl localhost:3000/dancor/bomba-de-combate-a-incencio`
+→ HTTP 200 com 13 produtos; rota inexistente → 404.
 
 ### 2026-08-30 — S3.2b: deduplicação, fix de IPC e progresso de upload (POC dinâmico)
 
