@@ -95,35 +95,42 @@ originou — e não se perde se a máquina sumir.
    **`docs/plano-produto-dinamico.md`**. O código dela vive em `www/`, fora do deploy da
    Vercel.
 
-   **S3.1–S3.3 concluídas** (2026-08-30). S3.3: página pública `/{empresa}/{catalogo}` com
-   viewer 3D lendo geometria da API. Componentes `bim-catalog/` adaptados da bilds.com sem
-   `react-i18next`. Tailwind v4 (`@tailwindcss/postcss`). URLs absolutas no Server Component.
-   Link "Ver catálogo" na empresa page quando importação está publicada.
-   A próxima sessão é **S4.1 — Medição comparativa**.
-   Prompt completo para sessão limpa (sem contexto, inclusive em outra máquina):
+   **S4.1 concluída** (2026-08-30). Medição comparativa com números:
+   - HTML inicial: 71.9 KB (SSR) vs 44 KB (estático) — 1.6× maior
+   - 13 thumbs: 57 KB total (≈ igual nos dois modelos)
+   - TTFB SSR: 177–254ms vs ~2ms local (CDN ~50ms)
+   - Geo por modal: 3.4 MB (com dedup) = igual ao estático; 14 MB sem dedup (import ativo)
+   - LCP estimado: ~300ms (POC) vs ~100ms (CDN com thumbs) — 3× mais lento
+   - LCP histórico sem thumbs (pré-BILDS-552): 39.9s
+   - Import ativo do Dancor (`563e5794`) não tem dedup; import `5c60cb4e` tem e é equivalente ao Python (44.7 MB)
+   - Registro completo: `docs/sessoes/S4.1-medicao-comparativa.md`
+
+   A próxima sessão é **S4.2 — Documento de aprendizados** (skill `ce-compound`).
+   Prompt completo para sessão limpa:
 
    ```
-   vamos trabalhar no projeto bilds-bim-3d. ce-work /home/foltz/bilds-bim-3d/docs/plano-produto-dinamico.md
+   vamos trabalhar no projeto bilds-bim-3d. ce-compound /home/foltz/bilds-bim-3d/docs/plano-produto-dinamico.md
 
-   Executar SOMENTE a sessão S4.1.
+   Executar SOMENTE a sessão S4.2.
 
    Antes de qualquer coisa:
    1. Ler o plano inteiro em /home/foltz/bilds-bim-3d/docs/plano-produto-dinamico.md
-      (protocolo na seção 2.1, escopo de S4.1 na seção 10)
-   2. Ler /home/foltz/bilds-bim-3d/docs/sessoes/S3.3-pagina-publica-catalogo.md
-      (seção 7 tem armadilhas e perguntas em aberto para S4.1)
-   3. Verificar baseline: cd /home/foltz/bilds-bim-3d/www && pnpm smoke:geo
+      (protocolo na seção 2.1, escopo de S4.2 na seção 10)
+   2. Ler /home/foltz/bilds-bim-3d/docs/sessoes/S4.1-medicao-comparativa.md
+      (seção 4 tem os números de medição; seção 5 responde às 5 perguntas da seção 1 do plano)
+   3. Ler os ADRs 001, 002, 003 na seção 9 do plano
+   4. Ler a seção 13 do plano (o que a POC não implementa)
+   5. Verificar baseline: cd /home/foltz/bilds-bim-3d/www && pnpm smoke:geo
       → deve imprimir "smoke test passed"
 
    Estado atual (commit S3.3 d4f6b1e em main):
+   - S4.1 concluída sem código — apenas medição (registro em docs/sessoes/S4.1-medicao-comparativa.md)
    - API (porta 4000): auth + empresa + importação + /catalogos/:empresa/:slug + /geometrias/:id + /thumbs/:productId
    - Next.js (porta 3000): /login, /empresa, /empresa/criar, /empresa/importar, /{empresa}/{catalogo}
-   - Dancor importada: 13 produtos com geoKey + thumbKey no Atlas (bim_products)
-   - Página pública: http://localhost:3000/dancor/bomba-de-combate-a-incencio → HTTP 200, 13 produtos
-   - Thumbnails estáticas para todos os 13 produtos Dancor (S2.4, rasterizador TS)
+   - Dancor no Atlas: 13 produtos, import 563e5794 (SEM dedup — geo 14 MB/arquivo); import 5c60cb4e TEM dedup (3.4 MB/arquivo)
    - www/.env (gitignored): MONGODB_URI, MONGODB_DB, SEED_USER, SEED_PASSWORD, JWT_SECRET, STORAGE_PATH
-   - IMPORTANTE: verificar processos antigos nas portas 3000 E 4000 antes de iniciar
-   - IMPORTANTE: upload direto para localhost:4000 (não via proxy Next.js) — dev mode trunca body em 10 MB
+   - S4.2 é document-only — não precisa de API nem Next.js rodando
+   - IMPORTANTE: verificar processos antigos nas portas 3000 E 4000 antes de iniciar qualquer server
    - IMPORTANTE: o slug do catálogo Dancor no banco é "bomba-de-combate-a-incencio" (typo original do .aq)
    - IMPORTANTE: GET /geometrias/:id não tem auth guard (intencional POC; não expor em rede)
    ```
@@ -1693,3 +1700,30 @@ não lança nos 5 bytes indefinidos do cp1252 (0x81, 0x8D, 0x8F, 0x90, 0x9D).
 esperadas entre numpy (BLAS/FMA) e aritmética escalar JS. A tolerância 1e-10 relativo
 é usada no teste — rejeita erros reais (CM_TO_M ausente → 100×) e aceita ruído de
 precisão de máquina.
+
+### 2026-08-30 — S4.1: medição comparativa (POC dinâmico)
+
+**Sessão de medição, sem código.** Entregável: `docs/sessoes/S4.1-medicao-comparativa.md`.
+
+**Números principais (modelo banco vs estático CDN, catálogo Dancor 13 produtos):**
+
+| Métrica | Estático (CDN) | POC (banco) |
+|---|---|---|
+| HTML size | 44 KB | 71.9 KB (1.6×) |
+| 13 thumbs total | ~56 KB | 57 KB (≈ igual) |
+| Bytes iniciais (com thumbs) | ~100 KB | ~129 KB (1.3×) |
+| TTFB produção estimado | ~50ms (CDN) | ~150-300ms (SSR) |
+| Tempo ao primeiro card | ~100ms | ~300ms (3×) |
+| Geo por modal (com dedup) | 3.4 MB | 3.4 MB (≈ igual) |
+| Geo por modal (sem dedup) | — | 14 MB (4×) |
+
+**Achado — import ativo sem dedup.** O catálogo Dancor ativo no Atlas (`importId: 563e5794`)
+foi importado antes da implementação do `dedupBuffers` em `parse-worker.ts`. Geo files têm
+14 MB/produto (ratio vértices/triângulos = 3.0, mesh expandida) vs 3.4 MB com dedup
+(import `5c60cb4e`, ratio 0.67 ≡ Python dedup.py). O código de dedup funciona — só o
+import ativo é o legado sem dedup.
+
+**LCP não medido com Lighthouse real** (WSL sem browser headless para Web Vitals). Estimativas
+baseadas na soma de componentes medidos com `curl`.
+
+**Respostas às 5 perguntas da seção 1:** ver registro da sessão §5.

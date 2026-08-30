@@ -733,7 +733,7 @@ seguinte lê — e ela lê **só o mais recente**.
 | S3.1 | **concluída** | 2026-08-30 | [S3.1](sessoes/S3.1-login-e-empresa.md) | refresh de token não tratado na UI; auth no POST /importacoes para S3.2 |
 | S3.2 | **concluída** | 2026-08-30 | [S3.2](sessoes/S3.2-upload-biblioteca.md) | upload direto à API (dev mode limit 10 MB no proxy Next.js); link para catálogo depende de S3.3 |
 | S3.3 | **concluída** | 2026-08-30 | [S3.3](sessoes/S3.3-pagina-publica-catalogo.md) | Tailwind v4 (@tailwindcss/postcss); PocProduct/PocCatalog próprios; URLs absolutas no Server Component; catalogSlug adicionado ao findLatestByOwnerId |
-| S4.1 | não iniciada | — | — | — |
+| S4.1 | **concluída** | 2026-08-30 | [S4.1](sessoes/S4.1-medicao-comparativa.md) | LCP não medido com Lighthouse real (WSL sem browser headless); import ativo sem dedup (geo 4× maior); ver §4 do registro para números completos |
 | S4.2 | não iniciada | — | — | — |
 
 Status possíveis: `não iniciada` · `em andamento` · `concluída` · `concluída com ressalva`
@@ -775,7 +775,9 @@ Uma linha por item: o que é, por que ficou de fora, e se é obrigatório na rec
 | i18n, `@workspace/ui`, RTK Query, Swagger | Convenções da casa | **obrigatório** |
 | Grant do Atlas restrito por base | Cluster descartável da POC; ver pendência 1 da seção 12 | **obrigatório** |
 | Rate limiting no endpoint de upload | Um usuário, sem entrada hostil | **obrigatório** |
-| **Fidelidade visual das miniaturas server-side** | ADR-003 escolheu rasterizador TS (flat shading, 65 ms) sobre Playwright+PBR (240 ms). Na prática a diferença é visível: thumbnails do rasterizador ficam sem especular e sem ambient occlusion, contra o PBR completo do pipeline estático. A decisão correta (rasterizador × Playwright × deixar o browser renderizar) depende do requisito de LCP vs. fidelidade — que S4.1 vai medir. **Reavaliar com os números de S4.1 antes de fechar ADR-003 para a reconstrução.** | **avaliar com S4.1** |
+| **Fidelidade visual das miniaturas server-side** | ADR-003 escolheu rasterizador TS (flat shading, 65 ms) sobre Playwright+PBR (240 ms). S4.1 estimou LCP ~300ms (POC com thumbs) vs ~100ms (CDN estático com thumbs) — a diferença é no TTFB do SSR, não no tamanho das thumbs. Em bytes e fidelidade os rasterizadores são equivalentes. **A decisão para a reconstrução**: se o SSR for cacheado no CDN, o LCP dos dois modelos converge. A fidelidade visual (flat shading vs PBR) é o único diferencial remanescente — reavaliar com o requisito do produto. | **avaliar com produto** |
+| **Re-processamento de imports legados** | O import ativo do Dancor (`563e5794`) foi feito antes da implementação do `dedupBuffers` em `parse-worker.ts`. Resultado: geo files 4× maiores (182.7 MB vs 44.7 MB com dedup). Não há rota de re-processamento. | **obrigatório** |
+| **LCP medido com Lighthouse real** | WSL não tem browser headless com DevTools para Web Vitals. S4.1 estimou LCP via soma de componentes medidos com `curl`. | **medir em produção** |
 
 _Sessões: acrescentem linhas aqui em vez de deixar a decisão só no registro da sessão._
 
