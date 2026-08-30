@@ -84,7 +84,7 @@ originou — e não se perde se a máquina sumir.
 
 ## 👉 Próxima sessão — estado em 2026-08-30
 
-**Versão base estável:** commit S2.3 (`cb4f110`) em `main`.
+**Versão base estável:** commit S2.4 (esta sessão) em `main`.
 
 ### Duas linhas de trabalho ativas
 
@@ -95,34 +95,33 @@ originou — e não se perde se a máquina sumir.
    **`docs/plano-produto-dinamico.md`**. O código dela vive em `www/`, fora do deploy da
    Vercel.
 
-   **S2.3 foi concluída** (2026-08-30). `POST /importacoes` recebe `.aq`, processa em
-   worker isolado (`child_process.fork`), publica catálogo no Atlas com máquina de estados
-   completa. Três rotas de leitura funcionam com ETag. Upload duplicado substitui catálogo
-   e registra `note`. A próxima sessão é **S2.4 — Miniaturas no servidor**.
+   **S2.4 foi concluída** (2026-08-30). Worker de miniaturas isolado em
+   `child_process.fork`, rasterizador TS software (`www/tools/thumb-rasterizer.ts`),
+   ffmpeg libwebp. Abordagem B escolhida sobre Playwright: 65 ms/geo, 4,3 KB/WebP,
+   3,7× mais rápido. `GET /thumbs/:productId` retorna 200 WebP. ADR-003 fechado.
+   A próxima sessão é **S3.1 — Login e empresa**.
    Prompt completo para sessão limpa (sem contexto, inclusive em outra máquina):
 
    ```
    vamos trabalhar no projeto bilds-bim-3d. ce-work /home/foltz/bilds-bim-3d/docs/plano-produto-dinamico.md
 
-   Executar SOMENTE a sessão S2.4.
+   Executar SOMENTE a sessão S3.1.
 
    Antes de qualquer coisa:
    1. Ler o plano inteiro em /home/foltz/bilds-bim-3d/docs/plano-produto-dinamico.md
-      (protocolo na seção 2.1, escopo de S2.4 na seção 10, ADRs na seção 9)
-   2. Ler /home/foltz/bilds-bim-3d/docs/sessoes/S2.3-importacao-server-side.md
-      (seção 7 tem armadilhas e perguntas em aberto para S2.4)
+      (protocolo na seção 2.1, escopo de S3.1 na seção 10)
+   2. Ler /home/foltz/bilds-bim-3d/docs/sessoes/S2.4-miniaturas-servidor.md
+      (seção 7 tem armadilhas e perguntas em aberto para S3.1)
    3. Verificar baseline: cd /home/foltz/bilds-bim-3d/www && pnpm smoke:geo
       → deve imprimir "smoke test passed"
 
-   Estado atual (commit S2.3 cb4f110 em main):
-   - Atlas contém Dancor: 13 produtos, 13 geometrias (import 1d3bc546-...)
-   - POST /importacoes funciona com máquina de estados completa
-   - GET /catalogos/:empresa/:slug, GET /geometrias/:productId (com ETag), GET /thumbs/:id (→ 404)
-   - GET /thumbs retorna 404 "miniatura não disponível" — S2.4 deve preencher essa lógica
+   Estado atual (commit S2.4 em main):
+   - Atlas contém Dancor: 13 produtos com thumbKey, geometrias e thumbs em disco
+   - POST /importacoes + GET /thumbs/:id funcionam ponta a ponta
+   - GET /thumbs retorna 200 WebP (image/webp, ETag, Cache-Control imutável)
    - www/.env (gitignored) deve ter MONGODB_URI, MONGODB_DB=bilds-bim-3d, STORAGE_PATH=../../storage/bim
-   - Chromium do Playwright está instalado em ~/.cache/ms-playwright
+   - ffmpeg disponível em ~/.local/bin/ffmpeg (com libwebp)
    - Port TS (toBuffers) em www/tools/oq3d-parser.ts — não reescrever
-   - Arquivo .aq da Dancor: input/Dancor/pecas_dancor_bombas_incendio_2026_04.1.aq
    ```
 
    **Essa linha roda em sessões curtas, independentes e amnésicas**, ligadas só pela
@@ -1491,6 +1490,50 @@ Encapsulado no script `pnpm ingest` via filtro `--filter api exec sh -c '...'`.
 
 **Estado do Atlas após S1.2:** 1 empresa (`Dancor`), 1 catálogo (`bombas-incendio`),
 13 produtos com `geoKey` no formato `geo/{importId}/{p.id}.json`.
+
+### 2026-08-30 — S2.4: miniaturas no servidor (ADR-003)
+
+**Abordagem escolhida: rasterizador TS software (Abordagem B).**
+
+Medição comparativa com 39 produtos Dancor:
+
+| Abordagem | Média ms/geo | KB/WebP | Notas |
+|---|---|---|---|
+| **B (TS rasterizador)** | **65 ms** | **4,3 KB** | sem browser, flat shading |
+| A (Playwright + SwiftShader) | 240 ms | 5,5 KB | PBR idêntico ao viewer; +startup 2-5 s; +1,5 GB Docker |
+
+B é **3,7× mais rápido** por geometria. Imagens menores. Sem Chromium no pod.
+ADR-003 fechado. Ver `docs/plano-produto-dinamico.md` seção 9.
+
+**Arquivos criados:**
+- `www/tools/thumb-rasterizer.ts` — rasterizador TS puro. Projeta vértices em
+  perspectiva (FOV 38°, câmera em `size*[0.85, 0.32, 0.85]`), z-buffer, flat shading
+  (ambient 0.7 + key 0.9 + fill 0.35), fundo #F3F4F6. Codifica via ffmpeg `libwebp`.
+  Exporta `renderThumbTs(data, w?, h?)`. Dimensão padrão: 448×324.
+- `www/tools/measure-thumbs.ts` — script de medição (`pnpm thumb:measure`).
+- `www/apps/api/src/importacoes/thumb-worker.ts` — worker fork que lê geo JSON,
+  chama `renderThumbTs`, grava `.webp` e reporta `thumbKey` via IPC.
+
+**Modificado:**
+- `www/apps/api/src/importacoes/importacoes.service.ts` — após publicar, dispara
+  `spawnThumbWorker` fire-and-forget. Erros são silenciados — miniaturas são opcionais.
+- `www/package.json` — script `thumb:measure`.
+
+**Verificado ponta a ponta:** `POST /importacoes` → publicado → 13 WebPs gerados em
+~1 s → `thumbKey` salvo no Atlas → `GET /thumbs/:productId` retorna HTTP 200 image/webp
+com ETag + Cache-Control imutável (4.178 bytes).
+
+**Armadilha: API precisa rodar com o código atual.** O processo que estava em porta 4000
+ao iniciar esta sessão era o da S2.3 (sem `spawnThumbWorker`). Upload funcionou, mas
+thumbs não foram gerados. Solução: matar o processo antigo antes de subir novo. Não é
+problema em produção (deploy reinicia o processo).
+
+**ffmpeg para WebP:** `sharp` não está instalado. O `ffmpeg` em
+`~/.local/bin/ffmpeg` tem `libwebp`. Sem `-vf vflip` — rawvideo rgba no ffmpeg é
+top-to-bottom, igual ao buffer do rasterizador.
+
+**Playwright (`bilds-bim-3d/node_modules/`):** o playwright está em dois níveis acima
+de `www/tools/`, não três. `path.resolve(__dirname, '../../node_modules/playwright')`.
 
 ### 2026-08-30 — S2.3: importação server-side e rotas de leitura
 

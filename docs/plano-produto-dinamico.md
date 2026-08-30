@@ -637,6 +637,7 @@ bilds-bim-3d/
 |---|---|---|---|
 | **ADR-001** | **Onde mora cada dado.** Produtos e dados BIM no MongoDB (é o que se busca); geometria e miniaturas em arquivo atrás do driver `GeometryStore` — disco na POC, S3 na bilds.com; ponteiro no documento do produto; a API serve a geometria para evitar CORS. Rejeitado: geometria em `BinData` no Mongo, e com ela o codec binário e o portão de volumetria. Detalhe na seção 3. | **fechada** — decisão do dono do projeto | S-rev (2026-08-29) |
 | **ADR-002** | **Port TS vs worker Python para parsing de `.aq` + OQ3D.** Medido na S2.2 com a Dancor (13 produtos, 10,9 M elementos). Port TS: 658 ms, RSS +422 MB. Worker Python (S2.1): ~39 000 ms, RSS +189 MB. Ganho de latência: **59×**. Custo de memória: **2,2×** (representação intermédia em arrays JS antes de achatar). **Decisão: port TS (Formato A).** Eliminação da dependência de Python e do cold start de 2-5 s superam o aumento de memória, que é gerenciável e otimizável (candidato: substituir `Array<[number,number,number]>` por `Float64Array` na representação interna). Não reabrir sem medição nova. | **fechada** | S2.2 (2026-08-30) |
+| **ADR-003** | **Abordagem de geração de miniaturas no servidor.** Medido em S2.4 com 39 produtos Dancor (geometrias reais do Atlas). **Abordagem A — Playwright + Chromium + SwiftShader:** 240 ms/geo, 5,5 KB/WebP, +startup de ~2-5 s, imagem Docker ~1,5 GB, PBR idêntico ao viewer. **Abordagem B — rasterizador TS + ffmpeg:** 65 ms/geo, 4,3 KB/WebP, sem browser, sem startup; sombreamento plano (ambient + 2 luzes direcionais, z-buffer, projeção perspectiva). **Decisão: Abordagem B.** B é 3,7× mais rápido por geometria, imagens menores, sem dependência de Chromium no pod. A diferença visual (flat shading vs. PBR) é aceitável para miniaturas de catálogo. A abordagem A vence em fidelidade, perde em operação. Não reabrir sem mudança no requisito de fidelidade. | **fechada** | S2.4 (2026-08-30) |
 
 ---
 
@@ -728,7 +729,7 @@ seguinte lê — e ela lê **só o mais recente**.
 | S2.1 | **concluída** | 2026-08-29 | [S2.1](sessoes/S2.1-spike-fronteira-python-worker.md) | peakMemoryMb=189 MB (RSS delta) / 119 MB heap; elapsedWorker≈39s Dancor |
 | S2.2 | **concluída** | 2026-08-30 | [S2.2](sessoes/S2.2-spike-port-typescript.md) | port TS: 658 ms / 422 MB RSS; memória 2.2× maior que Python mas latência 59×; ADR-002 fechado |
 | S2.3 | **concluída** | 2026-08-30 | [S2.3](sessoes/S2.3-importacao-server-side.md) | diretórios geo vazios não removidos (inofensivo); endpoint sem auth (finding A1 aberto); sem teste HTTP automatizado |
-| S2.4 | não iniciada | — | — | — |
+| S2.4 | **concluída** | 2026-08-30 | [S2.4](sessoes/S2.4-miniaturas-servidor.md) | rasterizador TS (B) escolhido: 65 ms/geo, 4,3 KB/WebP, 3,7× mais rápido que Playwright (A); ADR-003 fechado; GET /thumbs/:productId retorna 200 WebP |
 | S3.1 | não iniciada | — | — | — |
 | S3.2 | não iniciada | — | — | — |
 | S3.3 | não iniciada | — | — | — |

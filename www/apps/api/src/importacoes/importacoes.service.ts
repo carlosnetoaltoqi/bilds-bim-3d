@@ -15,6 +15,7 @@ import { BimProduct, BimProductDocument } from '../bim-products/bim-products.sch
 import { Company, CompanyDocument } from '../companies/companies.schema';
 import { IGeometryStore } from '../geometry-store/geometry-store.interface';
 import { WorkerResult, ProductResult, CatalogMeta } from './parse-worker';
+import { ThumbWorkerInput, ThumbWorkerMessage } from './thumb-worker';
 
 const MAX_FILE_BYTES = 300 * 1024 * 1024; // .aq raw SQLite (Dancor ~153 MB)
 const MAX_ZIP_ENTRIES = 200;
@@ -191,6 +192,12 @@ export class ImportacoesService {
         updatedAt: new Date(),
         ...(note ? { note } : {}),
       });
+
+      // Dispara geração de miniaturas fire-and-forget (S2.4)
+      // Falhas não mudam o status do import — miniaturas são opcionais
+      this.spawnThumbWorker(importId, productDocs.map((p) => ({ productId: p._id, geoKey: p.geoKey! }))).catch(
+        () => { /* silencioso */ },
+      );
     } catch (err: any) {
       // Cleanup files written by worker
       try {
@@ -245,6 +252,49 @@ export class ImportacoesService {
       });
 
       child.send({ aqPath, importId });
+    });
+  }
+
+  private spawnThumbWorker(
+    importId: string,
+    products: Array<{ productId: string; geoKey: string }>,
+  ): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const workerPath = path.resolve(__dirname, 'thumb-worker.ts');
+      const storagePath = path.resolve(
+        process.env.STORAGE_PATH ?? path.join(process.cwd(), 'storage'),
+      );
+      const child = fork(workerPath, [], {
+        execArgv: [
+          '--require',
+          'ts-node/register/transpile-only',
+          '--require',
+          'reflect-metadata',
+        ],
+        env: { ...process.env },
+        silent: false,
+      });
+
+      child.on('message', (msg: ThumbWorkerMessage) => {
+        if (msg.type === 'thumb') {
+          // Atualiza thumbKey no banco — best-effort
+          this.productModel
+            .findByIdAndUpdate(msg.productId, { thumbKey: msg.thumbKey })
+            .exec()
+            .catch(() => {});
+        } else if (msg.type === 'done') {
+          resolve();
+        }
+      });
+
+      child.on('error', reject);
+      child.on('exit', (code) => {
+        if (code !== 0) reject(new Error(`thumb-worker encerrou com código ${code}`));
+        else resolve();
+      });
+
+      const input: ThumbWorkerInput = { products, storagePath, importId };
+      child.send(input);
     });
   }
 
