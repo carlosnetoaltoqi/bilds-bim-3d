@@ -32,6 +32,10 @@ export class BimImport {
   @Prop()
   error: string;
 
+  /** Nota informativa (ex: substituição de catálogo existente) */
+  @Prop()
+  note: string;
+
   @Prop()
   productCount: number;
 
