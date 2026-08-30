@@ -3,13 +3,16 @@ import {
   Post,
   Get,
   Param,
-  Query,
   UploadedFile,
   UseInterceptors,
+  UseGuards,
   BadRequestException,
+  Req,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { Request } from 'express';
 import { ImportacoesService } from './importacoes.service';
+import { AuthGuard } from '../auth/auth.guard';
 
 // .aq contém BLOBs de geometria raw (SQLite): Dancor ~153 MB, Amanco >400 MB.
 // ZIP na bilds.com é comprimido e pós-processado — limites não comparáveis.
@@ -19,21 +22,28 @@ const MAX_FILE_BYTES = 300 * 1024 * 1024;
 export class ImportacoesController {
   constructor(private readonly importacoesService: ImportacoesService) {}
 
+  @UseGuards(AuthGuard)
   @Post()
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_FILE_BYTES } }))
-  async upload(
-    @UploadedFile() file: any,
-    @Query('empresa') empresa: string,
-  ) {
+  async upload(@Req() req: Request, @UploadedFile() file: Express.Multer.File) {
     if (!file) throw new BadRequestException('campo "file" obrigatório');
-    if (!empresa) throw new BadRequestException('query param "empresa" obrigatório');
-
-    return this.importacoesService.create(empresa, file.buffer, file.originalname ?? 'upload.aq');
+    const ownerId = (req as any).user.sub as string;
+    return this.importacoesService.create(ownerId, file.buffer, file.originalname ?? 'upload.aq');
   }
 
+  // Deve vir antes de :importId para não capturar "ultima" como param
+  @UseGuards(AuthGuard)
+  @Get('ultima')
+  async ultima(@Req() req: Request) {
+    const ownerId = (req as any).user.sub as string;
+    return this.importacoesService.findLatestByOwnerId(ownerId);
+  }
+
+  @UseGuards(AuthGuard)
   @Get(':importId')
-  async status(@Param('importId') importId: string) {
-    const imp = await this.importacoesService.findById(importId);
+  async status(@Req() req: Request, @Param('importId') importId: string) {
+    const ownerId = (req as any).user.sub as string;
+    const imp = await this.importacoesService.findByIdAndVerifyOwner(importId, ownerId);
     return {
       importId: imp._id,
       status: imp.status,

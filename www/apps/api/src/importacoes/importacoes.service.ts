@@ -42,7 +42,36 @@ export class ImportacoesService {
     return imp;
   }
 
-  async create(empresaCustomUrl: string, fileBuffer: Buffer, fileName: string) {
+  async findByIdAndVerifyOwner(importId: string, ownerId: string) {
+    const imp = await this.importModel.findById(importId).lean().exec();
+    if (!imp) throw new NotFoundException('importação não encontrada');
+    const company = await this.companyModel.findById(imp.companyId).lean().exec();
+    if (!company || company.ownerId !== ownerId) throw new NotFoundException('importação não encontrada');
+    return imp;
+  }
+
+  async findLatestByOwnerId(ownerId: string) {
+    const company = await this.companyModel.findOne({ ownerId }).lean().exec();
+    if (!company) return null;
+    const imp = await this.importModel
+      .findOne({ companyId: company._id })
+      .sort({ createdAt: -1 })
+      .lean()
+      .exec();
+    if (!imp) return null;
+    return {
+      importId: imp._id,
+      status: imp.status,
+      productCount: imp.productCount ?? null,
+      error: imp.error ?? null,
+      note: (imp as any).note ?? null,
+      catalogId: imp.catalogId ?? null,
+      createdAt: imp.createdAt,
+      updatedAt: (imp as any).updatedAt ?? null,
+    };
+  }
+
+  async create(ownerId: string, fileBuffer: Buffer, fileName: string) {
     // File size check
     if (fileBuffer.length > MAX_FILE_BYTES) {
       throw new BadRequestException(
@@ -53,12 +82,9 @@ export class ImportacoesService {
     // ZIP validation (if applicable)
     this.validateZipBuffer(fileBuffer);
 
-    // Find company
-    const company = await this.companyModel
-      .findOne({ customUrl: empresaCustomUrl })
-      .lean()
-      .exec();
-    if (!company) throw new BadRequestException(`empresa "${empresaCustomUrl}" não encontrada`);
+    // Find company by owner
+    const company = await this.companyModel.findOne({ ownerId }).lean().exec();
+    if (!company) throw new BadRequestException('empresa não encontrada para este usuário');
 
     // Write temp file for worker
     const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'bim-import-'));
