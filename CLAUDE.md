@@ -103,10 +103,11 @@ originou — e não se perde se a máquina sumir.
    - Catálogo Amanco ativo: importId `f7097e2e`, 856 produtos
    - Thumbs gerados com supersampling 2× (rasterizador TS, Abordagem B do ADR-003)
 
-   **Correções da S4.3 (miniaturas):**
-   - Supersampling 2× (SSAA box-average) em `www/tools/thumb-rasterizer.ts`: render interno 896×648, box-average 2×2 em código → saída 448×324 sem ffmpeg scaling. Abordagem anterior (Lanczos ffmpeg) foi descartada por introduzir blur excessivo a quality=85.
+   **Correções da S4.3 (miniaturas) — bugs corrigidos, qualidade ainda em aberto:**
+   - SSAA box-average 2× em `www/tools/thumb-rasterizer.ts`: render interno 896×648 → box-average → 448×324
+   - Fix de projeção SSAA: `project()` usava `width/height` (448/324) em vez de `width*SS/height*SS` (896/648) → geometria renderizava no quadrante top-left
    - IPC exit bug corrigido em `www/apps/api/src/importacoes/thumb-worker.ts`
-   - Thumbs de todos os catálogos (Dancor + Amanco) regenerados com a nova qualidade
+   - **Qualidade ainda não aceitável**: flat shading TS ≠ smooth shading Three.js. Ver problema em aberto abaixo.
 
    Números de medição de S4.1 (para referência):
    - HTML inicial: 71.9 KB (SSR) vs 44 KB (estático) — 1.6× maior
@@ -145,6 +146,11 @@ pré-renderizadas”).
 
 ### Pendência conhecida
 
+- **Miniaturas com qualidade inferior ao viewer 3D** ⚠️ — o `thumb-rasterizer.ts` usa
+  flat shading e iluminação aproximada; o resultado difere visivelmente do Three.js WebGL.
+  A solução é usar Playwright + `harness.html` no `thumb-worker.ts` (mesmo código que o
+  viewer). Ver `docs/solutions/architecture-patterns/thumb-qualidade-identica-ao-viewer.md`
+  para arquitetura completa, flags SwiftShader e critério de aceite.
 - **Parafusos faltando na Dancor** — 13 de 18 instâncias não emitem geometria; ver
   “BUG ABERTO” na seção do `oq3d.py`
 - **GET /geometrias sem auth** — endpoint intencional para a POC; adicionar guard antes
