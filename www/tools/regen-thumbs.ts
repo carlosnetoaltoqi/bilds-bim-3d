@@ -1,10 +1,10 @@
 /**
- * regen-thumbs.ts — S4.3
+ * regen-thumbs.ts — S4.3, atualizado em 2026-08-30
  *
  * Regenera as miniaturas WebP de um import específico (ou do mais recente
- * catálogo Dancor ativo no Atlas) usando o rasterizador atualizado (com
- * supersampling 2×). Sobrescreve os arquivos existentes sem alterar o banco —
- * o thumbKey já está correto.
+ * catálogo Dancor ativo no Atlas) com o renderer Playwright + harness.html —
+ * o mesmo Three.js do viewer. Sobrescreve os arquivos existentes sem alterar o
+ * banco quando o thumbKey já existe.
  *
  * Uso:
  *   pnpm --filter api exec node --require ts-node/register \
@@ -15,7 +15,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as dotenv from 'dotenv';
 import { MongoClient, ObjectId } from 'mongodb';
-import { renderThumbTs } from './thumb-rasterizer';
+import { renderThumbTs, closeThumbRenderer } from './thumb-rasterizer';
 
 // Carrega .env do diretório www/
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
@@ -118,6 +118,7 @@ async function main() {
   }
 
   await client.close();
+  await closeThumbRenderer();
 
   const totalMs = Date.now() - t0;
   console.log(`\nConcluído: ${ok} ok, ${fail} erros em ${(totalMs / 1000).toFixed(1)}s`);

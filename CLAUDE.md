@@ -99,15 +99,21 @@ originou — e não se perde se a máquina sumir.
    as diretrizes para a reconstrução na bilds.com.
 
    **Estado final do banco de dados Atlas:**
-   - Catálogo Dancor ativo: importId `5c60cb4e`, 13 produtos com thumbKey em `thumbs/5c60cb4e-*/`
-   - Catálogo Amanco ativo: importId `f7097e2e`, 856 produtos
-   - Thumbs gerados com supersampling 2× (rasterizador TS, Abordagem B do ADR-003)
+   - Catálogo Dancor ativo: importId `59c32b93`, 13 produtos com thumbKey em `thumbs/59c32b93-*/`
+   - Thumbs gerados por Playwright + harness (S4.4) — idênticos ao viewer
+   - O catálogo Amanco (856 produtos, importId `f7097e2e`) **não está nesta máquina**;
+     ao reimportá-lo, `pnpm thumb:regen <importId>` regenera as miniaturas (~400 ms cada)
 
-   **Correções da S4.3 (miniaturas) — bugs corrigidos, qualidade ainda em aberto:**
-   - SSAA box-average 2× em `www/tools/thumb-rasterizer.ts`: render interno 896×648 → box-average → 448×324
-   - Fix de projeção SSAA: `project()` usava `width/height` (448/324) em vez de `width*SS/height*SS` (896/648) → geometria renderizava no quadrante top-left
-   - IPC exit bug corrigido em `www/apps/api/src/importacoes/thumb-worker.ts`
-   - **Qualidade ainda não aceitável**: flat shading TS ≠ smooth shading Three.js. Ver problema em aberto abaixo.
+   > O importId muda a cada reimportação. Confira o atual em vez de confiar neste texto:
+   > `curl -s localhost:4000/catalogos/dancor/bomba-de-combate-a-incencio | head -c 300`
+
+   **Miniaturas (S4.4, 2026-08-30) — resolvidas.** O rasterizador software foi substituído
+   por Playwright + `templates/thumbs/harness.html` no `thumb-worker.ts`: a miniatura sai do
+   **mesmo Three.js, mesmo `buildScene()` e mesma câmera** do viewer. Medido, contra o render
+   do viewer: **47 dB de PSNR** (o piso da compressão WebP q=0,85) contra **27 dB** do
+   rasterizador software. 13 produtos Dancor em **~6,3 s**. Ver
+   `docs/solutions/architecture-patterns/thumb-qualidade-identica-ao-viewer.md` e
+   `docs/sessoes/S4.4-thumbs-playwright.md`.
 
    Números de medição de S4.1 (para referência):
    - HTML inicial: 71.9 KB (SSR) vs 44 KB (estático) — 1.6× maior
@@ -146,11 +152,10 @@ pré-renderizadas”).
 
 ### Pendência conhecida
 
-- **Miniaturas com qualidade inferior ao viewer 3D** ⚠️ — o `thumb-rasterizer.ts` usa
-  flat shading e iluminação aproximada; o resultado difere visivelmente do Three.js WebGL.
-  A solução é usar Playwright + `harness.html` no `thumb-worker.ts` (mesmo código que o
-  viewer). Ver `docs/solutions/architecture-patterns/thumb-qualidade-identica-ao-viewer.md`
-  para arquitetura completa, flags SwiftShader e critério de aceite.
+- **Thumb regenerada no mesmo import não invalida o cache do browser** — o ETag de
+  `GET /thumbs/:productId` deriva só do `thumbKey` e o `Cache-Control` é `immutable`.
+  Import novo gera `thumbKey` novo, então o fluxo normal está correto; só o `thumb:regen`
+  sobre o *mesmo* import esbarra nisso. Hard reload ao verificar.
 - **Parafusos faltando na Dancor** — 13 de 18 instâncias não emitem geometria; ver
   “BUG ABERTO” na seção do `oq3d.py`
 - **GET /geometrias sem auth** — endpoint intencional para a POC; adicionar guard antes
@@ -484,16 +489,27 @@ No desktop são ~12 cards na primeira viewport: **40 MB** na Dancor.
 build.py  →  build_thumbs()  →  node scripts/thumbs.mjs <config.json>
                                     ├── sobe servidor estático sobre ROOT
                                     ├── abre templates/thumbs/harness.html no Chromium
-                                    └── window.renderThumb() por geometria → .webp
+                                    └── window.renderThumb(url) por geometria → .webp
 ```
 
 `harness.html` carrega o **mesmo Three.js** de `templates/vendor/` e tem cópia literal do
 `buildScene()` e da câmera dos layouts. É o que garante que a miniatura pré-gerada seja a
 imagem que a página produziria.
 
+**O harness tem dois consumidores** desde a S4.4:
+
+| Consumidor | Função do harness | Origem dos dados |
+|---|---|---|
+| `scripts/thumbs.mjs` (pipeline estático) | `window.renderThumb(url, …)` | `fetch` do JSON servido |
+| `www/tools/thumb-rasterizer.ts` (POC / API) | `window.renderThumbFromData(data, …)` | objeto já em memória |
+
+`renderThumb` é um wrapper: faz o `fetch` e delega para `renderThumbFromData`, que é a
+única função que toca WebGL. Os dois caminhos produzem a mesma imagem por construção.
+
 > ⚠️ **Ao mexer em material, luz ou câmera nos layouts, mexa no `harness.html` junto.**
-> São três cópias hoje — os dois layouts, o harness, e o `bim-viewer-engine.ts` do
-> bilds.com. Divergir faz o catálogo exibir dois visuais conforme o produto tenha ou não
+> São quatro cópias hoje — os dois layouts, o harness, o `bim-viewer-engine.ts` do
+> bilds.com e o `bim-viewer-engine.ts` do POC (`www/apps/web/src/components/bim-catalog/`).
+> Divergir faz o catálogo exibir dois visuais conforme o produto tenha ou não
 > miniatura pronta.
 
 ### Parâmetros
@@ -542,7 +558,24 @@ sempre. Mesma coisa com `--skip-thumbs`.
 
 Em máquina sem GPU (WSL, CI, container) o Chromium roda WebGL por SwiftShader — os flags
 `--use-gl=angle --use-angle=swiftshader --enable-unsafe-swiftshader` estão no
-`thumbs.mjs` e são obrigatórios; sem eles o WebGL não inicializa em headless.
+`thumbs.mjs` e são obrigatórios; sem eles o WebGL não inicializa em headless. O
+`thumb-rasterizer.ts` acrescenta `--no-sandbox`, necessário quando o processo já roda sem
+privilégios de namespace (worker forkado em container).
+
+### ⚠️ Nunca passe geometria como objeto para `page.evaluate`
+
+O serializador de argumentos do Playwright anda o grafo do objeto — e a geometria é um
+array de centenas de milhares de números. Medido numa peça Dancor de 4,8 MB (35 k
+vértices, 52 k triângulos):
+
+| Forma do argumento | Tempo por thumb |
+|---|---|
+| objeto `{pos, col, idx}` | ~2 200 ms |
+| **string JSON**, com `JSON.parse` dentro da página | **~370 ms** (dos quais ~120 ms são o WebGL) |
+
+`JSON.stringify` no Node custa 40 ms e o `JSON.parse` na página, 13 ms — o resto é puro
+ganho. No lote de 13 produtos da Dancor: **24,5 s → 6,2 s**. É a diferença entre estourar
+e cumprir o orçamento de tempo do import.
 
 ---
 
@@ -950,6 +983,12 @@ via modo `'recursive'` do `scan_input()`.
 | Peças 100× maiores/menores | OQ3D é **centímetros**; multiplicar por 0.01 |
 | Menos produtos que peças no banco | Peças sem `PECA_SIMBOLOGIA_3D` são tubos e kits — sem forma fixa, pular é o correto |
 | Parafusos faltando / um solto no ar | Bug aberto do OQ3D — ver "instâncias repetidas não emitem geometria" |
+| Miniatura chapada, sem relevo, diferente do viewer | Está saindo do rasterizador software — o caminho de produção é `www/tools/thumb-rasterizer.ts` (Playwright). Confira com `grep chromium.launch www/tools/thumb-rasterizer.ts` |
+| Thumb leva ~2 s cada e o import estoura o tempo | Geometria passada como **objeto** para `page.evaluate` — passar como string JSON e dar `JSON.parse` dentro da página (6×) |
+| Worker de thumbs não sai / Chromium órfão | Faltou `await closeThumbRenderer()` antes do `process.exit()` — o handle do servidor HTTP prende o event loop |
+| Thumb regenerada não aparece no browser | ETag de `/thumbs/:productId` deriva só do `thumbKey` e o `Cache-Control` é `immutable` — hard reload |
+| `pnpm thumb:regen <id>` ignora o importId | `sh -c 'cmd' arg` faz `arg` virar `$0` — o script precisa de `"$@"` e um `--` de placeholder (corrigido em 2026-08-30) |
+| WebGL não inicializa em headless | Faltam os flags SwiftShader — obrigatórios em WSL/CI/container; sem eles **todas** as geometrias falham de uma vez |
 
 ---
 
@@ -1004,6 +1043,52 @@ python3 -m http.server 8080 --directory output/preview
 ---
 
 ## Histórico de sessões
+
+### 2026-08-30 — S4.4: miniaturas idênticas ao viewer (Playwright no thumb-worker)
+
+Fecha a pendência de qualidade que a S4.3 deixou aberta. Registro completo em
+`docs/sessoes/S4.4-thumbs-playwright.md`; arquitetura e medições em
+`docs/solutions/architecture-patterns/thumb-qualidade-identica-ao-viewer.md`.
+
+**O que mudou:**
+
+| Arquivo | Mudança |
+|---|---|
+| `templates/thumbs/harness.html` | extraída `window.renderThumbFromData(data, W, H, mime, quality)` — recebe `{pos, col, idx}` em memória e é a única função que toca WebGL. `renderThumb(url, …)` virou wrapper (`fetch` + delegação). Material, luz e câmera intocados. |
+| `www/tools/thumb-rasterizer.ts` | **reimplementado sobre Playwright.** Mesmo nome e mesma assinatura pública (`renderThumbTs(data, w?, h?) → Promise<Buffer>`); dentro, servidor HTTP efêmero + Chromium + harness. Novo: `renderThumbPlaywright`, `closeThumbRenderer`. |
+| `www/tools/thumb-rasterizer-sw.ts` | o rasterizador software de antes, agora histórico (`renderThumbTs` → `renderThumbSw`). Só `measure-thumbs.ts` o importa, para manter reproduzível a comparação A × B do ADR-003. |
+| `www/apps/api/src/importacoes/thumb-worker.ts` | laço em `try/finally` com `await closeThumbRenderer()`. Interface IPC inalterada. |
+| `www/tools/regen-thumbs.ts` | fecha o renderer no fim. |
+| `www/package.json` | `thumb:regen` passou a repassar o argumento (`"$@"` + `--`). Antes o `importId` virava `$0` do `sh` e sumia — limitação registrada na S4.3. |
+
+**Resultado medido** (13 produtos Dancor, import real pela API):
+
+| Critério | Antes (rasterizador software) | Agora |
+|---|---|---|
+| PSNR contra o render do viewer | 27 dB | **47 dB** — o piso da compressão WebP q=0,85 |
+| Tempo do lote | ~2 s | **~6,3 s** (a 1ª thumb paga a subida do Chromium, ~1,2 s; as demais 220–470 ms) |
+| Erros | 0 | 0 — 13/13 com `thumbKey` |
+| Cards com thumb estática | 13/13 | 13/13 |
+
+Os dois consumidores do harness produzem o **mesmo arquivo byte a byte**: rodado o
+`scripts/thumbs.mjs` sobre geometrias que também estão no import da API, os WebP batem no
+MD5. A refatoração (`renderThumb` virou wrapper de `renderThumbFromData`) não introduziu
+divergência entre o pipeline estático e o POC.
+
+**Três aprendizados que valem para além desta sessão:**
+
+1. **Nunca passe geometria como objeto para `page.evaluate`.** O serializador do Playwright
+   anda o grafo; a geometria é um array de centenas de milhares de números. Objeto: ~2 200 ms
+   por thumb. String JSON com `JSON.parse` dentro da página: ~370 ms. No lote, 24,5 s → 6,2 s.
+   O doc de arquitetura previa 60–100 ms por thumb e estava certo sobre o **render** (~120 ms)
+   — o que ele não previu foi o **transporte**.
+2. **`file://` não serve.** O harness importa o Three.js como módulo ES e o Chromium recusa
+   `import` sobre `file://` por CORS. Servidor HTTP efêmero (`listen(0)` em `127.0.0.1`) —
+   nunca colide com a API (4000) nem com o web (3000).
+3. **Alinhar a versão do Three.js não era necessário.** Harness usa o vendor do repo (r170),
+   viewer do POC usa r185. Medido: PSNR 71 dB entre os dois, MSE 0,01 — imperceptível.
+   Servir o r185 traria uma segunda cópia do Three.js no caminho de render e um caminho
+   diferente do pipeline estático, exatamente a divergência que o harness existe para impedir.
 
 ### 2026-08-23 — Diagnóstico e correção de bugs do parse_ifc.py
 

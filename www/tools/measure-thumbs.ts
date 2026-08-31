@@ -4,7 +4,7 @@
  * Mede as duas abordagens da seção 7.4 do plano sobre os 13 produtos Dancor:
  *
  *   A — Playwright + Chromium + SwiftShader (mesmo motor do thumbs.mjs)
- *   B — Rasterizador TS (thumb-rasterizer.ts) + ffmpeg → WebP
+ *   B — Rasterizador software (thumb-rasterizer-sw.ts) + ffmpeg → WebP
  *
  * Saída: tabela com tempo por geometria, pico de memória e tamanho do WebP.
  * Os resultados alimentam o ADR-003 do plano.
@@ -19,7 +19,9 @@ import * as fs from 'node:fs/promises';
 import { existsSync, createReadStream } from 'node:fs';
 import { createServer } from 'node:http';
 import { MongoClient } from 'mongodb';
-import { renderThumbTs, RasterBuffers, THUMB_W, THUMB_H } from './thumb-rasterizer';
+// A Abordagem B (rasterizador software) virou histórico em 2026-08-30 e mudou de
+// arquivo; o caminho de produção hoje é o Playwright, que é a própria Abordagem A.
+import { renderThumbSw, RasterBuffers, THUMB_W, THUMB_H } from './thumb-rasterizer-sw';
 
 // .env fica em www/ (gitignored)
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
@@ -85,7 +87,7 @@ async function measureB(geoData: GeoData): Promise<Measurement & { geoKey: strin
   const geoKey = 'geo/measure';
   const t0 = performance.now();
   const h0 = process.memoryUsage().heapUsed;
-  const buf = await renderThumbTs(geoData);
+  const buf = await renderThumbSw(geoData);
   const h1 = process.memoryUsage().heapUsed;
   const t1 = performance.now();
   return {

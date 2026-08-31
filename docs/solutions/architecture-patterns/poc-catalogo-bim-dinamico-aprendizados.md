@@ -96,7 +96,22 @@ Thumbnails are generated server-side after import completes, in a fire-and-forge
 
 **Approach B — TypeScript rasterizer + ffmpeg**: software z-buffer rasterizer with ambient (0.7) + key (0.9) + fill (0.35) lighting, perspective projection, exported via ffmpeg to WebP. Output: 65ms per geometry, 4.3 KB/WebP. No browser, no startup penalty. Flat shading — visually distinct from the PBR viewer but acceptable for catalog cards.
 
-ADR-003 chose Approach B: 3.7× faster per geometry, smaller output, and no Chromium in the production pod. The visual quality gap (flat shading vs PBR) is the one remaining differentiator between the static and dynamic catalog models. If the SSR catalog page is cached at the CDN (see below), LCP of both models converges — the thumbnail visual fidelity becomes the only user-facing difference.
+ADR-003 chose Approach B: 3.7× faster per geometry, smaller output, and no Chromium in the production pod. The visual quality gap (flat shading vs PBR) was judged acceptable for catalog cards.
+
+> ⚠️ **ADR-003 was reversed in S4.4 (2026-08-30). Approach A is the decision that carries forward — see ADR-004.**
+>
+> The project owner reviewed Approach B's output and rejected it. Measured against a render of the live viewer at the same camera and size, the software rasterizer scores **27 dB PSNR**; the Chromium harness scores **47 dB**, which is the floor imposed by WebP q=0.85 compression alone. Side by side the software output is a flat silhouette while the harness output carries the viewer's shading and relief.
+>
+> Approach A also turned out to be **cheaper than S2.4 estimated**, once implemented properly rather than measured naively:
+>
+> - Reuse **one browser per worker process** — the ~1s startup amortizes over the whole batch instead of being paid per thumbnail.
+> - Pass the geometry to `page.evaluate` as a **JSON string**, never as an object. Playwright's argument serializer walks the object graph, and a geometry is an array of hundreds of thousands of numbers. Measured on a 4.8 MB part (35k vertices, 52k triangles): **object ~2200ms, JSON string ~370ms** — of which only ~120ms is the actual WebGL render. On a 13-product batch this is the difference between 24.5s and 6.2s.
+>
+> With both in place: **~370ms per thumbnail, 13 Dancor products in ~6.3s**, versus the 240ms + per-thumb startup that S2.4 assumed. The remaining operational cost is real but bounded: ~200 MB of Chromium per worker process, and `libnss3 libnspr4 libasound2t64` in the image.
+>
+> **Do not reimplement the render outside three.js.** Whatever renders the thumbnail must be the same `buildScene()` and the same camera the viewer runs, driven in a headless browser. Any reimplementation produces a *similar* image, and the catalog then shows two different visuals depending on whether a product has a pre-generated thumbnail.
+
+If the SSR catalog page is cached at the CDN (see below), LCP of both models converges.
 
 ### Page performance: SSR with CDN caching
 
@@ -254,11 +269,11 @@ The following items were deliberately excluded from the POC. They are listed her
 | i18n, `@workspace/ui`, RTK Query, Swagger | House conventions | **mandatory** |
 | Atlas grant restricted by database | POC cluster is throwaway | **mandatory** |
 | Rate limiting on upload endpoint | One user, no hostile input | **mandatory** |
-| Visual fidelity of server-side thumbnails | ADR-003 chose flat shading (65ms) over PBR (240ms). If SSR is cached at CDN, LCP of both models converges — visual fidelity is the only remaining differentiator. | **evaluate with product team** |
+| Visual fidelity of server-side thumbnails | ~~ADR-003 chose flat shading (65ms) over PBR (240ms).~~ **Answered in S4.4:** the product requires fidelity. Flat shading was rejected (27 dB vs 47 dB PSNR against the viewer). The reconstruction renders in real three.js via a headless browser — see ADR-004. | **answered (S4.4)** |
 | Re-processing of legacy imports | The active Dancor import was made before dedup was implemented — geo files 4× larger (182.7 MB vs 44.7 MB). No re-processing route exists. | **mandatory** |
 | LCP measured with real Lighthouse | WSL has no headless browser with DevTools for Web Vitals. S4.1 estimated LCP via sum of components measured with `curl`. | **measure in production** |
 
-Items marked **mandatory** must be present in the first production-bound increment of the reconstruction. The thumbnail fidelity question should be revisited with the product team once the reconstruction is in staging.
+Items marked **mandatory** must be present in the first production-bound increment of the reconstruction. The thumbnail fidelity question was settled in S4.4 and no longer needs a product decision — render in real three.js.
 
 ---
 
@@ -274,7 +289,7 @@ The reconstruction for bilds.com builds directly on the decisions proven in the 
 
 **4. TypeScript parser is production-ready.** ADR-002 is closed: 658ms for 13 products, 59× faster than Python. Memory consumption (422 MB RSS delta for Dancor) is the primary operational risk. Monitor RSS in production. Optimize with `Float64Array` for internal vertex arrays if RSS becomes a problem at scale. Do not reintroduce the Python subprocess.
 
-**5. Thumbnail generation as a separate queue consumer.** The fire-and-forget pattern is correct in principle. In production, thumbnail generation moves to a separate queue consumer so that thumbnail failure never blocks catalog publication. The rasterizer parameters (ambient 0.7 + key 0.9 + fill 0.35, perspective projection, z-buffer) are validated and carry forward.
+**5. Thumbnail generation as a separate queue consumer.** The fire-and-forget pattern is correct in principle. In production, thumbnail generation moves to a separate queue consumer so that thumbnail failure never blocks catalog publication. The consumer drives a headless Chromium over the shared harness page (ADR-004), so plan for ~200 MB of browser per concurrent consumer, the Chromium system libraries in the image, and an explicit browser shutdown on process exit — a `process.exit()` that skips it orphans the browser and hangs on the HTTP server handle.
 
 **6. Vertex deduplication on every import.** Without dedup, geo files are 4× larger. `dedupBuffers()` in `parse-worker.ts` is validated. The reconstruction ensures dedup runs on every import path and implements a re-processing route (re-parse + re-store + update `geoKey`) for the existing Dancor import (the one ingested before dedupBuffers was implemented, identifiable in `bim_imports` by its `createdAt` timestamp from 2026-08-30 and the absence of the `dedupApplied` flag) and any future imports made before the reconstruction is complete.
 

@@ -1,7 +1,7 @@
 ---
 name: pagina-biblioteca
 description: Constrói páginas HTML de catálogo BIM com cards de produto, miniaturas 3D estáticas (click-to-activate), viewer 3D no modal, curvas Q-H em SVG e layout responsivo. Padrões validados em produção com Three.js self-hosted.
-version: 1.3.0
+version: 1.4.0
 author: Bilds / carlosnetoaltoqi
 ---
 
@@ -236,6 +236,68 @@ obrigatória.
 
 Medição em nove catálogos: **348,2 MB de geometria → 2,5 MB de miniaturas**, média de
 4 KB por arquivo, ~0,08 s de render por geometria.
+
+### O mesmo harness serve o build e o servidor de aplicação
+
+Quando existe backend (import de biblioteca gerando miniaturas em background, e não um
+build estático), a tentação volta: rasterizar em código, agora em Node. Não faça — vale a
+mesma medição. Num caso real, o rasterizador software deu **PSNR 27 dB** contra o render
+do viewer; o harness no Chromium deu **47 dB**, que é o piso imposto pela própria
+compressão WebP q=0,85. Lado a lado, o software é uma silhueta chapada e o harness tem o
+relevo do viewer.
+
+Para servir os dois casos, **extraia a função que toca WebGL** e faça a versão que busca
+por URL virar um wrapper:
+
+```javascript
+// única função que toca WebGL — recebe a geometria já em memória
+window.renderThumbFromData = (data, W, H, mime, quality) => { /* … como acima … */ }
+
+// pipeline de build: continua buscando por URL
+window.renderThumb = async (geoUrl, W, H, mime, quality) =>
+  window.renderThumbFromData(await (await fetch(geoUrl)).json(), W, H, mime, quality)
+```
+
+**Nunca passe a geometria como objeto para `page.evaluate`.** O serializador de argumentos
+do Playwright anda o grafo do objeto, e a geometria é um array de centenas de milhares de
+números. Medido numa peça de 4,8 MB (35 k vértices, 52 k triângulos):
+
+| Forma do argumento | Tempo por miniatura |
+|---|---|
+| objeto `{pos, col, idx}` | ~2 200 ms |
+| **string JSON**, com `JSON.parse` dentro da página | **~370 ms** (dos quais ~120 ms são o WebGL) |
+
+O `JSON.stringify` no Node custa 40 ms e o `JSON.parse` na página, 13 ms — o resto é ganho
+puro. Num lote de 13 geometrias: 24,5 s → 6,2 s. É a diferença entre estourar e cumprir o
+orçamento de tempo de um import.
+
+```javascript
+await page.evaluate(
+  ([json, w, h]) => window.renderThumbFromData(JSON.parse(json), w, h, 'image/webp', 0.85),
+  [JSON.stringify(geoData), 448, 324]
+)
+```
+
+**Um browser por processo, e feche-o explicitamente.** A subida do Chromium é ~1 s e se
+amortiza sobre o lote inteiro, então guarde `{browser, page, server}` num singleton. Mas
+**chame `browser.close()` (e feche o servidor HTTP) antes de qualquer `process.exit()`** —
+senão o handle do servidor prende o event loop e o Chromium fica órfão.
+
+**O harness precisa de `http://`, não de `file://`.** O importmap carrega o Three.js como
+módulo ES, e o Chromium recusa `import` sobre `file://` por CORS. Suba um servidor estático
+efêmero (`listen(0)` em `127.0.0.1`) sobre a raiz que contém o harness e o vendor — porta
+zero nunca colide com o dev server da aplicação.
+
+**Diferença de revisão do Three.js entre o harness e o app não importa** — desde que ambas
+sejam pós color-management (r152+). Medido r170 × r185 com o mesmo `buildScene()` e a mesma
+câmera: **PSNR 71 dB, MSE 0,01** — arredondamento de 1/255 em poucos pixels. Não vale um
+alias de servidor nem uma segunda cópia do Three.js no caminho de render; isso reintroduz
+justamente a divergência que o harness existe para eliminar.
+
+**Cuidado ao regenerar miniaturas na mesma URL.** Se o endpoint serve `Cache-Control:
+immutable` com ETag derivado da chave (e não do conteúdo), a imagem nova não aparece no
+browser. Ou versione a URL, ou derive o ETag do conteúdo, ou saiba que precisa de hard
+reload ao verificar — o erro é fácil de confundir com "a regeneração não funcionou".
 
 ### Estado por item — evitar reinicialização
 
@@ -706,6 +768,17 @@ Ambos usam o mesmo `buildScene`, `loadThumbnail`, `initModalViewer` e `buildChar
 ---
 
 ## Histórico
+
+**1.4.0** — **O mesmo harness serve build e servidor de aplicação.** Extrair a função que
+toca WebGL (`renderThumbFromData`, recebe a geometria em memória) e deixar a versão por URL
+como wrapper permite que um backend gere as miniaturas com o mesmo código do build.
+Documentada a armadilha que dominava o tempo — passar a geometria como **objeto** para
+`page.evaluate` custa 6× mais que passar como string JSON (2 200 ms × 370 ms por
+miniatura), porque o serializador do Playwright anda o grafo. Também: singleton de browser
+com fechamento explícito antes do `process.exit()`, a exigência de `http://` (o importmap
+não sobrevive a `file://`), a medição que mostra que r170 × r185 é indiferente (PSNR 71 dB),
+e a armadilha de cache ao regenerar miniatura na mesma URL. Números novos para a decisão
+"não rasterize em código": 27 dB do rasterizador software × 47 dB do harness.
 
 **1.3.0** — **Pré-renderizar as miniaturas no build.** O shared renderer da 1.2.0 conserta
 o estouro de contexto WebGL, não o carregamento: medido em produção, o elemento LCP era a
