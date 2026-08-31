@@ -1,7 +1,7 @@
 ---
 name: leitor-biblioteca-aq
 description: Lê arquivos de biblioteca BIM do AltoQi Builder (.aq) — SQLite com geometria 3D embutida — e extrai peças, dados hidráulicos, curvas de bomba, propriedades, miniaturas e a malha 3D completa (formato OQ3D), dispensando os IFCs.
-version: 2.1.0
+version: 2.2.0
 author: Bilds / carlosnetoaltoqi
 ---
 
@@ -319,8 +319,12 @@ TCoatingColor
     u32 versao | u32 flag | u8 R | u8 G | u8 B | u8 A     (cor UNIFORME da malha)
 
 TCoordinateTransformation3D
-    u32 versao | 12 doubles         → rotação 3×3 row-major + translação
+    u32 versao | 12 doubles         → rotação 3×3 COLUMN-major + translação
 ```
+
+⚠️ **A rotação é column-major:** o elemento `(i, j)` está em `r[j*3 + i]`.
+Lida como row-major sai **transposta** — e toda instância com rotação não
+simétrica cai fora do lugar. Transponha na leitura.
 
 ### Hierarquia
 
@@ -335,6 +339,34 @@ TQi3DReusedObject(guid)            instância
 ```
 
 O **último** `TCoordinateTransformation3D` filho direto é o que posiciona. O par origem/alvo espelha `MappingOrigin`/`MappingTarget` do `IFCCARTESIANTRANSFORMATIONOPERATOR3D`.
+
+### Instâncias repetidas — como resolver a referência
+
+A maioria dos `TQi3DReusedObject` **não** traz a definição inline: referencia
+uma `TQi3DReusableObject` já serializada. Layout do payload:
+
+```
++0   u32 versão (2 ou 3)
++28  u32 tamanho do GUID (sempre 36)
++32  GUID, 36 bytes ASCII    ← ÚNICO POR INSTÂNCIA, não serve de chave
+...  bloco de 15 bytes (versão 2) ou 16 bytes (versão 3)
++B   u8 discriminador:
+        0x02 → a definição vem inline, como filho TQi3DReusableObject
+        0x01 → seguem 4 bytes: u32 com a referência
+```
+
+**A referência é o índice de serialização, base 1, contado sobre TODOS os
+objetos da árvore em ordem de documento.** Não é o GUID, não é um índice de
+definição e não é "a última definição vista" — as duas últimas hipóteses foram
+testadas e refutadas. Só as sete classes acima aparecem no fluxo, então o
+contador não dessincroniza.
+
+Para desenhar a instância: aplique o transform DELA à subárvore da
+`TQi3DReusableObject` referenciada (que traz o próprio transform de origem,
+quase sempre identidade).
+
+Validado em 10 bibliotecas: 2.960 `TQi3DReusedObject`, dos quais 1.096 por
+referência — todos resolvem para uma `TQi3DReusableObject`.
 
 ### Correspondência com o IFC
 
@@ -368,14 +400,30 @@ three_z = -v[1] * 0.01
 | **Varrer delimitadores byte a byte** | `0x5B`/`0x5D` ocorrem dentro de doubles. Consuma por inteiro os blocos de tamanho conhecido (malha, cor, transform) antes de qualquer varredura. |
 | **Somar os bocais na bounding box** | As cores verde `(1,154,63)` e azul `(10,84,152)` são marcadores de conexão do AltoQi, não parte do produto — inflam a bbox em até 2 cm. Filtre-os ao medir. |
 | **`SELECT *` em `SIMBOLOGIA_3D`** | Carrega o `WIREFRAME` — centenas de MB inúteis. |
+| **Ler a rotação como row-major** | Ela é **column-major**. Lida errada, sai transposta: instâncias rotacionadas caem fora do lugar (uma peça "solta no ar"), sem mudar a contagem de triângulos — por isso passa despercebido. |
+| **Ignorar as instâncias que referenciam a definição** | 1.096 das 2.960 instâncias não trazem malha inline. Ignorá-las perde ~30% dos triângulos numa biblioteca de conexões. |
+| **Comparar com o IFC só pela bounding box** | Uma rotação e a sua transposta podem gerar a MESMA caixa. Compare o conjunto de pontos. |
 
-### Limitação conhecida — instâncias repetidas não emitem geometria
+### Como conferir que o parser está certo
 
-Instâncias `TQi3DReusedObject` **sem** definição inline referenciam a malha por GUID, mas os GUIDs são **únicos por instância** — a chave de resolução não foi identificada.
+O IFC da mesma biblioteca é o gabarito. Em biblioteca **tessellated**
+(`IFCTRIANGULATEDFACESET`) a conferência é exata — reconstrua o IFC a partir do
+STEP (placement do produto × mapped item) e compare o **conjunto de pontos**:
 
-Na bomba CAM-W21 2CV: **5 instâncias com malha própria, 13 só com transform**, que não emitem nada. Efeito visível em produção: parafusos faltando, e um deles aparece solto no ar — a definição inline é desenhada na posição da sua própria instância, longe do corpo.
+- contagem de triângulos idêntica → as instâncias repetidas resolveram;
+- pontos idênticos → os transforms estão na convenção certa.
 
-Não afeta a silhueta do produto (os renders continuam equivalentes ao IFC), mas é visível em close. Hipóteses a testar: o `u32` em `+8` do payload do `TQi3DReusedObject` (valores observados 1..6) pode ser índice da definição; ou a definição a herdar é a última vista no mesmo nível da árvore.
+Cuidado com dois detalhes ao comparar:
+
+- **alinhe pelo canto da bounding box, não pelo centróide** — o OQ3D guarda
+  várias malhas como sopa de triângulos e o IFC solda os vértices, então os
+  centróides têm pesos diferentes;
+- **compare por tolerância** (~10 µm), não por igualdade de conjunto
+  arredondado: coordenadas na fronteira de arredondamento caem para lados
+  diferentes nos dois lados.
+
+Em biblioteca **B-rep** (`IFCADVANCEDBREP`) a tesselação é independente: aí só
+dá para comparar a forma (extensão da bounding box).
 
 ### Sempre deduplique os vértices
 
@@ -779,6 +827,8 @@ const DATA_BASE = '/' + CATALOG.slug + '/data/';
 ---
 
 ## Histórico
+
+**2.2.0** — Resolvidas as duas armadilhas que deslocavam geometria. (a) A referência de instância repetida é o **índice de serialização base 1 sobre todos os objetos em ordem de documento**, com discriminador `0x01`/`0x02` após o GUID — o GUID é único por instância e nunca foi a chave. (b) A rotação de `TCoordinateTransformation3D` é **column-major**, não row-major. Conferido contra o IFC nas 13 peças da Dancor: conjunto de pontos idêntico, 27.425 triângulos batendo exatamente na CAM-W21 2CV. Adicionadas as armadilhas de comparação com IFC (alinhar pelo canto da bbox, comparar por tolerância, bbox não distingue rotação de transposta).
 
 **2.1.0** — **Correção de encoding: o `.aq` é cp1252, não latin-1.** A versão anterior
 afirmava "latin-1 (Windows-1252)" tratando os dois como sinônimo. Diferem na faixa

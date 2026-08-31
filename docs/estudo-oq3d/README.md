@@ -16,9 +16,10 @@ Validado em nove bibliotecas, seis versões de schema (552–607) e três domín
 |---|---|
 | `estudo-oq3d.html` | relatório completo, com renders e tabelas de validação |
 | `render.py` | rasterizador z-buffer em numpy puro, usado para conferir a geometria visualmente sem depender de browser |
-| `massval.py` | validação em massa `.aq` × IFC — bounding box e contagem peça a peça |
+| `massval.py` | validação em massa `.aq` × IFC — bounding box e contagem peça a peça (usa o nome antigo `oq3dtree`) |
+| `valida_ifc.py` | confere o parser contra o IFC peça a peça: **conjunto de pontos** em biblioteca tessellated, forma em B-rep |
 
-O parser que saiu do estudo virou `scripts/oq3d.py`, em produção. O que está aqui é ferramenta de investigação, mantida para reproduzir a análise ou atacar o bug em aberto.
+O parser que saiu do estudo virou `scripts/oq3d.py`, em produção. O que está aqui é ferramenta de investigação, mantida para reproduzir a análise e conferir o parser contra os IFCs.
 
 ## Reproduzir
 
@@ -41,8 +42,17 @@ Image.fromarray(render.render(T, C, size=420, elev=22, azim=48)).save('/tmp/peca
 python3 docs/estudo-oq3d/massval.py
 ```
 
-## Bug em aberto
+## Bug resolvido em 2026-08-30
 
-Instâncias `TQi3DReusedObject` sem definição inline não emitem geometria — os GUIDs são únicos por instância e a chave de resolução não foi identificada. Na CAM-W21 2CV: 5 instâncias com malha, 13 sem. Efeito visível: parafusos faltando e um solto no ar.
+Os parafusos que faltavam na CAM-W21 2CV (5 instâncias com malha, 13 sem) eram **dois** bugs:
 
-Detalhes e hipóteses em `CLAUDE.md`, seção "Conhecimento crítico: oq3d.py".
+1. **Instâncias repetidas.** `TQi3DReusedObject` sem definição inline referencia uma `TQi3DReusableObject` pelo **índice de serialização, base 1, sobre todos os objetos em ordem de documento** — não pelo GUID, que é único por instância. Um discriminador logo após o GUID (`0x01` = referência, `0x02` = inline) diz qual é o caso.
+2. **Rotação transposta.** A 3×3 de `TCoordinateTransformation3D` é **column-major**; era lida como row-major. Não muda a contagem de triângulos, só a posição — era este o responsável pela peça "solta no ar".
+
+Conferido contra o IFC: as 13 peças da Dancor batem **ponto a ponto**.
+
+```bash
+python3 docs/estudo-oq3d/valida_ifc.py Dancor
+```
+
+Detalhes em `CLAUDE.md`, seção "Conhecimento crítico: oq3d.py".

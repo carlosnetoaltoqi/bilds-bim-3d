@@ -150,6 +150,20 @@ funciona, mas é o comportamento de 39,9 s de LCP que motivou toda a mudança. S
 avisar que pulou as miniaturas, resolva as dependências antes (ver “Miniaturas
 pré-renderizadas”).
 
+### Geometria — corrigida em 2026-08-30
+
+O `oq3d.py` e o `oq3d-parser.ts` emitiam menos geometria do que o `.aq` contém e
+deslocavam instâncias rotacionadas. Resolvido (ver S5.1 no histórico). Consequência
+prática: **as geometrias já gravadas no banco da POC saíram do parser antigo.** Para
+o catálogo dinâmico refletir o fix é preciso reimportar:
+
+```bash
+cd www && pnpm ingest ../input/Dancor/pecas_dancor_bombas_incendio_2026_04.1.aq
+pnpm thumb:regen <importId>
+```
+
+O pipeline estático já regenera sozinho no próximo `build.py`.
+
 ### Pendência conhecida
 
 - **Thumb regenerada no mesmo import não invalida o cache do browser** — o ETag de
@@ -160,8 +174,6 @@ pré-renderizadas”).
   gitignored (511 MB de geometria não entram no histórico), e a Vercel constrói a partir
   do git. Hoje ela serve só a landing. Decidir a estratégia: rodar o `build.py` na
   Vercel, servir a geometria de storage externo, ou aceitar o preview só local.
-- **Parafusos faltando na Dancor** — 13 de 18 instâncias não emitem geometria; ver
-  “BUG ABERTO” na seção do `oq3d.py`
 - **GET /geometrias sem auth** — endpoint intencional para a POC; adicionar guard antes
   de qualquer exposição de rede (ver finding A1 do review S1.2)
 - **`STORAGE_PATH` é variável de ambiente, não commitada.** Está em `www/.env` (gitignored)
@@ -605,8 +617,12 @@ TQi3DIndexedTriangleMeshData
 TCoatingColor
     u32 versao | u32 flag | u8 R | u8 G | u8 B | u8 A    (cor UNIFORME da malha)
 TCoordinateTransformation3D
-    u32 versao | 12 doubles         → rotação 3×3 row-major + translação
+    u32 versao | 12 doubles         → rotação 3×3 COLUMN-major + translação
 ```
+
+**A rotação é column-major:** o elemento `(i, j)` está em `r[j*3 + i]`. Lida como
+row-major, sai transposta e desloca toda instância cuja rotação não seja
+simétrica. `parse()` já devolve transposta para row-major.
 
 Hierarquia: `TQi3DReusedObject(guid)` → `TQi3DReusableObject` (definição inline,
 opcional) → `TQi3DTriangleMesh` → `TCoatingColor` + malha. O **último**
@@ -642,6 +658,8 @@ Para Three.js: `x, y=z, z=-y`, multiplicado por 0.01.
 | Somar bocais na bounding box | Verde `(1,154,63)` e azul `(10,84,152)` são marcadores de conexão, não produto — inflam a bbox em ~2 cm. Use `skip_markers=True`. |
 | `SELECT *` em `SIMBOLOGIA_3D` | Traz o `WIREFRAME`: 69–71% do arquivo (285 MB dos 412 MB da Amanco), inútil para viewer web. |
 | Esquecer o `dedup()` | O caminho `.aq` **precisa** dedupar como o IFC faz. Sem isso o preview foi de 148 MB para 571 MB. |
+| Ler a rotação como row-major | Ela é **column-major**. Sai transposta: instância rotacionada fora do lugar, sem mudar a contagem de triângulos. |
+| Ignorar instâncias que referenciam a definição | 1.096 das 2.960 instâncias não trazem malha inline — some ~31% dos triângulos na Amanco. |
 
 ### API
 
@@ -654,20 +672,56 @@ oq3d.to_buffers(blob)                  # {'pos','col','idx'} em metros, Y-up
 oq3d.bbox(blob) / oq3d.stats(blob)     # validação e logs
 ```
 
-### BUG ABERTO — instâncias repetidas não emitem geometria
+### Instâncias repetidas — RESOLVIDO em 2026-08-30
 
-`TQi3DReusedObject` **sem** definição inline referencia a malha por GUID, mas os
-GUIDs são **únicos por instância** — a chave de resolução não foi identificada.
+A maioria dos `TQi3DReusedObject` **não** traz a definição inline: referencia uma
+`TQi3DReusableObject` já serializada. Layout do payload:
 
-Na CAM-W21 2CV: **5 instâncias com malha própria, 13 só com transform**, que não
-emitem nada. Efeito visível: parafusos faltando, e um deles aparece solto no ar
-(a definição inline é desenhada na posição da sua própria instância, longe do
-corpo). Confirmado em produção no preview da Dancor.
+```
++0   u32 versão (2 ou 3)
++28  u32 tamanho do GUID (sempre 36)
++32  GUID, 36 bytes ASCII    ← ÚNICO POR INSTÂNCIA, nunca foi a chave
+...  bloco de 15 bytes (versão 2) ou 16 bytes (versão 3)
++B   u8 discriminador:  0x02 = definição inline  |  0x01 = seguem 4 bytes de referência
+```
 
-Não afeta a silhueta do produto — os renders continuam equivalentes ao IFC —
-mas é a próxima coisa a resolver. Hipóteses a testar: o `u32` em `+8` do payload
-do `TQi3DReusedObject` (valores observados: 1..6) pode ser índice da definição;
-ou a definição a herdar é a última vista no mesmo nível da árvore.
+**A referência é o índice de serialização, base 1, contado sobre TODOS os objetos
+da árvore em ordem de documento.** As duas hipóteses antigas foram testadas e
+refutadas: o `u32` em `+8` é um id de instância (valores 2..19 na CAM-W21 2CV,
+todos distintos — não índice de definição), e "a última definição vista" não
+explica o padrão. Só as sete classes de `CLASSES` aparecem no fluxo, então o
+contador não dessincroniza — verificado varrendo as 10 bibliotecas.
+
+Validado: 2.960 `TQi3DReusedObject`, dos quais **1.096 por referência — todos**
+resolvem para uma `TQi3DReusableObject`.
+
+> Junto com este bug havia um segundo, que só apareceu ao conferir contra o IFC:
+> a rotação de `TCoordinateTransformation3D` é **column-major**. Ele não muda a
+> contagem de triângulos, só a posição — por isso passou despercebido. Era ele o
+> responsável pela peça "solta no ar", não o das instâncias repetidas.
+
+### Como conferir o parser contra o IFC
+
+```bash
+python3 docs/estudo-oq3d/valida_ifc.py Dancor        # exato: 13/13 pontos idênticos
+python3 docs/estudo-oq3d/valida_ifc.py Amanco --limite 80
+```
+
+Em biblioteca tessellated (`IFCTRIANGULATEDFACESET`, ex. Dancor) a conferência é
+exata: reconstrói-se o IFC do STEP (placement do produto × mapped item) e
+compara-se o **conjunto de pontos**. Em B-rep (`IFCADVANCEDBREP`, ex. Amanco) a
+tesselação é independente e só a forma é comparável.
+
+Três armadilhas ao comparar, todas já resolvidas dentro do script:
+
+| Armadilha | Por quê |
+|---|---|
+| Comparar só a bounding box | Uma rotação e a sua transposta podem gerar a **mesma** caixa. Compare os pontos. |
+| Alinhar pelo centróide | O OQ3D guarda várias malhas como sopa de triângulos, o IFC solda os vértices — os centróides têm pesos diferentes. Alinhe pelo canto da bbox. |
+| Igualdade de conjunto arredondado | Coordenadas na fronteira de arredondamento caem para lados diferentes. Compare por tolerância (~10 µm). |
+
+O `MappingTarget` do IFC costuma ser **identidade**: quem posiciona cada
+instância é o `ObjectPlacement` do `IfcProduct` — cada instância é um produto.
 
 ---
 
@@ -956,6 +1010,8 @@ via modo `'recursive'` do `scan_input()`.
 
 | Sintoma | Causa provável |
 |---|---|
+| Uma peça isolada, "solta no ar", sem mudar a contagem de triângulos | Rotação do OQ3D lida como row-major — ela é column-major |
+| Parafusos/detalhes faltando, ~30% menos triângulos que o IFC | Instâncias `TQi3DReusedObject` por referência não resolvidas |
 | Peças separadas por metros | resolve_lp() não acumula hierarquia recursivamente |
 | Fragmentos a 5–16m do corpo | LP aberrante no IFC exportado — filtrar outliers |
 | Modelo ~1000× maior | Conversão mm→m desnecessária — verificar magnitude das coordenadas brutas |
@@ -1064,6 +1120,39 @@ python3 -m http.server 8080 --directory output/preview
 ---
 
 ## Histórico de sessões
+
+### 2026-08-30 — S5.1: instâncias repetidas do OQ3D (dois bugs, não um)
+
+Fechado o bug em aberto do `oq3d.py`. Registro completo em
+`docs/sessoes/S5.1-instancias-repetidas-oq3d.md`.
+
+**Bug 1 — a chave de resolução.** `TQi3DReusedObject` sem definição inline referencia
+uma `TQi3DReusableObject` pelo **índice de serialização, base 1, sobre todos os objetos
+em ordem de documento**, com um discriminador logo após o GUID (`0x01` = referência +
+u32, `0x02` = inline). O GUID nunca foi a chave. As duas hipóteses antigas — o `u32` em
+`+8` e "a última definição vista" — foram testadas e refutadas.
+
+**Bug 2 — a rotação é column-major.** A 3×3 de `TCoordinateTransformation3D` era lida
+como row-major, o que a transpõe. Não muda a contagem de triângulos, só a posição —
+por isso sobreviveu ao estudo original, cuja validação era por bounding box, e **uma
+bbox não distingue uma rotação da sua transposta**. Era ele o responsável pela peça
+"solta no ar".
+
+Corrigido nos dois parsers (`scripts/oq3d.py` e `www/tools/oq3d-parser.ts`), com a
+rotação transposta na leitura para não mexer na composição.
+
+| Verificação | Resultado |
+|---|---|
+| Dancor × IFC, peça a peça | **13/13 com conjunto de pontos idêntico** |
+| CAM-W21 2CV | 18/18 instâncias emitem; 20.452 → **27.425** triângulos, o total exato do IFC |
+| Amanco (B-rep), 100 IFCs | mediana do erro de forma 0,473 → **0,094 cm** |
+| Malhas soltas no ar | Amanco 10 → **0**; demais bibliotecas já eram 0 |
+| Paridade Python × TS | `pnpm port:test` passa nas 13 peças |
+| 10 bibliotecas | 2.960 instâncias, **1.096 por referência, todas resolvem**; +8,2% de triângulos no total, +30,9% na Amanco |
+
+Ferramenta nova: `docs/estudo-oq3d/valida_ifc.py` — confere o parser contra o IFC
+comparando **conjunto de pontos** (tessellated) ou forma (B-rep). Existe porque a
+ausência dessa conferência foi o que deixou o bug 2 passar.
 
 ### 2026-08-30 — S4.4: miniaturas idênticas ao viewer (Playwright no thumb-worker)
 
@@ -1409,9 +1498,10 @@ aparelho sanitário. O build informa quantas pulou.
   enganoso era `Unexpected token 'T'` — a página 404 da Vercel caindo no
   `JSON.parse`. Agora o `fetch` checa `r.ok` antes de parsear.
 
-**Pendência conhecida:** parafusos faltando na Dancor — 13 de 18 instâncias não
-emitem geometria, e uma definição aparece solta no ar. Ver "BUG ABERTO" na seção
-do `oq3d.py`.
+**Pendência da época (resolvida em 2026-08-30):** parafusos faltando na Dancor —
+13 de 18 instâncias não emitiam geometria, e uma peça aparecia solta no ar. Eram
+dois bugs distintos: a referência da instância repetida e a rotação column-major.
+Ver "Instâncias repetidas — RESOLVIDO" na seção do `oq3d.py`.
 
 **Ponto estável: commit `9b85f6c`** — 9 catálogos em produção, geometria servindo
 200 em todos. Para retornar: `git checkout 9b85f6c`.

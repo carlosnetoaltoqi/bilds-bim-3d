@@ -31,7 +31,13 @@ Classes que carregam dados:
     TCoatingColor
         u32 versao | u32 flag | u8 R | u8 G | u8 B | u8 A   (cor uniforme da malha)
     TCoordinateTransformation3D
-        u32 versao | 12 doubles            -> rotação 3x3 row-major + translação
+        u32 versao | 12 doubles            -> rotação 3x3 COLUMN-major + translação
+
+        Os 9 primeiros doubles são a rotação em ordem de COLUNAS: o elemento
+        (i, j) está em r[j*3 + i]. Lê-los como row-major transpõe a matriz e
+        desloca toda peça cuja rotação não seja simétrica — parafusos rotacio-
+        nados saem do lugar. parse() já devolve a matriz transposta para
+        row-major, que é o que _apply() e _mat_mul() esperam.
 
 Hierarquia:
 
@@ -46,6 +52,27 @@ Hierarquia:
 O último TCoordinateTransformation3D filho direto é o que posiciona; o par
 origem/alvo espelha MappingOrigin/MappingTarget do IFC.
 
+INSTÂNCIAS REPETIDAS
+--------------------
+Nem todo TQi3DReusedObject traz a definição inline: a maioria referencia uma
+TQi3DReusableObject já serializada. O layout do payload é
+
+    +0   u32 versão (2 ou 3)
+    +28  u32 tamanho do GUID (sempre 36)
+    +32  GUID (36 bytes ASCII) — ÚNICO POR INSTÂNCIA, não serve de chave
+    ...  bloco de 15 bytes (versão 2) ou 16 (versão 3)
+    +B   u8  discriminador:
+             0x02 -> a definição vem inline, como filho TQi3DReusableObject
+             0x01 -> seguem 4 bytes: u32 com a referência
+
+A referência é o **índice de serialização, base 1, contado sobre TODOS os
+objetos da árvore em ordem de documento** — não é o GUID, nem índice de
+definição, nem "a última definição vista". Só as sete classes de CLASSES
+aparecem no fluxo, então o contador não dessincroniza.
+
+Validado em 10 bibliotecas: 2.960 TQi3DReusedObject, dos quais 1.096 por
+referência — todos resolvem para uma TQi3DReusableObject.
+
 UNIDADES: centímetros, Z-up (a mesma orientação do IFC nativo).
 Para o viewer: x, y=z, z=-y e multiplicar por 0.01.
 
@@ -56,6 +83,8 @@ ARMADILHAS
   é montada a partir de malhas reaproveitadas. Use sempre o parser de árvore.
 - As cores verde/azul de bocal são marcadores de conexão do AltoQi, não parte do
   produto: inflam a bounding box. Use MARKER_COLORS para separá-los.
+- A rotação de TCoordinateTransformation3D é column-major. Tratá-la como
+  row-major transpõe e desloca as instâncias rotacionadas.
 """
 import re
 import struct
@@ -82,13 +111,19 @@ MARKER_COLORS = {(1, 154, 63), (10, 84, 152), (0, 116, 232)}
 
 DEFAULT_RGBA = (150, 150, 150, 255)
 
+# TQi3DReusedObject: bytes entre o fim do GUID e o discriminador, por versão.
+REUSED_BLOCK = {2: 15, 3: 16}
+GUID_LEN = 36
+DISC_REF, DISC_INLINE = 0x01, 0x02
+
 
 class OQ3DError(ValueError):
     """Blob que não é OQ3D ou cujo layout binário não é o esperado."""
 
 
 class Node:
-    __slots__ = ('cls', 'children', 'mesh', 'color', 'xform', 'guid')
+    __slots__ = ('cls', 'children', 'mesh', 'color', 'xform', 'guid',
+                 'ref', 'defn')
 
     def __init__(self, cls):
         self.cls = cls
@@ -97,6 +132,8 @@ class Node:
         self.color = None
         self.xform = None
         self.guid = None
+        self.ref = None     # índice de serialização referenciado, se houver
+        self.defn = None    # TQi3DReusableObject resolvido a partir de .ref
 
     def __repr__(self):
         return f'<{self.cls} kids={len(self.children)}>'
@@ -127,6 +164,9 @@ def parse(buf):
         raise OQ3DError('blob sem assinatura OQ3D')
 
     roots, stack = [], []
+    defs = {}          # índice de serialização -> nó TQi3DReusableObject
+    pending = []       # instâncias que referenciam uma definição
+    serial = 0
     p, n = 0, len(buf)
 
     while p < n:
@@ -139,6 +179,9 @@ def parse(buf):
                 continue
             name, off = hit
             node = Node(name)
+            serial += 1
+            if name == 'TQi3DReusableObject':
+                defs[serial] = node
             (stack[-1].children if stack else roots).append(node)
             stack.append(node)
 
@@ -147,17 +190,20 @@ def parse(buf):
                 p = off + 12
             elif name == 'TCoordinateTransformation3D':
                 m = struct.unpack_from('<12d', buf, off + 4)
-                node.xform = (m[:9], m[9:12])
+                r = m[:9]
+                # A 3x3 vem COLUMN-MAJOR. Transpõe já na leitura para que
+                # _apply/_mat_mul (row-major) fiquem corretos.
+                node.xform = ((r[0], r[3], r[6],
+                               r[1], r[4], r[7],
+                               r[2], r[5], r[8]), m[9:12])
                 p = off + 100
             elif name == 'TQi3DIndexedTriangleMeshData':
                 p = _read_mesh(buf, off, node, n)
             else:
                 if name == 'TQi3DReusedObject':
-                    try:
-                        if struct.unpack_from('<I', buf, off + 28)[0] == 36:
-                            node.guid = buf[off + 32:off + 68].decode('ascii', 'replace')
-                    except struct.error:
-                        pass
+                    _read_reused(buf, off, node, n)
+                    if node.ref is not None:
+                        pending.append(node)
                 p = off
             continue
 
@@ -169,7 +215,37 @@ def parse(buf):
 
         p += 1
 
+    for node in pending:
+        node.defn = defs.get(node.ref)
+
     return roots
+
+
+def _read_reused(buf, off, node, n):
+    """Lê o GUID e a referência de definição de um TQi3DReusedObject.
+
+    Preenche node.guid e, quando a definição não vem inline, node.ref com o
+    índice de serialização da TQi3DReusableObject a herdar.
+    """
+    try:
+        ver = struct.unpack_from('<I', buf, off)[0]
+        if struct.unpack_from('<I', buf, off + 28)[0] != GUID_LEN:
+            return
+    except struct.error:
+        return
+
+    node.guid = buf[off + 32:off + 32 + GUID_LEN].decode('ascii', 'replace')
+
+    block = REUSED_BLOCK.get(ver)
+    if block is None:
+        return
+    d = off + 32 + GUID_LEN + block
+    if d >= n or buf[d] != DISC_REF:
+        return
+    try:
+        node.ref = struct.unpack_from('<I', buf, d + 1)[0]
+    except struct.error:
+        pass
 
 
 def _read_mesh(buf, off, node, n):
@@ -216,7 +292,7 @@ def _apply(rot, trans, v):
     ]
 
 
-def _collect(nodes, rot, trans, color, out):
+def _collect(nodes, rot, trans, color, out, stack=()):
     for nd in nodes:
         own = None
         col = color
@@ -246,7 +322,12 @@ def _collect(nodes, rot, trans, color, out):
                 world = [_apply(rot2, trans2, v) for v in verts]
             out.append((world, tris, col or DEFAULT_RGBA))
 
-        _collect(nd.children, rot2, trans2, col, out)
+        # Instância repetida: a definição vive noutro ponto da árvore e é
+        # desenhada aqui com o transform desta instância.
+        if nd.defn is not None and id(nd.defn) not in stack:
+            _collect([nd.defn], rot2, trans2, col, out, stack + (id(nd.defn),))
+
+        _collect(nd.children, rot2, trans2, col, out, stack)
     return out
 
 
@@ -257,7 +338,7 @@ def extract(buf, skip_markers=False):
     skip_markers=True descarta os bocais de conexão (verde/azul), úteis de
     remover quando se quer a bounding box real do produto.
     """
-    meshes = _collect(parse(buf), None, None, None, [])
+    meshes = _collect(parse(buf), None, None, None, [], ())
     if skip_markers:
         body = [m for m in meshes if tuple(m[2][:3]) not in MARKER_COLORS]
         return body or meshes

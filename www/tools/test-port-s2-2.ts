@@ -59,12 +59,15 @@ for pid in sorted(por_peca.keys()):
     }
 print(json.dumps(ref))
 `;
+  // 512 MB: a referência da Dancor passou de ~170 MB para ~228 MB quando as
+  // instâncias repetidas passaram a emitir geometria. Estourar o buffer devolve
+  // status null e stderr vazio — daí o erro incluir result.error.
   const result = child_process.spawnSync('python3', ['-c', script], {
-    maxBuffer: 200 * 1024 * 1024,
+    maxBuffer: 512 * 1024 * 1024,
     encoding: 'utf8',
   });
   if (result.status !== 0) {
-    throw new Error(`Python reference failed:\n${result.stderr}`);
+    throw new Error(`Python reference failed (status=${result.status}): ${result.error ?? ''}\n${result.stderr ?? ''}`);
   }
   return JSON.parse(result.stdout);
 }

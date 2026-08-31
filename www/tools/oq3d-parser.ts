@@ -12,6 +12,15 @@
  *
  * Unidades de entrada: centímetros, Z-up (AltoQi/IFC nativo).
  * Saída: metros, Y-up (Three.js), arrays flat prontos para BufferGeometry.
+ *
+ * DUAS ARMADILHAS DO FORMATO, ambas já corrigidas aqui e em scripts/oq3d.py:
+ *
+ * 1. A rotação de TCoordinateTransformation3D é COLUMN-major. Lida como
+ *    row-major, sai transposta e desloca toda instância rotacionada.
+ * 2. TQi3DReusedObject nem sempre traz a definição inline: normalmente
+ *    referencia uma TQi3DReusableObject já serializada, pelo índice de
+ *    serialização (base 1) sobre todos os objetos em ordem de documento.
+ *    O GUID é único por instância e NÃO serve de chave.
  */
 
 const MAGIC = Buffer.from('OQ3D 3D Objects File');
@@ -19,6 +28,11 @@ const CM_TO_M = 0.01;
 const OPEN = 0x5b;
 const CLOSE = 0x5d;
 const DEFAULT_RGBA: [number, number, number, number] = [150, 150, 150, 255];
+
+// TQi3DReusedObject: bytes entre o fim do GUID e o discriminador, por versão.
+const REUSED_BLOCK: Record<number, number> = { 2: 15, 3: 16 };
+const GUID_LEN = 36;
+const DISC_REF = 0x01;
 
 const CLASSES = new Set([
   'TQi3DReusedObject',
@@ -51,6 +65,10 @@ interface OQ3DNode {
   color: [number, number, number, number] | null;
   xform: { rot: number[]; trans: number[] } | null;
   guid: string | null;
+  /** Índice de serialização da definição referenciada, quando não vem inline. */
+  ref: number | null;
+  /** TQi3DReusableObject resolvido a partir de `ref`. */
+  defn: OQ3DNode | null;
 }
 
 export interface OQ3DBuffers {
@@ -60,7 +78,7 @@ export interface OQ3DBuffers {
 }
 
 function makeNode(cls: string): OQ3DNode {
-  return { cls, children: [], mesh: null, color: null, xform: null, guid: null };
+  return { cls, children: [], mesh: null, color: null, xform: null, guid: null, ref: null, defn: null };
 }
 
 /** True se o blob tem a assinatura OQ3D nos primeiros 64 bytes. */
@@ -140,12 +158,41 @@ function readMesh(
   return { verts, tris, endOffset: idxEndOff };
 }
 
+/**
+ * Lê o GUID e a referência de definição de um TQi3DReusedObject.
+ *
+ * Layout do payload:
+ *   +0   u32 versão (2 ou 3)
+ *   +28  u32 tamanho do GUID (sempre 36)
+ *   +32  GUID — único por instância, não serve de chave
+ *   ...  bloco de 15 bytes (versão 2) ou 16 (versão 3)
+ *   +B   u8 discriminador: 0x02 = definição inline, 0x01 = seguem 4 bytes de
+ *        referência ao índice de serialização da TQi3DReusableObject
+ */
+function readReused(buf: Buffer, off: number, node: OQ3DNode): void {
+  const n = buf.length;
+  if (off + 32 + GUID_LEN > n) return;
+  const ver = buf.readUInt32LE(off);
+  if (buf.readUInt32LE(off + 28) !== GUID_LEN) return;
+
+  node.guid = buf.toString('ascii', off + 32, off + 32 + GUID_LEN);
+
+  const block = REUSED_BLOCK[ver];
+  if (block === undefined) return;
+  const d = off + 32 + GUID_LEN + block;
+  if (d + 5 > n || buf[d] !== DISC_REF) return;
+  node.ref = buf.readUInt32LE(d + 1);
+}
+
 /** Devolve os nós-raiz da árvore de objetos OQ3D. */
 export function parse(buf: Buffer): OQ3DNode[] {
   if (!isOQ3D(buf)) throw new OQ3DError('blob sem assinatura OQ3D');
 
   const roots: OQ3DNode[] = [];
   const stack: OQ3DNode[] = [];
+  const defs = new Map<number, OQ3DNode>();   // índice de serialização -> definição
+  const pending: OQ3DNode[] = [];             // instâncias que referenciam
+  let serial = 0;
   let p = 0;
   const n = buf.length;
 
@@ -160,6 +207,8 @@ export function parse(buf: Buffer): OQ3DNode[] {
       }
       const { name, payloadOffset: off } = hit;
       const node = makeNode(name);
+      serial++;
+      if (name === 'TQi3DReusableObject') defs.set(serial, node);
       (stack.length ? stack[stack.length - 1].children : roots).push(node);
       stack.push(node);
 
@@ -175,10 +224,13 @@ export function parse(buf: Buffer): OQ3DNode[] {
       } else if (name === 'TCoordinateTransformation3D') {
         // uint32 versao + 12 doubles (9 rot + 3 trans) = 4 + 96 = 100 bytes
         if (off + 4 + 96 <= n) {
-          const rot: number[] = new Array(9);
+          const raw: number[] = new Array(9);
           const trans: number[] = new Array(3);
-          for (let i = 0; i < 9; i++) rot[i] = buf.readDoubleLE(off + 4 + i * 8);
+          for (let i = 0; i < 9; i++) raw[i] = buf.readDoubleLE(off + 4 + i * 8);
           for (let i = 0; i < 3; i++) trans[i] = buf.readDoubleLE(off + 4 + 72 + i * 8);
+          // A 3x3 vem COLUMN-major: (i, j) está em raw[j*3 + i]. Transpõe já na
+          // leitura para que applyXform/matMul (row-major) fiquem corretos.
+          const rot = [raw[0], raw[3], raw[6], raw[1], raw[4], raw[7], raw[2], raw[5], raw[8]];
           node.xform = { rot, trans };
         }
         p = off + 100;
@@ -191,14 +243,9 @@ export function parse(buf: Buffer): OQ3DNode[] {
           p = off;
         }
       } else {
-        if (name === 'TQi3DReusedObject' && off + 68 <= n) {
-          try {
-            if (buf.readUInt32LE(off + 28) === 36) {
-              node.guid = buf.toString('ascii', off + 32, off + 68);
-            }
-          } catch {
-            // guid é diagnóstico — ignorar falha
-          }
+        if (name === 'TQi3DReusedObject') {
+          readReused(buf, off, node);
+          if (node.ref !== null) pending.push(node);
         }
         p = off;
       }
@@ -213,6 +260,8 @@ export function parse(buf: Buffer): OQ3DNode[] {
 
     p++;
   }
+
+  for (const node of pending) node.defn = defs.get(node.ref!) ?? null;
 
   return roots;
 }
@@ -241,6 +290,7 @@ function collect(
   trans: number[] | null,
   color: [number, number, number, number] | null,
   out: Array<{ verts: Array<[number, number, number]>; tris: Array<[number, number, number]>; rgba: [number, number, number, number] }>,
+  seen: ReadonlySet<OQ3DNode> = new Set(),
 ): Array<{ verts: Array<[number, number, number]>; tris: Array<[number, number, number]>; rgba: [number, number, number, number] }> {
   for (const nd of nodes) {
     let own: { rot: number[]; trans: number[] } | null = null;
@@ -280,7 +330,13 @@ function collect(
       out.push({ verts: worldVerts, tris, rgba: (col ?? DEFAULT_RGBA) as [number, number, number, number] });
     }
 
-    collect(nd.children, rot2, trans2, col, out);
+    // Instância repetida: a definição vive noutro ponto da árvore e é
+    // desenhada aqui com o transform desta instância.
+    if (nd.defn !== null && !seen.has(nd.defn)) {
+      collect([nd.defn], rot2, trans2, col, out, new Set(seen).add(nd.defn));
+    }
+
+    collect(nd.children, rot2, trans2, col, out, seen);
   }
   return out;
 }
