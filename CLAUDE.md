@@ -84,7 +84,29 @@ originou — e não se perde se a máquina sumir.
 
 ---
 
-## 👉 Estado em 2026-08-30 — POC de catálogo dinâmico concluída
+## 👉 Estado em 2026-08-31 — POC ENCERRADA, validada ponta a ponta
+
+**A POC de catálogo dinâmico está encerrada.** Depois da correção do `oq3d.py` (S5.1),
+o banco e o storage foram zerados e as duas bibliotecas reimportadas do zero pela
+própria interface. Tudo verificado — geometria, miniaturas e páginas públicas.
+
+**Estado conferido em 2026-08-31** (ver `docs/sessoes/S5.2-encerramento-poc.md`):
+
+| O quê | Estado |
+|---|---|
+| Empresa | Dancor · `/dancor` · `5fad3dc6-91b8-4c85-af4e-419aae415ae0` |
+| Catálogo Dancor | `bomba-de-combate-a-incencio` — 13 produtos, `series-rows` |
+| Catálogo Amanco | `pvc-esgoto-silentium` — 856 produtos, `catalog-grid` |
+| Importações | `d5a4acb5` (Dancor) e `28826de9` (Amanco), ambas `publicado` |
+| Produtos | **869 — todos com `geoKey` e `thumbKey`, 0 arquivo faltando em disco** |
+| Storage | 363 MB, 1.696 arquivos em `www/storage/bim` |
+| Geometria | CAM-W21 2CV com **27.425 triângulos** = parser corrigido (seria 20.452 com o antigo); dedup 82.275 → 16.488 vértices (80%) |
+| Miniaturas | servidas pela API em `image/webp`, idênticas às do pipeline estático |
+| Páginas públicas | ambas HTTP 200 no web (3000) e na API (4000) |
+
+> Os `importId` mudam a cada reimportação. Confira os atuais em vez de confiar
+> neste texto:
+> `curl -s localhost:4000/catalogos/dancor/bomba-de-combate-a-incencio | head -c 300`
 
 **Versão base estável:** commit da S4.3 em `main`.
 
@@ -92,20 +114,16 @@ originou — e não se perde se a máquina sumir.
 
 1. **Pipeline estático (esta é a linha madura).** `.aq` → catálogo → ZIP/preview → Vercel.
    É o que o resto deste arquivo documenta. Estável e em produção.
-2. **POC de catálogo dinâmico** — **CONCLUÍDA em 2026-08-30.** Todas as 14 sessões
-   (S-rev a S4.3) foram executadas. Aprendizados destilados em
+2. **POC de catálogo dinâmico** — **ENCERRADA em 2026-08-31.** As 14 sessões
+   (S-rev a S4.3) mais a correção do parser (S5.1) e a validação final (S5.2) foram
+   executadas. Aprendizados destilados em
    `docs/solutions/architecture-patterns/poc-catalogo-bim-dinamico-aprendizados.md`.
    O documento registra as respostas às cinco perguntas da POC, os bugs encontrados e
    as diretrizes para a reconstrução na bilds.com.
 
-   **Estado final do banco de dados Atlas:**
-   - Catálogo Dancor ativo: importId `59c32b93`, 13 produtos com thumbKey em `thumbs/59c32b93-*/`
-   - Thumbs gerados por Playwright + harness (S4.4) — idênticos ao viewer
-   - O catálogo Amanco (856 produtos, importId `f7097e2e`) **não está nesta máquina**;
-     ao reimportá-lo, `pnpm thumb:regen <importId>` regenera as miniaturas (~400 ms cada)
-
-   > O importId muda a cada reimportação. Confira o atual em vez de confiar neste texto:
-   > `curl -s localhost:4000/catalogos/dancor/bomba-de-combate-a-incencio | head -c 300`
+   O estado do banco e do storage está na tabela acima. As duas bibliotecas — Dancor
+   (13 produtos) e Amanco (856) — foram carregadas do zero pela interface depois da
+   limpeza, com a geometria já vinda do parser corrigido.
 
    **Miniaturas (S4.4, 2026-08-30) — resolvidas.** O rasterizador software foi substituído
    por Playwright + `templates/thumbs/harness.html` no `thumb-worker.ts`: a miniatura sai do
@@ -150,19 +168,17 @@ funciona, mas é o comportamento de 39,9 s de LCP que motivou toda a mudança. S
 avisar que pulou as miniaturas, resolva as dependências antes (ver “Miniaturas
 pré-renderizadas”).
 
-### Geometria — corrigida em 2026-08-30
+### Geometria — corrigida em 2026-08-30, já refletida em tudo
 
 O `oq3d.py` e o `oq3d-parser.ts` emitiam menos geometria do que o `.aq` contém e
-deslocavam instâncias rotacionadas. Resolvido (ver S5.1 no histórico). Consequência
-prática: **as geometrias já gravadas no banco da POC saíram do parser antigo.** Para
-o catálogo dinâmico refletir o fix é preciso reimportar:
+deslocavam instâncias rotacionadas. Resolvido (ver S5.1 no histórico) e **propagado**:
+o banco da POC foi zerado e recarregado em 2026-08-31, então não há mais geometria do
+parser antigo em lugar nenhum. Conferência rápida de que o dado é o novo:
 
 ```bash
-cd www && pnpm ingest ../input/Dancor/pecas_dancor_bombas_incendio_2026_04.1.aq
-pnpm thumb:regen <importId>
+python3 -c "import json;g=json.load(open('www/storage/bim/geo/<importId>/2cv-t-220-380v-inc-flg-ir3.json'));print(len(g['idx'])//3)"
+# 27425 = parser corrigido   |   20452 = parser antigo
 ```
-
-O pipeline estático já regenera sozinho no próximo `build.py`.
 
 ### Pendência conhecida
 
@@ -1120,6 +1136,26 @@ python3 -m http.server 8080 --directory output/preview
 ---
 
 ## Histórico de sessões
+
+### 2026-08-31 — S5.2: encerramento da POC, carga limpa e validação
+
+Banco Atlas e `www/storage/bim` zerados e recarregados do zero pela interface, já com o
+parser corrigido em S5.1. Registro completo em `docs/sessoes/S5.2-encerramento-poc.md`.
+
+| Verificação | Resultado |
+|---|---|
+| Produtos | **869 — todos com `geoKey` e `thumbKey`, 0 arquivo faltando em disco** |
+| Catálogos | Dancor (13, `series-rows`) e Amanco (856, `catalog-grid`) |
+| Geometria | CAM-W21 2CV com **27.425 triângulos** — parser corrigido (o antigo dava 20.452) |
+| Miniaturas | `image/webp` pela API, anel de parafusos completo, nada solto |
+| Páginas públicas | 200 nas duas, no web e na API |
+| Login | token OK, `/auth/me` 200 |
+
+Três coisas que o `CLAUDE.md` afirmava e não eram mais verdade — todas corrigidas: o
+catálogo Amanco "não está nesta máquina" (está, com 856 produtos), os `importId`
+documentados já não existiam, e o campo do produto é `geoKey`, não `geometryKey`.
+
+**A POC está encerrada.** Não há próxima sessão nesta linha.
 
 ### 2026-08-30 — S5.1: instâncias repetidas do OQ3D (dois bugs, não um)
 
