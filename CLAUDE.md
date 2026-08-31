@@ -156,6 +156,10 @@ pré-renderizadas”).
   `GET /thumbs/:productId` deriva só do `thumbKey` e o `Cache-Control` é `immutable`.
   Import novo gera `thumbKey` novo, então o fluxo normal está correto; só o `thumb:regen`
   sobre o *mesmo* import esbarra nisso. Hard reload ao verificar.
+- **Deploy do preview na Vercel está sem catálogos** — `output/preview/` passou a ser
+  gitignored (511 MB de geometria não entram no histórico), e a Vercel constrói a partir
+  do git. Hoje ela serve só a landing. Decidir a estratégia: rodar o `build.py` na
+  Vercel, servir a geometria de storage externo, ou aceitar o preview só local.
 - **Parafusos faltando na Dancor** — 13 de 18 instâncias não emitem geometria; ver
   “BUG ABERTO” na seção do `oq3d.py`
 - **GET /geometrias sem auth** — endpoint intencional para a POC; adicionar guard antes
@@ -298,10 +302,10 @@ bilds-bim-3d/
     ├── <origem>/<slug>-catalog.json    ← catálogo solto (gitignored)
     ├── geo/<origem>/<slug>/*.json      ← geometria por produto (gitignored)
     ├── thumbs/<origem>/<slug>/*.webp   ← miniatura por geometria (gitignored)
-    └── preview/                        ← site estático, COMMITADO
-        ├── index.html                  ← landing com a lista de catálogos
+    └── preview/                        ← site estático — gitignored, EXCETO index.html
+        ├── index.html                  ← landing, feita à mão: a única coisa versionada aqui
         ├── catalogs.json               ← índice dos catálogos gerados
-        ├── vendor/                     ← Three.js — VERSIONADO, é o que a Vercel serve
+        ├── vendor/                     ← Three.js, copiado de templates/vendor/
         └── <slug>/
             ├── index.html
             ├── catalog.json
@@ -844,6 +848,7 @@ são 312 de 1.168 (27%). Pular é o esperado; o build informa quantas.
 
 CSP da Vercel bloqueia `cdn.jsdelivr.net`, `unpkg.com`, `cdnjs.cloudflare.com`
 silenciosamente. Sempre self-host em `templates/vendor/` e copiar para `output/preview/vendor/`.
+Nenhum dos dois está no git — `scripts/setup_vendor.sh` é obrigatório em clone novo.
 
 ### Padrão de thumbnail estática + click-to-3D
 
@@ -998,17 +1003,33 @@ via modo `'recursive'` do `scan_input()`.
 Verificar com `git config user.name` e `git config user.email`.
 Se necessário: `git config user.name "carlosnetoaltoqi"`
 
-**output/preview/** NÃO é gitignored — é o artefato servido pela Vercel, e inclui:
+**`output/preview/` é gitignored, exceto `index.html`.**
+
+> ⚠️ Versões antigas deste arquivo diziam o contrário — que o preview inteiro era
+> versionado e que `output/preview/vendor/` era a cópia oficial do Three.js. **Nunca
+> foi verdade no git**: `git ls-files output/preview` sempre devolveu só `.gitignore`,
+> `.gitkeep` e `index.html`. Corrigido em 2026-08-30, quando a pasta local chegou a
+> **511 MB** em 705 JSONs de geometria e a decisão foi mantê-la fora do histórico.
+
+O que é gerado e portanto ignorado:
+
 - `output/preview/<slug>/data/` — geometria de cada catálogo (dentro do catálogo,
   não na raiz: o template resolve `'/' + slug + '/data/'`, e nomes como `50mm.json`
   colidiriam entre bibliotecas)
-- `output/preview/vendor/` — Three.js **versionado**, é o que a Vercel serve.
-  `templates/vendor/` fica vazio no repo; o `setup_vendor.sh` só é necessário se
-  esse diretório precisar ser reconstruído.
+- `output/preview/<slug>/index.html`, `catalog.json`, `catalogs.json`
+- `output/preview/vendor/` — cópia de `templates/vendor/`, que por sua vez vem do
+  `setup_vendor.sh`. **Não há cópia do Three.js versionada em lugar nenhum**: rode
+  `bash scripts/setup_vendor.sh` depois de clonar.
 
-**Gitignored** (regeráveis a partir do `.aq`): `output/geo/`, `output/**/*.zip`,
-`output/**/*-catalog.json`, `output/*.json`. Os padrões precisam de `**` porque a
-saída espelha a estrutura de `input/`.
+Tudo isso volta com `python3 scripts/build.py --all --force`.
+
+**Consequência para o deploy:** a Vercel constrói a partir do git, então hoje ela serve
+só a landing. Publicar os catálogos exige subir os arquivos por outro caminho (build na
+Vercel, ou storage externo) — **decisão em aberto**, ver "Pendência conhecida".
+
+**Também gitignored** (regeráveis a partir do `.aq`): `output/geo/`, `output/thumbs/`,
+`output/**/*.zip`, `output/**/*-catalog.json`, `output/*.json`. Os padrões precisam de
+`**` porque a saída espelha a estrutura de `input/`.
 
 ### Deploy na Vercel
 
