@@ -1,6 +1,6 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { IGeometryStore } from './geometry-store.interface';
+import { AssetStat, IGeometryStore } from './geometry-store.interface';
 
 export class DiskGeometryStore implements IGeometryStore {
   private readonly baseDir: string;
@@ -27,6 +27,13 @@ export class DiskGeometryStore implements IGeometryStore {
     this.validateKey(key);
     const filePath = path.join(this.baseDir, key);
     return fs.readFile(filePath);
+  }
+
+  async stat(key: string): Promise<AssetStat> {
+    this.validateKey(key);
+    const filePath = path.join(this.baseDir, key);
+    const stat = await fs.stat(filePath);
+    return { size: stat.size, mtimeMs: stat.mtimeMs };
   }
 
   async delete(key: string): Promise<void> {

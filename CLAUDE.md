@@ -108,7 +108,7 @@ própria interface. Tudo verificado — geometria, miniaturas e páginas públic
 > neste texto:
 > `curl -s localhost:4000/catalogos/dancor/bomba-de-combate-a-incencio | head -c 300`
 
-**Versão base estável:** commit da S4.3 em `main`.
+**Versão base estável:** o topo de `main` — as sessões S5.1, S5.2, S5.3 e S6.1 vieram depois da S4.3 que este texto citava. Confira com `git log --oneline -1`.
 
 ### Duas linhas de trabalho
 
@@ -182,16 +182,23 @@ python3 -c "import json;g=json.load(open('www/storage/bim/geo/<importId>/2cv-t-2
 
 ### Pendência conhecida
 
-- **Thumb regenerada no mesmo import não invalida o cache do browser** — o ETag de
-  `GET /thumbs/:productId` deriva só do `thumbKey` e o `Cache-Control` é `immutable`.
-  Import novo gera `thumbKey` novo, então o fluxo normal está correto; só o `thumb:regen`
-  sobre o *mesmo* import esbarra nisso. Hard reload ao verificar.
 - **Deploy do preview na Vercel está sem catálogos** — `output/preview/` passou a ser
   gitignored (511 MB de geometria não entram no histórico), e a Vercel constrói a partir
   do git. Hoje ela serve só a landing. Decidir a estratégia: rodar o `build.py` na
   Vercel, servir a geometria de storage externo, ou aceitar o preview só local.
-- **GET /geometrias sem auth** — endpoint intencional para a POC; adicionar guard antes
-  de qualquer exposição de rede (ver finding A1 do review S1.2)
+- **Catálogo não tem visibilidade — fica público no instante em que existe.**
+  `bim-catalogs.schema.ts` não tem campo `status`/`visibility`, e
+  `catalogos.controller.ts:31` filtra só por `companyId + slug`. O `publicado` da tabela de
+  estado acima é status do *import* (`importacoes.service.ts:210`) — não existe equivalente
+  no catálogo. Requisito para a bilds.com, não hardening opcional.
+
+  > Isto **substitui** a antiga finding "GET /geometrias sem auth — adicionar guard".
+  > Ela era inaplicável: um `AuthGuard` em `/geometrias` quebra a página pública, porque é
+  > o viewer no browser do visitante que busca a geometria, sem token. E
+  > `catalogos.controller.ts:22` também não tem guard — uma requisição anônima já devolve
+  > os `geoUrl` de todos os produtos. Enumeração por adivinhação de id não é o risco:
+  > `_id` é `crypto.randomUUID()` (`bim-products.schema.ts:8`). Análise completa em
+  > `docs/sessoes/S6.1-cache-de-assets.md`, seção 6.
 - **`STORAGE_PATH` é variável de ambiente, não commitada.** Está em `www/.env` (gitignored)
   como `STORAGE_PATH=../../storage/bim` (relativo a `apps/api/`). Sem ela a API lê de
   `apps/api/storage` e não encontra as geometrias. O `DiskGeometryStore` faz
@@ -1155,6 +1162,40 @@ python3 -m http.server 8080 --directory output/preview
 ---
 
 ## Histórico de sessões
+
+### 2026-08-31 — S6.1: validador de cache dos assets do storage
+
+Fechada a pendência da miniatura regenerada que não invalidava o cache do browser.
+Registro completo em `docs/sessoes/S6.1-cache-de-assets.md`.
+
+`GET /thumbs/:productId` e `GET /geometrias/:productId` tinham ETag derivada só da **chave**
+do store (`<tipo>/<importId>/<productId>`) mais `Cache-Control: immutable`. Como o
+`thumb:regen` reescreve os bytes na mesma chave, a ETag não mudava — e com `immutable` o
+browser nem chegava a perguntar. Trocar só a ETag não resolveria nada por esse motivo.
+
+Agora os dois controllers usam `www/apps/api/src/common/asset-cache.ts`: ETag de
+`sha1(key:size:mtimeMs)` via o novo `IGeometryStore.stat()`, `Cache-Control: public,
+max-age=0, must-revalidate`, e o `304` é decidido **antes de ler o blob** — a geometria de
+2,7 MB não sai do disco à toa.
+
+| Verificação | Resultado |
+|---|---|
+| Playwright, `goto` + `reload` na página do Dancor | 1ª visita 13×`200` · reload 13×`304` |
+| `thumb:regen` no mesmo import, condicional com a ETag antiga | `200` com ETag nova — era isto que falhava |
+| Thumb de import não regenerado | segue `304` |
+| Geometria 2,7 MB · condicional | `200` ≈ 35 ms · `304` ≈ 29 ms, 0 b |
+| `If-None-Match` com lista, `W/` e `*` | `304` nos três |
+| Baseline S5.2 | duas páginas `200`, `2cv-t-220-380v-inc-flg-ir3` com 27.425 triângulos |
+
+Escolha consciente de **`mtime + size` em vez de hash do conteúdo**: hashear obrigaria a ler
+o arquivo inteiro para responder "não mudou". O preço é um `200` extra quando os bytes são
+idênticos e o mtime mudou — nunca conteúdo errado. E de **`must-revalidate` em vez de URL
+content-addressed**: a URL com hash é o padrão certo *com CDN na frente* e fica registrada
+para a bilds.com, mas aqui exigiria mexer no `thumb-worker`, no `regen-thumbs` e migrar os
+869 produtos — desproporcional numa POC encerrada.
+
+A outra pendência, "GET /geometrias sem auth", foi **investigada e não aplicada**: era
+inaplicável como estava escrita. Ver "Pendência conhecida" acima e a seção 6 do registro.
 
 ### 2026-08-31 — S5.3: auditoria de autocontenção
 
