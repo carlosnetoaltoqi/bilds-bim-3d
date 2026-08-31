@@ -25,7 +25,7 @@ tropeçar:
 Para gerar os artefatos do pipeline (leva alguns minutos):
 
 ```bash
-cd /home/foltz/bilds-bim-3d
+cd "$(git rev-parse --show-toplevel)"   # raiz do repo, em qualquer máquina
 python3 scripts/build.py --all          # gera os 10 catálogos: geo/, thumbs/, preview e ZIPs
 python3 scripts/build.py --all --force  # refaz mesmo os que já têm ZIP
 ```
@@ -42,7 +42,7 @@ Para conferir o Atlas em dez segundos:
 
 ```bash
 set -a; . www/.env; set +a
-node -e "const {MongoClient}=require('/home/foltz/bilds.com/node_modules/mongodb');(async()=>{const c=new MongoClient(process.env.MONGODB_URI);await c.connect();console.log(await c.db().admin().command({buildInfo:1}).then(b=>b.version));await c.close()})()"
+cd www/apps/api && NODE_PATH=$(pwd)/node_modules node -e "const {MongoClient}=require('mongodb');(async()=>{const c=new MongoClient(process.env.MONGODB_URI);await c.connect();console.log(await c.db().admin().command({buildInfo:1}).then(b=>b.version));await c.close()})()"
 ```
 
 > ⚠️ **Cuidado com o número "622 geometrias".** Ele vem da medição de **9 catálogos em
@@ -180,7 +180,8 @@ A pilha cresce sem que o custo de entrada cresça junto.
 
 ### 2.3 Regras de escopo
 
-1. **Não editar nada em `/home/foltz/bilds.com`.** Somente leitura — é referência de
+1. **Não editar nada no repositório `bilds.com`** (onde quer que esteja clonado, ao lado
+   deste). Somente leitura — é referência de
    arquitetura e fonte dos formulários. Toda implementação acontece em `bilds-bim-3d`.
 2. **A POC não vai para a Vercel.** A Vercel serve `output/preview/` e só. `www/` está
    no `.vercelignore`.
@@ -235,7 +236,7 @@ Antes de qualquer coisa, leia:
 
 Regras desta linha de trabalho (seção 2 do plano):
   - Não avance para a sessão seguinte, mesmo que sobre tempo.
-  - Não edite nada em /home/foltz/bilds.com — é referência somente leitura.
+  - Não edite nada no repositório bilds.com — é referência somente leitura.
   - Pare no commit: direto na main, sem push automático e sem PR.
   - Ao encerrar, deixe o registro em docs/sessoes/ seguindo o TEMPLATE.md,
     e atualize a tabela de progresso da seção 11.

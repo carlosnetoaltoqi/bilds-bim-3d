@@ -1,7 +1,7 @@
 ---
 name: leitor-ifc
 description: Transforma arquivos IFC4 em JSONs de geometria prontos para consumo em viewers 3D. Cobre parse de entidades STEP, resolução de transforms, conversão de coordenadas, cores por face (IFCINDEXEDCOLOURMAP) e geração de buffers de vértices. Se a origem for uma biblioteca AltoQi, verifique antes se há um .aq — ele traz a mesma geometria.
-version: 1.4.0
+version: 1.5.0
 author: Bilds / carlosnetoaltoqi
 ---
 
@@ -588,6 +588,61 @@ O parser tenta correspondência exata primeiro; se não encontrar, faz fuzzy mat
 
 ---
 
+## O IFC como gabarito: conferir OUTRO parser contra ele
+
+Um IFC bem lido é a melhor referência para validar um parser de outro formato que
+descreva a mesma peça (foi assim que dois bugs do OQ3D apareceram). Em arquivo
+**tessellated** dá para conferir de forma **exata** — e sem tesselador nenhum, porque os
+vértices já estão no arquivo:
+
+```python
+import numpy as np, ifcopenshell
+import ifcopenshell.util.placement as P
+
+f = ifcopenshell.open(caminho)
+pts, ntri = [], 0
+
+def add(fs, M):
+    global ntri
+    c = np.array(fs.Coordinates.CoordList, float)
+    pts.append((np.c_[c, np.ones(len(c))] @ M.T)[:, :3])
+    ntri += len(fs.CoordIndex)
+
+for prod in f.by_type('IfcProduct'):
+    if not getattr(prod, 'Representation', None):
+        continue
+    M0 = P.get_local_placement(prod.ObjectPlacement)
+    for r in prod.Representation.Representations:
+        for it in r.Items:
+            if it.is_a('IfcTriangulatedFaceSet'):
+                add(it, M0)
+            elif it.is_a('IfcMappedItem'):
+                M = (M0
+                     @ P.get_cartesiantransformationoperator3d(it.MappingTarget)
+                     @ P.get_axis2placement(it.MappingSource.MappingOrigin))
+                for sub in it.MappingSource.MappedRepresentation.Items:
+                    if sub.is_a('IfcTriangulatedFaceSet'):
+                        add(sub, M)
+```
+
+**Cada instância costuma ser um `IfcProduct` próprio**, com `MappingTarget` identidade —
+quem posiciona é o `ObjectPlacement` do produto, não o operador de transformação.
+
+### Quatro armadilhas ao comparar duas geometrias
+
+| Armadilha | Por quê |
+|---|---|
+| **Comparar só a bounding box** | Uma rotação e a sua **transposta** podem gerar a mesma caixa. Uma bbox idêntica não prova que os transforms estão certos — compare o conjunto de pontos. |
+| **Alinhar pelo centróide** | Um formato pode guardar sopa de triângulos (vértices repetidos) e o outro soldar os vértices; os centróides ficam com pesos diferentes. Alinhe pelo **canto da bounding box**. |
+| **Igualdade de conjunto arredondado** | Coordenadas em cima da fronteira de arredondamento caem para lados diferentes nos dois lados. Compare **por tolerância** (~10 µm), ordenando os pontos únicos. |
+| **Usar a contagem do `ifcopenshell` como verdade** | O tesselador descarta triângulos degenerados. Numa peça com um decalque plano de espessura zero ele devolveu 27.375 onde o STEP declara **27.425** — 50 a menos. Para arquivo tessellated, conte pelo `CoordIndex`, não pelo tesselador. |
+
+A contagem de triângulos é o teste mais barato e mais decisivo: some `len(CoordIndex)`
+dos face sets diretos com os dos mapped items (multiplicados pelas instâncias). Se o
+outro parser não bate nesse número, ele está perdendo geometria.
+
+---
+
 ## Diagnóstico de problemas
 
 | Sintoma | Causa provável | Solução |
@@ -607,10 +662,14 @@ O parser tenta correspondência exata primeiro; se não encontrar, faz fuzzy mat
 | 0 vértices em IFC Amanco / AltoQi Hidráulico | Arquivo usa `IFCADVANCEDBREP`, não `IFCTRIANGULATEDFACESET` | Detectar `IFCADVANCEDBREP` e usar `_parse_ifc_brep()` via `ifcopenshell` |
 | `ObjectPlacement` retorna `$` mas o produto tem placement | Lendo `parts[4]` em vez de `parts[5]` | Exportadores 3DEXPERIENCE preenchem `ObjectType` — ObjectPlacement está em parts[5] |
 | CoordIndex retorna normais em vez de índices | Lendo `fs_parts[1]` (Normals) em vez de `fs_parts[3]` (CoordIndex) | `IFCTRIANGULATEDFACESET` tem 5 campos; CoordIndex é o índice 3 |
+| Contagem do `ifcopenshell` menor que a do STEP | Tesselador descarta triângulos degenerados (decalque plano, espessura zero) | Em arquivo tessellated, contar por `len(CoordIndex)` — não pelo tesselador |
+| Bbox bate mas a peça está visivelmente errada | Bbox não distingue uma rotação da sua transposta | Comparar conjunto de pontos, alinhado pelo canto da bbox |
 
 ---
 
 ## Histórico
+
+**1.5.0** — Nova seção "O IFC como gabarito": como reconstruir a geometria de um arquivo tessellated direto do STEP (sem tesselador, exato) e usá-la para validar o parser de outro formato. Quatro armadilhas de comparação, todas encontradas na prática: bbox não distingue rotação de transposta, centróide não serve de âncora quando um lado solda vértices e o outro não, igualdade de conjunto arredondado falha na fronteira, e o `ifcopenshell` descarta degenerados (50 triângulos a menos que o STEP numa peça real).
 
 **1.4.0** — Aviso no início: se a origem for uma biblioteca AltoQi, o `.aq` traz a mesma geometria e é muito mais rápido de ler (ver `leitor-biblioteca-aq`). Listados os casos em que o IFC continua sendo a fonte certa.
 

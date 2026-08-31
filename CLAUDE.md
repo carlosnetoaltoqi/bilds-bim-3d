@@ -197,6 +197,25 @@ python3 -c "import json;g=json.load(open('www/storage/bim/geo/<importId>/2cv-t-2
   `apps/api/storage` e não encontra as geometrias. O `DiskGeometryStore` faz
   `path.resolve()` no construtor — caminhos relativos são aceitos desde que o `.env` exista.
 
+### Variáveis de ambiente — `www/.env`
+
+**O template versionado é `www/.env.example`.** Copie e preencha:
+
+```bash
+cp www/.env.example www/.env
+```
+
+| Variável | Para quê |
+|---|---|
+| `MONGODB_URI` | Conexão do Mongo. A POC usou um Atlas M0, mas **nada no código depende do Atlas** — um `mongodb://127.0.0.1:27017` local serve. |
+| `MONGODB_DB` | Nome do banco (`bilds-bim-3d`). |
+| `SEED_USER` / `SEED_PASSWORD` | Login da POC. **Não consultam o banco** — `auth.controller.ts` compara direto com as variáveis (ADR 7.6). |
+| `JWT_SECRET` | Assina o token. Gere com `python3 -c "import secrets; print(secrets.token_hex(32))"`. |
+| `STORAGE_PATH` | Onde o `DiskGeometryStore` grava. Relativo ao CWD da API (`www/apps/api`). |
+
+O pipeline estático (`scripts/build.py`) **não usa nenhuma delas** — lê só o `.aq`.
+A configuração daquele lado é o `config.example.json` da raiz.
+
 ---
 
 ## O que é este projeto
@@ -969,7 +988,7 @@ Sombra: só no hover de cards clicáveis. Cards sem borda de hover por padrão.
 O ZIP gerado por este projeto será consumido por:
 
 **dashboard.bilds.com** (`bilds.com/apps/admin`):
-- Menu item "BIM 3D" em `src/components/Menu/menuConfig.tsx`
+- Menu item "BIM 3D" em `bilds.com/apps/admin/src/components/Menu/menuConfig.tsx`
 - Rotas: `/bim-3d` (grid de empresas), `/bim-3d/[companyId]/novo` (upload)
 - Stack: Next.js 16, RTK Query, react-dropzone, react-hook-form + zod
 
@@ -1136,6 +1155,31 @@ python3 -m http.server 8080 --directory output/preview
 ---
 
 ## Histórico de sessões
+
+### 2026-08-31 — S5.3: auditoria de autocontenção
+
+Varredura para garantir que nada do conhecimento do projeto vive fora do repositório.
+O que estava furado, e foi corrigido:
+
+1. **`www/.env.example` não existia.** As seis variáveis (`MONGODB_URI`, `MONGODB_DB`,
+   `SEED_USER`, `SEED_PASSWORD`, `JWT_SECRET`, `STORAGE_PATH`) só apareciam espalhadas
+   pelo histórico de sessões — um clone novo não conseguia subir a POC sem garimpar.
+   Agora há template versionado e uma tabela em "Variáveis de ambiente".
+2. **O estudo do BILDS-552 era um ponteiro para `.claude/sessions/` do bilds.com** —
+   estado de sessão de agente, de outro repositório. As medições que importam (40,4 MB
+   na primeira viewport da Dancor, peso por geometria, os 3 contextos WebGL, o S3 sem
+   `ContentEncoding: gzip`) foram trazidas para dentro deste arquivo.
+3. **Caminhos `/home/foltz/...` em comandos executáveis** no plano, inclusive um
+   `require()` apontando para o `node_modules` do bilds.com. Trocados por
+   `git rev-parse --show-toplevel` e pelo driver local.
+
+Conferido também: nenhum segredo em arquivo versionado, `www/.env` segue ignorado,
+as 278 referências a arquivo nos `.md` resolvem (as que sobram são ou de outro
+repositório, explicitamente prefixadas, ou artefatos gerados por build).
+
+Skill `leitor-ifc` 1.4.0 → **1.5.0**: nova seção "O IFC como gabarito", com a
+reconstrução exata a partir do STEP e as quatro armadilhas de comparação que
+apareceram em S5.1.
 
 ### 2026-08-31 — S5.2: encerramento da POC, carga limpa e validação
 
@@ -1619,11 +1663,37 @@ Média de **4 KB por miniatura**. Render a ~0,08 s por geometria depois do brows
 O que isso faz com a primeira viewport da Dancor, que era o pior caso: **3,75 MB → 12 KB**
 em mobile (2 cards) e **40 MB → ~72 KB** em desktop (12 cards).
 
-**Dependência do outro lado.** `thumbs/` e `produto.thumb` são extensão proposta: a API do
-bilds.com ainda não extrai a pasta. Enquanto não extrair, o ZIP carrega os arquivos e
-ninguém os lê. O trabalho correspondente está em `bilds.com`, branch
-`perf/BILDS-552-bim-3d-miniatura-estatica`, com o estudo em
-`.claude/sessions/bim-3d-miniatura-estatica/context.md`.
+**Dependência do outro lado.** `thumbs/` e `produto.thumb` nasceram como extensão
+proposta: a API do bilds.com ainda não extraía a pasta. O trabalho correspondente ficou
+na branch `perf/BILDS-552-bim-3d-miniatura-estatica` do bilds.com — hoje mergeada
+(PR #1244, ver "Dependência cruzada com o bilds.com" no topo deste arquivo).
+
+**O estudo que motivou tudo isso está resumido abaixo — não é preciso abrir nada fora
+deste repositório.** Ele foi medido sobre `output/preview/` desta própria árvore.
+
+Custo da **primeira viewport** (grid de ~4 colunas, ~12 cards antes de rolar), antes das
+miniaturas, quando cada card baixava o JSON de geometria e rodava WebGL + `toDataURL`:
+
+| Catálogo | Produtos | Geometrias na 1ª viewport | Cru | ~gzip |
+|---|---|---|---|---|
+| `bombas-incendio` (Dancor) | 13 | 12 | **40,4 MB** | ~7,0 MB |
+| `cftv` | 60 | 11 | 10,9 MB | ~1,9 MB |
+| `sdai-fiacao` | 51 | 7 | 9,9 MB | ~1,7 MB |
+| `dispositivos-eletricos-inteligentes` | 32 | 8 | 3,2 MB | ~0,6 MB |
+| `pvc-esgoto-sn-sr-e-silentium` | 856 | 12 | 2,7 MB | ~0,5 MB |
+
+Peso por geometria: de **324 KB** de média (Amanco) a **3,5 MB** (Dancor); maior arquivo
+4,8 MB. Razão de compressão medida no ZIP: **5,8×**.
+
+Dois achados do estudo que continuam valendo:
+
+- **Contextos WebGL simultâneos eram 3, não 2.** O `sharedRenderer` é um contexto
+  persistente de módulo e costuma não ser contado; somam-se a ele o viewer do card ativo
+  (montado no `onMouseEnter`) e o do modal. Remover o viewer do card leva a 2.
+- **As geometrias são gravadas cruas no S3**, sem `ContentEncoding: 'gzip'`. Se há
+  compressão, ela vem da opção "Compress objects automatically" do CloudFront — o que não
+  dá para verificar por nenhum repositório. No pior caso é a diferença entre 40 MB e 7 MB.
+  Confirmar no console AWS.
 
 ### 2026-08-28 — Encoding cp1252: nomes de peça chegavam quebrados na bilds.com
 
