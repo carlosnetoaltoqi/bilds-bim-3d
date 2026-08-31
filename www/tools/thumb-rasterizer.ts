@@ -143,8 +143,8 @@ export async function renderThumbTs(
     const ndcX = (fProj / aspect) * ex * invD;
     const ndcY = fProj * ey * invD;
     // Clipping loosely — permitimos fora do frame (será clipado pelo bbox)
-    const sx = ((ndcX + 1) / 2) * width;
-    const sy = ((1 - ndcY) / 2) * height;
+    const sx = ((ndcX + 1) / 2) * (width * SS);
+    const sy = ((1 - ndcY) / 2) * (height * SS);
     return [sx, sy, ez];
   }
 
