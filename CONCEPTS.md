@@ -17,6 +17,19 @@ The fields `geoKey` and `thumbKey` on a product document. They are the only coup
 
 ---
 
+## Escrita de `.aq` (eng-reversa)
+
+### Código de diâmetro
+O número que o AltoQi grava em `PECA.DIAMETRO_PECA`, `ENTRADA_PECA.DIAMETRO_EP` e `ENTRADA_3D.DIAMETRO`. **Não é uma medida** — é um índice numa escala de diâmetros nominais do AltoQi: 8 = 40 mm, 9 = 50 mm, 10 = 60 mm, 11 = 75 mm, 12 = 100 mm, 14 = 150 mm, 15 = 200 mm. Os códigos 1 a 7 não são observáveis nas bibliotecas disponíveis. Chamar de "diâmetro em cm" — como a chave `diametro_cm` do `build_product_map` ainda faz — é o erro que esta entrada existe para evitar.
+
+### Sentinela
+O valor que o AltoQi usa no lugar de `NULL` para dizer "não definido": `-2147483647` em coluna inteira e `-1.7976931348623157e+308` (`-DBL_MAX`) em coluna real. Uma coluna com sentinela **não** está vazia no sentido do SQL, então `IS NULL` não a encontra e qualquer aritmética sobre ela produz lixo. Aparece em `TIPO_CONFIGURACAO_GP`, `SECAO_EP` e, em 82% das peças da Amanco (963 de 1.168), em `DIAMETRO_PECA`.
+
+### Forma representativa
+Malha 3D gerada por parâmetro a partir do diâmetro nominal do catálogo e de proporções normativas ou inventadas, quando o fabricante não publica cota de forma. Distingue-se da **geometria de fabricante**, que vem do `.aq`, do IFC ou de medição. Uma forma representativa serve para visualizar, contar peça e detectar interferência grosseira, e **não** serve para conferir encaixe ou colisão fina. Toda peça que carrega uma traz a ressalva gravada no nome do `GRUPO_SIMBOLOGIA_3D` e numa propriedade personalizada, para que a distinção sobreviva até a ficha do produto na página publicada.
+
+---
+
 ## Flagged Ambiguities
 
 _"import" (the verb, as in "upload and process") and "Import" (the domain entity with a state machine) — these are the same thing but the entity sense should be capitalized to distinguish it._

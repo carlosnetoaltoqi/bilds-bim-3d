@@ -1,7 +1,7 @@
 ---
 name: leitor-biblioteca-aq
-description: Lê arquivos de biblioteca BIM do AltoQi Builder (.aq) — SQLite com geometria 3D embutida — e extrai peças, dados hidráulicos, curvas de bomba, propriedades, miniaturas e a malha 3D completa (formato OQ3D), dispensando os IFCs.
-version: 2.2.0
+description: Lê E ESCREVE arquivos de biblioteca BIM do AltoQi Builder (.aq) — SQLite com geometria 3D embutida. Extrai peças, dados hidráulicos, curvas de bomba, propriedades, miniaturas e a malha 3D completa (formato OQ3D), dispensando os IFCs; e gera um .aq do zero, com o schema, os enums, o encoding cp1252 e o binário OQ3D corretos.
+version: 2.3.0
 author: Bilds / carlosnetoaltoqi
 ---
 
@@ -116,6 +116,28 @@ def open_aq(aq_path):
 >
 > **Por que tentar SQLite direto primeiro:** versões recentes do AltoQi Builder distribuem o .aq como SQLite puro (sem ZIP). O ZIP é o caso legado. Tentar SQLite primeiro evita `zipfile.BadZipFile` desnecessário.
 
+> ### ⚠️ Literal acentuado numa query também tem de ir em cp1252
+>
+> O mecanismo, documentado na 2.3.0: o `.aq` **declara** `PRAGMA encoding = UTF-8` e
+> **guarda bytes cp1252**. O SQLite não valida a codificação do que se manda gravar, e o
+> `typeof()` continua `'text'`:
+>
+> ```
+> SELECT NOME_CP FROM CLASSE_PECA  →  b'Bomba de Combate a Inc\xeancio - Dancor'
+> ```
+>
+> O módulo `sqlite3` do Python vincula um `str` como UTF-8, então
+> `WHERE NOME_GP = 'Joelho 90° Soldável'` **nunca casa** — no banco é
+> `b'...Sold\xe1vel'` e o parâmetro chega `b'...Sold\xc3\xa1vel'`. A query volta vazia,
+> sem erro nenhum.
+>
+> ```python
+> con.execute('... WHERE g.NOME_GP = CAST(? AS TEXT)', (nome.encode('cp1252'),))
+> ```
+>
+> Só aparece quando se compara literal acentuado dentro do SQL — quem varre a tabela
+> inteira e filtra em Python nunca encontra isso.
+
 ---
 
 ## Estrutura do banco — tabelas principais
@@ -151,12 +173,49 @@ def open_aq(aq_path):
 | `NOME_PECA` | TEXT | Nome da variante (ex: `'2CV T 220/380V INC FLG IR3'`) |
 | `ID_GRUPO_PECA` | INTEGER FK | Referência ao grupo |
 | `DESCRICAO_DADOS` | TEXT | Descrição resumida (ex: `'2.1/2" x 2.1/2"'`) |
-| `DIAMETRO_PECA` | REAL | Diâmetro nominal (cm) |
+| `DIAMETRO_PECA` | REAL | **CÓDIGO de diâmetro, não centímetro** — ver o aviso abaixo |
+| `DIAMETRO_INTERNO` | REAL | Diâmetro interno em **milímetro** (192,8 / 98,0 / 47,5) |
 | `COMPRIMENTO_PECA` | REAL | Comprimento (cm) |
 | `ALTURA_PECA` | REAL | Altura (cm) |
 | `LARGURA_PECA` | REAL | Largura (cm) |
-| `BIBLIOTECA` | TEXT | Nome da biblioteca de origem |
+| `BIBLIOTECA` | TEXT | Nome da biblioteca de origem — **vazia nas 12 bibliotecas testadas** |
 | `ATIVO` | INTEGER | 1 = ativo |
+
+> ### ⚠️ `DIAMETRO_PECA` é um CÓDIGO de diâmetro, não um centímetro
+>
+> Corrigido na 2.3.0. As versões anteriores desta skill diziam "diâmetro nominal (cm)".
+> É um índice numa escala de diâmetros nominais do AltoQi:
+>
+> | `NOME_PECA` (Amanco) | `DIAMETRO_PECA` |
+> |---|---|
+> | `40 mm - 1.1/2"` | 8 |
+> | `50 mm - 2"` | 9 |
+> | `75 mm - 3"` | 11 |
+> | `100 mm - 4"` | 12 |
+> | `150 mm - 6"` | 14 |
+> | `200 mm - 8"` | 15 |
+>
+> `ENTRADA_PECA.DIAMETRO_EP` e `ENTRADA_3D.DIAMETRO` usam a mesma escala — a Dancor grava
+> 7 a 11 nos bocais das bombas, cujas sucções e recalques vão de 1.1/4" a 3", o que
+> encaixa em 32, 40, 50, 60 e 75 mm e confirma o código 10 como 60 mm. Os códigos 1 a 7
+> não são observáveis nas 12 bibliotecas.
+>
+> **A distribuição real na Amanco, nas 1.168 peças:** 963 (82%) trazem a sentinela
+> `-1.7976931348623157e+308` (`-DBL_MAX`), 93 trazem zero e **112 trazem código** — as 48
+> de tubo, 52 de caixa sifonada e afins (`TIPO_APLICACAO_PECA=9`) e 12 de ralo (tipo 10).
+>
+> **Nenhuma das 700 conexões (tipo 2) tem código**: o diâmetro de uma conexão mora em
+> `ENTRADA_PECA.DIAMETRO_EP`.
+>
+> Tratar esse número como centímetro erra por ~2× nas peças de tubo e devolve
+> `-1.8e308` em todo o resto.
+
+> ### As sentinelas: o AltoQi não usa `NULL` para "não definido"
+>
+> | Sentinela | Onde aparece |
+> |---|---|
+> | `-2147483647` | `GRUPO_PECA.TIPO_CONFIGURACAO_GP` (265 de 265 na Amanco), `ENTRADA_PECA.SECAO_EP` (1.871 de 2.627) |
+> | `-1.7976931348623157e+308` | `PECA.DIAMETRO_PECA` em 963 de 1.168 na Amanco (82%) |
 
 ---
 
@@ -306,6 +365,27 @@ Assinatura: 5 bytes + `b'OQ3D 3D Objects File'`.
 0x5D                         fecha
 ```
 
+### Cabeçalho — 37 bytes, e um deles é informação
+
+```
+offset  bytes                      significado
+0       3a 01 01 00 00             5 bytes OPACOS, idênticos nas 12 bibliotecas
+5       'OQ3D 3D Objects File'     20 bytes de assinatura
+25      02 00 00 00                u32 = 2, versão do arquivo
+29      N  00 00 00                u32 = NÚMERO DE OBJETOS-RAIZ
+33      00 00 00 00                u32 = 0
+```
+
+Os 5 primeiros bytes são constantes nas 12 bibliotecas e nas 6 versões de schema. Não se
+sabe o que significam; sabe-se que não variam.
+
+> **O campo em +29 serve de verificação de parse.** Comparado com a contagem de raízes do
+> parser em 24 amostras, bate em 22. Nas duas que divergem (`Intelbras Cont_Acesso` e
+> `PPCI`/`SDAI`) o parser tolerante conta **exatamente dois nós a mais**: um `0x5D` que
+> cai dentro de um `double` desempilha um nível e dois filhos são promovidos a raiz. A
+> geometria emitida não muda, mas a hierarquia muda — e com ela a composição dos
+> transforms daqueles dois nós.
+
 ### Classes que carregam dados
 
 ```
@@ -449,6 +529,131 @@ oq3d.to_buffers(blob)                 # {'pos','col','idx'} em metros, Y-up
 oq3d.bbox(blob)                       # (dx,dy,dz) em cm — para validação
 oq3d.stats(blob)                      # resumo para logs
 ```
+
+---
+
+## Escrever um `.aq`
+
+Um `.aq` gerado do zero foi validado contra este próprio leitor, em 2026-09-02.
+
+### O texto tem de ser gravado em cp1252
+
+**É o erro que corrompe o arquivo em silêncio.** O `sqlite3` do Python vincula `str` como
+UTF-8 e `bytes` como BLOB — nenhum dos dois serve. A saída é o `CAST`:
+
+```python
+con.execute('INSERT INTO PECA (NOME_PECA) VALUES (CAST(? AS TEXT))',
+            (nome.encode('cp1252'),))
+```
+
+`CAST(blob AS TEXT)` reinterpreta os bytes sem converter: `typeof()` volta `'text'`, os
+bytes ficam idênticos aos de uma biblioteca real, e o `_decode_texto` devolve a string
+original.
+
+Gravar em UTF-8 faz `'Soldável'` voltar `'SoldÃ¡vel'` — **sem levantar exceção em lugar
+nenhum**, passando no `integrity_check`. Encode **estrito**: um caractere fora do cp1252
+não pode virar `?` dentro do nome de um produto.
+
+**Como conferir:** os bytes altos das colunas de texto **não podem** ser UTF-8 válido. Em
+cp1252 um acento é um byte alto isolado, que é UTF-8 inválido; em UTF-8 são dois.
+
+### Ordem de inserção
+
+Uma biblioteca de fabricante preenche 16 a 25 das 77 tabelas. A ordem que fecha as FKs:
+
+```
+VERSAO_BANCO_CADASTRO
+CLASSE_PECA → GRUPO_PECA → PECA → (DADOS_HIDRAULICOS, ENTRADA_PECA, ITEM_ASSOCIADO)
+CLASSE_SIMBOLOGIA_3D → GRUPO_SIMBOLOGIA_3D → SIMBOLOGIA_3D
+                                              → (ENTRADA_3D, PECA_SIMBOLOGIA_3D)
+GRUPO_PROPRIEDADE_PERSONALIZADA → PROPRIEDADE_PERSONALIZADA
+                                   → VALOR_PROPRIEDADE_PERSONALIZADA
+CLASSE_ITEM → GRUPO_ITEM → ITEM
+MODELO_BOMBA → ITEM_CURVA_BOMBA        (só bibliotecas de bomba)
+```
+
+O SQLite **não** aplica FKs por padrão: um `ID_GRUPO_PECA` órfão passa pelo `INSERT` sem
+erro e só aparece no AltoQi. Rodar `PRAGMA foreign_key_check` no fim.
+
+**O DDL não se escreve à mão** — 77 tabelas e 84 índices, e uma coluna faltando faz o
+AltoQi recusar o arquivo. Copie do `sqlite_master` de um `.aq` real.
+
+### Os enums, com os valores observados
+
+`GRUPO_PECA.PROJETO_APLICACAO` — tipo de instalação:
+**8** esgoto · **12** água fria · **22** incêndio · **36** gás · **64/76** elétrico
+
+`ENTIDADE_IFC` / `TIPO_ENTIDADE_IFC` / `ENTIDADE_IFC_2X3` andam sempre juntos:
+
+| IFC4 | tipo | 2×3 | O que é |
+|---|---|---|---|
+| 2071 | 4099 | 2088 | `IfcPipeFitting` — curva, luva, cap, tê, redução |
+| 2072 | 4096 | 2086 | `IfcPipeSegment` — tubo |
+| 2075 | 4118 | 2093 | bomba |
+| 2076 | 4122 | 2092 | aparelho sanitário |
+| 2079 | 4121 | 2092 | terminal de ventilação |
+| 2084 | 4103 | 2091 | válvula |
+| 2085 | 4123 | 2092 | ralo, caixa sifonada |
+| 2090 | 4138 | 2090 | aquecedor a gás |
+
+`SUBTIPO_IFC` dentro de `IfcPipeFitting` (2071), pelos 156 grupos da Amanco:
+**0** curva/joelho · **1** luva · **3** cap · **4** tê/junção · **6** redução · **7** ramal.
+O `SUBTIPO_IFC_2X3` é sempre igual ao `SUBTIPO_IFC`.
+
+`PECA.TIPO_APLICACAO_PECA`:
+**1** tubo · **2** conexão · **6** bomba · **8** aparelho sanitário · **9** caixa
+sifonada · **10** ralo · **55** ramal de ventilação
+
+PVC, nas 265 linhas de `GRUPO_PECA` da Amanco: `RUGOSIDADE_GP=135.0`,
+`RUGOSIDADE_EQUIVALENTE=6e-05`, `COEFICIENTE_MANNING=0.01`, `TIPO_FWH=1`,
+`TIPO_SECAO_GP=0`, `TIPO_MATERIAL=0`, `TIPO_CONFIGURACAO_GP=-2147483647`;
+`ELEMENTO_APLICACAO` e `REPRESENTACAO_GP` são 0, exceto 1 e 2 nos grupos de tubo.
+
+### `ITEM.CODIGO_ITEM` é onde vive o código comercial
+
+| Biblioteca | `CODIGO_ITEM` | `NOME_ITEM` |
+|---|---|---|
+| Amanco | `14808` | `50mm` |
+| Dancor | `10652511` | `3,0CV T 220/380V INC FLG IR3 - 10652511` |
+| Komeco | `KO 16D GLP` | `GLP KO 16D` |
+
+`FABRICANTE` e `TABELA_REFERENCIA` repetem o fabricante; `CATEGORIA` é `'Insumo'` nas
+três. `GRUPO_ITEM.UNIDADE_GI` = 1 nos grupos de tubo (medidos por metro), 0 no resto;
+`ITEM_ASSOCIADO.MEDICAO_PECA` = 1 nas peças de tubo, 2 nas conexões.
+
+O código de catálogo pertence aqui — não a uma propriedade personalizada.
+
+### Preencha `PECA.BIBLIOTECA`
+
+É o passo 2 da cascata de inferência de fabricante, está **vazio nas 12 bibliotecas
+reais**, e é a única fonte que sobrevive a uma biblioteca **sem geometria** — sem
+`CLASSE_SIMBOLOGIA_3D` o passo 1 não existe e a cascata cai no nome da pasta.
+
+### Escrever OQ3D
+
+O leitor é **tolerante**: varre à procura de `0x5B`/`0x5D` e consome por inteiro só os
+três blocos de tamanho conhecido, pulando o resto. Um escritor não tem essa liberdade, e
+o resto é o que ele precisa saber — o mais seguro é copiar a moldura byte a byte de uma
+subárvore real e substituir só os dados que se controla.
+
+Três coisas que só aparecem escrevendo:
+
+- **A cor é gravada duas vezes** — no payload de `TQi3DTriangleMesh` e em
+  `TCoatingColor`, os mesmos 4 bytes. O leitor usa só a segunda.
+- **A rotação tem de ser transposta de volta para colunas.** Gravar row-major produz a
+  transposta, e a instância sai do lugar **sem mudar nenhuma contagem**. O teste que pega
+  isso grava a rotação e a sua transposta e confere que dão resultados diferentes; sem
+  essa contraprova, uma rotação simétrica passaria e não provaria nada.
+- **Nada é alinhado**: o `double` do payload de `TQi3DReusedObject` começa num offset que
+  não é múltiplo de 8.
+
+> **Malha gerada precisa de checagem topológica, e de olhar.** Duas classes de erro
+> passam por bounding box, contagem de triângulos e round-trip binário: (a) perfil de
+> revolução que fecha em si mesmo sem soldar o último anel no primeiro deixa
+> `2 × lados` arestas de borda — sólido que parece fechado e mostra o interior pela
+> costura; (b) malhas corretas em **posição relativa** errada. A primeira se pega
+> contando arestas compartilhadas por exatamente dois triângulos; a segunda só abrindo o
+> viewer e olhando.
 
 ---
 
@@ -823,10 +1028,33 @@ const DATA_BASE = '/' + CATALOG.slug + '/data/';
 | Nome do produto redundante (`Pontos de comando Interruptor…`) | Grupo prefixado sem necessidade | Prefixar só quando o nome for ambíguo — e decidir **por grupo** |
 | Menos produtos que peças no banco | Peças sem `PECA_SIMBOLOGIA_3D` | Esperado: tubos e kits não têm forma fixa |
 | ZIP com arquivos duplicados | Peças compartilham geometria | Escrever cada arquivo de geo uma única vez |
+| Query com `WHERE NOME_x = 'algo acentuado'` volta vazia, sem erro | O texto é cp1252 e o `sqlite3` vincula `str` como UTF-8 | `CAST(? AS TEXT)` com `.encode('cp1252')` |
+| Diâmetro vale ~2× o esperado, ou vem `-1.8e308` | `DIAMETRO_PECA` é **código**, e `-DBL_MAX` é a sentinela de "não definido" | Ver o aviso na tabela da `PECA` |
+| `no such column: DIAMETRO` em `ENTRADA_3D` | Coluna só existe no schema 607 | Testar a versão antes, ou usar `PRAGMA table_info` |
+| `.aq` gerado abre e valida, mas os nomes saem `SoldÃ¡vel` | Texto gravado em UTF-8; o AltoQi grava cp1252 | `CAST(? AS TEXT)` com bytes cp1252 |
+| `.aq` gerado sem geometria publica com o fabricante errado | Sem `CLASSE_SIMBOLOGIA_3D` o passo 1 da cascata não existe | Preencher `PECA.BIBLIOTECA` |
+| Sólido gerado mostra o interior por uma emenda | Perfil de revolução fechado sem soldar o último anel no primeiro | Descartar o anel repetido e costurar a última faixa no anel 0 |
+| Peça gerada com partes soltas ou flutuando | Malhas corretas em posição relativa errada | Não aparece em bbox nem em round-trip — abrir o viewer e olhar |
 
 ---
 
 ## Histórico
+
+**2.3.0** — **`DIAMETRO_PECA` é um CÓDIGO de diâmetro, não centímetro** — a 2.2.0 dizia
+"diâmetro nominal (cm)" e estava errado: na Amanco `50 mm` → 9 e `100 mm` → 12, e em
+963 das 1.168 peças o valor é a sentinela `-DBL_MAX` e nenhuma das 700 conexões traz
+código. Documentadas também as duas
+sentinelas de "não definido" (`-2147483647` e `-DBL_MAX`), o mecanismo por trás da
+armadilha de encoding (o `.aq` **declara** UTF-8 e **guarda** cp1252, e o SQLite não
+valida) e a consequência dele para quem consulta: **literal acentuado dentro do SQL
+também precisa ir em cp1252**, senão a query volta vazia sem erro. Nova seção
+**"Escrever um `.aq`"** — `CAST(? AS TEXT)` com bytes cp1252, ordem de inserção das FKs,
+os enums de `PROJETO_APLICACAO`/`ENTIDADE_IFC`/`SUBTIPO_IFC`/`TIPO_APLICACAO_PECA` com os
+valores observados, `ITEM.CODIGO_ITEM` como lugar do código comercial, e as armadilhas de
+escrever OQ3D. Documentado o **cabeçalho OQ3D** (37 bytes, com o número de objetos-raiz
+no offset 29, que serve de verificação de parse). Validado gerando uma biblioteca
+completa a partir de um catálogo em PDF — 262 peças, lidas de volta por este leitor sem
+ressalvas.
 
 **2.2.0** — Resolvidas as duas armadilhas que deslocavam geometria. (a) A referência de instância repetida é o **índice de serialização base 1 sobre todos os objetos em ordem de documento**, com discriminador `0x01`/`0x02` após o GUID — o GUID é único por instância e nunca foi a chave. (b) A rotação de `TCoordinateTransformation3D` é **column-major**, não row-major. Conferido contra o IFC nas 13 peças da Dancor: conjunto de pontos idêntico, 27.425 triângulos batendo exatamente na CAM-W21 2CV. Adicionadas as armadilhas de comparação com IFC (alinhar pelo canto da bbox, comparar por tolerância, bbox não distingue rotação de transposta).
 

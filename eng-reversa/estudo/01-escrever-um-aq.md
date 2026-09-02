@@ -148,7 +148,7 @@ sem erro e só aparece no AltoQi.
 | Sentinela | Onde aparece |
 |---|---|
 | `-2147483647` | `GRUPO_PECA.TIPO_CONFIGURACAO_GP` (265 de 265 na Amanco), `ENTRADA_PECA.SECAO_EP` (1.871 de 2.627) |
-| `-1.7976931348623157e+308` (`-DBL_MAX`) | `PECA.DIAMETRO_PECA` em 1.120 das 1.168 peças da Amanco |
+| `-1.7976931348623157e+308` (`-DBL_MAX`) | `PECA.DIAMETRO_PECA` em 963 das 1.168 peças da Amanco (82%) |
 
 Gravar `NULL` onde a biblioteca real grava a sentinela é uma divergência
 silenciosa. Não sabemos se o Builder trata os dois igual.
@@ -181,9 +181,11 @@ das bitolas de água fria abaixo de 40 mm (20, 25 e 32 mm) **não aparecem em
 nenhuma biblioteca**, e por isso o gerador deixa a sentinela nessas peças em
 vez de adivinhar 5, 6 e 7.
 
-**A quem põe o código:** a Amanco põe código nas 48 peças de tubo e a sentinela
-nas outras 1.120. O diâmetro de uma conexão mora em
-`ENTRADA_PECA.DIAMETRO_EP`, não em `PECA.DIAMETRO_PECA`. O gerador segue isso.
+**A quem põe o código:** das 1.168 peças da Amanco, 112 trazem código — as 48 de tubo,
+52 de caixa sifonada e afins (`TIPO_APLICACAO_PECA=9`) e 12 de ralo (tipo 10). 963 trazem
+a sentinela e 93 trazem zero. **Nenhuma das 700 conexões traz código:** o diâmetro de uma
+conexão mora em `ENTRADA_PECA.DIAMETRO_EP`, não em `PECA.DIAMETRO_PECA`. O gerador segue
+isso e põe código só no tubo, que é a única dessas três categorias que ele produz.
 
 `PECA.DIAMETRO_INTERNO`, ao contrário, é milímetro de verdade: 192,8 / 144,8 /
 98,0 / 47,5.

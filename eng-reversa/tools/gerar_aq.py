@@ -115,8 +115,9 @@ MEDICAO_TUBO, MEDICAO_CONEXAO = 1, 2
 # 2.2.0 da skill `leitor-biblioteca-aq` diz: na Amanco a peça `50 mm - 2"` tem
 # `DIAMETRO_PECA = 9`, e a `100 mm - 4"` tem 12.
 #
-# Só estes seis pares foram observados, todos nas 48 peças de tubo da Amanco
-# (as outras 1.120 peças usam a sentinela -DBL_MAX). A Dancor usa os códigos
+# Só estes seis pares foram observados. Na Amanco, 112 das 1.168 peças trazem código
+# (48 de tubo, 52 de caixa sifonada e afins, 12 de ralo), 963 trazem a sentinela
+# -DBL_MAX e 93 trazem zero; nenhuma das 700 conexões traz código. A Dancor usa os códigos
 # 7 a 11 nos bocais das bombas, cujas sucções e recalques vão de 1.1/4" a 3" —
 # consistente com a mesma escala, e é de onde vem o 10.
 #
@@ -571,8 +572,8 @@ class Gerador:
 
                 id_peca = self.novo('PECA')
                 mm_principal = dim['mm'][0] if dim['mm'] else None
-                # Código de diâmetro SÓ NO TUBO. A Amanco põe código nas 48
-                # peças de tubo e a sentinela nas outras 1.120 — o diâmetro de
+                # Código de diâmetro SÓ NO TUBO. Na Amanco as 48 peças de tubo
+                # têm código e nenhuma das 700 conexões tem — o diâmetro de
                 # uma conexão mora em `ENTRADA_PECA.DIAMETRO_EP`, que a Amanco
                 # preenche nas 2.627 entradas dela e que este gerador não
                 # escreve (ver o cabeçalho do módulo). Pôr o código na conexão
@@ -591,7 +592,7 @@ class Gerador:
                     POSICIONA_CAMPOS=1,
                     DESENHA_SIMBOLOGIA=2,
                     # Sem código de diâmetro observado, vai a sentinela — é o
-                    # que a Amanco faz nas suas 1.120 conexões.
+                    # que a Amanco faz nas suas 700 conexões.
                     DIAMETRO_PECA=(codigo_diam if codigo_diam is not None
                                    else SENT_REAL),
                     INDICACAO_PLANTA=(f'ø{mm_principal}' if mm_principal

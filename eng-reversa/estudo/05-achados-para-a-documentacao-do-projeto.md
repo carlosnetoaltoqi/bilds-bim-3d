@@ -3,10 +3,13 @@
 Cinco coisas que este estudo descobriu e que contradizem ou completam o
 `CLAUDE.md` e a skill `docs/skills/leitor-biblioteca-aq/SKILL.md`.
 
-**Nada foi alterado no projeto.** Este documento é o registro para quem for
-aplicar. A regra do `CLAUDE.md` — "ao descobrir qualquer coisa nova sobre ler
-`.aq`, registre nos dois lugares: no `CLAUDE.md` e na skill correspondente" —
-vale para os achados 1, 2 e 3, que são sobre leitura.
+**Aplicados na documentação em 2026-09-02.** Os achados 1, 2 e 3 estão agora no
+`CLAUDE.md` e na skill `leitor-biblioteca-aq` (2.3.0), como manda a regra do
+`CLAUDE.md`: "ao descobrir qualquer coisa nova sobre ler `.aq`, registre nos dois
+lugares". O 4 entrou como recomendação nos dois. O 5 é defeito de código e segue
+**pendente** — a correção está descrita abaixo.
+
+Este documento continua sendo o registro de onde cada coisa foi descoberta e por quê.
 
 ---
 
@@ -35,9 +38,10 @@ Dancor grava 7 a 11 nos bocais das suas bombas, cujas sucções e recalques vão
 de 1.1/4" a 3", o que encaixa em 32, 40, 50, 60 e 75 mm — e confirma o código
 10 como 60 mm, que a Amanco não mostra.
 
-**Também:** em 1.120 das 1.168 peças da Amanco o valor é
-`-1.7976931348623157e+308` (`-DBL_MAX`), a sentinela de "não definido". Só as 48
-peças de tubo têm código. O diâmetro de uma conexão mora em `ENTRADA_PECA`.
+**Também:** das 1.168 peças da Amanco, 963 (82%) trazem
+`-1.7976931348623157e+308` (`-DBL_MAX`), a sentinela de "não definido", 93 trazem zero e
+112 trazem código — 48 de tubo, 52 de caixa sifonada e afins, 12 de ralo. **Nenhuma das
+700 conexões traz código:** o diâmetro de uma conexão mora em `ENTRADA_PECA`.
 
 **Por que importa para quem lê:** o `build_product_map` do `read_aq.py` expõe o
 campo como `'diametro_cm'`. Qualquer consumidor que trate esse número como
