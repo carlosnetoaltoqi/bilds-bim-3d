@@ -85,31 +85,64 @@ originou — e não se perde se a máquina sumir.
 
 ---
 
-## 👉 Estado em 2026-08-31 — POC ENCERRADA, validada ponta a ponta
+## 👉 Estado em 2026-09-02 — POC ENCERRADA, e a base está ZERADA
 
-**A POC de catálogo dinâmico está encerrada.** Depois da correção do `oq3d.py` (S5.1),
-o banco e o storage foram zerados e as duas bibliotecas reimportadas do zero pela
-própria interface. Tudo verificado — geometria, miniaturas e páginas públicas.
+**A POC de catálogo dinâmico está encerrada, e em 2026-09-02 o banco e o storage foram
+esvaziados de propósito.** Não há empresa, catálogo, importação nem produto. O código
+está intacto e sobe normalmente — só não há dado nenhum dentro dele.
 
-**Estado conferido em 2026-08-31** (ver `docs/sessoes/S5.2-encerramento-poc.md`):
-
-| O quê | Estado |
+| O quê | Estado atual |
 |---|---|
-| Empresa | Dancor · `/dancor` · `5fad3dc6-91b8-4c85-af4e-419aae415ae0` |
+| `companies` · `bim_catalogs` · `bim_imports` · `bim_products` | **0 documentos em cada** |
+| `www/storage/bim/{geo,thumbs,logos,geometrias}` | **0 arquivos** (os diretórios ficaram) |
+| API e web | sobem e respondem certo no vazio — ver a tabela de estado vazio abaixo |
+
+O que a API devolve nesse estado, conferido em 2026-09-02:
+
+| Requisição | Resposta |
+|---|---|
+| `GET /catalogos/:empresa/:slug` | `404` |
+| `GET /empresas/minha` | `404 empresa não encontrada` |
+| `GET /importacoes/ultima` | `200` com corpo vazio |
+| `POST /auth/login` | `200` com token — **não consulta o banco** (ADR 7.6) |
+| `GET /{empresa}/{catalogo}` no web | `404` |
+| `/empresa` sem sessão | `307` para `/login` |
+
+> ⚠️ **Recarregar a POC exige os `.aq` da Dancor e da Amanco, que NÃO estão nesta
+> máquina.** `input/` tem só as 7 bibliotecas da Intelbras e a Akato. Sem esses dois
+> arquivos, o caminho de importação pela interface não tem o que ingerir — e as chaves em
+> disco embutem o `importId`, então nada do que foi apagado é reconstituível a partir do
+> que sobrou. Para exercitar a POC com o que existe aqui, importe uma biblioteca da
+> Intelbras: são pequenas (10 a 60 peças) e atravessam o mesmo caminho.
+
+### O que havia antes, e como foi validado (histórico)
+
+A carga que existia até 2026-09-02 foi a da S5.2 — as duas bibliotecas reimportadas do
+zero pela interface depois da correção do `oq3d.py` (S5.1). Ela **passou** em tudo o que
+se pediu dela, e é a prova de que o caminho funciona ponta a ponta. Reconferido em
+2026-09-02, antes de apagar:
+
+| O quê | Estado então |
+|---|---|
+| Empresa | 1 em `companies` |
 | Catálogo Dancor | `bomba-de-combate-a-incencio` — 13 produtos, `series-rows` |
 | Catálogo Amanco | `pvc-esgoto-silentium` — 856 produtos, `catalog-grid` |
-| Importações | `d5a4acb5` (Dancor) e `28826de9` (Amanco), ambas `publicado` |
-| Produtos | **869 — todos com `geoKey` e `thumbKey`, 0 arquivo faltando em disco** |
-| Storage | 363 MB, 1.696 arquivos em `www/storage/bim` |
-| Geometria | CAM-W21 2CV com **27.425 triângulos** = parser corrigido (seria 20.452 com o antigo); dedup 82.275 → 16.488 vértices (80%) |
-| Miniaturas | servidas pela API em `image/webp`, idênticas às do pipeline estático |
-| Páginas públicas | ambas HTTP 200 no web (3000) e na API (4000) |
+| Produtos | **869 — todos com `geoUrl` e `thumbUrl`** |
+| Storage | 364 MB, 1.738 arquivos em `www/storage/bim` |
+| Geometria | CAM-W21 2CV com **27.425 triângulos** = parser corrigido (seria 20.452 com o antigo) |
+| Miniaturas | `200 image/webp`, imagem distinta por produto |
+| Revalidação de cache (S6.1) | 1ª visita `200`, condicional com ETag `304` |
+| Páginas públicas | ambas `200` no web (3000) e na API (4000) |
 
-> Os `importId` mudam a cada reimportação. Confira os atuais em vez de confiar
-> neste texto:
-> `curl -s localhost:4000/catalogos/dancor/bomba-de-combate-a-incencio | head -c 300`
+Registro da validação original em `docs/sessoes/S5.2-encerramento-poc.md`.
 
-**Versão base estável:** o topo de `main` — as sessões S5.1, S5.2, S5.3 e S6.1 vieram depois da S4.3 que este texto citava. Confira com `git log --oneline -1`.
+> **A resposta de `GET /catalogos/:empresa/:slug` tem raiz `{ catalog, products }`** — em
+> inglês, e não `produtos` como o `catalog.json` do pipeline estático. Os campos do produto
+> são `geoUrl`/`thumbUrl` (URLs relativas, que o Server Component converte em absolutas), e
+> não `geoKey`/`thumbKey` — esses são os nomes no documento do Mongo. Vale saber antes de
+> escrever qualquer cliente novo.
+
+**Versão base estável:** o topo de `main`. Confira com `git log --oneline -1`.
 
 ### Duas linhas de trabalho
 
@@ -122,9 +155,9 @@ própria interface. Tudo verificado — geometria, miniaturas e páginas públic
    O documento registra as respostas às cinco perguntas da POC, os bugs encontrados e
    as diretrizes para a reconstrução na bilds.com.
 
-   O estado do banco e do storage está na tabela acima. As duas bibliotecas — Dancor
-   (13 produtos) e Amanco (856) — foram carregadas do zero pela interface depois da
-   limpeza, com a geometria já vinda do parser corrigido.
+   O estado do banco e do storage está na tabela acima: **zerado desde 2026-09-02**. As
+   duas bibliotecas que estavam carregadas — Dancor (13 produtos) e Amanco (856) — foram
+   apagadas junto, e os `.aq` de origem não estão nesta máquina.
 
    **Miniaturas (S4.4, 2026-08-30) — resolvidas.** O rasterizador software foi substituído
    por Playwright + `templates/thumbs/harness.html` no `thumb-worker.ts`: a miniatura sai do
@@ -223,6 +256,64 @@ cp www/.env.example www/.env
 
 O pipeline estático (`scripts/build.py`) **não usa nenhuma delas** — lê só o `.aq`.
 A configuração daquele lado é o `config.example.json` da raiz.
+
+### ⚠️ A API não sobe e o Mongoose culpa o whitelist — como saber se é isso mesmo
+
+Documentado em 2026-09-02, depois de perder tempo com isso. O Atlas usado pela POC é um
+M0 com **whitelist de IP**, e o IP de uma máquina doméstica ou de escritório muda. Quando
+ele muda, a API entra em retry infinito e **não responde a nenhuma requisição**:
+
+```
+ERROR [MongooseModule] Unable to connect to the database. Retrying (1)...
+MongooseServerSelectionError: Could not connect to any servers in your MongoDB Atlas
+cluster. One common reason is that you're trying to access the database from an IP that
+isn't whitelisted.
+```
+
+**Essa mensagem é um texto fixo do driver, não um diagnóstico** — ela aparece igual para
+DNS quebrado, rede bloqueada, cluster pausado, credencial errada e IP não liberado. Não
+acredite nela; meça as quatro camadas, de baixo para cima. Rode de `www/apps/api/`, onde
+as dependências resolvem:
+
+```bash
+cd www/apps/api
+NODE_PATH=$(pwd)/node_modules node -e "
+require('dotenv').config({path:'../../.env'});
+const {MongoClient}=require('mongodb');
+new MongoClient(process.env.MONGODB_URI,{serverSelectionTimeoutMS:12000}).connect()
+ .then(()=>console.log('CONECTOU'))
+ .catch(e=>{console.log(e.name);
+   if(e.reason&&e.reason.servers)for(const[k,v]of e.reason.servers)
+     console.log(' ',k,'->',v.error?v.error.message.split('\n')[0]:v.type);});"
+```
+
+| Camada | Como conferir | Se falha aqui |
+|---|---|---|
+| DNS SRV | `dns.resolveSrv('_mongodb._tcp.<cluster>.mongodb.net')` | cluster apagado, ou DNS da máquina |
+| TCP :27017 | `net.createConnection` no primeiro nó do SRV | firewall ou rede bloqueando saída |
+| **TLS** | o comando acima | **é aqui que o whitelist aparece** |
+| Autenticação | idem, erro seria `AuthenticationFailed` | usuário ou senha errados |
+
+**A assinatura do IP não liberado é TLS, não autenticação:**
+
+```
+tlsv1 alert internal error ... SSL alert number 80
+```
+
+nos **três** nós do shard, **com o TCP abrindo normalmente**. O Atlas aceita a conexão e
+derruba no handshake — nunca se chega a mandar credencial. Se o TCP conecta e o TLS morre
+com alert 80, é whitelist (ou o cluster pausado, que dá o mesmo alert).
+
+**Como resolver:** no Atlas, *Network Access → Add IP Address → Add Current IP Address*.
+Descubra o IP com `curl -s https://api.ipify.org`. Num M0, confira também se o cluster não
+foi pausado — o Atlas pausa por inatividade e o sintoma é idêntico.
+
+**A API se recupera sozinha:** o `MongooseModule` fica em retry, então depois de liberar o
+IP ela conecta no próximo ciclo. Não é preciso reiniciar o processo.
+
+> **Nada no código depende do Atlas** — um `mongodb://127.0.0.1:27017` local serve e
+> elimina o whitelist do caminho. O custo é reimportar as bibliotecas, o que exige os
+> `.aq` de origem.
 
 ---
 
@@ -1309,6 +1400,9 @@ via modo `'recursive'` do `scan_input()`.
 | Sólido gerado mostra o interior por uma emenda | Perfil de revolução que fecha em si mesmo sem soldar o último anel no primeiro: `2 × lados` arestas de borda |
 | Peça gerada com partes soltas ou flutuando | Malhas corretas em posição relativa errada — não aparece em bbox, contagem nem round-trip; conferir abrindo o preview |
 | Sobrou um `.aq` de 0 byte onde não havia arquivo | `open_aq` tenta `sqlite3.connect()` primeiro, e o `sqlite3` **cria** o arquivo num caminho inexistente cujo diretório existe. O fallback para ZIP então falha com `BadZipFile` |
+| API em `Retrying (n)...` eterno, sem responder request nenhum | Não conecta no Mongo. A mensagem do Mongoose culpa o whitelist, mas é texto fixo — meça DNS, TCP, TLS e auth separadamente (ver "A API não sobe e o Mongoose culpa o whitelist") |
+| `tlsv1 alert internal error` / `SSL alert number 80` nos 3 nós, com o TCP abrindo | **IP não liberado no Atlas** (ou cluster M0 pausado). O handshake morre antes da autenticação, então não é credencial. Liberar em *Network Access*; a API reconecta sozinha no próximo retry |
+| Página pública `404` e `/empresas/minha` `404` com a API saudável | A base está **vazia** — é o estado desde 2026-09-02, não um defeito. Ver "Estado em 2026-09-02" |
 
 ---
 
@@ -1379,6 +1473,46 @@ python3 -m http.server 8080 --directory output/preview
 ---
 
 ## Histórico de sessões
+
+### 2026-09-02 — POC subida local, armadilha do Atlas e limpeza da base
+
+Sessão sem mudança de código: subir a POC nesta máquina, documentar o que barrou, e
+**zerar banco e storage** a pedido.
+
+**A POC subiu, depois de um bloqueio de 15 minutos no Atlas.** O web (`:3000`) levantou
+normal; a API (`:4000`) ficou em retry infinito com o Mongoose acusando whitelist de IP. A
+mensagem é texto fixo do driver e cobre cinco causas distintas, então medi as camadas
+separadamente: DNS SRV resolvia os três nós, o TCP em `:27017` **conectava**, e o TLS
+morria com `tlsv1 alert internal error` (SSL alert 80) nos três. Essa combinação — TCP
+abrindo, TLS caindo com alert 80 — é a assinatura de IP não liberado: o handshake termina
+antes de qualquer credencial trafegar. Liberado o IP no Atlas, a API **reconectou sozinha**
+no ciclo de retry seguinte, sem reinício. Receita completa em "A API não sobe e o Mongoose
+culpa o whitelist"; três linhas novas na tabela de diagnóstico.
+
+**Validação da carga que existia, antes de apagar.** Confirmou a S5.2 integralmente: 869
+produtos, todos com `geoUrl` e `thumbUrl`; geometria da CAM-W21 2CV com **27.425
+triângulos** (o número do parser corrigido, não os 20.452 do antigo); miniaturas em
+`image/webp` distintas por produto; revalidação da S6.1 devolvendo `304` com a ETag; as
+duas páginas públicas em `200` e slug inexistente em `404`.
+
+**Limpeza.** `deleteMany({})` nas quatro coleções — `bim_products` (869), `bim_catalogs`
+(2), `bim_imports` (2) e `companies` (1) — e todos os 1.738 arquivos de
+`www/storage/bim/`, preservando os diretórios. Conferido depois: 0 documentos, 0 arquivos,
+e a API respondendo certo no vazio (`404` nas páginas e em `/empresas/minha`, `200` com
+corpo vazio em `/importacoes/ultima`, login seguindo em `200` porque não consulta o banco).
+
+> **A limpeza é irreversível nesta máquina.** Os `.aq` da Dancor e da Amanco não estão em
+> `input/`, e as chaves de storage embutem o `importId` — nada do que foi apagado se
+> reconstitui a partir do que sobrou. Quem quiser exercitar a POC aqui deve importar uma
+> das 7 bibliotecas da Intelbras, que são pequenas e atravessam o mesmo caminho.
+
+**Duas coisas que o arquivo afirmava e não eram mais verdade** — ambas corrigidas: os
+`importId` documentados (`d5a4acb5`, `28826de9`) já não existiam desde antes desta sessão
+(eram `4180e887` e `5c2dc29a`, e agora nenhum), e a coleção de empresa chama-se
+`companies`, não `bim_companies`. Ficou registrado também o formato da resposta de
+`GET /catalogos/:empresa/:slug`: raiz `{ catalog, products }` em inglês, com
+`geoUrl`/`thumbUrl` no produto — diferente do `catalog.json` do pipeline estático e dos
+`geoKey`/`thumbKey` do documento do Mongo.
 
 ### 2026-09-02 — Engenharia reversa da ESCRITA de `.aq` (Akato, PDF → biblioteca)
 
