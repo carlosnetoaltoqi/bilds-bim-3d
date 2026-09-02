@@ -1379,6 +1379,7 @@ via modo `'recursive'` do `scan_input()`.
 | **Título colado** (`"Barramentoblindado"`) | Filename com palavra composta toda-minúscula (ex: `pecas_maxbar_barramentoblindado.aq`) — CamelCase split não actua, token fica capitalizado só na 1ª letra. Fix (commit 48a0f65): token único todo-minúsculo > 10 chars é ignorado; a cascata cai para `linhas` do banco, que devolve `'Barramento Blindado'`. Organizar o filename como `barramento_blindado.aq` ou `BarramentoBlindado.aq` evita o problema. |
 | Nome do produto redundante (`Pontos de comando Interruptor…`) | Prefixo do grupo aplicado sem necessidade — prefixar só quando o nome é ambíguo, decidindo **por grupo** |
 | **Preview 404 em `data/*.json`, erro `Unexpected token 'T'`** | Template usava `./data/`; com `cleanUrls` a página é servida em `/<slug>` sem barra final e o relativo vai para a raiz. Usar caminho absoluto `'/' + CATALOG.slug + '/data/'`. O `'T'` é a página 404 da Vercel ("The page…") caindo no `JSON.parse` |
+| **Thumbs 404 na Vercel** | Mesmo root cause de `data/`: `./thumbs/` resolvia para `/thumbs/` (raiz). Corrigido em 2026-09-02 — `THUMB_BASE = '/' + CATALOG.slug + '/thumbs/'` nos dois layouts |
 | Preview gigante (centenas de MB) | Faltou `dedup()` no caminho `.aq` — reduz ~79% dos vértices |
 | ZIPs entrando no commit | `output/*.zip` não cobre subpastas; a saída é aninhada — usar `output/**/*.zip` |
 | Joelhos e curvas retos no viewer | Transforms do OQ3D ignorados — usar o parser de árvore de `oq3d.py` |
@@ -1473,6 +1474,18 @@ python3 -m http.server 8080 --directory output/preview
 ---
 
 ## Histórico de sessões
+
+### 2026-09-02 — Build completo das 15 bibliotecas e fix de thumbs na Vercel
+
+Pipeline estático rodado sobre todos os `.aq` de `input/` — 15 bibliotecas de 6
+fabricantes (Akato, Amanco, Dancor, Intelbras ×7, Komeco ×4, Maxbar). Todos os 15
+ZIPs gerados e preview publicado em https://bilds-bim-3d.vercel.app via
+`vercel --prod --yes` (677 MB de geometria, não vai ao git).
+
+**Bug corrigido:** thumbs quebradas na Vercel. `./thumbs/` resolvia para `/thumbs/`
+(raiz) quando `cleanUrls: true` serve a página em `/<slug>` sem barra final — mesmo
+root cause do bug de `./data/` já documentado. Corrigido nos dois layouts com
+`THUMB_BASE = '/' + CATALOG.slug + '/thumbs/'`. Commit `5653ab8`.
 
 ### 2026-09-02 — POC subida local, armadilha do Atlas e limpeza da base
 
