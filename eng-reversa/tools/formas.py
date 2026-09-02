@@ -420,12 +420,30 @@ def f_joelho(p):
     cam = caminho_curva(braco, raio, ang)
     corpo = varrer_tubo(cam, p.r1, p.r1i)
     malhas = [(*corpo, p.cor_corpo())]
-    # colares nas duas bocas
+
+    # Colar nas DUAS bocas, posicionado pelas pontas do próprio caminho.
+    #
+    # Antes o colar de entrada ia para `z = -braco`, mas o caminho começa em
+    # `z = -(braco - raio)` — sobrava um vão de exatamente `raio` e o colar
+    # aparecia solto, flutuando abaixo do joelho. E o colar da saída não
+    # existia. Nenhuma das duas coisas aparece em contagem de triângulo, em
+    # bounding box ou em teste de estanqueidade: só olhando a peça.
     rc = p.colar(p.r1)
-    b = p.bolsa()
-    malhas.append((*revolucao([(p.r1, -braco), (rc, -braco), (rc, -braco + b),
-                               (p.r1, -braco + b), (p.r1, -braco)]),
-                   p.cor_corpo()))
+    b = min(p.bolsa(), 0.9 * braco)
+    (p_ini, _), (p_fim, t_fim) = cam[0], cam[-1]
+    aro = [(p.r1, 0), (rc, 0), (rc, b), (p.r1, b), (p.r1, 0)]
+
+    entrada = revolucao(aro)
+    malhas.append((transladar(entrada[0], 0, 0, p_ini[2]),
+                   entrada[1], p.cor_corpo()))
+
+    saida = revolucao(aro)
+    v = rotacionar_y(saida[0], ang)          # alinha o colar à tangente
+    malhas.append((transladar(v,
+                              p_fim[0] - t_fim[0] * b,
+                              0.0,
+                              p_fim[2] - t_fim[2] * b),
+                   saida[1], p.cor_corpo()))
     if p.de2 != p.de1:
         # joelho com visita ou saída reduzida: um ramo menor no meio do arco
         ramo = revolucao([(p.r2i, 0), (p.r2, 0), (p.r2, braco * 0.9),
@@ -560,30 +578,67 @@ def f_engate(p):
     return malhas
 
 
+def _caminho_u(z_alto, z_fundo, raio, altura_subida, passos=12):
+    """
+    Caminho de um sifão: desce, faz o U no fundo e sobe.
+
+    O `caminho_curva` não serve aqui — ele produz um ∩, entra subindo e volta
+    descendo, e o sifão precisa de um ∪. O arco é gerado direto, no plano XZ.
+    """
+    cam = [((0.0, 0.0, z_alto), (0.0, 0.0, -1.0)),
+           ((0.0, 0.0, z_fundo), (0.0, 0.0, -1.0))]
+    for k in range(1, passos + 1):
+        a = math.pi * k / passos
+        cam.append(((raio * (1 - math.cos(a)), 0.0,
+                     z_fundo - raio * math.sin(a)),
+                    (math.sin(a), 0.0, -math.cos(a))))
+    cam.append(((2 * raio, 0.0, z_fundo + altura_subida), (0.0, 0.0, 1.0)))
+    return cam
+
+
 def f_sifao(p):
-    """Sifão extensível: copo, curva em U e saída, no comprimento do catálogo."""
+    """
+    Sifão extensível: copo, U no fundo, subida e saída horizontal.
+
+    A versão anterior montava as três partes em posições que não se
+    encontravam — copo solto no alto, U pequeno no chão, tubo de saída no meio
+    do nada. Passava em estanqueidade e em bounding box, porque cada sólido
+    isolado estava correto; o defeito era o posicionamento relativo, que só
+    aparece olhando a peça.
+
+    O comprimento do catálogo (62 cm, 80 cm, 1,12 m) é o alcance do conjunto
+    estendido, distribuído entre a coluna e o trecho horizontal. O número de
+    ramos sai do título: SIMPLES, DUPLO ou TRIPLO.
+    """
     L = p.comp or 62.0
     r, ri = 1.9, 1.6
-    ramos = 1
     alvo = p.titulo.upper()
-    if 'DUPLO' in alvo:
-        ramos = 2
-    elif 'TRIPLO' in alvo:
-        ramos = 3
+    ramos = 3 if 'TRIPLO' in alvo else 2 if 'DUPLO' in alvo else 1
     cor = COR['preta'] if 'PRETO' in alvo else COR['branca']
+
+    raio_u, z_fundo = 3.0, 8.0
+    z_alto = min(L * 0.42, 26.0)
+    subida = 4.0
+    horizontal = max(9.0, L - z_alto - math.pi * raio_u)
+    passo_y = 7.0
+
     malhas = []
     for k in range(ramos):
-        dx = k * 6.5
-        # o perfil volta ao eixo em (0, 0): sem esse ponto o último anel
-        # fica de borda e o copo aparece aberto por baixo
-        copo = revolucao([(0, 0), (3.4, 0), (3.4, 5.0), (r, 6.0), (r, 9.0),
-                          (ri, 9.0), (ri, 0), (0, 0)])
-        malhas.append((transladar(copo[0], dx, 0, L * 0.55), copo[1], cor))
-        cam = caminho_curva(4.5, 3.0, 180, passos=12)
-        u = varrer_tubo(cam, r, ri, lados=16)
-        malhas.append((transladar(u[0], dx, 0, 6.0), u[1], cor))
-    saida = revolucao([(ri, 0), (r, 0), (r, L * 0.45), (ri, L * 0.45), (ri, 0)])
-    malhas.append((transladar(saida[0], (ramos - 1) * 6.5 + 9.0, 0, 0),
+        dy = (k - (ramos - 1) / 2) * passo_y
+        # copo, assentado no topo da coluna
+        copo = revolucao([(0, z_alto), (3.4, z_alto), (3.4, z_alto + 4.0),
+                          (r, z_alto + 5.5), (r, z_alto + 7.0),
+                          (ri, z_alto + 7.0), (ri, z_alto), (0, z_alto)])
+        malhas.append((transladar(copo[0], 0, dy, 0), copo[1], cor))
+        u = varrer_tubo(_caminho_u(z_alto, z_fundo, raio_u, subida),
+                        r, ri, lados=16)
+        malhas.append((transladar(u[0], 0, dy, 0), u[1], cor))
+
+    # saída horizontal, no eixo +X, partindo do topo da subida
+    saida = revolucao([(ri, 0), (r, 0), (r, horizontal), (ri, horizontal),
+                       (ri, 0)])
+    malhas.append((transladar(rotacionar_y(saida[0], 90),
+                              2 * raio_u, 0.0, z_fundo + subida),
                    saida[1], cor))
     return malhas
 

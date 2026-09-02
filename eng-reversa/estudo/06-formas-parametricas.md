@@ -131,18 +131,47 @@ round-trip binário não pega:
 Mais o round-trip pelo escritor OQ3D e pelo leitor do projeto, para uma peça de
 cada forma.
 
-Resultado: **262 de 262 peças, 226.584 triângulos, zero arestas abertas, zero
+Resultado: **262 de 262 peças, 240.920 triângulos, zero arestas abertas, zero
 problemas.**
 
 O teste da estanqueidade foi o que valeu a pena: pegou a costura não soldada da
 `revolucao` (15 formas afetadas), o copo do sifão que terminava num anel solto
 e a mangueira do engate aberta nas duas pontas. Nenhum desses três aparece em
-contagem de triângulo, em bounding box ou no round-trip binário — só numa
-checagem topológica ou olhando a peça no viewer.
+contagem de triângulo, em bounding box ou no round-trip binário.
 
 ---
 
-## 5. Onde a ressalva fica gravada
+## 5. E o que só apareceu olhando
+
+Topologia, escala e round-trip cobrem cada sólido **isolado**. Nenhum deles vê
+a **posição relativa entre as malhas de uma peça** — e foi exatamente ali que
+estavam os dois últimos defeitos, achados abrindo a página no Playwright
+(`tools/olhar_preview.mjs`) e olhando as imagens.
+
+**O colar do joelho flutuava solto.** O `caminho_curva` começa em
+`z = −(braço − raio)`, e o colar de entrada estava sendo posto em `z = −braço`.
+Sobrava um vão de exatamente `raio` entre o corpo e o colar. E o colar da
+**saída** simplesmente não existia — eram 56 peças, todas as curvas e joelhos,
+com um anel marrom pairando abaixo da peça. Agora os dois colares são
+posicionados pelas pontas do próprio caminho, e o da saída é rotacionado para
+a tangente de saída.
+
+**O sifão estava desmontado.** Copo solto no alto, U pequeno no chão e tubo de
+saída no meio do nada — três sólidos corretos em posições que não se
+encontravam. A causa: o `caminho_curva` produz um `∩` (entra subindo, volta
+descendo), e o sifão precisa de um `∪`. Foi reescrito com um caminho próprio,
+`_caminho_u`, que desce, faz o U no fundo, sobe e entrega numa saída
+horizontal.
+
+Os dois passavam em **todas** as checagens automáticas: os sólidos eram
+estanques, a bounding box era plausível e o round-trip binário fechava. A lição
+é direta — **para geometria inventada, abrir e olhar é parte da validação, não
+um extra.** Um mosaico de uma peça por forma custa um minuto e pega a classe de
+erro que nenhum invariante numérico alcança.
+
+---
+
+## 6. Onde a ressalva fica gravada
 
 Não depende de ninguém ter lido este documento. Está dentro do `.aq`, nos três
 lugares em que um usuário vai encontrar:
@@ -163,21 +192,21 @@ grupo, um nível abaixo, que é onde não atrapalha a inferência.
 
 ---
 
-## 6. Os três arquivos, e quando usar cada um
+## 7. Os três arquivos, e quando usar cada um
 
 | Arquivo | Geometria | Tamanho | Para quê |
 |---|---|---|---|
 | `PVC Construção Civil (sem geometria)/` | nenhuma | 848 KB | o catálogo **fiel**: só o que o PDF diz. Orçamento, especificação, classificação IFC |
 | `PVC Construção Civil/` | 12 tubos | 944 KB | demonstra o caminho da geometria com a única forma que o catálogo + norma determinam |
-| `PVC Construção Civil (forma representativa)/` | 262 peças | 6,6 MB | visualização e interferência grosseira, com a ressalva gravada |
+| `PVC Construção Civil (forma representativa)/` | 262 peças | 7,2 MB | visualização e interferência grosseira, com a ressalva gravada |
 
 Os três passam nas 20 checagens do `validar_aq.py` e atravessam o `build.py`.
 O terceiro publica **262 produtos, 262 geometrias, 0 peças sem forma 3D**, com
-14,5 MB de JSON de geometria — média de 57 KB por peça.
+15,4 MB de JSON de geometria — média de 60 KB por peça.
 
 ---
 
-## 7. O que faria isso virar geometria de produção
+## 8. O que faria isso virar geometria de produção
 
 Em ordem de esforço, o mesmo caminho de
 `04-lacunas-do-catalogo-comercial.md`:

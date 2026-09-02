@@ -23,8 +23,17 @@ do projeto como estava. O `build_preview` não atualiza o
 `output/preview/catalogs.json` — esse registro é mexido pelo `run_build`, que
 não é chamado aqui.
 
+Com `--zip`, gera também as miniaturas e o pacote `.zip` que a API da
+bilds.com consome, e **este sai em `output/`** — o lugar padrão dos ZIPs do
+projeto, junto com os que o `build.py --all` produz. É a única coisa que este
+estudo escreve fora de `eng-reversa/`, e só quando pedida explicitamente.
+
+As miniaturas importam: o `CLAUDE.md` registra que um ZIP sem `thumbs/` faz o
+catálogo na bilds.com voltar ao render dinâmico, que é o comportamento de
+39,9 s de LCP que motivou toda a mudança de 2026-08-27.
+
 Uso:
-    python3 pipeline_ponta_a_ponta.py <arquivo.aq>
+    python3 pipeline_ponta_a_ponta.py <arquivo.aq> [--zip]
 """
 import json
 import os
@@ -41,9 +50,11 @@ SAIDA = os.path.join(os.path.dirname(AQUI), 'saida', 'catalogo')
 
 
 def main():
-    if len(sys.argv) < 2:
-        sys.exit('Uso: pipeline_ponta_a_ponta.py <arquivo.aq>')
-    aq = sys.argv[1]
+    argv = [a for a in sys.argv[1:] if not a.startswith('--')]
+    fazer_zip = '--zip' in sys.argv
+    if not argv:
+        sys.exit('Uso: pipeline_ponta_a_ponta.py <arquivo.aq> [--zip]')
+    aq = argv[0]
 
     hints = build.peek_aq(aq)
     config = {
@@ -80,6 +91,29 @@ def main():
         print(f"  {p['id']:34} {len(g['idx']) // 3:5} triângulos  "
               f"{len(g['pos']) // 3:5} vértices  "
               f"{os.path.getsize(arq) / 1024:7.1f} KB  série {p['serie']!r}")
+
+    thumbs_dir = os.path.join(SAIDA, 'thumbs')
+    if fazer_zip:
+        print()
+        print('build_thumbs (Chromium + Three.js, uma miniatura por geometria):')
+        os.makedirs(thumbs_dir, exist_ok=True)
+        n_thumbs = build.build_thumbs(catalog, geo_dir, thumbs_dir)
+        com_thumb = sum(1 for p in catalog['produtos'] if p.get('thumb'))
+        print(f'  {n_thumbs} miniaturas, {com_thumb} de '
+              f"{len(catalog['produtos'])} produtos com `thumb`")
+        if not n_thumbs:
+            print('  AVISO: sem miniaturas o catálogo cai no render dinâmico '
+                  'na bilds.com')
+
+        # O catalog.json gravado antes não tinha o campo `thumb`; reescreve.
+        with open(caminho_catalog, 'w', encoding='utf-8') as f:
+            json.dump(catalog, f, ensure_ascii=False, indent=1)
+
+        print()
+        print('build_zip:')
+        zip_path = build.build_zip(catalog, out_dir=build.OUTPUT_DIR,
+                                   geo_dir=geo_dir, thumbs_dir=thumbs_dir)
+        print(f'  {zip_path}')
 
     try:
         build.build_preview(catalog, catalog['layout'], geo_dir=geo_dir)

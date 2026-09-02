@@ -28,7 +28,7 @@ com o pipeline do próprio projeto lendo o arquivo que nós escrevemos.
 | `.aq` gerado | **262 peças** + 7 insumos, 1.494 valores de propriedade, 269 códigos comerciais, 83 grupos com classificação IFC |
 | Leitura pelo `read_aq.py` do projeto | 20 checagens, todas passando, nas três variantes |
 | Escritor OQ3D | 6 casos de round-trip, incluindo a reescrita de uma geometria real da Amanco |
-| Formas paramétricas | 23 geradores, **262 de 262 peças**, 226.584 triângulos, zero arestas abertas |
+| Formas paramétricas | 23 geradores, **262 de 262 peças**, 240.920 triângulos, zero arestas abertas, conferidas no viewer |
 | `build.py` do projeto sobre o `.aq` gerado | `catalog.json` + **262 geometrias** + página de preview com viewer 3D |
 
 ### Os três arquivos gerados
@@ -37,7 +37,7 @@ com o pipeline do próprio projeto lendo o arquivo que nós escrevemos.
 |---|---|---|
 | `PVC Construção Civil (sem geometria)/` | nenhuma | 848 KB |
 | `PVC Construção Civil/` | 12 tubos | 944 KB |
-| `PVC Construção Civil (forma representativa)/` | 262 peças | 6,6 MB |
+| `PVC Construção Civil (forma representativa)/` | 262 peças | 7,2 MB |
 
 O **sem geometria** é o catálogo fiel: só o que o PDF diz. É a variante
 correta, porque **o PDF não traz cota de forma nenhuma** — ver
@@ -90,6 +90,7 @@ Todas são independentes e somente-leitura sobre as bibliotecas de `input/`.
 | `tools/gerar_aq.py` | Gera o `.aq` a partir do catálogo extraído |
 | `tools/validar_aq.py` | Valida o `.aq` gerado com o `read_aq.py` do projeto |
 | `tools/pipeline_ponta_a_ponta.py` | Roda o `build.py` do projeto sobre o `.aq` gerado |
+| `tools/olhar_preview.mjs` | Abre a página no Playwright e fotografa as peças — a checagem que pega erro de posição relativa |
 
 ### Refazer tudo
 

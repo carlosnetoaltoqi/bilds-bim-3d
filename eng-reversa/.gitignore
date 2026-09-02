@@ -1,9 +1,14 @@
-# Build output — regerável com pipeline_ponta_a_ponta.py
-saida/catalogo/
-saida/preview/
-
-# Vendor Three.js
-saida/*/vendor/
+# Build output — regerável com as ferramentas de tools/, ver "Refazer tudo" no
+# README.md. Nada em saida/ entra no histórico.
+#
+#   saida/Akato/**/*.aq   as três bibliotecas geradas (848 KB a 7,2 MB)
+#   saida/catalogo/       catalog.json, 262 JSONs de geometria, 262 thumbs
+#   saida/preview/        a página com viewer 3D e o vendor do Three.js
+#   saida/olhada/         as fotos de conferência das formas
+#
+# São 61 MB no total, 15 MB só de geometria. É a mesma razão pela qual o
+# projeto gitignora `output/preview/`: geometria não entra no histórico.
+saida/
 
 __pycache__/
 *.pyc
