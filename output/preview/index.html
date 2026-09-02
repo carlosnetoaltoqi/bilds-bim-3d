@@ -25,6 +25,8 @@
       --font-sans:   'Inter', system-ui, sans-serif;
       --font-display:'Fira Sans', 'Inter', system-ui, sans-serif;
       --radius:      4px;
+      --band-0:      #FFFFFF;
+      --band-1:      #EEF3FF;
     }
 
     body {
@@ -157,7 +159,9 @@
       cursor: pointer;
       transition: background 0.12s;
     }
-    .table-row:hover { background: var(--muted); }
+    .table-row[data-band="0"] td { background: var(--band-0); }
+    .table-row[data-band="1"] td { background: var(--band-1); }
+    .table-row:hover td { background: #E0EBFF !important; }
     .table-row:last-child td { border-bottom: none; }
     .tc-fabricante { font-weight: 600; color: var(--text-primary); }
     .tc-titulo { color: var(--text-secondary); max-width: 340px; }
@@ -439,9 +443,9 @@
         return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
       }
 
-      function renderRow(cat) {
+      function renderRow(cat, band) {
         var layoutLabel = LAYOUT_LABEL[cat.layout] || cat.layout;
-        return '<tr class="table-row" onclick="location.href=\'/' + cat.slug + '\'">'
+        return '<tr class="table-row" data-band="' + band + '" onclick="location.href=\'/' + cat.slug + '\'">'
           + '<td class="tc-fabricante">' + esc(cat.fabricante) + '</td>'
           + '<td class="tc-titulo">' + esc(cat.titulo) + '</td>'
           + '<td class="tc-n" style="text-align:right">' + cat.n_produtos + '</td>'
@@ -471,11 +475,33 @@
           if (!catalogs || catalogs.length === 0) {
             tbody.innerHTML = renderEmptyRow();
             label.textContent = '';
-          } else {
-            var n = catalogs.length;
-            label.textContent = n === 1 ? '1 catálogo' : (n + ' catálogos');
-            tbody.innerHTML = catalogs.map(renderRow).join('');
+            return;
           }
+
+          // Ordena: fabricante → título → layout
+          catalogs.sort(function (a, b) {
+            var fc = a.fabricante.localeCompare(b.fabricante, 'pt-BR');
+            if (fc !== 0) return fc;
+            var tc = a.titulo.localeCompare(b.titulo, 'pt-BR');
+            if (tc !== 0) return tc;
+            return (a.layout || '').localeCompare(b.layout || '');
+          });
+
+          // Banda de cor alternada por fabricante
+          var fabBand = {};
+          var bandIdx = 0;
+          catalogs.forEach(function (cat) {
+            if (!fabBand.hasOwnProperty(cat.fabricante)) {
+              fabBand[cat.fabricante] = bandIdx % 2;
+              bandIdx++;
+            }
+          });
+
+          var n = catalogs.length;
+          label.textContent = n === 1 ? '1 catálogo' : (n + ' catálogos');
+          tbody.innerHTML = catalogs.map(function (cat) {
+            return renderRow(cat, fabBand[cat.fabricante]);
+          }).join('');
         })
         .catch(function () {
           var tbody = document.getElementById('table-body');

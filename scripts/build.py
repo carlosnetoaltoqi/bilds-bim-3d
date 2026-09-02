@@ -1464,8 +1464,15 @@ def run_all(input_dir, args):
             falhas.append((aq_path, str(e)))
             continue
 
-        slug = config['slug']
+        base_slug = config['slug']
         zip_dir = os.path.join(OUTPUT_DIR, rel_dir) if rel_dir else OUTPUT_DIR
+
+        # --layout: força layout e sufixo o slug; reutiliza geometria do slug base
+        if args.layout:
+            suffix = 'grid' if args.layout == 'catalog-grid' else 'series'
+            config['slug'] = base_slug + '-' + suffix
+            config['layout'] = args.layout
+        slug = config['slug']
 
         ja = find_existing_zip(zip_dir, slug)
         if ja and not args.force:
@@ -1477,8 +1484,9 @@ def run_all(input_dir, args):
         print(f'    {config["fabricante"]} · {config["titulo"]} '
               f'({hints.get("n_pecas", 0)} peças, {hints.get("n_simbologias", 0)} geometrias)')
 
-        geo_dir = os.path.join(GEO_DIR, rel_dir, slug) if rel_dir \
-            else os.path.join(GEO_DIR, slug)
+        # geo_dir sempre usa o slug base — a geometria é igual para os dois layouts
+        geo_dir = os.path.join(GEO_DIR, rel_dir, base_slug) if rel_dir \
+            else os.path.join(GEO_DIR, base_slug)
         try:
             catalog, zip_path = run_build(config, aq_path, geo_dir, zip_dir, args)
         except Exception as e:
@@ -1523,6 +1531,9 @@ def main():
                         help='Pula o render das miniaturas (a página volta a gerá-las no browser)')
     parser.add_argument('--skip-zip',     action='store_true',   help='Pula geração do ZIP')
     parser.add_argument('--skip-ifc',     action='store_true',   help=argparse.SUPPRESS)
+    parser.add_argument('--layout',       choices=['series-rows', 'catalog-grid'], default=None,
+                        help='Força layout (com --all: sufixo -grid ou -series no slug; '
+                             'reutiliza geometria já extraída)')
     # --interactive mantido por compatibilidade, mas agora é sempre o modo padrão
     parser.add_argument('--interactive', '-i', action='store_true', help=argparse.SUPPRESS)
     args = parser.parse_args()
