@@ -1,7 +1,7 @@
 ---
 name: pagina-biblioteca
 description: Constrói páginas HTML de catálogo BIM com cards de produto, miniaturas 3D estáticas (click-to-activate), viewer 3D no modal, curvas Q-H em SVG e layout responsivo. Padrões validados em produção com Three.js self-hosted.
-version: 1.4.0
+version: 1.5.0
 author: Bilds / carlosnetoaltoqi
 ---
 
@@ -84,6 +84,46 @@ Sem o importmap, o `import * as THREE from 'three'` falha com "bare specifier" n
 import * as THREE from 'three';                           // resolve via importmap
 import { OrbitControls } from '/vendor/OrbitControls.js'; // path absoluto direto
 ```
+
+> ### ⚠️ O caminho absoluto amarra a página à raiz do servidor
+>
+> `/vendor/three.module.js` é **root-relative**. A página só funciona servida a partir
+> do diretório que contém o `vendor/` — mover o diretório do catálogo para outro lugar
+> quebra o import em silêncio: o `<script type="module">` não carrega, o console não
+> mostra erro de página e o card fica em branco, indistinguível de "a geometria não
+> chegou".
+>
+> Quem realoca uma página gerada tem de levar o `vendor/` como irmão e servir esse nível
+> como raiz:
+>
+> ```
+> raiz-servida/
+> ├── vendor/                 ← three.module.js, OrbitControls.js
+> └── meu-catalogo/
+>     ├── index.html
+>     └── data/
+> ```
+>
+> ```bash
+> python3 -m http.server -d raiz-servida 8080   # → /meu-catalogo/
+> ```
+
+> ### ⚠️ Não confira o render lendo pixel do canvas
+>
+> A tentação, ao verificar se as peças renderizaram, é ler o canvas de volta:
+>
+> ```javascript
+> gl.readPixels(...)   // ← devolve tudo zero, mesmo com a peça na tela
+> ```
+>
+> O `WebGLRenderer` do viewer é criado **sem** `preserveDrawingBuffer`, então o buffer é
+> descartado depois de compor o frame e a leitura volta vazia. Numa verificação real isso
+> reportou **0 de 263 canvas pintados** numa página em que todas as 262 peças estavam
+> visíveis — conclusão oposta à verdade.
+>
+> Confira por **screenshot** (`page.screenshot()` ou `locator.screenshot()`) e olhe a
+> imagem. O `preserveDrawingBuffer: true` do `sharedRenderer` existe justamente porque o
+> passo de miniaturas precisa ler o buffer; o renderer da página, não.
 
 ---
 
@@ -768,6 +808,15 @@ Ambos usam o mesmo `buildScene`, `loadThumbnail`, `initModalViewer` e `buildChar
 ---
 
 ## Histórico
+
+**1.5.0** — Duas armadilhas de **verificação** de página gerada, ambas encontradas ao
+conferir um catálogo de 262 peças. (a) O `/vendor/` do importmap é root-relative: mover o
+diretório do catálogo quebra o import sem erro no console, e o card fica em branco igual a
+"geometria não chegou" — quem realoca tem de levar o `vendor/` como irmão e servir esse
+nível como raiz. (b) **Não confira o render lendo pixel com `readPixels`**: o renderer da
+página não usa `preserveDrawingBuffer`, então a leitura volta zerada mesmo com a peça na
+tela — reportou 0 de 263 canvas pintados numa página em que as 262 peças estavam
+visíveis. Conferir por screenshot e olhar a imagem.
 
 **1.4.0** — **O mesmo harness serve build e servidor de aplicação.** Extrair a função que
 toca WebGL (`renderThumbFromData`, recebe a geometria em memória) e deixar a versão por URL

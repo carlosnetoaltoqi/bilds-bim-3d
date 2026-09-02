@@ -9,10 +9,22 @@ O projeto bilds-bim-3d sabe **ler** `.aq` — o `scripts/read_aq.py` e o
 de schema. Este estudo fecha o outro lado: o que é preciso saber para
 **escrever** um `.aq` que aquele mesmo leitor, e o AltoQi, aceitem.
 
-> **Este diretório não altera nada do projeto.** Os módulos do projeto são
-> importados sem modificação, tudo o que é gerado fica aqui dentro, e o
-> `output/` e o `config.json` da raiz não são tocados. Ver
-> `tools/pipeline_ponta_a_ponta.py` para o único caso que exigiu cuidado.
+> **O estudo foi feito sem alterar o projeto, e depois aplicado nele.** Durante a
+> investigação os módulos do projeto foram apenas importados, sem modificação, e tudo o
+> que era gerado ficou aqui dentro. Concluído o estudo, os achados foram levados para a
+> documentação e o código oficiais (2026-09-02):
+>
+> - `CLAUDE.md` — seção "Escrever um `.aq`", cabeçalho OQ3D, correção do
+>   `DIAMETRO_PECA`, sentinelas, 9 linhas de diagnóstico e a entrada de sessão;
+> - `docs/skills/leitor-biblioteca-aq/` **2.3.0** e `pagina-biblioteca/` **1.5.0**;
+> - `CONCEPTS.md` — Código de diâmetro, Sentinela, Forma representativa;
+> - `scripts/read_aq.py` — `diametro_cm` → `diametro_codigo` e sentinela → `None`;
+> - `scripts/oq3d.py` — `n_raizes_declarado()` e o aviso `OQ3DAvisoParse`;
+> - `scripts/build.py` — `saida`/`output` em `_GENERIC_DIRS`.
+>
+> O que este diretório continua não fazendo: escrever fora de si. A única exceção é o
+> `--zip` do `pipeline_ponta_a_ponta.py`, que grava em `output/` porque é o lugar padrão
+> dos ZIPs do projeto, e só quando pedido.
 
 ---
 
@@ -37,7 +49,7 @@ com o pipeline do próprio projeto lendo o arquivo que nós escrevemos.
 |---|---|---|
 | `PVC Construção Civil (sem geometria)/` | nenhuma | 848 KB |
 | `PVC Construção Civil/` | 12 tubos | 944 KB |
-| `PVC Construção Civil (forma representativa)/` | 262 peças | 7,2 MB |
+| `PVC Construção Civil (forma representativa)/` | 262 peças | 6,8 MB |
 
 O **sem geometria** é o catálogo fiel: só o que o PDF diz. É a variante
 correta, porque **o PDF não traz cota de forma nenhuma** — ver

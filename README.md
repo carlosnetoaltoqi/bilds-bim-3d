@@ -188,6 +188,7 @@ Se faltar uma peça que deveria ter forma, verifique se ela existe só como IFC:
 - `docs/plano-integracao-bilds.md` — plano original da integração (**histórico**: o módulo já está em produção; não use como guia)
 - `docs/estudo-oq3d/` — como a geometria dentro do `.aq` foi descoberta e validada
 - `docs/skills/` — skills de agente sobre `.aq`, IFC e páginas de catálogo
+- `eng-reversa/` — como **escrever** um `.aq` e OQ3D, e extrair catálogo de um PDF comercial (o caminho inverso do pipeline)
 
 ## Skills de agente
 

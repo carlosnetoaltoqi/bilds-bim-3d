@@ -1027,10 +1027,9 @@ de tubo, 52 de caixa sifonada e afins (`TIPO_APLICACAO_PECA=9`) e 12 de ralo (ti
 **Nenhuma das 700 conexões (tipo 2) tem código.** É isso que sustenta a regra: o diâmetro
 de uma conexão mora em `ENTRADA_PECA.DIAMETRO_EP`, não aqui.
 
-> **Impacto no pipeline:** `build_product_map` expõe o campo como `'diametro_cm'`. Quem
-> tratar aquele número como centímetro erra por ~2× nas peças de tubo e recebe `-1.8e308`
-> em todo o resto. A chave está com o nome errado — renomear é mudança de contrato com os
-> consumidores do mapa, e ficou pendente.
+> **Corrigido no pipeline em 2026-09-02:** a chave do `build_product_map` passou de
+> `'diametro_cm'` para `'diametro_codigo'`, e as quatro chaves numéricas passam por
+> `_sem_sentinela()` — antes o mapa entregava `-1.8e308` como se fosse medida.
 
 `PECA.DIAMETRO_INTERNO`, ao contrário, é milímetro de verdade: 192,8 / 144,8 / 98,0 /
 47,5.
@@ -1302,13 +1301,14 @@ via modo `'recursive'` do `scan_input()`.
 | `pnpm thumb:regen <id>` ignora o importId | `sh -c 'cmd' arg` faz `arg` virar `$0` — o script precisa de `"$@"` e um `--` de placeholder (corrigido em 2026-08-30) |
 | WebGL não inicializa em headless | Faltam os flags SwiftShader — obrigatórios em WSL/CI/container; sem eles **todas** as geometrias falham de uma vez |
 | Query com `WHERE NOME_x = 'algo acentuado'` volta vazia, sem erro | O texto no `.aq` é cp1252 e o `sqlite3` vincula `str` como UTF-8 — usar `CAST(? AS TEXT)` com `.encode('cp1252')` |
-| `diametro_cm` vale ~2× o esperado, ou vem `-1.8e308` | `PECA.DIAMETRO_PECA` é um **código** de diâmetro, não centímetro, e a sentinela `-DBL_MAX` significa "não definido" |
+| Diâmetro do mapa vale ~2× o esperado, ou vem `-1.8e308` | `PECA.DIAMETRO_PECA` é um **código**, não centímetro, e `-DBL_MAX` é sentinela. A chave é `diametro_codigo` desde 2026-09-02 e já filtra a sentinela |
 | `no such column: DIAMETRO` em `ENTRADA_3D` | Coluna só existe no schema 607; as bibliotecas 552–582 não a têm |
 | `.aq` gerado abre e valida, mas os nomes saem como `SoldÃ¡vel` | Texto gravado em UTF-8 — o AltoQi grava **cp1252**; usar `CAST(? AS TEXT)` com bytes cp1252 |
 | `.aq` gerado publica com o título errado (ex.: "Saida") | O título vem da pasta pai do `.aq`, e `saida`/`output` não estão em `_GENERIC_DIRS` (`build.py:922`) — pôr o `.aq` numa pasta com nome descritivo |
 | `.aq` sem geometria publica com fabricante vindo do nome da pasta | Sem `CLASSE_SIMBOLOGIA_3D` o passo 1 da cascata não existe e `PECA.BIBLIOTECA` está vazio nas 12 bibliotecas reais — preencher `PECA.BIBLIOTECA` ao gerar |
 | Sólido gerado mostra o interior por uma emenda | Perfil de revolução que fecha em si mesmo sem soldar o último anel no primeiro: `2 × lados` arestas de borda |
 | Peça gerada com partes soltas ou flutuando | Malhas corretas em posição relativa errada — não aparece em bbox, contagem nem round-trip; conferir abrindo o preview |
+| Sobrou um `.aq` de 0 byte onde não havia arquivo | `open_aq` tenta `sqlite3.connect()` primeiro, e o `sqlite3` **cria** o arquivo num caminho inexistente cujo diretório existe. O fallback para ZIP então falha com `BadZipFile` |
 
 ---
 
@@ -1390,7 +1390,7 @@ Terceira linha de trabalho, e a primeira que **escreve** `.aq` em vez de ler. Tu
 publicável com viewer 3D, atravessando o `build.py` do próprio projeto. 87 famílias,
 **269 produtos**, 0 códigos repetidos, 0 linhas incompletas. Três variantes de `.aq`:
 sem geometria (a fiel, 848 KB), com os 12 tubos (944 KB) e com forma paramétrica para
-as 262 peças (7,2 MB). As três passam nas 20 checagens do `validar_aq.py`, que usa o
+as 262 peças (6,8 MB). As três passam nas 20 checagens do `validar_aq.py`, que usa o
 `read_aq.py` e o `oq3d.py` deste projeto sem modificação.
 
 **Os quatro achados que mudaram este arquivo:**
@@ -1423,15 +1423,18 @@ preview e olhando — daí `eng-reversa/tools/olhar_preview.mjs`.
 **ZIP.** `output/akato-construcao-civil-202609021348.zip`, 2.775 KB, conforme em 17 de
 17 itens de `docs/bilds-bim-3d-zip-spec.md`, com 262 miniaturas WebP.
 
-**Pendências que este estudo abriu, todas no código do projeto:**
+**Correções que este estudo levou ao código, no mesmo dia:**
 
-- renomear `build_product_map()['diametro_cm']` — o nome afirma centímetro e o valor é
-  código; é mudança de contrato com os consumidores do mapa;
-- usar o campo do offset 29 do OQ3D como verificação no `parse()` (duas linhas, troca
-  erro silencioso por aviso);
-- acrescentar `saida`, `output`, `out`, `dist`, `build` a `_GENERIC_DIRS`;
-- a simbologia 2D (`CONTEUDO_SIMBOLOGIA`) e o `WIREFRAME` seguem **não decifrados** — um
-  `.aq` gerado não tem representação em planta.
+- `read_aq.build_product_map()` — `diametro_cm` → `diametro_codigo`, e as quatro chaves
+  numéricas passam por `_sem_sentinela()`: antes o mapa entregava `-1.8e308` como medida;
+- `oq3d.parse()` — `n_raizes_declarado()` lê o campo do offset 29 e o parse avisa com
+  `OQ3DAvisoParse` na divergência;
+- `build._GENERIC_DIRS` — `saida`, `output`, `out`, `dist`, `build`.
+
+**O que segue em aberto:** a simbologia 2D (`CONTEUDO_SIMBOLOGIA`) e o `WIREFRAME`
+**não foram decifrados** — um `.aq` gerado não tem representação em planta —, e a causa
+das 54 divergências de contagem de raízes do OQ3D é conhecida por sintoma, não por
+mecanismo.
 
 ### 2026-08-31 — S6.1: validador de cache dos assets do storage
 

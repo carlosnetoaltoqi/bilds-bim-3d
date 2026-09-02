@@ -169,6 +169,14 @@ estanques, a bounding box era plausível e o round-trip binário fechava. A liç
 um extra.** Um mosaico de uma peça por forma custa um minuto e pega a classe de
 erro que nenhum invariante numérico alcança.
 
+E a primeira tentativa de automatizar essa conferência deu a resposta oposta à
+verdade: ler o canvas de volta com `readPixels` reportou **0 de 263 canvas
+pintados** numa página em que as 262 peças estavam visíveis. O `WebGLRenderer`
+do viewer não usa `preserveDrawingBuffer`, então o buffer é descartado depois de
+compor o frame. Se eu tivesse parado ali, teria concluído que nada renderizava.
+Foram as imagens que decidiram. Isso e a amarração do `/vendor/` à raiz do
+servidor entraram na skill `pagina-biblioteca` 1.5.0.
+
 ---
 
 ## 6. Onde a ressalva fica gravada
@@ -198,7 +206,7 @@ grupo, um nível abaixo, que é onde não atrapalha a inferência.
 |---|---|---|---|
 | `PVC Construção Civil (sem geometria)/` | nenhuma | 848 KB | o catálogo **fiel**: só o que o PDF diz. Orçamento, especificação, classificação IFC |
 | `PVC Construção Civil/` | 12 tubos | 944 KB | demonstra o caminho da geometria com a única forma que o catálogo + norma determinam |
-| `PVC Construção Civil (forma representativa)/` | 262 peças | 7,2 MB | visualização e interferência grosseira, com a ressalva gravada |
+| `PVC Construção Civil (forma representativa)/` | 262 peças | 6,8 MB | visualização e interferência grosseira, com a ressalva gravada |
 
 Os três passam nas 20 checagens do `validar_aq.py` e atravessam o `build.py`.
 O terceiro publica **262 produtos, 262 geometrias, 0 peças sem forma 3D**, com

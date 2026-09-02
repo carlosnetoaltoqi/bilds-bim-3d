@@ -916,7 +916,7 @@ def build_product_map(aq_data):
     Retorna:
       { nome_gp → {
           'serie': str,
-          'pecas': [{ id, nome, conexoes, diametro_cm, comprimento_cm,
+          'pecas': [{ id, nome, conexoes, diametro_codigo, comprimento_cm,
                       altura_cm, largura_cm, specs, curva_pts }]
       }}
     """
@@ -951,7 +951,8 @@ def build_product_map(aq_data):
             'id':             pid,
             'nome':           p['NOME_PECA'],
             'conexoes':       p.get('DESCRICAO_DADOS', ''),
-            'diametro_cm':    p.get('DIAMETRO_PECA'),
+            # CÓDIGO de diâmetro, não centímetro — e -DBL_MAX é sentinela
+            'diametro_codigo': _sem_sentinela(p.get('DIAMETRO_PECA')),
             'comprimento_cm': p.get('COMPRIMENTO_PECA'),
             'altura_cm':      p.get('ALTURA_PECA'),
             'largura_cm':     p.get('LARGURA_PECA'),
@@ -1043,6 +1044,7 @@ const DATA_BASE = '/' + CATALOG.slug + '/data/';
 | `.aq` gerado sem geometria publica com o fabricante errado | Sem `CLASSE_SIMBOLOGIA_3D` o passo 1 da cascata não existe | Preencher `PECA.BIBLIOTECA` |
 | Sólido gerado mostra o interior por uma emenda | Perfil de revolução fechado sem soldar o último anel no primeiro | Descartar o anel repetido e costurar a última faixa no anel 0 |
 | Peça gerada com partes soltas ou flutuando | Malhas corretas em posição relativa errada | Não aparece em bbox nem em round-trip — abrir o viewer e olhar |
+| Sobrou um `.aq` de 0 byte onde não havia arquivo | `sqlite3.connect()` **cria** o arquivo num caminho inexistente cujo diretório existe | Checar `os.path.exists()` antes de tentar abrir |
 
 ---
 

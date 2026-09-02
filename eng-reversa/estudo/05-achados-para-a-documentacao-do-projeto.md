@@ -3,11 +3,11 @@
 Cinco coisas que este estudo descobriu e que contradizem ou completam o
 `CLAUDE.md` e a skill `docs/skills/leitor-biblioteca-aq/SKILL.md`.
 
-**Aplicados na documentação em 2026-09-02.** Os achados 1, 2 e 3 estão agora no
-`CLAUDE.md` e na skill `leitor-biblioteca-aq` (2.3.0), como manda a regra do
-`CLAUDE.md`: "ao descobrir qualquer coisa nova sobre ler `.aq`, registre nos dois
-lugares". O 4 entrou como recomendação nos dois. O 5 é defeito de código e segue
-**pendente** — a correção está descrita abaixo.
+**Todos aplicados em 2026-09-02.** Os achados 1, 2 e 3 entraram no `CLAUDE.md` e na
+skill `leitor-biblioteca-aq` (2.3.0), como manda a regra do `CLAUDE.md`: "ao descobrir
+qualquer coisa nova sobre ler `.aq`, registre nos dois lugares". O 4 entrou como
+recomendação nos dois. Os achados 1, 3 e 5 tinham correção de código, e as três foram
+feitas — em `read_aq.py`, `oq3d.py` e `build.py`.
 
 Este documento continua sendo o registro de onde cada coisa foi descoberta e por quê.
 
@@ -43,14 +43,16 @@ de 1.1/4" a 3", o que encaixa em 32, 40, 50, 60 e 75 mm — e confirma o código
 112 trazem código — 48 de tubo, 52 de caixa sifonada e afins, 12 de ralo. **Nenhuma das
 700 conexões traz código:** o diâmetro de uma conexão mora em `ENTRADA_PECA`.
 
-**Por que importa para quem lê:** o `build_product_map` do `read_aq.py` expõe o
-campo como `'diametro_cm'`. Qualquer consumidor que trate esse número como
-centímetro erra por um fator de ~2 nas peças de tubo e recebe `-1.8e308` nas
-outras.
+**Por que importava para quem lê:** o `build_product_map` expunha o campo como
+`'diametro_cm'`. Qualquer consumidor que tratasse esse número como centímetro erraria por
+um fator de ~2 nas peças de tubo e receberia `-1.8e308` nas outras.
 
-**Onde corrigir:** a tabela da `PECA` na skill (bump para 2.3.0 e nota no
-histórico), a seção "Conhecimento crítico: read_aq.py" do `CLAUDE.md`, e o nome
-da chave `diametro_cm` no `build_product_map`.
+**Aplicado em 2026-09-02:** a chave virou `diametro_codigo`, e as quatro chaves numéricas
+do mapa passam por `_sem_sentinela()` — nenhum consumidor lia a antiga, então a renomeação
+não quebrou contrato. Ao mexer nisso apareceu que `comprimento_cm`, `altura_cm` e
+`largura_cm` vazavam a sentinela do mesmo jeito; conferido de passagem que essas três
+**são** centímetro de verdade (tubo 597,4 cm, bomba Dancor 39 cm). A tabela da `PECA` na
+skill e a seção do `CLAUDE.md` também foram corrigidas.
 
 > `PECA.DIAMETRO_INTERNO`, ao contrário, é milímetro de verdade: 192,8 / 144,8 /
 > 98,0 / 47,5.
@@ -183,18 +185,18 @@ lista acima é o que define não-descritiva. `saida`, `output`, `out`, `dist` e
 `'Saida'` de fato é diferente de `'Akato'`. O valor é lixo e nenhuma validação
 acusa.
 
-**Correção:** acrescentar `'saida'`, `'output'`, `'out'`, `'dist'` e `'build'`
-ao conjunto. Uma linha.
+**Aplicado em 2026-09-02:** `'saida'`, `'output'`, `'out'`, `'dist'` e `'build'`
+entraram no conjunto.
 
-**Contorno usado aqui:** o `.aq` gerado mora em
-`saida/Akato/PVC Construção Civil/`, e o título sai `'PVC Construção Civil'`.
+Independente disso, o `.aq` gerado mora em `saida/Akato/PVC Construção Civil/`, e o
+título sai `'PVC Construção Civil'` — vindo da pasta descritiva, não do fallback.
 
 ---
 
 ## Nota sobre modificações no repositório
 
-Durante esta sessão, três arquivos do projeto apareceram modificados **sem que
-este estudo os tocasse**:
+Durante a investigação, três arquivos do projeto apareceram modificados **sem que este
+estudo os tocasse**:
 
 ```
  M scripts/build.py
@@ -202,11 +204,16 @@ este estudo os tocasse**:
  M templates/layouts/series-rows.html
 ```
 
-O diff é coerente e deliberado: um parâmetro `thumbs_dir` no `build_preview` e
-o uso do WebP pré-gerado nos dois layouts, em vez do render dinâmico via
-Three.js. Os três foram alterados às 12:15 e o `output/preview/` foi
-regenerado às 12:17, num padrão de edição-e-teste.
+Era trabalho paralelo do próprio autor do repo — um parâmetro `thumbs_dir` no
+`build_preview` e o uso do WebP pré-gerado nos dois layouts, em vez do render dinâmico
+via Three.js. Ficaram intocados aqui e entraram no commit `911ea60`
+(`feat(preview): preview usa WebPs pré-gerados, igual ao bilds.com`).
 
-Todas as escritas deste estudo foram em `eng-reversa/`. Os três arquivos foram
-deixados como estão — descartar trabalho não commitado de outra pessoa seria
-destrutivo.
+Vale registrar como método: quando aparece mudança não commitada que não é sua, o certo é
+identificar de onde vem e deixar quieto — descartar trabalho de outra pessoa é
+destrutivo e irreversível.
+
+Depois disso, com autorização explícita, este estudo passou a alterar o projeto: as
+correções dos achados 1, 3 e 5 em `scripts/read_aq.py`, `scripts/oq3d.py` e
+`scripts/build.py`, e a documentação em `CLAUDE.md`, `CONCEPTS.md`, `README.md` e nas
+skills `leitor-biblioteca-aq` (2.3.0) e `pagina-biblioteca` (1.5.0).
