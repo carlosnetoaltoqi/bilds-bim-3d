@@ -1,0 +1,10 @@
+# Build output — regerável com pipeline_ponta_a_ponta.py
+saida/catalogo/
+saida/preview/
+
+# Vendor Three.js
+saida/*/vendor/
+
+__pycache__/
+*.pyc
+*.pyo

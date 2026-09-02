@@ -1,0 +1,2385 @@
+{
+ "origem": "input/AKATO-CATALOGO-CONSTRUCAO-CIVIL.pdf",
+ "conversao_polegada_mm": [
+  {
+   "polegada": "1/2\"",
+   "pvc_soldavel_mm": 20,
+   "pvc_esgoto_mm": null
+  },
+  {
+   "polegada": "3/4\"",
+   "pvc_soldavel_mm": 25,
+   "pvc_esgoto_mm": null
+  },
+  {
+   "polegada": "1\"",
+   "pvc_soldavel_mm": 32,
+   "pvc_esgoto_mm": null
+  },
+  {
+   "polegada": "1.1/4\"",
+   "pvc_soldavel_mm": 40,
+   "pvc_esgoto_mm": null
+  },
+  {
+   "polegada": "1.1/2\"",
+   "pvc_soldavel_mm": 50,
+   "pvc_esgoto_mm": 40
+  },
+  {
+   "polegada": "2\"",
+   "pvc_soldavel_mm": 60,
+   "pvc_esgoto_mm": 50
+  },
+  {
+   "polegada": "2.1/2\"",
+   "pvc_soldavel_mm": 75,
+   "pvc_esgoto_mm": null
+  },
+  {
+   "polegada": "3\"",
+   "pvc_soldavel_mm": 85,
+   "pvc_esgoto_mm": 75
+  },
+  {
+   "polegada": "4\"",
+   "pvc_soldavel_mm": 110,
+   "pvc_esgoto_mm": 100
+  },
+  {
+   "polegada": "5\"",
+   "pvc_soldavel_mm": 140,
+   "pvc_esgoto_mm": null
+  },
+  {
+   "polegada": "6\"",
+   "pvc_soldavel_mm": 160,
+   "pvc_esgoto_mm": 150
+  },
+  {
+   "polegada": "8\"",
+   "pvc_soldavel_mm": 200,
+   "pvc_esgoto_mm": 200
+  }
+ ],
+ "familias": [
+  {
+   "pagina": 5,
+   "regiao": "esq",
+   "titulo": "TUBO DE PVC SOLDÁVEL 6M",
+   "linhas": [
+    {
+     "codigo": "11001",
+     "descricao": "20mm",
+     "embalagem": 12,
+     "master": null
+    },
+    {
+     "codigo": "11002",
+     "descricao": "25mm",
+     "embalagem": 8,
+     "master": null
+    },
+    {
+     "codigo": "11003",
+     "descricao": "32mm",
+     "embalagem": 5,
+     "master": null
+    },
+    {
+     "codigo": "11004",
+     "descricao": "40mm",
+     "embalagem": 5,
+     "master": null
+    },
+    {
+     "codigo": "11005",
+     "descricao": "50mm",
+     "embalagem": 5,
+     "master": null
+    },
+    {
+     "codigo": "11006",
+     "descricao": "60mm",
+     "embalagem": 3,
+     "master": null
+    }
+   ],
+   "secao": "ÁGUA FRIA"
+  },
+  {
+   "pagina": 5,
+   "regiao": "dir",
+   "titulo": "ADAPTADOR SOLDÁVEL CURTO",
+   "linhas": [
+    {
+     "codigo": "21011",
+     "descricao": "20mm x 1/2\"",
+     "embalagem": 50,
+     "master": 2000
+    },
+    {
+     "codigo": "21012",
+     "descricao": "25mm x 3/4\"",
+     "embalagem": 50,
+     "master": 1100
+    },
+    {
+     "codigo": "21013",
+     "descricao": "32mm x 1\"",
+     "embalagem": 25,
+     "master": 600
+    },
+    {
+     "codigo": "21014",
+     "descricao": "40mm x 1.1/4\"",
+     "embalagem": 10,
+     "master": 400
+    },
+    {
+     "codigo": "21015",
+     "descricao": "50mm x 1.1/2\"",
+     "embalagem": 10,
+     "master": 300
+    }
+   ],
+   "secao": "ÁGUA FRIA"
+  },
+  {
+   "pagina": 6,
+   "regiao": "esq",
+   "titulo": "BUCHA DE REDUÇÃO CURTA SOLDÁVEL",
+   "linhas": [
+    {
+     "codigo": "21021",
+     "descricao": "25 x 20mm",
+     "embalagem": 50,
+     "master": 2000
+    },
+    {
+     "codigo": "21022",
+     "descricao": "32 x 25mm",
+     "embalagem": 25,
+     "master": 1800
+    },
+    {
+     "codigo": "21023",
+     "descricao": "40 x 32mm",
+     "embalagem": 25,
+     "master": 1000
+    },
+    {
+     "codigo": "21024",
+     "descricao": "50 x 40mm",
+     "embalagem": 25,
+     "master": 600
+    }
+   ],
+   "secao": "ÁGUA FRIA"
+  },
+  {
+   "pagina": 6,
+   "regiao": "esq",
+   "titulo": "CAP SOLDÁVEL",
+   "linhas": [
+    {
+     "codigo": "21051",
+     "descricao": "20mm",
+     "embalagem": 50,
+     "master": 1800
+    },
+    {
+     "codigo": "21052",
+     "descricao": "25mm",
+     "embalagem": 50,
+     "master": 1000
+    },
+    {
+     "codigo": "21053",
+     "descricao": "32mm",
+     "embalagem": 25,
+     "master": 1000
+    },
+    {
+     "codigo": "21054",
+     "descricao": "40mm",
+     "embalagem": 10,
+     "master": 700
+    },
+    {
+     "codigo": "21055",
+     "descricao": "50mm",
+     "embalagem": 10,
+     "master": 400
+    }
+   ],
+   "secao": "ÁGUA FRIA"
+  },
+  {
+   "pagina": 6,
+   "regiao": "esq",
+   "titulo": "CURVA 45° LONGA SOLDÁVEL",
+   "linhas": [
+    {
+     "codigo": "21061",
+     "descricao": "20mm",
+     "embalagem": 20,
+     "master": 800
+    },
+    {
+     "codigo": "21062",
+     "descricao": "25mm",
+     "embalagem": 20,
+     "master": 480
+    },
+    {
+     "codigo": "21063",
+     "descricao": "32mm",
+     "embalagem": 10,
+     "master": 250
+    },
+    {
+     "codigo": "21064",
+     "descricao": "40mm",
+     "embalagem": 10,
+     "master": 130
+    },
+    {
+     "codigo": "21065",
+     "descricao": "50mm",
+     "embalagem": 10,
+     "master": 60
+    }
+   ],
+   "secao": "ÁGUA FRIA"
+  },
+  {
+   "pagina": 6,
+   "regiao": "dir",
+   "titulo": "BUCHA DE REDUÇÃO LONGA SOLDÁVEL",
+   "linhas": [
+    {
+     "codigo": "21034",
+     "descricao": "50 x 25mm",
+     "embalagem": 10,
+     "master": 400
+    }
+   ],
+   "secao": "ÁGUA FRIA"
+  },
+  {
+   "pagina": 6,
+   "regiao": "dir",
+   "titulo": "ADAPTADOR PARA CAIXA D´ÁGUA SOLDÁVEL",
+   "linhas": [
+    {
+     "codigo": "21001",
+     "descricao": "20mm x 1/2\"",
+     "embalagem": 10,
+     "master": 350
+    },
+    {
+     "codigo": "21002",
+     "descricao": "25mm x 3/4\"",
+     "embalagem": 10,
+     "master": 300
+    },
+    {
+     "codigo": "21003",
+     "descricao": "32mm x 1\"",
+     "embalagem": 5,
+     "master": 200
+    },
+    {
+     "codigo": "21004",
+     "descricao": "40mm x 1.1/4\"",
+     "embalagem": 5,
+     "master": 150
+    },
+    {
+     "codigo": "21005",
+     "descricao": "50mm x 1.1/2\"",
+     "embalagem": 5,
+     "master": 120
+    },
+    {
+     "codigo": "21006",
+     "descricao": "60mm x 2\"",
+     "embalagem": 2,
+     "master": 100
+    }
+   ],
+   "secao": "ÁGUA FRIA"
+  },
+  {
+   "pagina": 6,
+   "regiao": "dir",
+   "titulo": "CURVA 90° CURTA SOLDÁVEL",
+   "linhas": [
+    {
+     "codigo": "21072",
+     "descricao": "25mm",
+     "embalagem": 20,
+     "master": 500
+    },
+    {
+     "codigo": "21075",
+     "descricao": "50mm",
+     "embalagem": 10,
+     "master": 60
+    }
+   ],
+   "secao": "ÁGUA FRIA"
+  },
+  {
+   "pagina": 7,
+   "regiao": "esq",
+   "titulo": "CURVA DE TRANSPOSIÇÃO SOLDÁVEL",
+   "linhas": [
+    {
+     "codigo": "21091",
+     "descricao": "20mm",
+     "embalagem": 10,
+     "master": 400
+    },
+    {
+     "codigo": "21092",
+     "descricao": "25mm",
+     "embalagem": 10,
+     "master": 250
+    },
+    {
+     "codigo": "21093",
+     "descricao": "32mm",
+     "embalagem": 5,
+     "master": 150
+    }
+   ],
+   "secao": "ÁGUA FRIA"
+  },
+  {
+   "pagina": 7,
+   "regiao": "esq",
+   "titulo": "JOELHO 90° SOLDÁVEL",
+   "linhas": [
+    {
+     "codigo": "21101",
+     "descricao": "20mm",
+     "embalagem": 50,
+     "master": 1300
+    },
+    {
+     "codigo": "21102",
+     "descricao": "25mm",
+     "embalagem": 50,
+     "master": 800
+    },
+    {
+     "codigo": "21103",
+     "descricao": "32mm",
+     "embalagem": 25,
+     "master": 450
+    },
+    {
+     "codigo": "21104",
+     "descricao": "40mm",
+     "embalagem": 10,
+     "master": 250
+    },
+    {
+     "codigo": "21105",
+     "descricao": "50mm",
+     "embalagem": 10,
+     "master": 120
+    },
+    {
+     "codigo": "21106",
+     "descricao": "60mm",
+     "embalagem": 5,
+     "master": 70
+    }
+   ],
+   "secao": "ÁGUA FRIA"
+  },
+  {
+   "pagina": 7,
+   "regiao": "esq",
+   "titulo": "LUVA DE REDUÇÃO SOLDÁVEL",
+   "linhas": [
+    {
+     "codigo": "21131",
+     "descricao": "25 x 20mm",
+     "embalagem": 50,
+     "master": 1200
+    },
+    {
+     "codigo": "21132",
+     "descricao": "32 x 25mm",
+     "embalagem": 10,
+     "master": 600
+    }
+   ],
+   "secao": "ÁGUA FRIA"
+  },
+  {
+   "pagina": 7,
+   "regiao": "dir",
+   "titulo": "JOELHO 45° SOLDÁVEL",
+   "linhas": [
+    {
+     "codigo": "21081",
+     "descricao": "20mm",
+     "embalagem": 50,
+     "master": 1500
+    },
+    {
+     "codigo": "21082",
+     "descricao": "25mm",
+     "embalagem": 50,
+     "master": 1000
+    },
+    {
+     "codigo": "21083",
+     "descricao": "32mm",
+     "embalagem": 25,
+     "master": 500
+    },
+    {
+     "codigo": "21084",
+     "descricao": "40mm",
+     "embalagem": 10,
+     "master": 250
+    },
+    {
+     "codigo": "21085",
+     "descricao": "50mm",
+     "embalagem": 10,
+     "master": 180
+    }
+   ],
+   "secao": "ÁGUA FRIA"
+  },
+  {
+   "pagina": 7,
+   "regiao": "dir",
+   "titulo": "LUVA SOLDÁVEL",
+   "linhas": [
+    {
+     "codigo": "21141",
+     "descricao": "20mm",
+     "embalagem": 50,
+     "master": 1500
+    },
+    {
+     "codigo": "21142",
+     "descricao": "25mm",
+     "embalagem": 50,
+     "master": 1100
+    },
+    {
+     "codigo": "21143",
+     "descricao": "32mm",
+     "embalagem": 25,
+     "master": 500
+    },
+    {
+     "codigo": "21144",
+     "descricao": "40mm",
+     "embalagem": 10,
+     "master": 300
+    },
+    {
+     "codigo": "21145",
+     "descricao": "50mm",
+     "embalagem": 10,
+     "master": 180
+    }
+   ],
+   "secao": "ÁGUA FRIA"
+  },
+  {
+   "pagina": 7,
+   "regiao": "dir",
+   "titulo": "JOELHO 90° SOLDÁVEL E COM ROSCA (LR)",
+   "linhas": [
+    {
+     "codigo": "21111",
+     "descricao": "20mm x 1/2\"",
+     "embalagem": 25,
+     "master": 1200
+    },
+    {
+     "codigo": "21112",
+     "descricao": "25mm x 1/2\"",
+     "embalagem": 25,
+     "master": 950
+    },
+    {
+     "codigo": "21113",
+     "descricao": "25mm x 3/4\"",
+     "embalagem": 25,
+     "master": 750
+    }
+   ],
+   "secao": "ÁGUA FRIA"
+  },
+  {
+   "pagina": 8,
+   "regiao": "esq",
+   "titulo": "TÊ DE REDUÇÃO SOLDÁVEL",
+   "linhas": [
+    {
+     "codigo": "21165",
+     "descricao": "50 x 25mm",
+     "embalagem": 10,
+     "master": 120
+    },
+    {
+     "codigo": "21166",
+     "descricao": "50 x 32mm",
+     "embalagem": 5,
+     "master": 120
+    }
+   ],
+   "secao": "ÁGUA FRIA"
+  },
+  {
+   "pagina": 8,
+   "regiao": "esq",
+   "titulo": "LUVA SOLDÁVEL E COM ROSCA (LR)",
+   "linhas": [
+    {
+     "codigo": "21151",
+     "descricao": "20mm x 1/2\"",
+     "embalagem": 25,
+     "master": 1200
+    },
+    {
+     "codigo": "21152",
+     "descricao": "25mm x 1/2\"",
+     "embalagem": 25,
+     "master": 1000
+    },
+    {
+     "codigo": "21153",
+     "descricao": "25mm x 3/4\"",
+     "embalagem": 25,
+     "master": 1000
+    }
+   ],
+   "secao": "ÁGUA FRIA"
+  },
+  {
+   "pagina": 8,
+   "regiao": "esq",
+   "titulo": "TÊ SOLDÁVEL",
+   "linhas": [
+    {
+     "codigo": "21171",
+     "descricao": "20mm",
+     "embalagem": 50,
+     "master": 900
+    },
+    {
+     "codigo": "21172",
+     "descricao": "25mm",
+     "embalagem": 50,
+     "master": 500
+    },
+    {
+     "codigo": "21173",
+     "descricao": "32mm",
+     "embalagem": 25,
+     "master": 250
+    },
+    {
+     "codigo": "21174",
+     "descricao": "40mm",
+     "embalagem": 10,
+     "master": 150
+    },
+    {
+     "codigo": "21175",
+     "descricao": "50mm",
+     "embalagem": 10,
+     "master": 80
+    }
+   ],
+   "secao": "ÁGUA FRIA"
+  },
+  {
+   "pagina": 8,
+   "regiao": "dir",
+   "titulo": "LUVA DE CORRER SOLDÁVEL",
+   "linhas": [
+    {
+     "codigo": "21121",
+     "descricao": "20mm",
+     "embalagem": 10,
+     "master": 1000
+    },
+    {
+     "codigo": "21122",
+     "descricao": "25mm",
+     "embalagem": 10,
+     "master": 700
+    },
+    {
+     "codigo": "21123",
+     "descricao": "32mm",
+     "embalagem": 5,
+     "master": 500
+    },
+    {
+     "codigo": "21124",
+     "descricao": "40mm",
+     "embalagem": 5,
+     "master": 200
+    },
+    {
+     "codigo": "21125",
+     "descricao": "50mm",
+     "embalagem": 5,
+     "master": 150
+    }
+   ],
+   "secao": "ÁGUA FRIA"
+  },
+  {
+   "pagina": 8,
+   "regiao": "dir",
+   "titulo": "UNIÃO SOLDÁVEL",
+   "linhas": [
+    {
+     "codigo": "21220",
+     "descricao": "20mm",
+     "embalagem": 10,
+     "master": 700
+    },
+    {
+     "codigo": "21221",
+     "descricao": "25mm",
+     "embalagem": 10,
+     "master": 400
+    },
+    {
+     "codigo": "21222",
+     "descricao": "32mm",
+     "embalagem": 5,
+     "master": 240
+    },
+    {
+     "codigo": "21223",
+     "descricao": "40mm",
+     "embalagem": 2,
+     "master": 120
+    },
+    {
+     "codigo": "21224",
+     "descricao": "50mm",
+     "embalagem": 5,
+     "master": 80
+    },
+    {
+     "codigo": "21225",
+     "descricao": "60mm",
+     "embalagem": 1,
+     "master": 50
+    }
+   ],
+   "secao": "ÁGUA FRIA"
+  },
+  {
+   "pagina": 8,
+   "regiao": "dir",
+   "titulo": "TÊ SOLDÁVEL E COM ROSCA (LR)",
+   "linhas": [
+    {
+     "codigo": "21181",
+     "descricao": "20mm x 1/2\"",
+     "embalagem": 25,
+     "master": 400
+    },
+    {
+     "codigo": "21182",
+     "descricao": "25mm x 1/2\"",
+     "embalagem": 25,
+     "master": 500
+    },
+    {
+     "codigo": "21183",
+     "descricao": "25mm x 3/4\"",
+     "embalagem": 25,
+     "master": 500
+    }
+   ],
+   "secao": "ÁGUA FRIA"
+  },
+  {
+   "pagina": 9,
+   "regiao": "esq",
+   "titulo": "JOELHO 90° SOLDÁVEL COM BUCHA DE LATÃO (SBL)",
+   "linhas": [
+    {
+     "codigo": "21117",
+     "descricao": "20mm x 1/2\"",
+     "embalagem": 20,
+     "master": 700
+    },
+    {
+     "codigo": "21118",
+     "descricao": "25mm x 1/2\"",
+     "embalagem": 20,
+     "master": 500
+    },
+    {
+     "codigo": "21119",
+     "descricao": "25mm x 3/4\"",
+     "embalagem": 20,
+     "master": 400
+    }
+   ],
+   "secao": "ÁGUA FRIA"
+  },
+  {
+   "pagina": 9,
+   "regiao": "esq",
+   "titulo": "TÊ SOLDÁVEL COM BUCHA DE LATÃO (SBL)",
+   "linhas": [
+    {
+     "codigo": "21187",
+     "descricao": "20mm x 1/2\"",
+     "embalagem": 20,
+     "master": 400
+    },
+    {
+     "codigo": "21188",
+     "descricao": "25mm x 1/2\"",
+     "embalagem": 20,
+     "master": 300
+    },
+    {
+     "codigo": "21189",
+     "descricao": "25mm x 3/4\"",
+     "embalagem": 20,
+     "master": 200
+    }
+   ],
+   "secao": "ÁGUA FRIA"
+  },
+  {
+   "pagina": 9,
+   "regiao": "dir",
+   "titulo": "LUVA SOLDÁVEL COM BUCHA DE LATÃO (SBL)",
+   "linhas": [
+    {
+     "codigo": "21157",
+     "descricao": "20mm x 1/2\"",
+     "embalagem": 20,
+     "master": 800
+    },
+    {
+     "codigo": "21158",
+     "descricao": "25mm x 1/2\"",
+     "embalagem": 20,
+     "master": 500
+    },
+    {
+     "codigo": "21159",
+     "descricao": "25mm x 3/4\"",
+     "embalagem": 20,
+     "master": 400
+    }
+   ],
+   "secao": "ÁGUA FRIA"
+  },
+  {
+   "pagina": 9,
+   "regiao": "dir",
+   "titulo": "REGISTRO DE ESFERA SOLDÁVEL",
+   "linhas": [
+    {
+     "codigo": "21951",
+     "descricao": "20mm",
+     "embalagem": 5,
+     "master": 500
+    },
+    {
+     "codigo": "21952",
+     "descricao": "25mm",
+     "embalagem": 5,
+     "master": 400
+    },
+    {
+     "codigo": "21953",
+     "descricao": "32mm",
+     "embalagem": 5,
+     "master": 200
+    },
+    {
+     "codigo": "21954",
+     "descricao": "40mm",
+     "embalagem": 2,
+     "master": 120
+    },
+    {
+     "codigo": "21955",
+     "descricao": "50mm",
+     "embalagem": 2,
+     "master": 76
+    },
+    {
+     "codigo": "21956",
+     "descricao": "60mm",
+     "embalagem": 1,
+     "master": 40
+    },
+    {
+     "codigo": "21957",
+     "descricao": "75mm",
+     "embalagem": 1,
+     "master": 20
+    }
+   ],
+   "secao": "ÁGUA FRIA"
+  },
+  {
+   "pagina": 10,
+   "regiao": "esq",
+   "titulo": "REGISTRO DE ESFERA ROSCA EXTERNA",
+   "linhas": [
+    {
+     "codigo": "21970",
+     "descricao": "3/4\"",
+     "embalagem": 5,
+     "master": 400
+    }
+   ],
+   "secao": "ÁGUA FRIA"
+  },
+  {
+   "pagina": 10,
+   "regiao": "esq",
+   "titulo": "BUCHA DE REDUÇÃO ROSCÁVEL",
+   "linhas": [
+    {
+     "codigo": "21210",
+     "descricao": "3/4\" x 1/2\"",
+     "embalagem": 50,
+     "master": 2000
+    },
+    {
+     "codigo": "21212",
+     "descricao": "1\" x 3/4\"",
+     "embalagem": 20,
+     "master": 1000
+    }
+   ],
+   "secao": "ÁGUA FRIA"
+  },
+  {
+   "pagina": 10,
+   "regiao": "esq",
+   "titulo": "NÍPEL ROSCÁVEL",
+   "linhas": [
+    {
+     "codigo": "21281",
+     "descricao": "1/2\"",
+     "embalagem": 50,
+     "master": 1200
+    },
+    {
+     "codigo": "21282",
+     "descricao": "3/4\"",
+     "embalagem": 50,
+     "master": 1200
+    },
+    {
+     "codigo": "21283",
+     "descricao": "1\"",
+     "embalagem": 10,
+     "master": 450
+    }
+   ],
+   "secao": "ÁGUA FRIA"
+  },
+  {
+   "pagina": 10,
+   "regiao": "dir",
+   "titulo": "REGISTRO DE ESFERA ROSCA INTERNA",
+   "linhas": [
+    {
+     "codigo": "21961",
+     "descricao": "1/2\"",
+     "embalagem": 5,
+     "master": 500
+    },
+    {
+     "codigo": "21962",
+     "descricao": "3/4\"",
+     "embalagem": 5,
+     "master": 400
+    },
+    {
+     "codigo": "21963",
+     "descricao": "1\"",
+     "embalagem": 5,
+     "master": 200
+    },
+    {
+     "codigo": "21965",
+     "descricao": "1.1/2\"",
+     "embalagem": 2,
+     "master": 76
+    }
+   ],
+   "secao": "ÁGUA FRIA"
+  },
+  {
+   "pagina": 10,
+   "regiao": "dir",
+   "titulo": "JOELHO 90° ROSCÁVEL",
+   "linhas": [
+    {
+     "codigo": "21310",
+     "descricao": "1/2\"",
+     "embalagem": 25,
+     "master": 1000
+    },
+    {
+     "codigo": "21311",
+     "descricao": "3/4\"",
+     "embalagem": 25,
+     "master": 500
+    },
+    {
+     "codigo": "21312",
+     "descricao": "1\"",
+     "embalagem": 25,
+     "master": 300
+    }
+   ],
+   "secao": "ÁGUA FRIA"
+  },
+  {
+   "pagina": 10,
+   "regiao": "dir",
+   "titulo": "LUVA ROSCÁVEL",
+   "linhas": [
+    {
+     "codigo": "21230",
+     "descricao": "1/2\"",
+     "embalagem": 25,
+     "master": 1000
+    },
+    {
+     "codigo": "21231",
+     "descricao": "3/4\"",
+     "embalagem": 25,
+     "master": 700
+    },
+    {
+     "codigo": "21232",
+     "descricao": "1\"",
+     "embalagem": 10,
+     "master": 350
+    }
+   ],
+   "secao": "ÁGUA FRIA"
+  },
+  {
+   "pagina": 11,
+   "regiao": "esq",
+   "titulo": "LUVA DE REDUÇÃO ROSCÁVEL",
+   "linhas": [
+    {
+     "codigo": "21240",
+     "descricao": "3/4\" x 1/2\"",
+     "embalagem": 10,
+     "master": 700
+    },
+    {
+     "codigo": "21242",
+     "descricao": "1\" x 3/4\"",
+     "embalagem": 10,
+     "master": 450
+    }
+   ],
+   "secao": "ÁGUA FRIA"
+  },
+  {
+   "pagina": 11,
+   "regiao": "esq",
+   "titulo": "TÊ ROSCÁVEL",
+   "linhas": [
+    {
+     "codigo": "21290",
+     "descricao": "1/2\"",
+     "embalagem": 20,
+     "master": 600
+    },
+    {
+     "codigo": "21291",
+     "descricao": "3/4\"",
+     "embalagem": 20,
+     "master": 380
+    },
+    {
+     "codigo": "21292",
+     "descricao": "1\"",
+     "embalagem": 10,
+     "master": 200
+    }
+   ],
+   "secao": "ÁGUA FRIA"
+  },
+  {
+   "pagina": 11,
+   "regiao": "esq",
+   "titulo": "PLUG ROSCÁVEL",
+   "linhas": [
+    {
+     "codigo": "21286",
+     "descricao": "1/2\"",
+     "embalagem": 50,
+     "master": 2500
+    },
+    {
+     "codigo": "21287",
+     "descricao": "3/4\"",
+     "embalagem": 50,
+     "master": 1500
+    }
+   ],
+   "secao": "ÁGUA FRIA"
+  },
+  {
+   "pagina": 11,
+   "regiao": "dir",
+   "titulo": "TÊ DE REDUÇÃO ROSCÁVEL",
+   "linhas": [
+    {
+     "codigo": "21296",
+     "descricao": "3/4\" x 1/2\"",
+     "embalagem": 10,
+     "master": 350
+    },
+    {
+     "codigo": "21297",
+     "descricao": "1\" x 3/4\"",
+     "embalagem": 10,
+     "master": 200
+    }
+   ],
+   "secao": "ÁGUA FRIA"
+  },
+  {
+   "pagina": 11,
+   "regiao": "dir",
+   "titulo": "UNIÃO ROSCÁVEL",
+   "linhas": [
+    {
+     "codigo": "21320",
+     "descricao": "1/2\"",
+     "embalagem": 10,
+     "master": 700
+    },
+    {
+     "codigo": "21321",
+     "descricao": "3/4\"",
+     "embalagem": 10,
+     "master": 400
+    },
+    {
+     "codigo": "21322",
+     "descricao": "1\"",
+     "embalagem": 5,
+     "master": 240
+    },
+    {
+     "codigo": "21323",
+     "descricao": "1.1/4\"",
+     "embalagem": 2,
+     "master": 120
+    },
+    {
+     "codigo": "21324",
+     "descricao": "1.1/2\"",
+     "embalagem": 5,
+     "master": 80
+    },
+    {
+     "codigo": "21325",
+     "descricao": "2\"",
+     "embalagem": 1,
+     "master": 50
+    }
+   ],
+   "secao": "ÁGUA FRIA"
+  },
+  {
+   "pagina": 12,
+   "regiao": "esq",
+   "titulo": "CURVA 45º LONGA ESGOTO SÉRIE NORMAL",
+   "linhas": [
+    {
+     "codigo": "24320",
+     "descricao": "DN 40",
+     "embalagem": 10,
+     "master": 260
+    },
+    {
+     "codigo": "24321",
+     "descricao": "DN 50",
+     "embalagem": 5,
+     "master": 150
+    },
+    {
+     "codigo": "24322",
+     "descricao": "DN 75",
+     "embalagem": 1,
+     "master": 60
+    },
+    {
+     "codigo": "24323",
+     "descricao": "DN 100",
+     "embalagem": 1,
+     "master": 25
+    }
+   ],
+   "secao": "ESGOTO"
+  },
+  {
+   "pagina": 12,
+   "regiao": "esq",
+   "titulo": "TUBO DE PVC ESGOTO SÉRIE NORMAL 6M",
+   "linhas": [
+    {
+     "codigo": "14001",
+     "descricao": "DN 40",
+     "embalagem": 10,
+     "master": null
+    },
+    {
+     "codigo": "14002",
+     "descricao": "DN 50",
+     "embalagem": 10,
+     "master": null
+    },
+    {
+     "codigo": "14003",
+     "descricao": "DN 75",
+     "embalagem": 5,
+     "master": null
+    },
+    {
+     "codigo": "14004",
+     "descricao": "DN 100",
+     "embalagem": 5,
+     "master": null
+    },
+    {
+     "codigo": "14005",
+     "descricao": "DN 150",
+     "embalagem": 1,
+     "master": null
+    },
+    {
+     "codigo": "14006",
+     "descricao": "DN 200",
+     "embalagem": 1,
+     "master": null
+    }
+   ],
+   "secao": "ESGOTO"
+  },
+  {
+   "pagina": 12,
+   "regiao": "dir",
+   "titulo": "CURVA 90º LONGA ESGOTO SÉRIE NORMAL",
+   "linhas": [
+    {
+     "codigo": "24325",
+     "descricao": "DN 40",
+     "embalagem": 10,
+     "master": 200
+    },
+    {
+     "codigo": "24326",
+     "descricao": "DN 50",
+     "embalagem": 5,
+     "master": 120
+    },
+    {
+     "codigo": "24327",
+     "descricao": "DN 75",
+     "embalagem": 1,
+     "master": 40
+    },
+    {
+     "codigo": "24328",
+     "descricao": "DN 100",
+     "embalagem": 1,
+     "master": 20
+    }
+   ],
+   "secao": "ESGOTO"
+  },
+  {
+   "pagina": 12,
+   "regiao": "dir",
+   "titulo": "CURVA 90º CURTA ESGOTO SÉRIE NORMAL",
+   "linhas": [
+    {
+     "codigo": "24318",
+     "descricao": "DN 100",
+     "embalagem": 10,
+     "master": 10
+    }
+   ],
+   "secao": "ESGOTO"
+  },
+  {
+   "pagina": 13,
+   "regiao": "esq",
+   "titulo": "REDUÇÃO EXCÊNTRICA ESGOTO SÉRIE NORMAL",
+   "linhas": [
+    {
+     "codigo": "24371",
+     "descricao": "DN 75 x 50",
+     "embalagem": 10,
+     "master": 300
+    },
+    {
+     "codigo": "24372",
+     "descricao": "DN 100 x 50",
+     "embalagem": 10,
+     "master": 200
+    },
+    {
+     "codigo": "24373",
+     "descricao": "DN 100 x 75",
+     "embalagem": 10,
+     "master": 200
+    },
+    {
+     "codigo": "24377",
+     "descricao": "DN 150 x 100",
+     "embalagem": 1,
+     "master": 50
+    },
+    {
+     "codigo": "44378",
+     "descricao": "DN 200 x 150",
+     "embalagem": 1,
+     "master": 25
+    }
+   ],
+   "secao": "ESGOTO"
+  },
+  {
+   "pagina": 13,
+   "regiao": "esq",
+   "titulo": "BUCHA DE REDUÇÃO LONGA ESGOTO SÉRIE NORMAL",
+   "linhas": [
+    {
+     "codigo": "24370",
+     "descricao": "DN 50 x 40",
+     "embalagem": 25,
+     "master": 300
+    }
+   ],
+   "secao": "ESGOTO"
+  },
+  {
+   "pagina": 13,
+   "regiao": "esq",
+   "titulo": "VÁLVULA DE RETENÇÃO ESGOTO SÉRIE NORMAL",
+   "linhas": [
+    {
+     "codigo": "24689",
+     "descricao": "DN 100",
+     "embalagem": 2,
+     "master": 156
+    }
+   ],
+   "secao": "ESGOTO"
+  },
+  {
+   "pagina": 13,
+   "regiao": "dir",
+   "titulo": "JOELHO 90º ESGOTO SÉRIE NORMAL",
+   "linhas": [
+    {
+     "codigo": "24335",
+     "descricao": "DN 40",
+     "embalagem": 50,
+     "master": 800
+    },
+    {
+     "codigo": "24336",
+     "descricao": "DN 50",
+     "embalagem": 25,
+     "master": 300
+    },
+    {
+     "codigo": "24337",
+     "descricao": "DN 75",
+     "embalagem": 10,
+     "master": 150
+    },
+    {
+     "codigo": "24338",
+     "descricao": "DN 100",
+     "embalagem": 20,
+     "master": 20
+    },
+    {
+     "codigo": "24339",
+     "descricao": "DN 150",
+     "embalagem": 1,
+     "master": 20
+    },
+    {
+     "codigo": "44340",
+     "descricao": "DN 200",
+     "embalagem": 1,
+     "master": 10
+    }
+   ],
+   "secao": "ESGOTO"
+  },
+  {
+   "pagina": 13,
+   "regiao": "dir",
+   "titulo": "ANEL DE VEDAÇÃO PARA ESGOTO",
+   "linhas": [
+    {
+     "codigo": "24111",
+     "descricao": "DN 40",
+     "embalagem": 50,
+     "master": 5000
+    },
+    {
+     "codigo": "24112",
+     "descricao": "DN 50",
+     "embalagem": 50,
+     "master": 3000
+    },
+    {
+     "codigo": "24113",
+     "descricao": "DN 75",
+     "embalagem": 25,
+     "master": 1500
+    },
+    {
+     "codigo": "24114",
+     "descricao": "DN 100",
+     "embalagem": 25,
+     "master": 1500
+    },
+    {
+     "codigo": "24115",
+     "descricao": "DN 150",
+     "embalagem": 10,
+     "master": 300
+    },
+    {
+     "codigo": "24116",
+     "descricao": "DN 200",
+     "embalagem": 1,
+     "master": 200
+    }
+   ],
+   "secao": "ESGOTO"
+  },
+  {
+   "pagina": 13,
+   "regiao": "dir",
+   "titulo": "CAP PARA ESGOTO SÉRIE NORMAL",
+   "linhas": [
+    {
+     "codigo": "24300",
+     "descricao": "DN 40",
+     "embalagem": 10,
+     "master": 1000
+    },
+    {
+     "codigo": "24301",
+     "descricao": "DN 50",
+     "embalagem": 10,
+     "master": 300
+    },
+    {
+     "codigo": "24302",
+     "descricao": "DN 75",
+     "embalagem": 10,
+     "master": 160
+    },
+    {
+     "codigo": "24303",
+     "descricao": "DN 100",
+     "embalagem": 10,
+     "master": 200
+    },
+    {
+     "codigo": "24304",
+     "descricao": "DN 150",
+     "embalagem": 1,
+     "master": 80
+    },
+    {
+     "codigo": "44305",
+     "descricao": "DN 200",
+     "embalagem": 1,
+     "master": 40
+    }
+   ],
+   "secao": "ESGOTO"
+  },
+  {
+   "pagina": 14,
+   "regiao": "esq",
+   "titulo": "JUNÇÃO ESGOTO SÉRIE NORMAL",
+   "linhas": [
+    {
+     "codigo": "24350",
+     "descricao": "DN 40",
+     "embalagem": 10,
+     "master": 300
+    },
+    {
+     "codigo": "24353",
+     "descricao": "DN 100",
+     "embalagem": 10,
+     "master": 10
+    },
+    {
+     "codigo": "24356",
+     "descricao": "DN 100 x 50",
+     "embalagem": 10,
+     "master": 60
+    }
+   ],
+   "secao": "ESGOTO"
+  },
+  {
+   "pagina": 14,
+   "regiao": "esq",
+   "titulo": "LUVA DE CORRER ESGOTO SÉRIE NORMAL",
+   "linhas": [
+    {
+     "codigo": "24360",
+     "descricao": "DN 40",
+     "embalagem": 10,
+     "master": 300
+    },
+    {
+     "codigo": "24361",
+     "descricao": "DN 50",
+     "embalagem": 10,
+     "master": 170
+    },
+    {
+     "codigo": "24362",
+     "descricao": "DN 75",
+     "embalagem": 10,
+     "master": 80
+    },
+    {
+     "codigo": "24363",
+     "descricao": "DN 100",
+     "embalagem": 10,
+     "master": 80
+    },
+    {
+     "codigo": "24364",
+     "descricao": "DN 150",
+     "embalagem": 1,
+     "master": 40
+    }
+   ],
+   "secao": "ESGOTO"
+  },
+  {
+   "pagina": 14,
+   "regiao": "esq",
+   "titulo": "JOELHO 90º COM VISITA ESGOTO SÉRIE NORMAL",
+   "linhas": [
+    {
+     "codigo": "24342",
+     "descricao": "DN 100 x 50",
+     "embalagem": 10,
+     "master": 10
+    }
+   ],
+   "secao": "ESGOTO"
+  },
+  {
+   "pagina": 14,
+   "regiao": "dir",
+   "titulo": "JOELHO 45º ESGOTO SÉRIE NORMAL",
+   "linhas": [
+    {
+     "codigo": "24330",
+     "descricao": "DN 40",
+     "embalagem": 25,
+     "master": 500
+    },
+    {
+     "codigo": "24331",
+     "descricao": "DN 50",
+     "embalagem": 25,
+     "master": 400
+    },
+    {
+     "codigo": "24332",
+     "descricao": "DN 75",
+     "embalagem": 10,
+     "master": 150
+    },
+    {
+     "codigo": "24333",
+     "descricao": "DN 100",
+     "embalagem": 10,
+     "master": 70
+    },
+    {
+     "codigo": "24334",
+     "descricao": "DN 150",
+     "embalagem": 1,
+     "master": 25
+    },
+    {
+     "codigo": "44335",
+     "descricao": "DN 200",
+     "embalagem": 1,
+     "master": 15
+    }
+   ],
+   "secao": "ESGOTO"
+  },
+  {
+   "pagina": 14,
+   "regiao": "dir",
+   "titulo": "TÊ DE REDUÇÃO ESGOTO SÉRIE NORMAL",
+   "linhas": [
+    {
+     "codigo": "24387",
+     "descricao": "DN 100 x 50",
+     "embalagem": 10,
+     "master": 60
+    },
+    {
+     "codigo": "24389",
+     "descricao": "DN 150 x 100",
+     "embalagem": 1,
+     "master": 20
+    }
+   ],
+   "secao": "ESGOTO"
+  },
+  {
+   "pagina": 14,
+   "regiao": "dir",
+   "titulo": "LUVA ESGOTO SÉRIE NORMAL",
+   "linhas": [
+    {
+     "codigo": "24365",
+     "descricao": "DN 40",
+     "embalagem": 25,
+     "master": 500
+    },
+    {
+     "codigo": "24366",
+     "descricao": "DN 50",
+     "embalagem": 25,
+     "master": 200
+    },
+    {
+     "codigo": "24367",
+     "descricao": "DN 75",
+     "embalagem": 10,
+     "master": 250
+    },
+    {
+     "codigo": "24368",
+     "descricao": "DN 100",
+     "embalagem": 10,
+     "master": 140
+    },
+    {
+     "codigo": "24369",
+     "descricao": "DN 150",
+     "embalagem": 1,
+     "master": 40
+    },
+    {
+     "codigo": "44370",
+     "descricao": "DN 200",
+     "embalagem": 1,
+     "master": 25
+    }
+   ],
+   "secao": "ESGOTO"
+  },
+  {
+   "pagina": 15,
+   "regiao": "esq",
+   "titulo": "TÊ ESGOTO SÉRIE NORMAL",
+   "linhas": [
+    {
+     "codigo": "24380",
+     "descricao": "DN 40",
+     "embalagem": 25,
+     "master": 500
+    },
+    {
+     "codigo": "24381",
+     "descricao": "DN 50",
+     "embalagem": 25,
+     "master": 200
+    },
+    {
+     "codigo": "24382",
+     "descricao": "DN 75",
+     "embalagem": 5,
+     "master": 80
+    },
+    {
+     "codigo": "24383",
+     "descricao": "DN 100",
+     "embalagem": 10,
+     "master": 10
+    },
+    {
+     "codigo": "24384",
+     "descricao": "DN 150",
+     "embalagem": 1,
+     "master": 14
+    },
+    {
+     "codigo": "44385",
+     "descricao": "DN 200",
+     "embalagem": 1,
+     "master": 7
+    }
+   ],
+   "secao": "ESGOTO"
+  },
+  {
+   "pagina": 16,
+   "regiao": "esq",
+   "titulo": "CAIXA SIFONADA QUADRADA BRANCA COM TRÊS ENTRADAS",
+   "linhas": [
+    {
+     "codigo": "24616",
+     "descricao": "DN 100 x 100 x 50",
+     "embalagem": 14,
+     "master": null
+    }
+   ],
+   "secao": "ACESSÓRIOS"
+  },
+  {
+   "pagina": 16,
+   "regiao": "esq",
+   "titulo": "CAIXA SIFONADA QUADRADA BRANCA COM CINCO ENTRADAS",
+   "linhas": [
+    {
+     "codigo": "24630",
+     "descricao": "DN 150 x 150 x 50",
+     "embalagem": 6,
+     "master": null
+    }
+   ],
+   "secao": "ACESSÓRIOS"
+  },
+  {
+   "pagina": 16,
+   "regiao": "esq",
+   "titulo": "RALO SIFONADO REDONDO BRANCO",
+   "linhas": [
+    {
+     "codigo": "24603",
+     "descricao": "DN 40",
+     "embalagem": 20,
+     "master": 240
+    }
+   ],
+   "secao": "ACESSÓRIOS"
+  },
+  {
+   "pagina": 16,
+   "regiao": "dir",
+   "titulo": "CAIXA SIFONADA REDONDA BRANCA COM TRÊS ENTRADAS",
+   "linhas": [
+    {
+     "codigo": "24617",
+     "descricao": "DN 100 x 100 x 50",
+     "embalagem": 14,
+     "master": null
+    }
+   ],
+   "secao": "ACESSÓRIOS"
+  },
+  {
+   "pagina": 16,
+   "regiao": "dir",
+   "titulo": "RALO SIFONADO QUADRADO BRANCO",
+   "linhas": [
+    {
+     "codigo": "24600",
+     "descricao": "DN 40",
+     "embalagem": 20,
+     "master": 200
+    }
+   ],
+   "secao": "ACESSÓRIOS"
+  },
+  {
+   "pagina": 16,
+   "regiao": "dir",
+   "titulo": "GRELHA E PORTA GRELHA QUADRADA BRANCA",
+   "linhas": [
+    {
+     "codigo": "24680",
+     "descricao": "DN 100",
+     "embalagem": 10,
+     "master": 180
+    },
+    {
+     "codigo": "24686",
+     "descricao": "DN 150",
+     "embalagem": 10,
+     "master": 90
+    }
+   ],
+   "secao": "ACESSÓRIOS"
+  },
+  {
+   "pagina": 17,
+   "regiao": "esq",
+   "titulo": "ENGATE FLEXÍVEL",
+   "linhas": [
+    {
+     "codigo": "36185",
+     "descricao": "1/2\" | 30cm",
+     "embalagem": 20,
+     "master": 320
+    },
+    {
+     "codigo": "36186",
+     "descricao": "1/2\" | 40cm",
+     "embalagem": 20,
+     "master": 240
+    },
+    {
+     "codigo": "36187",
+     "descricao": "1/2\" | 50cm",
+     "embalagem": 20,
+     "master": 160
+    },
+    {
+     "codigo": "36188",
+     "descricao": "1/2\" | 60cm",
+     "embalagem": 10,
+     "master": 150
+    }
+   ],
+   "secao": "ACESSÓRIOS"
+  },
+  {
+   "pagina": 17,
+   "regiao": "esq",
+   "titulo": "ESPUDE PARA VASO SANITÁRIO",
+   "linhas": [
+    {
+     "codigo": "36183",
+     "descricao": "DN 40",
+     "embalagem": 20,
+     "master": 500
+    }
+   ],
+   "secao": "ACESSÓRIOS"
+  },
+  {
+   "pagina": 17,
+   "regiao": "esq",
+   "titulo": "VÁLVULA PARA LAVATÓRIO COM LADRÃO",
+   "linhas": [
+    {
+     "codigo": "36253",
+     "descricao": "7/8\" - N° 6",
+     "embalagem": 20,
+     "master": 300
+    }
+   ],
+   "secao": "ACESSÓRIOS"
+  },
+  {
+   "pagina": 17,
+   "regiao": "dir",
+   "titulo": "KIT CHUVEIRO FRIO",
+   "linhas": [
+    {
+     "codigo": "36170",
+     "descricao": "4\" sem registro",
+     "embalagem": 10,
+     "master": 200
+    },
+    {
+     "codigo": "36171",
+     "descricao": "4\" com registro",
+     "embalagem": 10,
+     "master": 180
+    }
+   ],
+   "secao": "ACESSÓRIOS"
+  },
+  {
+   "pagina": 17,
+   "regiao": "dir",
+   "titulo": "VÁLVULA PARA PIA",
+   "linhas": [
+    {
+     "codigo": "36251",
+     "descricao": "7/8\" - N° 2",
+     "embalagem": 20,
+     "master": 400
+    }
+   ],
+   "secao": "ACESSÓRIOS"
+  },
+  {
+   "pagina": 17,
+   "regiao": "dir",
+   "titulo": "VÁLVULA PARA LAVATÓRIO",
+   "linhas": [
+    {
+     "codigo": "36255",
+     "descricao": "7/8\" - N° 8",
+     "embalagem": 20,
+     "master": 800
+    }
+   ],
+   "secao": "ACESSÓRIOS"
+  },
+  {
+   "pagina": 18,
+   "regiao": "esq",
+   "titulo": "VÁLVULA PARA LAVATÓRIO E TANQUE",
+   "linhas": [
+    {
+     "codigo": "36256",
+     "descricao": "1.1/4\" - N° 9",
+     "embalagem": 20,
+     "master": 300
+    }
+   ],
+   "secao": "ACESSÓRIOS"
+  },
+  {
+   "pagina": 18,
+   "regiao": "esq",
+   "titulo": "TAMPA PARA VÁLVULA PIA, LAVATÓRIO E TANQUE",
+   "linhas": [
+    {
+     "codigo": "36261",
+     "descricao": "7/8\" | Pequena",
+     "embalagem": 100,
+     "master": 5000
+    },
+    {
+     "codigo": "36262",
+     "descricao": "1.1/2\" | Grande",
+     "embalagem": 100,
+     "master": 3000
+    }
+   ],
+   "secao": "ACESSÓRIOS"
+  },
+  {
+   "pagina": 18,
+   "regiao": "esq",
+   "titulo": "SIFÃO EXTENSÍVEL SIMPLES PRETO",
+   "linhas": [
+    {
+     "codigo": "36242",
+     "descricao": "62cm",
+     "embalagem": 1,
+     "master": 60
+    },
+    {
+     "codigo": "36243",
+     "descricao": "1,12m",
+     "embalagem": 1,
+     "master": 20
+    }
+   ],
+   "secao": "ACESSÓRIOS"
+  },
+  {
+   "pagina": 18,
+   "regiao": "dir",
+   "titulo": "UNHO COMPLETO PARA VÁLVULAS",
+   "linhas": [
+    {
+     "codigo": "36260",
+     "descricao": "7/8\" - N° 2,6 e 8",
+     "embalagem": 25,
+     "master": 750
+    }
+   ],
+   "secao": "ACESSÓRIOS"
+  },
+  {
+   "pagina": 18,
+   "regiao": "dir",
+   "titulo": "SIFÃO EXTENSÍVEL SIMPLES BRANCO",
+   "linhas": [
+    {
+     "codigo": "36232",
+     "descricao": "62cm",
+     "embalagem": 1,
+     "master": 60
+    },
+    {
+     "codigo": "36233",
+     "descricao": "1,12m",
+     "embalagem": 1,
+     "master": 20
+    }
+   ],
+   "secao": "ACESSÓRIOS"
+  },
+  {
+   "pagina": 18,
+   "regiao": "dir",
+   "titulo": "SIFÃO EXTENSÍVEL DUPLO BRANCO",
+   "linhas": [
+    {
+     "codigo": "36234",
+     "descricao": "80cm",
+     "embalagem": 1,
+     "master": 10
+    }
+   ],
+   "secao": "ACESSÓRIOS"
+  },
+  {
+   "pagina": 19,
+   "regiao": "esq",
+   "titulo": "ANEL PARA VASO SANITÁRIO DE MASSA COM GUIA",
+   "linhas": [
+    {
+     "codigo": "36181",
+     "descricao": "DN 100",
+     "embalagem": 12,
+     "master": 12
+    }
+   ],
+   "secao": "ACESSÓRIOS"
+  },
+  {
+   "pagina": 19,
+   "regiao": "esq",
+   "titulo": "SIFÃO EXTENSÍVEL DUPLO PRETO",
+   "linhas": [
+    {
+     "codigo": "36244",
+     "descricao": "80cm",
+     "embalagem": 1,
+     "master": 10
+    }
+   ],
+   "secao": "ACESSÓRIOS"
+  },
+  {
+   "pagina": 19,
+   "regiao": "esq",
+   "titulo": "SIFÃO EXTENSÍVEL TRIPLO PRETO",
+   "linhas": [
+    {
+     "codigo": "36245",
+     "descricao": "80cm",
+     "embalagem": 1,
+     "master": 7
+    }
+   ],
+   "secao": "ACESSÓRIOS"
+  },
+  {
+   "pagina": 19,
+   "regiao": "dir",
+   "titulo": "TORNEIRA BOIA PARA CAIXA D’ÁGUA",
+   "linhas": [
+    {
+     "codigo": "36192",
+     "descricao": "1/2\" - 3/4\"",
+     "embalagem": 12,
+     "master": 12
+    }
+   ],
+   "secao": "ACESSÓRIOS"
+  },
+  {
+   "pagina": 19,
+   "regiao": "dir",
+   "titulo": "ADESIVO PLÁSTICO PARA PVC EM BISNAGA",
+   "linhas": [
+    {
+     "codigo": "41011",
+     "descricao": "17g",
+     "embalagem": 48,
+     "master": null
+    },
+    {
+     "codigo": "41012",
+     "descricao": "75g",
+     "embalagem": 30,
+     "master": null
+    }
+   ],
+   "secao": "ACESSÓRIOS"
+  },
+  {
+   "pagina": 19,
+   "regiao": "dir",
+   "titulo": "SIFÃO EXTENSÍVEL TRIPLO BRANCO",
+   "linhas": [
+    {
+     "codigo": "36235",
+     "descricao": "80 cm",
+     "embalagem": 1,
+     "master": 7
+    }
+   ],
+   "secao": "ACESSÓRIOS"
+  },
+  {
+   "pagina": 20,
+   "regiao": "esq",
+   "titulo": "ADESIVO PLÁSTICO PARA PVC EM FRASCO",
+   "linhas": [
+    {
+     "codigo": "41013",
+     "descricao": "850g",
+     "embalagem": 6,
+     "master": null
+    }
+   ],
+   "secao": "ACESSÓRIOS"
+  },
+  {
+   "pagina": 20,
+   "regiao": "esq",
+   "titulo": "FITA VEDA ROSCA",
+   "linhas": [
+    {
+     "codigo": "41015",
+     "descricao": "18mm x 10m",
+     "embalagem": 60,
+     "master": null
+    },
+    {
+     "codigo": "41016",
+     "descricao": "18mm x 25m",
+     "embalagem": 30,
+     "master": null
+    },
+    {
+     "codigo": "41017",
+     "descricao": "18mm x 50m",
+     "embalagem": 30,
+     "master": null
+    }
+   ],
+   "secao": "ACESSÓRIOS"
+  },
+  {
+   "pagina": 20,
+   "regiao": "dir",
+   "titulo": "ADESIVO PLÁSTICO PARA PVC COM PINCEL APLICADOR",
+   "linhas": [
+    {
+     "codigo": "41014",
+     "descricao": "175g",
+     "embalagem": 12,
+     "master": null
+    }
+   ],
+   "secao": "ACESSÓRIOS"
+  },
+  {
+   "pagina": 21,
+   "regiao": "esq",
+   "titulo": "ADAPTADOR INTERNO",
+   "linhas": [
+    {
+     "codigo": "23012",
+     "descricao": "1/2\"",
+     "embalagem": 50,
+     "master": 1500
+    },
+    {
+     "codigo": "23013",
+     "descricao": "3/4\"",
+     "embalagem": 50,
+     "master": 800
+    },
+    {
+     "codigo": "23014",
+     "descricao": "1\"",
+     "embalagem": 25,
+     "master": 550
+    },
+    {
+     "codigo": "23015",
+     "descricao": "1.1/4\"",
+     "embalagem": 10,
+     "master": 300
+    },
+    {
+     "codigo": "23016",
+     "descricao": "1.1/2\"",
+     "embalagem": 10,
+     "master": 240
+    },
+    {
+     "codigo": "23017",
+     "descricao": "2\"",
+     "embalagem": 10,
+     "master": 130
+    }
+   ],
+   "secao": "POLIETILENO"
+  },
+  {
+   "pagina": 21,
+   "regiao": "esq",
+   "titulo": "JOELHO 90° INTERNO",
+   "linhas": [
+    {
+     "codigo": "23031",
+     "descricao": "1/2\"",
+     "embalagem": 25,
+     "master": 1000
+    },
+    {
+     "codigo": "23032",
+     "descricao": "3/4\"",
+     "embalagem": 25,
+     "master": 600
+    },
+    {
+     "codigo": "23033",
+     "descricao": "1\"",
+     "embalagem": 10,
+     "master": 400
+    },
+    {
+     "codigo": "23035",
+     "descricao": "1.1/2\"",
+     "embalagem": 10,
+     "master": 160
+    }
+   ],
+   "secao": "POLIETILENO"
+  },
+  {
+   "pagina": 21,
+   "regiao": "dir",
+   "titulo": "ADAPTADOR REDUÇÃO INTERNO",
+   "linhas": [
+    {
+     "codigo": "23021",
+     "descricao": "1/2\" x 3/8\"",
+     "embalagem": 25,
+     "master": 3000
+    },
+    {
+     "codigo": "23022",
+     "descricao": "3/4\" x 1/2\"",
+     "embalagem": 25,
+     "master": 1000
+    },
+    {
+     "codigo": "23023",
+     "descricao": "1\" x 3/4\"",
+     "embalagem": 25,
+     "master": 700
+    }
+   ],
+   "secao": "POLIETILENO"
+  },
+  {
+   "pagina": 21,
+   "regiao": "dir",
+   "titulo": "JOELHO 90° INTERNO DUPLO",
+   "linhas": [
+    {
+     "codigo": "23041",
+     "descricao": "1/2\"",
+     "embalagem": 25,
+     "master": 1300
+    },
+    {
+     "codigo": "23042",
+     "descricao": "3/4\"",
+     "embalagem": 25,
+     "master": 800
+    },
+    {
+     "codigo": "23043",
+     "descricao": "1\"",
+     "embalagem": 10,
+     "master": 400
+    }
+   ],
+   "secao": "POLIETILENO"
+  },
+  {
+   "pagina": 22,
+   "regiao": "esq",
+   "titulo": "TÊ 90° INTERNO",
+   "linhas": [
+    {
+     "codigo": "23051",
+     "descricao": "1/2\"",
+     "embalagem": 25,
+     "master": 750
+    },
+    {
+     "codigo": "23052",
+     "descricao": "3/4\"",
+     "embalagem": 25,
+     "master": 400
+    },
+    {
+     "codigo": "23053",
+     "descricao": "1\"",
+     "embalagem": 10,
+     "master": 250
+    },
+    {
+     "codigo": "23055",
+     "descricao": "1.1/2\"",
+     "embalagem": 10,
+     "master": 90
+    }
+   ],
+   "secao": "POLIETILENO"
+  },
+  {
+   "pagina": 22,
+   "regiao": "esq",
+   "titulo": "UNIÃO INTERNA",
+   "linhas": [
+    {
+     "codigo": "23071",
+     "descricao": "3/8\"",
+     "embalagem": 50,
+     "master": 3000
+    },
+    {
+     "codigo": "23072",
+     "descricao": "1/2\"",
+     "embalagem": 50,
+     "master": 1800
+    },
+    {
+     "codigo": "23073",
+     "descricao": "3/4\"",
+     "embalagem": 50,
+     "master": 1000
+    },
+    {
+     "codigo": "23074",
+     "descricao": "1\"",
+     "embalagem": 25,
+     "master": 500
+    },
+    {
+     "codigo": "23075",
+     "descricao": "1.1/4\"",
+     "embalagem": 10,
+     "master": 300
+    },
+    {
+     "codigo": "23076",
+     "descricao": "1.1/2\"",
+     "embalagem": 10,
+     "master": 200
+    },
+    {
+     "codigo": "23077",
+     "descricao": "2\"",
+     "embalagem": 10,
+     "master": 150
+    },
+    {
+     "codigo": "23078",
+     "descricao": "3\"",
+     "embalagem": 5,
+     "master": 50
+    }
+   ],
+   "secao": "POLIETILENO"
+  },
+  {
+   "pagina": 22,
+   "regiao": "dir",
+   "titulo": "TÊ 90° INTERNO TRIPLO",
+   "linhas": [
+    {
+     "codigo": "23061",
+     "descricao": "1/2\"",
+     "embalagem": 25,
+     "master": 700
+    },
+    {
+     "codigo": "23062",
+     "descricao": "3/4\"",
+     "embalagem": 25,
+     "master": 400
+    },
+    {
+     "codigo": "23063",
+     "descricao": "1\"",
+     "embalagem": 10,
+     "master": 250
+    }
+   ],
+   "secao": "POLIETILENO"
+  },
+  {
+   "pagina": 22,
+   "regiao": "dir",
+   "titulo": "UNIÃO REDUÇÃO INTERNA",
+   "linhas": [
+    {
+     "codigo": "23082",
+     "descricao": "3/4\" x 1/2\"",
+     "embalagem": 25,
+     "master": 1000
+    },
+    {
+     "codigo": "23083",
+     "descricao": "1\" x 3/4\"",
+     "embalagem": 25,
+     "master": 600
+    }
+   ],
+   "secao": "POLIETILENO"
+  }
+ ],
+ "avisos": [],
+ "resumo": {
+  "familias": 87,
+  "produtos": 269,
+  "codigos_repetidos": [],
+  "sem_descricao": 0,
+  "sem_embalagem": 0
+ }
+}
