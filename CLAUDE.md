@@ -1446,17 +1446,12 @@ Vercel, ou storage externo) — **decisão em aberto**, ver "Pendência conhecid
 **Projeto:** `bilds/bilds-bim-3d` — **não criar outro projeto, nunca.**
 **URL de produção:** https://bilds-bim-3d.vercel.app
 
-O repositório está conectado à Vercel via integração git — **o push para `main` dispara o
-deploy automaticamente**. Fluxo normal:
+**A integração git da Vercel está desconectada desde 2026-09-02.** O push para `main`
+NÃO dispara mais deploy automático — ele sobrescrevia o deploy do CLI com uma versão
+incompleta (só `index.html`, o único arquivo rastreado em `output/preview/`), apagando
+os 677 MB de geometria e miniaturas.
 
-```bash
-git add output/preview/
-git commit -m "build: catálogo {slug}"
-git push
-```
-
-O `vercel.json` na raiz configura `"outputDirectory": "output/preview"` — a Vercel serve
-esse diretório. Para deploy manual via CLI (ex: sem commit):
+O único fluxo correto de deploy é via CLI:
 
 ```bash
 # SEMPRE da RAIZ do repo
