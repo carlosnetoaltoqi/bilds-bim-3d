@@ -160,12 +160,36 @@ def extract(aq_path):
     return result
 
 
+SENTINELAS = (-2147483647, -1.7976931348623157e+308)
+
+
+def _sem_sentinela(v):
+    """
+    Sentinela do AltoQi → None.
+
+    O AltoQi não usa `NULL` para "não definido": grava `-2147483647` em coluna
+    inteira e `-1.7976931348623157e+308` (`-DBL_MAX`) em coluna real. Na Amanco
+    são 963 das 1.168 peças em `DIAMETRO_PECA` e 963 em `COMPRIMENTO_PECA`.
+
+    Sem esta conversão o mapa entrega `-1.8e308` como se fosse medida, e
+    qualquer aritmética a jusante produz lixo — `IS NULL` não encontra esses
+    valores e um `if peca['comprimento_cm']:` os considera verdadeiros.
+    """
+    return None if v in SENTINELAS else v
+
+
 def build_product_map(aq_data):
     """
     Organiza os dados do .aq em um mapa por grupo:
       { nome_gp → { 'serie': str, 'pecas': [ { id, nome, specs, curva_pts } ] } }
 
     Útil para build_catalog.py cruzar com os slugs dos IFCs.
+
+    ⚠️ `diametro_codigo` **não é medida** — é o código de diâmetro do AltoQi
+    (8 = 40 mm, 9 = 50 mm, 12 = 100 mm…). A chave se chamava `diametro_cm` até
+    2026-09-02, o que afirmava centímetro e estava errado. As outras três
+    (`comprimento_cm`, `altura_cm`, `largura_cm`) são centímetro de verdade.
+    Todas as quatro passam por `_sem_sentinela`.
     """
     # Mapa de propriedades por peça
     props_by_peca = {}
@@ -205,10 +229,10 @@ def build_product_map(aq_data):
             'id': pid,
             'nome': p['NOME_PECA'],
             'conexoes': p.get('DESCRICAO_DADOS', ''),
-            'diametro_cm': p.get('DIAMETRO_PECA'),
-            'comprimento_cm': p.get('COMPRIMENTO_PECA'),
-            'altura_cm': p.get('ALTURA_PECA'),
-            'largura_cm': p.get('LARGURA_PECA'),
+            'diametro_codigo': _sem_sentinela(p.get('DIAMETRO_PECA')),
+            'comprimento_cm': _sem_sentinela(p.get('COMPRIMENTO_PECA')),
+            'altura_cm': _sem_sentinela(p.get('ALTURA_PECA')),
+            'largura_cm': _sem_sentinela(p.get('LARGURA_PECA')),
             'specs': props_by_peca.get(pid, {}),
             'curva_pts': curves_by_peca.get(pid),
         })

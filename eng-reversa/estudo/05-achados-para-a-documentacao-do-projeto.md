@@ -104,33 +104,40 @@ do `CLAUDE.md`.
 ## Achado 3 — o parser de OQ3D promove nós a raiz em duas bibliotecas
 
 O cabeçalho OQ3D tem, no offset 29, um `u32` com o **número de objetos-raiz**.
-Comparando esse campo com o que o `scripts/oq3d.py` conta, em 24 amostras (as
-duas menores geometrias de cada uma das 12 bibliotecas):
+Comparando esse campo com o que o `scripts/oq3d.py` conta, em **todas** as 783
+geometrias das 12 bibliotecas de fabricante:
 
-| Biblioteca | campo | raízes contadas |
-|---|---|---|
-| 22 amostras | *n* | *n* |
-| Intelbras Cont_Acesso_Cond | 110 / 157 | **112 / 159** |
-| Intelbras PPCI e SDAI | 185 | **187** |
+| | |
+|---|---|
+| geometrias conferidas | 783 |
+| divergem | **54 (6,9%)** |
+| bibliotecas afetadas | **6 de 12** |
 
-Sempre **exatamente dois nós a mais**. A explicação mais provável: um `0x5D`
-que cai dentro de um `double` desempilha um nível no parser, e dois nós filhos
-são promovidos a raiz.
+As seis: as cinco da Intelbras que têm geometria (CFTV 4/55, Cont_Acesso 4/10,
+PPCI 4/11, SDAI 6/25, Sensor_Alarme 5/16) e a **Maxbar, com 31 de 135**.
 
-**Impacto prático:** baixo. O `_collect` desce a árvore inteira de qualquer
-jeito, e a geometria emitida é a mesma — o que muda é a hierarquia, e com ela
-a composição dos transforms daqueles dois nós. Nas bibliotecas afetadas
-(Intelbras, equipamentos) as malhas já vêm em coordenadas de mundo, então não
-aparece. Numa biblioteca de conexões, apareceria.
+O parse encontra **sempre mais** raízes, nunca menos, e a diferença vai de
+**+2 a +10**. Não é sempre par — `+7` aparece 3 vezes e `+9` seis —, o que
+**descarta** a explicação simples de "um `0x5D` desempilha um nível e promove
+dois filhos" como regra única: o desempilhamento espúrio acontece em
+quantidade variável dentro do mesmo blob.
 
-**A correção possível:** usar o campo do offset 29 como verificação. Se a
-contagem de raízes divergir, o parse dessa geometria é suspeito. São duas
-linhas no `parse()` e transformam um erro silencioso num aviso.
+> Vale registrar como o número mudou. Medindo duas geometrias por biblioteca, o
+> resultado parecia "2 de 24, sempre +2" — pequeno e com explicação limpa.
+> Medindo todas, virou "54 de 783, de +2 a +10, com valores ímpares". A amostra
+> não estava só imprecisa: ela sugeria um mecanismo que os dados completos
+> refutam.
 
-**Onde registrar:** o campo do offset 29 não está documentado nem no
-`CLAUDE.md` nem na skill — a seção "Formato OQ3D" descreve a assinatura e pula
-para a árvore. Vale documentar o cabeçalho inteiro (ver
-`02-escrever-oq3d.md`, seção 1) e a checagem.
+**Impacto prático:** a geometria emitida é a mesma — o `_collect` desce a árvore
+inteira de qualquer jeito. O que muda é a hierarquia, e com ela a composição
+dos transforms dos nós promovidos. Nas seis bibliotecas afetadas (Intelbras e
+Maxbar, ambas de equipamento) as malhas já vêm em coordenadas de mundo, então
+não aparece. Numa biblioteca de conexões, apareceria.
+
+**Aplicado em 2026-09-02:** `oq3d.n_raizes_declarado()` lê o campo e o
+`parse()` avisa com `OQ3DAvisoParse` quando divergem — troca o erro silencioso
+por algo visível. O cabeçalho inteiro está documentado no `CLAUDE.md` e na
+skill 2.3.0.
 
 ---
 

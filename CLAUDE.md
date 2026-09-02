@@ -659,14 +659,22 @@ offset  bytes                      significado
 Os 5 primeiros bytes são constantes nas 12 bibliotecas e nas 6 versões de schema
 (552–607). Não se sabe o que significam; sabe-se que não variam.
 
-> **O campo em +29 serve de verificação de parse.** Comparado com a contagem de raízes
-> do `parse()` em 24 amostras, bate em 22. Nas duas que divergem — `Intelbras
-> Cont_Acesso_Cond` e `PPCI`/`SDAI` — o parser conta **exatamente dois nós a mais**: um
-> `0x5D` que cai dentro de um `double` desempilha um nível e dois filhos são promovidos a
-> raiz. A geometria emitida não muda (o `_collect` desce a árvore toda), mas a hierarquia
-> muda, e com ela a composição dos transforms daqueles dois nós — inofensivo em biblioteca
-> de equipamentos, não em biblioteca de conexões. **Duas linhas no `parse()` transformariam
-> isso de erro silencioso em aviso.** Pendente.
+> **O campo em +29 serve de verificação de parse, e revela um defeito real.**
+> O parse encontra **sempre mais** raízes do que o cabeçalho declara, nunca menos.
+> Medido em **todas** as 783 geometrias das 12 bibliotecas de fabricante: **54 divergem
+> (6,9%), em 6 bibliotecas** — as cinco da Intelbras que têm geometria e a Maxbar, esta com
+> 31 de 135.
+> 
+> A diferença vai de **+2 a +10 e não é sempre par** (+7 e +9 aparecem), o que descarta
+> "um `0x5D` desempilha um nível e promove dois filhos" como regra única: o
+> desempilhamento espúrio acontece em quantidade variável dentro do mesmo blob.
+>
+> A geometria emitida não muda — o `_collect` desce a árvore toda —, mas a hierarquia
+> muda, e com ela a composição dos transforms dos nós promovidos. Nas seis bibliotecas
+> afetadas (Intelbras e Maxbar, ambas de equipamento) as malhas já vêm em coordenadas de
+> mundo, então não aparece; numa biblioteca de conexões deslocaria a peça.
+>
+> O `parse()` passou a avisar com `OQ3DAvisoParse` quando isso acontece (2026-09-02).
 
 Árvore de objetos serializada no estilo Delphi:
 
@@ -1396,9 +1404,10 @@ as 262 peças (7,2 MB). As três passam nas 20 checagens do `validar_aq.py`, que
    `CAST(? AS TEXT)` com bytes cp1252, e **comparar literal acentuado dentro do SQL
    exige o mesmo**, senão a query volta vazia sem erro.
 3. **O cabeçalho OQ3D tem, no offset 29, o número de objetos-raiz** — nunca
-   documentado. Serve de verificação de parse, e revelou que o `oq3d.py` conta dois nós
-   a mais em duas das 12 bibliotecas (`Intelbras Cont_Acesso` e `PPCI`/`SDAI`): um
-   `0x5D` dentro de um `double` desempilha um nível.
+   documentado. Serve de verificação de parse, e revelou um defeito real: medido em
+   todas as 783 geometrias de fabricante, o `oq3d.py` conta raízes a mais em **54
+   (6,9%), em 6 das 12 bibliotecas** — Maxbar com 31 de 135. A diferença vai de +2 a
+   +10 e não é sempre par.
 4. **`saida` e `output` faltam em `_GENERIC_DIRS`** (`build.py:922`), então um `.aq`
    numa pasta chamada `saida/` publica com o título "Saida" — e a validação não acusa,
    porque "Saida" de fato é diferente do fabricante.

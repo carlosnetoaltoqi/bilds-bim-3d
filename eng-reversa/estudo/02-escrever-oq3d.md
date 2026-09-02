@@ -36,9 +36,8 @@ schema** (552, 562, 572, 582, 595, 607). Não sabemos o que significam —
 padrão `0x5B <u32 len> <nome>` dos marcadores de classe. Sabemos que não
 variam, e por isso o escritor os copia literalmente.
 
-O campo em +29 é o **número de objetos-raiz**. Confirmado contra o parser em 22
-das 24 amostras medidas (as duas menores geometrias de cada uma das 12
-bibliotecas):
+O campo em +29 é o **número de objetos-raiz**. Numa amostra das duas menores
+geometrias de cada biblioteca, a maioria confere:
 
 | Biblioteca | campo em +29 | raízes que o parser conta |
 |---|---|---|
@@ -51,9 +50,18 @@ bibliotecas):
 | **Intelbras Cont_Acesso** | **110 / 157** | **112 / 159** |
 | **Intelbras PPCI e SDAI** | **185** | **187** |
 
-Nas duas que divergem, o parser conta **exatamente dois nós a mais**. A
-divergência é do leitor, não do campo: o parser tolerante desempilha num
-`0x5D` que caiu dentro de um `double`, e dois nós filhos são promovidos a raiz.
+A divergência é do leitor, não do campo. Medindo **todas** as geometrias em vez
+de duas por biblioteca, o quadro é maior do que a amostra sugeria:
+
+O parse encontra **sempre mais** raízes do que o cabeçalho declara, nunca menos.
+Medido em **todas** as 783 geometrias das 12 bibliotecas de fabricante: **54 divergem
+(6,9%), em 6 bibliotecas** — as cinco da Intelbras que têm geometria e a Maxbar, esta com
+31 de 135.
+
+A diferença vai de **+2 a +10 e não é sempre par** (+7 e +9 aparecem), o que descarta
+"um `0x5D` desempilha um nível e promove dois filhos" como regra única: o
+desempilhamento espúrio acontece em quantidade variável dentro do mesmo blob.
+
 Vale como achado sobre o parser — ver
 `05-achados-para-a-documentacao-do-projeto.md`.
 

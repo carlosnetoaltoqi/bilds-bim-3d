@@ -379,12 +379,20 @@ offset  bytes                      significado
 Os 5 primeiros bytes são constantes nas 12 bibliotecas e nas 6 versões de schema. Não se
 sabe o que significam; sabe-se que não variam.
 
-> **O campo em +29 serve de verificação de parse.** Comparado com a contagem de raízes do
-> parser em 24 amostras, bate em 22. Nas duas que divergem (`Intelbras Cont_Acesso` e
-> `PPCI`/`SDAI`) o parser tolerante conta **exatamente dois nós a mais**: um `0x5D` que
-> cai dentro de um `double` desempilha um nível e dois filhos são promovidos a raiz. A
-> geometria emitida não muda, mas a hierarquia muda — e com ela a composição dos
-> transforms daqueles dois nós.
+> **O campo em +29 serve de verificação de parse, e revela um defeito real do parser
+> tolerante.**
+> O parse encontra **sempre mais** raízes do que o cabeçalho declara, nunca menos.
+> Medido em **todas** as 783 geometrias das 12 bibliotecas de fabricante: **54 divergem
+> (6,9%), em 6 bibliotecas** — as cinco da Intelbras que têm geometria e a Maxbar, esta com
+> 31 de 135.
+> 
+> A diferença vai de **+2 a +10 e não é sempre par** (+7 e +9 aparecem), o que descarta
+> "um `0x5D` desempilha um nível e promove dois filhos" como regra única: o
+> desempilhamento espúrio acontece em quantidade variável dentro do mesmo blob.
+>
+> A geometria emitida não muda, mas a hierarquia muda — e com ela a composição dos
+> transforms dos nós promovidos. Nas seis bibliotecas afetadas as malhas já vêm em
+> coordenadas de mundo, então não aparece; numa biblioteca de conexões deslocaria a peça.
 
 ### Classes que carregam dados
 
@@ -1052,7 +1060,9 @@ também precisa ir em cp1252**, senão a query volta vazia sem erro. Nova seçã
 os enums de `PROJETO_APLICACAO`/`ENTIDADE_IFC`/`SUBTIPO_IFC`/`TIPO_APLICACAO_PECA` com os
 valores observados, `ITEM.CODIGO_ITEM` como lugar do código comercial, e as armadilhas de
 escrever OQ3D. Documentado o **cabeçalho OQ3D** (37 bytes, com o número de objetos-raiz
-no offset 29, que serve de verificação de parse). Validado gerando uma biblioteca
+no offset 29). Esse campo serve de verificação de parse e expôs um defeito do leitor
+tolerante: em 54 das 783 geometrias de fabricante (6,9%, em 6 das 12 bibliotecas) ele
+conta raízes a mais, de +2 a +10. Validado gerando uma biblioteca
 completa a partir de um catálogo em PDF — 262 peças, lidas de volta por este leitor sem
 ressalvas.
 

@@ -919,8 +919,13 @@ def _format_titulo(tokens):
     return ' '.join(saida)
 
 
+# Pastas cujo nome não descreve o catálogo — não servem de título. As de saída
+# entraram em 2026-09-02: um .aq em `eng-reversa/saida/` publicava com o título
+# "Saida", e a validação não acusava, porque "Saida" de fato é diferente do
+# fabricante.
 _GENERIC_DIRS = {'input', 'biblioteca', 'bibliotecas', 'bim', 'ifc', 'aq',
-                 'downloads', 'arquivos', 'temp', 'tmp', '.', ''}
+                 'downloads', 'arquivos', 'temp', 'tmp', '.', '',
+                 'saida', 'output', 'out', 'dist', 'build'}
 
 
 def peek_aq(aq_path):

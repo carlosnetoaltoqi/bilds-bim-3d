@@ -88,6 +88,7 @@ ARMADILHAS
 """
 import re
 import struct
+import warnings
 
 try:
     import numpy as np
@@ -119,6 +120,10 @@ DISC_REF, DISC_INLINE = 0x01, 0x02
 
 class OQ3DError(ValueError):
     """Blob que não é OQ3D ou cujo layout binário não é o esperado."""
+
+
+class OQ3DAvisoParse(UserWarning):
+    """A árvore parseada não confere com o que o cabeçalho declara."""
 
 
 class Node:
@@ -158,8 +163,45 @@ def _class_at(buf, p):
     return (name, p + 5 + length) if name in CLASSES else None
 
 
+def n_raizes_declarado(buf):
+    """
+    O número de objetos-raiz que o cabeçalho declara, ou None.
+
+    Layout do cabeçalho, 37 bytes, idêntico nas 12 bibliotecas medidas e nas 6
+    versões de schema (552 a 607):
+
+        +0   5 bytes opacos (sempre 3a 01 01 00 00)
+        +5   'OQ3D 3D Objects File'
+        +25  u32 = 2, versão do arquivo
+        +29  u32 = NÚMERO DE OBJETOS-RAIZ      ← este
+        +33  u32 = 0
+    """
+    pos = buf.find(MAGIC)
+    if pos < 0:
+        return None
+    try:
+        return struct.unpack_from('<I', buf, pos + len(MAGIC) + 4)[0]
+    except struct.error:
+        return None
+
+
 def parse(buf):
-    """Devolve a lista de nós-raiz da árvore de objetos."""
+    """
+    Devolve a lista de nós-raiz da árvore de objetos.
+
+    Avisa quando a contagem de raízes não bate com o que o cabeçalho declara.
+    Medido em todas as 783 geometrias das 12 bibliotecas de fabricante: 54
+    divergem (6,9%), em 6 bibliotecas — as cinco da Intelbras com geometria e a
+    Maxbar, esta com 31 de 135. O parse encontra sempre MAIS raízes, de +2 a
+    +10, e a diferença não é sempre par: um `0x5D` que cai dentro de um
+    `double` desempilha um nível, e isso acontece em quantidade variável.
+
+    A geometria emitida não muda — o `_collect` desce a árvore toda —, mas a
+    hierarquia muda, e com ela a composição dos transforms daqueles dois nós.
+    Em biblioteca de equipamentos passa despercebido, porque as malhas já vêm
+    em coordenadas de mundo; em biblioteca de conexões deslocaria a peça. O
+    aviso troca esse erro silencioso por algo visível.
+    """
     if not is_oq3d(buf):
         raise OQ3DError('blob sem assinatura OQ3D')
 
@@ -217,6 +259,14 @@ def parse(buf):
 
     for node in pending:
         node.defn = defs.get(node.ref)
+
+    declarado = n_raizes_declarado(buf)
+    if declarado is not None and declarado != len(roots):
+        warnings.warn(
+            f'OQ3D: o cabeçalho declara {declarado} objetos-raiz e o parse '
+            f'encontrou {len(roots)}. Provável 0x5D dentro de um double '
+            f'desempilhando um nível — a hierarquia desta geometria é suspeita.',
+            OQ3DAvisoParse, stacklevel=2)
 
     return roots
 
