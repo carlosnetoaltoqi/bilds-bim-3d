@@ -523,6 +523,8 @@ function enqueueCard(id) {
   const wrap = document.querySelector(`.card[data-id="${id}"] .card-canvas-wrap`);
   if (!wrap || wrap.dataset.rendered) return;
   if (thumbCache.has(id)) { applyThumb(id, thumbCache.get(id)); return; } // restaura do cache
+  const item = ITEMS.find(i => i.id === id);
+  if (item?.thumb) { applyThumb(id, './thumbs/' + item.thumb); return; } // WebP pré-gerado
   if (!renderQueue.includes(id)) { renderQueue.push(id); processQueue(); }
 }
 

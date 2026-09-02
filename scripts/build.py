@@ -503,9 +503,9 @@ def run_ifc_parse(config, geo_dir=None):
 
 # ─── Build do preview HTML ────────────────────────────────────────────────────
 
-def build_preview(catalog, layout, geo_dir=None):
+def build_preview(catalog, layout, geo_dir=None, thumbs_dir=None):
     """
-    Gera output/preview/{slug}/ com index.html, catalog.json e data/.
+    Gera output/preview/{slug}/ com index.html, catalog.json, data/ e thumbs/.
     Arquivos compartilhados (vendor/) ficam em output/preview/vendor/.
     Cada catálogo fica em seu próprio subdiretório para não sobrescrever o índice.
     """
@@ -528,6 +528,21 @@ def build_preview(catalog, layout, geo_dir=None):
         if os.path.exists(src):
             shutil.copy(src, os.path.join(data_dir, f'{geo_slug}.json'))
             copiados.add(geo_slug)
+
+    # thumbs/ — copia os WebPs pré-renderizados para o preview usar os mesmos
+    # arquivos que o bilds.com consome (não o render dinâmico via Three.js).
+    if thumbs_dir and os.path.isdir(thumbs_dir):
+        thumbs_dst = os.path.join(catalog_dir, 'thumbs')
+        os.makedirs(thumbs_dst, exist_ok=True)
+        copiados_th = set()
+        for produto in catalog['produtos']:
+            nome = produto.get('thumb')
+            if not nome or nome in copiados_th:
+                continue
+            src = os.path.join(thumbs_dir, nome)
+            if os.path.exists(src):
+                shutil.copy(src, os.path.join(thumbs_dst, nome))
+                copiados_th.add(nome)
 
     # vendor/ fica no root do preview (compartilhado)
     vendor_src = os.path.join(TEMPLATES_DIR, 'vendor')
@@ -1411,7 +1426,7 @@ def run_build(config, aq_path, geo_dir, zip_dir, args):
         json.dump(catalog, f, ensure_ascii=False, indent=2)
 
     if not args.skip_preview:
-        if build_preview(catalog, catalog['layout'], geo_dir=geo_dir):
+        if build_preview(catalog, catalog['layout'], geo_dir=geo_dir, thumbs_dir=thumbs_dir):
             update_catalog_registry(catalog)
             print(f'    Preview: output/preview/{catalog["slug"]}/index.html')
 
