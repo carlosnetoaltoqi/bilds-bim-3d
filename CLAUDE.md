@@ -1470,6 +1470,21 @@ python3 -m http.server 8080 --directory output/preview
 
 ## Histórico de sessões
 
+### 2026-09-02 — Ambos os layouts para cada biblioteca + cores por fabricante no índice
+
+`build.py` ganhou `--layout series-rows|catalog-grid`: quando combinado com `--all`,
+força o layout especificado e sufixo o slug (`-grid` ou `-series`) sem re-extrair
+geometria (usa o geo_dir do slug base). Rodado duas vezes com `--skip-zip` →
+45 entradas no `catalogs.json` (15 auto + 15 -grid + 15 -series), 7.516 arquivos
+na Vercel (3× os 4.318 anteriores).
+
+`index.html` atualizado: linhas ordenadas por fabricante → título → layout, com
+banda de cor alternada branco / azul claro (`#EEF3FF`) por grupo de fabricante.
+6 fabricantes → 3 grupos brancos (Akato, Dancor, Komeco) e 3 azuis (Amanco,
+Intelbras, Maxbar).
+
+Commit `7363ebb`.
+
 ### 2026-09-02 — Build completo das 15 bibliotecas e fix de thumbs na Vercel
 
 Pipeline estático rodado sobre todos os `.aq` de `input/` — 15 bibliotecas de 6
