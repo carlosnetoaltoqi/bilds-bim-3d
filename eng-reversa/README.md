@@ -2,7 +2,7 @@
 
 Estudo de engenharia reversa do formato de biblioteca BIM do AltoQi Builder
 (`.aq`) **no sentido da escrita**, e a sua materialização: uma biblioteca
-`.aq` gerada a partir do `input/AKATO-CATALOGO-CONSTRUCAO-CIVIL.pdf`.
+`.aq` gerada a partir do `input/Akato/AKATO-CATALOGO-CONSTRUCAO-CIVIL.pdf`.
 
 O projeto bilds-bim-3d sabe **ler** `.aq` — o `scripts/read_aq.py` e o
 `scripts/oq3d.py` estão validados em 12 bibliotecas de fabricante e 6 versões
@@ -111,7 +111,7 @@ cd /home/foltz/bilds-bim-3d
 
 # 1. PDF → células com coordenadas → catálogo estruturado
 python3 eng-reversa/tools/pdf_coords.py \
-        input/AKATO-CATALOGO-CONSTRUCAO-CIVIL.pdf \
+        input/Akato/AKATO-CATALOGO-CONSTRUCAO-CIVIL.pdf \
         eng-reversa/dados/akato-celulas.json
 python3 eng-reversa/tools/pdf_akato.py \
         eng-reversa/dados/akato-celulas.json \
