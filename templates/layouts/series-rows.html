@@ -412,10 +412,11 @@ let activeCard = null; // { id, renderer, scene, controls, raf, observer }
 let modalViewer = null;
 
 // ─── Utilitários ──────────────────────────────────────────────────
-// Caminho absoluto, não './data/': com cleanUrls a página é servida em
-// /<slug> (sem barra final), e aí o relativo resolveria para /data/ — na raiz,
-// onde os arquivos não estão. Funciona igual com ou sem barra final.
-const DATA_BASE = '/' + CATALOG.slug + '/data/';
+// Caminhos absolutos: com cleanUrls a página é servida em /<slug> sem barra
+// final, então './data/' e './thumbs/' resolveriam para a raiz. Funciona
+// igual com ou sem barra final na URL.
+const DATA_BASE  = '/' + CATALOG.slug + '/data/';
+const THUMB_BASE = '/' + CATALOG.slug + '/thumbs/';
 
 async function fetchGeo(geoFile) {
   if (geoCache.has(geoFile)) return geoCache.get(geoFile);
@@ -524,7 +525,7 @@ function enqueueCard(id) {
   if (!wrap || wrap.dataset.rendered) return;
   if (thumbCache.has(id)) { applyThumb(id, thumbCache.get(id)); return; } // restaura do cache
   const item = ITEMS.find(i => i.id === id);
-  if (item?.thumb) { applyThumb(id, './thumbs/' + item.thumb); return; } // WebP pré-gerado
+  if (item?.thumb) { applyThumb(id, THUMB_BASE + item.thumb); return; } // WebP pré-gerado
   if (!renderQueue.includes(id)) { renderQueue.push(id); processQueue(); }
 }
 
