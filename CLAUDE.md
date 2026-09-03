@@ -292,6 +292,15 @@ triângulos no JSON, no `.aq` relido pelo `read_aq.py`/`oq3d.py` e no IFC relido
 traceback**: documento XCAF liberado enquanto os rótulos ainda são usados, e
 `ex.Current()` guardado após o `Next()` — ver a skill `leitor-step`.
 
+**IFC também entra pela mesma porta** (`POST /cad/importar`, `/cad/tesselar`, página
+`/importar-step`; `/step/*` seguem como aliases): `scripts/ifc_to_geo.py` embrulha o
+`parse_ifc.py` do projeto (placements, instâncias, cores por face, B-rep via `ifcopenshell`)
+com o `dedup.py` e os metadados do contrato — `partes` (nomes dos `IfcProduct`), `unidade`,
+`bbox_mm`. O parser não converte unidade, e o CATIA declara MILLIMETRE escrevendo metros:
+a regra é escalar ×0,001 **só** quando o arquivo declara `.MILLI.` **e** a bbox bruta passa
+de 50; o que foi feito fica em `escala_aplicada` e nas specs do produto. Verificado: o IFC
+exportado da 2CV editada volta com os mesmos 27.937 triângulos; o IFC do STEP, com 7.506.
+
 Como testar sem browser: `node scratchpad/e2e-editor.mjs`, `e2e-ifc.mjs` e `e2e-step.mjs`
 (Playwright com SwiftShader — descritos em `docs/sessoes/S7.1-poc-edicao.md` e `S7.2`).
 
@@ -544,6 +553,7 @@ bilds-bim-3d/
 │   ├── dedup.py                 ← deduplicação de vértices (~79% redução)
 │   ├── step_to_geo.py           ← STEP (.stp) → {pos,col,idx} via OpenCASCADE (POC de edição)
 │   ├── geo_to_aq.py             ← {pos,col,idx} ou partes → .aq mínimo (usa eng-reversa/)
+│   ├── ifc_to_geo.py            ← IFC → {pos,col,idx} via parse_ifc.py + dedup (entrada do editor)
 │   ├── thumbs.mjs               ← render das miniaturas no Chromium (Node)
 │   ├── setup_vendor.sh          ← baixa Three.js para templates/vendor/
 │   └── link_skills.sh           ← liga docs/skills/ a ~/.claude/skills/
@@ -1536,6 +1546,8 @@ via modo `'recursive'` do `scan_input()`.
 | STEP importado 1000× maior ou deitado | Faltou `×0,001` (o OCC entrega mm) ou a troca `(x, z, −y)` — o script já faz os dois; conferir se a geometria veio de outro caminho |
 | `.aq` exportado publica com título estranho (ex.: "scratchpad") | `peek_aq` infere o título da pasta pai — pôr o arquivo em `input/<Fabricante>/<Linha>/` antes do `build.py` |
 | `validar_aq.py` falha só em "barras de tubo com 600 cm" | Regra específica do catálogo da Akato; um `.aq` de peça única gerado pelo `geo_to_aq.py` não tem tubo — as outras 19 checagens é que valem |
+| IFC importado no editor 1000× maior ou 1000× menor | `ifc_to_geo.py` escala ×0,001 só com `.MILLI.` declarado **e** bbox bruta > 50. Um IFC em mm de peça pequena (< 50 mm) não dispara — importar e aplicar ×0,001 no editor ("escala global") |
+| `/cad/importar` de um IFC devolve "não extraiu geometria" | Arquivo B-rep (`IFCADVANCEDBREP`) sem `ifcopenshell` no Python da API, ou IFC só com curvas — `python3 -c "import ifcopenshell"` |
 
 ---
 
@@ -1622,6 +1634,12 @@ catálogo (miniatura gerada), `.aq` relido pelo `read_aq.py`/`oq3d.py` (mesma bb
 
 **Surpresas:** duas referências mortas da binding OCP dão segfault (documento XCAF e
 `ex.Current()`); `GetColor` só aceita forma; `dedup.dedup()` devolve tupla.
+
+**IFC como entrada** (mesmo dia, commit `04c2490`): `scripts/ifc_to_geo.py` sobre o
+`parse_ifc.py`; rotas `/cad/*` aceitam `.stp/.step/.ifc`; skill `leitor-ifc` 1.7.0. O teste
+ponta a ponta ficou pendente porque o **Atlas voltou a recusar o IP** da máquina no meio da
+sessão (TLS alert 80 nos três nós — a assinatura documentada); os scripts foram conferidos
+diretamente.
 
 ### 2026-09-03 — S7.1: POC de edição (informações + modelo 3D) na branch `poc-edicao`
 

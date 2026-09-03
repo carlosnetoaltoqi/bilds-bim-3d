@@ -1,7 +1,7 @@
 ---
 name: leitor-ifc
 description: Transforma arquivos IFC4 em JSONs de geometria prontos para consumo em viewers 3D. Cobre parse de entidades STEP, resolução de transforms, conversão de coordenadas, cores por face (IFCINDEXEDCOLOURMAP) e geração de buffers de vértices. Se a origem for uma biblioteca AltoQi, verifique antes se há um .aq — ele traz a mesma geometria.
-version: 1.6.0
+version: 1.7.0
 author: Bilds / carlosnetoaltoqi
 ---
 
@@ -671,6 +671,29 @@ arredondamento (122 em 16.580 a 14 µm), e conte triângulos pelo `CoordIndex` �
 
 ---
 
+## O parser como biblioteca — IFC entrando num editor
+
+`parse_ifc.parse_ifc_file(caminho)` é importável e devolve `{pos, col}` (expandido, quando
+há `IFCINDEXEDCOLOURMAP`) ou `{pos, col, idx}`. Para servir de **entrada** de um viewer ou
+editor (feito em `bilds-bim-3d/scripts/ifc_to_geo.py`), faltam três coisas que o parser
+não faz de propósito:
+
+1. **Deduplicar** com a quantização float32 (`dedup.py`) — obrigatório antes de gravar.
+2. **Decidir a unidade pela magnitude, não só pela declaração.** O parser não escala. O
+   CATIA declara `MILLIMETRE` e escreve metros; o Revit declara e usa o mesmo. Regra que
+   funciona: escalar ×0,001 **só** quando o arquivo declara `.MILLI.` **e** a bbox bruta
+   passa de 50 (uma "peça de 50 m" é uma peça de 50 mm mal declarada). Guarde a decisão
+   (`escala_aplicada`) junto da geometria — quem olhar um modelo 1000× errado precisa saber
+   o que foi feito.
+3. **Nomes das partes**: `ifcopenshell.open(f).by_type('IfcProduct')` com `Representation`
+   dá nome e tipo de cada produto; sem `ifcopenshell`, uma regex sobre as entidades de
+   elemento resolve. A divisão real em partes, no editor, é por componentes conexos.
+
+Conferência: um IFC gerado pelo próprio editor (seção anterior) e reimportado tem de voltar
+com a **mesma contagem de triângulos** — 27.937 na bomba 2CV editada, 7.506 na peça STEP.
+
+---
+
 ## Diagnóstico de problemas
 
 | Sintoma | Causa provável | Solução |
@@ -696,6 +719,8 @@ arredondamento (122 em 16.580 a 14 µm), e conte triângulos pelo `CoordIndex` �
 ---
 
 ## Histórico
+
+**1.7.0** — Nova seção "O parser como biblioteca — IFC entrando num editor": o que falta ao `parse_ifc_file` para servir de entrada (dedup, unidade decidida pela declaração **e** pela magnitude, nomes via `ifcopenshell`) e a conferência por round-trip com o exportador da 1.6.0.
 
 **1.6.0** — Nova seção "Escrever IFC que este parser lê": as regras para gerar IFC4 a partir de um `{pos,col,idx}` (uma entidade por linha, montagem sem Representation, METRE coerente, eixos `(x,−z,y)`, placement rígido vs escala assada, REAL sem expoente, mapa de cor 1-based + `IFCSTYLEDITEM`, `Closed` honesto, strings `\X2\`, propriedades). Cada uma é uma armadilha deste documento vista pelo lado de quem escreve. Conferido com o próprio `parse_ifc.py` (mesmos triângulos, 14 µm) e `ifcopenshell.validate` (0 erros).
 

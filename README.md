@@ -205,19 +205,20 @@ original para "restaurar". **Exportar IFC** baixa um IFC4 do que está na tela (
 potência e conexões no banco, com "voltar" por campo. Detalhes em
 `docs/sessoes/S7.1-poc-edicao.md`.
 
-## Peça STEP no editor, e saída em `.aq`
+## Peça STEP ou IFC no editor, e saída em `.aq`
 
-Na mesma branch, um `.stp`/`.step` (Inventor, SolidWorks, CATIA…) entra no editor como
-produto de um catálogo e sai como IFC4 ou `.aq`:
+Na mesma branch, um `.stp`/`.step` (Inventor, SolidWorks, CATIA…) ou um `.ifc` entra no
+editor como produto de um catálogo e sai como IFC4 ou `.aq`:
 
 ```bash
 pip install --user --break-system-packages cadquery-ocp   # OpenCASCADE em Python, uma vez
 python3 scripts/step_to_geo.py input/STEP/2831A09.stp --info   # inspeciona: unidade, sólidos, bbox
-# com a API e o web de pé: http://localhost:3000/importar-step
+python3 scripts/ifc_to_geo.py peca.ifc --info                   # idem para IFC (parse_ifc.py + dedup)
+# com a API e o web de pé: http://localhost:3000/importar-step   (aceita .stp, .step e .ifc)
 ```
 
-O STEP é B-rep paramétrico (não tem triângulos); a API tessela com OpenCASCADE, cria o
-produto e a miniatura. No editor, **Exportar .aq** gera uma biblioteca AltoQi com a peça
+O STEP é B-rep paramétrico (não tem triângulos); a API tessela com OpenCASCADE. O IFC passa
+pelo `parse_ifc.py` do projeto. Nos dois casos a API cria o produto e a miniatura. No editor, **Exportar .aq** gera uma biblioteca AltoQi com a peça
 (`scripts/geo_to_aq.py`, sobre o escritor OQ3D do `eng-reversa/`), lida de volta pelo
 `read_aq.py` do projeto. Detalhes em `docs/sessoes/S7.2-step-e-aq.md`.
 
