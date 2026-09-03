@@ -74,7 +74,11 @@ export interface GeometryPanelProps {
     exportIfc: (opts: { incluirBocais: boolean }) => void
     /** grava o JSON no storage e em seguida baixa o IFC */
     saveAndExportIfc: (opts: { incluirBocais: boolean }) => void
+    /** gera um .aq (AltoQi) com as partes visíveis, via API + eng-reversa, e baixa */
+    exportAq: (opts: { incluirBocais: boolean }) => void
   }
+  /** tessela um .stp/.step no servidor e acrescenta as partes ao modelo */
+  onImportStep: (file: File) => Promise<void>
 }
 
 const TOOLS: Array<{ id: Tool; label: string; tecla: string }> = [
@@ -206,6 +210,14 @@ export function GeometryPanel(p: GeometryPanelProps) {
   async function importarArquivo(file: File) {
     const escala = unidade === 'mm' ? 0.001 : unidade === 'cm' ? 0.01 : 1
     const ext = file.name.toLowerCase().split('.').pop()
+    if (ext === 'stp' || ext === 'step') {
+      try {
+        await p.onImportStep(file)
+      } catch (e: any) {
+        alert(`Falha ao tesselar o STEP: ${e.message ?? e}`)
+      }
+      return
+    }
     const novas: Part[] = []
     try {
       if (ext === 'stl') {
@@ -224,7 +236,7 @@ export function GeometryPanel(p: GeometryPanelProps) {
         const geo = { pos: (data.pos as number[]).map((v) => v * escala), col: data.col ?? [], idx: data.idx }
         for (const x of segment(geo)) novas.push({ ...x, nome: `${file.name} · ${x.nome}` })
       } else {
-        throw new Error('formato não suportado — use STL, OBJ ou JSON { pos, col, idx }')
+        throw new Error('formato não suportado — use STP/STEP, STL, OBJ ou JSON { pos, col, idx }')
       }
     } catch (e: any) {
       alert(`Falha ao importar: ${e.message ?? e}`)
@@ -381,13 +393,14 @@ export function GeometryPanel(p: GeometryPanelProps) {
         </div>
         <button type="button" className={`${btnSmall} mt-2`} onClick={adicionarPrimitiva}>+ adicionar primitiva</button>
         <div className="flex items-center gap-2 mt-3">
-          <input ref={fileRef} type="file" accept=".stl,.obj,.json" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void importarArquivo(f); e.target.value = '' }} />
-          <button type="button" className={btnSmall} onClick={() => fileRef.current?.click()}>importar STL / OBJ / JSON…</button>
+          <input ref={fileRef} type="file" accept=".stp,.step,.stl,.obj,.json" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void importarArquivo(f); e.target.value = '' }} />
+          <button type="button" className={btnSmall} onClick={() => fileRef.current?.click()}>importar STEP / STL / OBJ / JSON…</button>
           <span className="text-[11px] text-gray-500">unidade do arquivo</span>
           <select value={unidade} onChange={(e) => setUnidade(e.target.value as typeof unidade)} className={inputCls + ' !w-auto'}>
             <option value="mm">mm</option><option value="cm">cm</option><option value="m">m</option>
           </select>
         </div>
+        <p className="text-[11px] text-gray-400 mt-1">STEP é tesselado no servidor (OpenCASCADE) e já chega na unidade certa — o seletor vale para STL/OBJ/JSON.</p>
       </Section>
 
       {/* ── salvar ── */}
@@ -406,14 +419,17 @@ export function GeometryPanel(p: GeometryPanelProps) {
         <p className="text-[11px] text-gray-400 mt-1">Partes ocultas não entram no arquivo salvo. Salvar aplica as matrizes, deduplica (float32, como o import) e grava o <code>{'{pos, col, idx}'}</code> que o viewer público lê.</p>
       </Section>
 
-      {/* ── IFC ── */}
-      <Section title="Exportar IFC4">
+      {/* ── IFC / .aq ── */}
+      <Section title="Exportar IFC4 / .aq">
         <div className="flex flex-wrap items-center gap-2">
           <button type="button" onClick={() => p.geoState.exportIfc({ incluirBocais: ifcBocais })} disabled={p.geoState.saving || !parts.some((x) => x.visible)} className={btnPrimary}>
             Exportar IFC
           </button>
           <button type="button" onClick={() => p.geoState.saveAndExportIfc({ incluirBocais: ifcBocais })} disabled={p.geoState.saving || !parts.some((x) => x.visible)} className={btnSmall}>
             {p.geoState.dirty ? 'salvar geometria e exportar IFC' : 'exportar IFC (já salvo)'}
+          </button>
+          <button type="button" onClick={() => p.geoState.exportAq({ incluirBocais: ifcBocais })} disabled={p.geoState.saving || !parts.some((x) => x.visible)} className={btnSmall} title="biblioteca AltoQi com esta peça (OQ3D + schema 607)">
+            Exportar .aq
           </button>
           <Check label="incluir bocais" checked={ifcBocais} onChange={setIfcBocais} />
         </div>
@@ -422,6 +438,8 @@ export function GeometryPanel(p: GeometryPanelProps) {
           uma <code>IFCBUILDINGELEMENTPROXY</code> por parte visível, malha <code>IFCTRIANGULATEDFACESET</code> em metros, Z para cima,
           cor por face em <code>IFCINDEXEDCOLOURMAP</code>, e as informações do produto em <code>IFCPROPERTYSET</code>. Transformação
           rígida vira <code>IFCLOCALPLACEMENT</code>; escala é aplicada nos vértices. Bocais ficam de fora por padrão — são marcadores do AltoQi.
+          <br />O <code>.aq</code> é gerado no servidor pelo <code>scripts/geo_to_aq.py</code>: uma biblioteca AltoQi com esta peça, uma malha OQ3D por parte
+          (centímetros, Z para cima), as specs como propriedades personalizadas e o insumo com o código. Lido de volta pelo <code>read_aq.py</code> do projeto.
         </p>
       </Section>
     </div>

@@ -278,7 +278,8 @@ export class ImportacoesService {
     });
   }
 
-  private spawnThumbWorker(
+  /** Público desde a POC de edição: o import de STEP reaproveita o mesmo worker de miniaturas. */
+  spawnThumbWorker(
     importId: string,
     products: Array<{ productId: string; geoKey: string }>,
   ): Promise<void> {

@@ -36,6 +36,8 @@ async function bootstrap() {
   app.enableCors({
     origin: process.env.WEB_ORIGIN ?? 'http://localhost:3000',
     credentials: true,
+    // o download do .aq devolve o resumo num header; sem expor, o browser não o lê
+    exposedHeaders: ['X-Aq-Resumo', 'Content-Disposition'],
   });
   await app.listen(4000);
   console.log('API rodando em http://localhost:4000');

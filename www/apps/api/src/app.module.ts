@@ -9,6 +9,7 @@ import { ThumbsModule } from './thumbs/thumbs.module';
 import { AuthModule } from './auth/auth.module';
 import { EmpresasModule } from './empresas/empresas.module';
 import { ProdutosModule } from './produtos/produtos.module';
+import { StepModule } from './step/step.module';
 import { Company, CompanySchema } from './companies/companies.schema';
 import { BimCatalog, BimCatalogSchema } from './bim-catalogs/bim-catalogs.schema';
 import { BimProduct, BimProductSchema } from './bim-products/bim-products.schema';
@@ -28,6 +29,7 @@ import { BimImport, BimImportSchema } from './bim-imports/bim-imports.schema';
     AuthModule,
     EmpresasModule,
     ProdutosModule,
+    StepModule,
     MongooseModule.forFeature([
       { name: Company.name, schema: CompanySchema },
       { name: BimCatalog.name, schema: BimCatalogSchema },
