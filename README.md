@@ -218,7 +218,9 @@ python3 scripts/ifc_to_geo.py peca.ifc --info                   # idem para IFC 
 ```
 
 O STEP é B-rep paramétrico (não tem triângulos); a API tessela com OpenCASCADE. O IFC passa
-pelo `parse_ifc.py` do projeto. Nos dois casos a API cria o produto e a miniatura. No editor, **Exportar .aq** gera uma biblioteca AltoQi com a peça
+pelo `parse_ifc.py` do projeto quando é pequeno e pelo `ifcopenshell` quando é grande (um
+Revit de 124 MB leva ~4 min e 3,6 GB de RAM). A importação é assíncrona: a página mostra
+as etapas e o progresso do conversor. Nos dois casos a API cria o produto e a miniatura. No editor, **Exportar .aq** gera uma biblioteca AltoQi com a peça
 (`scripts/geo_to_aq.py`, sobre o escritor OQ3D do `eng-reversa/`), lida de volta pelo
 `read_aq.py` do projeto. Detalhes em `docs/sessoes/S7.2-step-e-aq.md`.
 

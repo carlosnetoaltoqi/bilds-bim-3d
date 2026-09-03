@@ -1,7 +1,7 @@
 ---
 name: leitor-ifc
 description: Transforma arquivos IFC4 em JSONs de geometria prontos para consumo em viewers 3D. Cobre parse de entidades STEP, resolução de transforms, conversão de coordenadas, cores por face (IFCINDEXEDCOLOURMAP) e geração de buffers de vértices. Se a origem for uma biblioteca AltoQi, verifique antes se há um .aq — ele traz a mesma geometria.
-version: 1.7.0
+version: 1.8.0
 author: Bilds / carlosnetoaltoqi
 ---
 
@@ -692,6 +692,35 @@ não faz de propósito:
 Conferência: um IFC gerado pelo próprio editor (seção anterior) e reimportado tem de voltar
 com a **mesma contagem de triângulos** — 27.937 na bomba 2CV editada, 7.506 na peça STEP.
 
+### Arquivo grande: o parser manual não escala — use o `ifcopenshell.geom.iterator`
+
+O `parse_ifc.py` indexa o arquivo inteiro por regex em Python. Num IFC de projeto (Revit,
+124 MB, 2,5 milhões de entidades, B-rep facetado com 718.699 faces) isso leva minutos e
+gigabytes — e, atrás de uma requisição HTTP síncrona, vira **"Failed to fetch"** sem nenhum
+log. Regra que funciona (`ifc_to_geo.py`):
+
+| Arquivo | Caminho |
+|---|---|
+| ≤ 20 MB **e** com `IFCTRIANGULATEDFACESET` | `parse_ifc.py` — exato, lê `IFCINDEXEDCOLOURMAP` |
+| maior, ou sem face set tessellated (`IFCCONNECTEDFACESET`, `IFCFACETEDBREP`, extrusões) | `ifcopenshell.geom.iterator(settings, f, n_cpus)` com `USE_WORLD_COORDS` |
+
+Detalhes do caminho rápido que custaram tempo:
+
+- **Cor por material.** `shape.geometry.materials` e `material_ids` (um por triângulo). No
+  `ifcopenshell` 0.8, `style.diffuse.r/g/b` são **métodos** — sem `()` a cor não lança
+  exceção e sai o cinza padrão em tudo. Trate os dois casos (método ou atributo).
+- **Unidade.** Com `USE_WORLD_COORDS` a saída já vem em **metros**, mesmo com `MILLIMETRE`
+  declarado — não aplique a heurística da escala em cima.
+- **Degenerados.** O tesselador descarta triângulos de área zero: 27.871 contra 27.937 do
+  STEP na mesma peça. Não é perda de geometria.
+- **Dedup vetorizado.** 760 mil triângulos = 2,3 milhões de vértices expandidos; o dedup em
+  laço Python demoraria minutos. `numpy.unique` sobre a chave `(pos, cor)` em float32 (view
+  estruturada, `return_index` + `return_inverse`) faz em segundos.
+- **Um produto só não paraleliza.** O iterador divide por produto; um único proxy gigante
+  roda numa thread: 221 s e 3,6 GB de RSS para as 718 mil faces. Isso tem de ficar **fora da
+  requisição HTTP**: responda 202 com um id e exponha o status (o `stderr` do conversor
+  serve de progresso).
+
 ---
 
 ## Diagnóstico de problemas
@@ -719,6 +748,8 @@ com a **mesma contagem de triângulos** — 27.937 na bomba 2CV editada, 7.506 n
 ---
 
 ## Histórico
+
+**1.8.0** — Subseção "Arquivo grande": quando o parser manual não escala e como usar o `ifcopenshell.geom.iterator` como caminho rápido (cor por material com `r()/g()/b()` como métodos, metros já convertidos, degenerados descartados, dedup em numpy, um produto só não paraleliza, conversão fora da requisição HTTP). Medido num Revit de 124 MB: 760.038 △ em 221 s, 3,6 GB.
 
 **1.7.0** — Nova seção "O parser como biblioteca — IFC entrando num editor": o que falta ao `parse_ifc_file` para servir de entrada (dedup, unidade decidida pela declaração **e** pela magnitude, nomes via `ifcopenshell`) e a conferência por round-trip com o exportador da 1.6.0.
 

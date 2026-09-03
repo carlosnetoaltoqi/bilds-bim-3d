@@ -97,10 +97,10 @@ para servir de base à POC de edição (ver "POC de edição", abaixo):
 | O quê | Estado atual |
 |---|---|
 | `companies` | **1** — `poc-edicao` (customUrl), sem logo |
-| `bim_catalogs` | **3** — `bomba-de-combate-a-incencio` (13 produtos, `series-rows`), `pecas-step` (1, de `input/STEP/2831A09.stp`) e `pecas-ifc` (1, a 2CV editada reimportada do IFC exportado) |
-| `bim_imports` | **3** — Dancor, STEP e IFC, todos `publicado` |
-| `bim_products` | **15**, todos com `geoKey` e `thumbKey` |
-| `www/storage/bim/geo/<importId>/` | 13 + 1 + 1 JSON (o `.orig.json` só aparece depois de editar geometria) |
+| `bim_catalogs` | **3** — `bomba-de-combate-a-incencio` (13 produtos, `series-rows`), `pecas-step` (1, de `input/STEP/2831A09.stp`) e `pecas-ifc` (4: a 2CV editada reimportada do IFC ×2, a peça STEP via IFC, e o `Projeto4.ifc` do Revit com 760 mil triângulos) |
+| `bim_imports` | **6** — Dancor, STEP e quatro IFC, todos `publicado` |
+| `bim_products` | **18**, todos com `geoKey` e `thumbKey` |
+| `www/storage/bim/geo/<importId>/` | um diretório por import; o do Projeto4 tem um JSON de 31 MB (o `.orig.json` só aparece depois de editar geometria) |
 | Editor | `http://localhost:3000/poc-edicao/<slug>/editar` para os três catálogos |
 | Importar STEP ou IFC | `http://localhost:3000/importar-step` (STEP precisa do `OCP` em Python — ver abaixo) |
 
@@ -300,6 +300,31 @@ com o `dedup.py` e os metadados do contrato — `partes` (nomes dos `IfcProduct`
 a regra é escalar ×0,001 **só** quando o arquivo declara `.MILLI.` **e** a bbox bruta passa
 de 50; o que foi feito fica em `escala_aplicada` e nas specs do produto. Verificado: o IFC
 exportado da 2CV editada volta com os mesmos 27.937 triângulos; o IFC do STEP, com 7.506.
+
+**Arquivo grande — dois caminhos e importação assíncrona.** Um Revit de 124 MB
+(`input/Projeto4.ifc`: um único `IFCBUILDINGELEMENTPROXY`, 733 `IFCCONNECTEDFACESET`,
+718.699 faces, 2,5 milhões de entidades) derrubou o fluxo original: o `parse_ifc.py` indexa
+o arquivo por regex em Python e levaria minutos e gigabytes; a requisição síncrona estourava
+o timeout (300 s do Node, 300 s do Python) e o browser via só **"Failed to fetch"**, sem
+nada no log da API — o pedido nunca terminava. Correções, todas em `449f778`:
+- `ifc_to_geo.py` escolhe o caminho: arquivo ≤ 20 MB **com** `IFCTRIANGULATEDFACESET` →
+  `parse_ifc.py` (exato, `IFCINDEXEDCOLOURMAP`); senão → `ifcopenshell.geom.iterator`
+  (C++, todas as CPUs, `USE_WORLD_COORDS`, cor por material) com dedup vetorizado em numpy.
+  No 0.8 do `ifcopenshell`, `style.diffuse.r/g/b` são **métodos** — sem chamar, sai tudo
+  cinza. O ifcopenshell descarta triângulos degenerados (27.871 contra 27.937 do exato) e já
+  entrega metros mesmo com `MILLIMETRE` declarado (a heurística da escala não dispara — certo).
+- `POST /cad/importar` responde **202** na hora com `{importId, statusUrl}` e processa em
+  background (`recebido → parseando → gravando → publicado | falhou`), gravando o progresso
+  do Python em `BimImport.note`; `GET /cad/importacoes/:id` devolve status, nota, erro e os
+  links quando publicado. `?sync=1` mantém o modo antigo para arquivo pequeno e testes.
+- Limites: multer 1 GB, Python 30 min, `server.requestTimeout` 60 min. A página envia por
+  XHR com progresso e acompanha o status a cada 2 s.
+
+Medido no Projeto4.ifc: `ifcopenshell.open` 13 s, tesselação **221 s** (um só produto, o
+multithread não ajuda), **3,6 GB de RSS** no pico, **760.038 triângulos**, JSON de 31 MB no
+storage, miniatura em 4,7 s, `1622 × 723 × 1173 mm`. **O editor abre esse modelo em 3 s**
+(642 partes por componentes conexos, 141 MB de heap, sem erro). `--max-triangulos` (2 M) não
+corta — só põe um `aviso` que a página mostra.
 
 Como testar sem browser: `node scratchpad/e2e-editor.mjs`, `e2e-ifc.mjs` e `e2e-step.mjs`
 (Playwright com SwiftShader — descritos em `docs/sessoes/S7.1-poc-edicao.md` e `S7.2`).
@@ -1548,6 +1573,9 @@ via modo `'recursive'` do `scan_input()`.
 | `validar_aq.py` falha só em "barras de tubo com 600 cm" | Regra específica do catálogo da Akato; um `.aq` de peça única gerado pelo `geo_to_aq.py` não tem tubo — as outras 19 checagens é que valem |
 | IFC importado no editor 1000× maior ou 1000× menor | `ifc_to_geo.py` escala ×0,001 só com `.MILLI.` declarado **e** bbox bruta > 50. Um IFC em mm de peça pequena (< 50 mm) não dispara — importar e aplicar ×0,001 no editor ("escala global") |
 | `/cad/importar` de um IFC devolve "não extraiu geometria" | Arquivo B-rep (`IFCADVANCEDBREP`) sem `ifcopenshell` no Python da API, ou IFC só com curvas — `python3 -c "import ifcopenshell"` |
+| **"Failed to fetch" / "fetch error" ao importar CAD grande, e nada no log da API** | A requisição nunca terminou: conversão de minutos contra timeout de 300 s. Desde `449f778` a importação é assíncrona (202 + `GET /cad/importacoes/:id`); se voltar a acontecer, a API está fora ou o `requestTimeout` foi reduzido |
+| IFC grande importado sai todo cinza | Caminho `ifcopenshell`: `style.diffuse.r()` é método no 0.8 — `_rgb_do_material` trata os dois casos; se ainda assim cinza, o arquivo não tem `IfcSurfaceStyle` (Revit exporta material só com a opção de cores) |
+| Importação fica em `parseando` por minutos | Normal para B-rep facetado grande: 124 MB → 221 s e 3,6 GB de RAM. Acompanhe em `/importar-step` ou `GET /cad/importacoes/:id`; `falhou` traz o erro do Python |
 
 ---
 
@@ -1634,6 +1662,12 @@ catálogo (miniatura gerada), `.aq` relido pelo `read_aq.py`/`oq3d.py` (mesma bb
 
 **Surpresas:** duas referências mortas da binding OCP dão segfault (documento XCAF e
 `ex.Current()`); `GetColor` só aceita forma; `dedup.dedup()` devolve tupla.
+
+**Arquivo gigante** (mesmo dia, commit `449f778`): o usuário subiu de propósito o
+`Projeto4.ifc` do Revit (124 MB) e viu "fetch error". Causa: importação síncrona contra
+conversão de minutos. Solução: caminho rápido no `ifc_to_geo.py` (`ifcopenshell` +
+numpy) e importação assíncrona com status. Resultado: 760.038 triângulos publicados em
+221 s, com miniatura. Detalhes na seção "POC de edição".
 
 **IFC como entrada** (mesmo dia, commit `04c2490`): `scripts/ifc_to_geo.py` sobre o
 `parse_ifc.py`; rotas `/cad/*` aceitam `.stp/.step/.ifc`; skill `leitor-ifc` 1.7.0. O teste
