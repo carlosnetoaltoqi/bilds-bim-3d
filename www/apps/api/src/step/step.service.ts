@@ -31,7 +31,7 @@ import { GeoBuffers } from '../common/geo-buffers';
 const REPO_ROOT = path.resolve(__dirname, '..', '..', '..', '..', '..');
 const SCRIPTS = path.join(REPO_ROOT, 'scripts');
 const PYTHON = process.env.PYTHON ?? 'python3';
-const TIMEOUT_MS = 5 * 60 * 1000;
+const TIMEOUT_MS = 30 * 60 * 1000;   // um Revit de 130 MB leva minutos no ifcopenshell
 
 export interface StepGeo extends GeoBuffers {
   partes: Array<{ nome: string; cor?: number[]; tipo?: string; triangulos?: number; triangulo_inicial?: number }>;
@@ -45,6 +45,22 @@ export interface StepGeo extends GeoBuffers {
   cor_por_face?: boolean;
   segundos: number;
   formato?: 'step' | 'ifc';
+  /** só IFC: 'parse_ifc' (exato) ou 'ifcopenshell' (rápido) */
+  caminho?: string;
+  tamanho_mb?: number;
+  /** presente quando passou de --max-triangulos */
+  aviso?: string;
+}
+
+export interface ImportarOpts {
+  stpPath: string;
+  fileName: string;
+  fileSize?: number;
+  empresa?: string;
+  fabricante?: string;
+  catalogo?: string;
+  nome?: string;
+  deflexaoMm?: number;
 }
 
 export interface AqInfo {
@@ -88,9 +104,9 @@ export class StepService {
 
   // ── Python ───────────────────────────────────────────────────────────────
 
-  private runPython(script: string, args: string[]): Promise<{ stdout: string; stderr: string }> {
+  private runPython(script: string, args: string[], onProgress?: (linha: string) => void): Promise<{ stdout: string; stderr: string }> {
     return new Promise((resolve, reject) => {
-      execFile(
+      const child = execFile(
         PYTHON,
         [path.join(SCRIPTS, script), ...args],
         { cwd: REPO_ROOT, timeout: TIMEOUT_MS, maxBuffer: 64 * 1024 * 1024, env: { ...process.env } },
@@ -103,6 +119,19 @@ export class StepService {
           resolve({ stdout: stdout.toString(), stderr: stderr.toString() });
         },
       );
+      // o ifc_to_geo.py escreve o progresso no stderr ("  500 formas, 120.000 triângulos, 40s")
+      if (onProgress && child.stderr) {
+        let resto = '';
+        child.stderr.on('data', (chunk: Buffer) => {
+          resto += chunk.toString();
+          const linhas = resto.split('\n');
+          resto = linhas.pop() ?? '';
+          for (const l of linhas) {
+            const t = l.replace(/\x1b\[[0-9;]*m/g, '').trim();
+            if (t) onProgress(t);
+          }
+        });
+      }
     });
   }
 
@@ -116,13 +145,13 @@ export class StepService {
    * `.stp/.step` → `step_to_geo.py` (OpenCASCADE, tessela B-rep com a deflexão dada);
    * `.ifc`       → `ifc_to_geo.py` (o `parse_ifc.py` do projeto + dedup; deflexão não se aplica).
    */
-  async tesselar(stpPath: string, deflexaoMm = 0.2, nomeOriginal?: string): Promise<StepGeo> {
+  async tesselar(stpPath: string, deflexaoMm = 0.2, nomeOriginal?: string, onProgress?: (linha: string) => void): Promise<StepGeo> {
     const outJson = path.join(os.tmpdir(), `cad-${crypto.randomUUID()}.json`);
     const t0 = Date.now();
     const formato = StepService.formatoDe(nomeOriginal ?? stpPath);
     try {
-      if (formato === 'ifc') await this.runPython('ifc_to_geo.py', [stpPath, outJson]);
-      else await this.runPython('step_to_geo.py', [stpPath, outJson, '--deflexao', String(deflexaoMm)]);
+      if (formato === 'ifc') await this.runPython('ifc_to_geo.py', [stpPath, outJson], onProgress);
+      else await this.runPython('step_to_geo.py', [stpPath, outJson, '--deflexao', String(deflexaoMm)], onProgress);
       const geo = JSON.parse(await fs.readFile(outJson, 'utf8')) as StepGeo;
       // o script grava o nome do arquivo temporário do multer; o que interessa é o original
       if (nomeOriginal) geo.fonte = path.basename(nomeOriginal);
@@ -157,32 +186,118 @@ export class StepService {
   // ── Importar como produto ────────────────────────────────────────────────
 
   /**
-   * Cria (ou acrescenta a) um catálogo com o STEP como produto, para abrir no
-   * editor "como fizemos com os catálogos". Um `BimImport` próprio por STEP,
-   * porque `geoKey` e miniatura embutem o `importId`.
+   * Importação ASSÍNCRONA: cria o `BimImport` em `recebido`, devolve na hora e
+   * processa em background (parseando → gravando → publicado | falhou), com o
+   * progresso do Python em `note`. Um Revit de 130 MB leva minutos — a versão
+   * síncrona morria no timeout do servidor e o browser via "Failed to fetch".
+   * Acompanhe em `GET /cad/importacoes/:importId`.
    */
-  async importar(opts: {
-    stpPath: string;
-    fileName: string;
-    empresa?: string;
-    fabricante?: string;
-    catalogo?: string;
-    nome?: string;
-    deflexaoMm?: number;
-  }) {
-    const company = opts.empresa
-      ? await this.companyModel.findOne({ customUrl: opts.empresa }).lean().exec()
+  async importarAsync(opts: ImportarOpts): Promise<{ importId: string; status: string; statusUrl: string }> {
+    const company = await this.empresaDe(opts.empresa);
+    const importId = crypto.randomUUID();
+    await this.importModel.create({
+      _id: importId,
+      companyId: company._id,
+      status: 'recebido',
+      fileName: opts.fileName,
+      note: `${StepService.formatoDe(opts.fileName).toUpperCase()} de ${((opts.fileSize ?? 0) / 1024 / 1024).toFixed(1)} MB recebido`,
+      updatedAt: new Date(),
+    });
+    // não aguarda: erros vão para o documento do import
+    this.processar(importId, company as any, opts).catch(() => {});
+    return { importId, status: 'recebido', statusUrl: `/cad/importacoes/${importId}` };
+  }
+
+  /** Estado de uma importação CAD, com os links quando publicada. */
+  async status(importId: string) {
+    const imp = await this.importModel.findById(importId).lean().exec();
+    if (!imp) throw new NotFoundException('importação não encontrada');
+    let produto: Record<string, unknown> | null = null;
+    if (imp.status === 'publicado') {
+      const p = await this.productModel.findOne({ importId }).lean().exec();
+      const cat = imp.catalogId ? await this.catalogModel.findById(imp.catalogId).lean().exec() : null;
+      const company = await this.companyModel.findById(imp.companyId).lean().exec();
+      if (p && cat && company) {
+        produto = {
+          produtoId: p._id,
+          nome: p.nome,
+          catalogSlug: cat.slug,
+          empresa: company.customUrl,
+          editorUrl: `/${company.customUrl}/${cat.slug}/editar/${p._id}`,
+          catalogoUrl: `/${company.customUrl}/${cat.slug}`,
+          specs: p.specs,
+          thumbUrl: p.thumbKey ? `/thumbs/${p._id}` : null,
+        };
+      }
+    }
+    return {
+      importId: imp._id,
+      status: imp.status,
+      fileName: imp.fileName,
+      note: (imp as any).note ?? null,
+      error: imp.error ?? null,
+      createdAt: imp.createdAt,
+      updatedAt: (imp as any).updatedAt ?? null,
+      segundos: Math.round((((imp as any).updatedAt ?? new Date()).getTime() - new Date(imp.createdAt).getTime()) / 1000),
+      ...(produto ?? {}),
+    };
+  }
+
+  private async empresaDe(customUrl?: string) {
+    const company = customUrl
+      ? await this.companyModel.findOne({ customUrl }).lean().exec()
       : await this.companyModel.findOne().sort({ createdAt: 1 }).lean().exec();
-    if (!company) throw new NotFoundException(opts.empresa ? `empresa "${opts.empresa}" não encontrada` : 'nenhuma empresa cadastrada — crie uma em /empresa/criar');
+    if (!company) throw new NotFoundException(customUrl ? `empresa "${customUrl}" não encontrada` : 'nenhuma empresa cadastrada — crie uma em /empresa/criar');
+    return company;
+  }
 
+  private async processar(importId: string, company: { _id: string; customUrl: string }, opts: ImportarOpts) {
+    const t0 = Date.now();
+    const setStatus = (status: string, extra: Record<string, unknown> = {}) =>
+      this.importModel.findByIdAndUpdate(importId, { status, updatedAt: new Date(), ...extra }).exec();
+    let geoKey: string | null = null;
+    try {
+      await setStatus('parseando', { note: 'convertendo…' });
+      let ultimoProgresso = 0;
+      const geo = await this.tesselar(opts.stpPath, opts.deflexaoMm ?? 0.2, opts.fileName, (linha) => {
+        // no máximo uma atualização por segundo no Mongo
+        if (Date.now() - ultimoProgresso > 1000) {
+          ultimoProgresso = Date.now();
+          this.importModel.findByIdAndUpdate(importId, { note: linha, updatedAt: new Date() }).exec().catch(() => {});
+        }
+      });
+      await setStatus('gravando', { note: `${geo.idx.length / 3} triângulos convertidos em ${((Date.now() - t0) / 1000).toFixed(0)} s — gravando…` });
+      const r = await this.publicar(importId, company, opts, geo);
+      geoKey = r.geoKey;
+      await setStatus('publicado', {
+        catalogId: r.catalogId,
+        productCount: 1,
+        note: [
+          `${geo.formato?.toUpperCase()} · ${geo.partes.length} ${geo.formato === 'ifc' ? 'produto(s)' : 'sólido(s)'} · ${geo.idx.length / 3} triângulos · ${((Date.now() - t0) / 1000).toFixed(0)} s`,
+          geo.caminho ? `via ${geo.caminho}` : null,
+          geo.aviso ?? null,
+        ].filter(Boolean).join(' — '),
+      });
+      this.logger.log(`${geo.formato?.toUpperCase()} importado — ${r.nome} → ${company.customUrl}/${r.slug} (produto ${r.productId}) em ${((Date.now() - t0) / 1000).toFixed(1)}s`);
+      this.importacoes.spawnThumbWorker(importId, [{ productId: r.productId, geoKey: r.geoKey }]).catch(() => {});
+    } catch (err: any) {
+      const msg = (err?.message ?? String(err)).slice(0, 2000);
+      this.logger.error(`import ${importId.slice(0, 8)} FALHOU — ${msg}`);
+      await this.productModel.deleteMany({ importId }).catch(() => {});
+      if (geoKey) await this.store.deleteByPrefix(`geo/${importId}`).catch(() => {});
+      await setStatus('falhou', { error: msg, note: `falhou após ${((Date.now() - t0) / 1000).toFixed(0)} s` });
+    } finally {
+      await fs.unlink(opts.stpPath).catch(() => {});
+    }
+  }
+
+  /**
+   * Versão SÍNCRONA (usada por `?sync=1` e pelos testes): converte e publica na
+   * mesma requisição. Só para arquivos pequenos.
+   */
+  async importar(opts: ImportarOpts) {
+    const company = await this.empresaDe(opts.empresa);
     const geo = await this.tesselar(opts.stpPath, opts.deflexaoMm ?? 0.2, opts.fileName);
-
-    const ehIfc = geo.formato === 'ifc';
-    const fabricante = (opts.fabricante ?? '').trim() || (ehIfc ? 'IFC' : 'STEP');
-    const titulo = (opts.catalogo ?? '').trim() || (ehIfc ? 'Peças IFC' : 'Peças STEP');
-    const slug = slugify(titulo) || (ehIfc ? 'pecas-ifc' : 'pecas-step');
-    const nome = (opts.nome ?? '').trim() || path.basename(opts.fileName).replace(/\.(stp|step|ifc)$/i, '');
-
     const importId = crypto.randomUUID();
     await this.importModel.create({
       _id: importId,
@@ -190,11 +305,40 @@ export class StepService {
       status: 'publicado',
       fileName: opts.fileName,
       productCount: 1,
-      note: ehIfc
-        ? `IFC convertido pelo parse_ifc.py — ${geo.partes.length} produto(s), unidade ${geo.unidade}, escala ${geo.escala_aplicada}`
+      note: geo.formato === 'ifc'
+        ? `IFC convertido (${geo.caminho}) — ${geo.partes.length} produto(s), unidade ${geo.unidade}, escala ${geo.escala_aplicada}`
         : `STEP tesselado (deflexão ${geo.deflexao_mm} mm) — ${geo.partes.length} sólido(s), unidade ${geo.unidade}`,
       updatedAt: new Date(),
     });
+    const r = await this.publicar(importId, company as any, opts, geo);
+    await this.importModel.findByIdAndUpdate(importId, { catalogId: r.catalogId }).exec();
+    this.importacoes.spawnThumbWorker(importId, [{ productId: r.productId, geoKey: r.geoKey }]).catch(() => {});
+    this.logger.log(`${geo.formato?.toUpperCase()} importado — ${r.nome} → ${company.customUrl}/${r.slug} (produto ${r.productId})`);
+    return {
+      produtoId: r.productId,
+      importId,
+      empresa: company.customUrl,
+      catalogSlug: r.slug,
+      catalogId: r.catalogId,
+      editorUrl: `/${company.customUrl}/${r.slug}/editar/${r.productId}`,
+      catalogoUrl: `/${company.customUrl}/${r.slug}`,
+      triangulos: geo.idx.length / 3,
+      partes: geo.partes.length,
+      bbox_mm: geo.bbox_mm,
+      unidade: geo.unidade,
+      formato: geo.formato,
+      aviso: geo.aviso ?? null,
+    };
+  }
+
+  /** Catálogo (upsert) + produto + geometria no storage. Comum aos dois modos. */
+  private async publicar(importId: string, company: { _id: string; customUrl: string }, opts: ImportarOpts, geo: StepGeo) {
+
+    const ehIfc = geo.formato === 'ifc';
+    const fabricante = (opts.fabricante ?? '').trim() || (ehIfc ? 'IFC' : 'STEP');
+    const titulo = (opts.catalogo ?? '').trim() || (ehIfc ? 'Peças IFC' : 'Peças STEP');
+    const slug = slugify(titulo) || (ehIfc ? 'pecas-ifc' : 'pecas-step');
+    const nome = (opts.nome ?? '').trim() || path.basename(opts.fileName).replace(/\.(stp|step|ifc)$/i, '');
 
     let catalog = await this.catalogModel.findOne({ companyId: company._id, slug }).lean().exec();
     if (!catalog) {
@@ -211,7 +355,6 @@ export class StepService {
       });
       catalog = await this.catalogModel.findById(catalogId).lean().exec();
     }
-    await this.importModel.findByIdAndUpdate(importId, { catalogId: catalog!._id }).exec();
 
     // id único dentro do catálogo (mesmo STEP importado duas vezes)
     const baseId = slugify(nome) || 'peca-step';
@@ -238,7 +381,9 @@ export class StepService {
             'Dimensões (mm)': `${bb[0].toFixed(1)} × ${bb[1].toFixed(1)} × ${bb[2].toFixed(1)}`,
             Produtos: String(geo.partes.length),
             Triângulos: String(geo.idx.length / 3),
-            Cores: geo.cor_por_face ? 'por face (IFCINDEXEDCOLOURMAP)' : 'uniforme',
+            Cores: geo.caminho === 'ifcopenshell' ? 'por material (ifcopenshell)' : geo.cor_por_face ? 'por face (IFCINDEXEDCOLOURMAP)' : 'uniforme',
+            Conversor: geo.caminho ?? 'parse_ifc',
+            'Tamanho do arquivo (MB)': String(geo.tamanho_mb ?? ''),
           }
         : {
             Fonte: geo.fonte,
@@ -260,23 +405,6 @@ export class StepService {
     const count = await this.productModel.countDocuments({ catalogId: catalog!._id }).exec();
     await this.catalogModel.findByIdAndUpdate(catalog!._id, { productCount: count, filters: series.filter(Boolean) }).exec();
 
-    // miniatura: fire-and-forget, como no import de .aq
-    this.importacoes.spawnThumbWorker(importId, [{ productId, geoKey }]).catch(() => {});
-
-    this.logger.log(`${ehIfc ? 'IFC' : 'STEP'} importado — ${nome} → ${company.customUrl}/${slug} (produto ${productId})`);
-    return {
-      produtoId: productId,
-      importId,
-      empresa: company.customUrl,
-      catalogSlug: slug,
-      catalogId: catalog!._id,
-      editorUrl: `/${company.customUrl}/${slug}/editar/${productId}`,
-      catalogoUrl: `/${company.customUrl}/${slug}`,
-      triangulos: geo.idx.length / 3,
-      partes: geo.partes.length,
-      bbox_mm: geo.bbox_mm,
-      unidade: geo.unidade,
-      formato: geo.formato,
-    };
+    return { productId, geoKey, slug, nome, catalogId: catalog!._id as string };
   }
 }

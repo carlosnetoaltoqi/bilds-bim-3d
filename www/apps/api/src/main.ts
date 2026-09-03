@@ -40,6 +40,13 @@ async function bootstrap() {
     exposedHeaders: ['X-Aq-Resumo', 'Content-Disposition'],
   });
   await app.listen(4000);
+  // Conversão de CAD grande pode levar minutos; o Node fecha a conexão em 300 s por padrão
+  // (requestTimeout) e o browser vê "Failed to fetch". A importação virou assíncrona, mas
+  // /cad/tesselar (síncrono, usado pelo editor) e uploads grandes precisam de folga.
+  const server = app.getHttpServer();
+  server.requestTimeout = 60 * 60 * 1000;
+  server.headersTimeout = 65 * 1000;
+  server.keepAliveTimeout = 65 * 1000;
   console.log('API rodando em http://localhost:4000');
 }
 bootstrap();
