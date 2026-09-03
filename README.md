@@ -205,6 +205,22 @@ original para "restaurar". **Exportar IFC** baixa um IFC4 do que está na tela (
 potência e conexões no banco, com "voltar" por campo. Detalhes em
 `docs/sessoes/S7.1-poc-edicao.md`.
 
+## Peça STEP no editor, e saída em `.aq`
+
+Na mesma branch, um `.stp`/`.step` (Inventor, SolidWorks, CATIA…) entra no editor como
+produto de um catálogo e sai como IFC4 ou `.aq`:
+
+```bash
+pip install --user --break-system-packages cadquery-ocp   # OpenCASCADE em Python, uma vez
+python3 scripts/step_to_geo.py input/STEP/2831A09.stp --info   # inspeciona: unidade, sólidos, bbox
+# com a API e o web de pé: http://localhost:3000/importar-step
+```
+
+O STEP é B-rep paramétrico (não tem triângulos); a API tessela com OpenCASCADE, cria o
+produto e a miniatura. No editor, **Exportar .aq** gera uma biblioteca AltoQi com a peça
+(`scripts/geo_to_aq.py`, sobre o escritor OQ3D do `eng-reversa/`), lida de volta pelo
+`read_aq.py` do projeto. Detalhes em `docs/sessoes/S7.2-step-e-aq.md`.
+
 ## Documentação
 
 - `CLAUDE.md` — arquitetura, formato OQ3D, decisões e armadilhas conhecidas
@@ -214,11 +230,12 @@ potência e conexões no banco, com "voltar" por campo. Detalhes em
 - `docs/skills/` — skills de agente sobre `.aq`, IFC e páginas de catálogo
 - `eng-reversa/` — como **escrever** um `.aq` e OQ3D, e extrair catálogo de um PDF comercial (o caminho inverso do pipeline)
 - `docs/sessoes/S7.1-poc-edicao.md` — a POC de edição: o que faz, como foi verificada, o que ficou pendente
+- `docs/sessoes/S7.2-step-e-aq.md` — STEP tesselado no editor e exportação em `.aq`
 
 ## Skills de agente
 
-As três skills que cobrem o terreno técnico do projeto são versionadas em
-`docs/skills/`. Para usá-las com o Claude Code:
+As quatro skills que cobrem o terreno técnico do projeto (`.aq`, IFC, STEP e páginas de
+catálogo) são versionadas em `docs/skills/`. Para usá-las com o Claude Code:
 
 ```bash
 bash scripts/link_skills.sh

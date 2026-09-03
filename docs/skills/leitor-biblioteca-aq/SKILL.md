@@ -1,7 +1,7 @@
 ---
 name: leitor-biblioteca-aq
 description: Lê E ESCREVE arquivos de biblioteca BIM do AltoQi Builder (.aq) — SQLite com geometria 3D embutida. Extrai peças, dados hidráulicos, curvas de bomba, propriedades, miniaturas e a malha 3D completa (formato OQ3D), dispensando os IFCs; e gera um .aq do zero, com o schema, os enums, o encoding cp1252 e o binário OQ3D corretos.
-version: 2.4.0
+version: 2.5.0
 author: Bilds / carlosnetoaltoqi
 ---
 
@@ -665,6 +665,38 @@ Três coisas que só aparecem escrevendo:
 
 ---
 
+### Um `.aq` mínimo a partir de qualquer malha — `scripts/geo_to_aq.py`
+
+Quando a geometria não nasceu no AltoQi (um STEP tesselado, uma peça editada num viewer),
+o `.aq` de uma peça só precisa de: `VERSAO_BANCO_CADASTRO`; `CLASSE_PECA` → `GRUPO_PECA`
+→ `PECA` (+ `DADOS_HIDRAULICOS`); `CLASSE_SIMBOLOGIA_3D` → `GRUPO_SIMBOLOGIA_3D` →
+`SIMBOLOGIA_3D` (o blob OQ3D) e `PECA_SIMBOLOGIA_3D`; `GRUPO_PROPRIEDADE_PERSONALIZADA` →
+`PROPRIEDADE_PERSONALIZADA` → `VALOR_PROPRIEDADE_PERSONALIZADA`; e `CLASSE_ITEM` →
+`GRUPO_ITEM` → `ITEM` (com `CODIGO_ITEM`) → `ITEM_ASSOCIADO`. Schema completo do
+`eng-reversa/dados/schema-aq-607.sql`, texto em cp1252 via `CAST(? AS TEXT)`.
+
+Regras que o `bilds-bim-3d/scripts/geo_to_aq.py` segue e que valem para qualquer gerador:
+
+- **Uma raiz OQ3D por malha de cor uniforme.** O OQ3D só tem cor por malha
+  (`TCoatingColor`); uma malha do viewer com várias cores tem de ser dividida por cor antes
+  de escrever, senão a cor se perde. Se a origem já traz partes (o editor), uma raiz por parte.
+- **Unidades:** do viewer (m, Y-up) para o OQ3D (cm, Z-up): `(x·100, −z·100, y·100)`.
+- **Sem código de diâmetro** para peça genérica: `DIAMETRO_PECA = −DBL_MAX`, como as 700
+  conexões da Amanco. `TIPO_APLICACAO_PECA = 2` (conexão) e `ENTIDADE_IFC` de
+  `IfcPipeFitting` (`2071, 4099, 2088`) são o enquadramento mais inofensivo.
+- **Registre a origem** numa propriedade personalizada ("Geometria 3D: malha importada —
+  STEP x.stp; N malhas, T triângulos") — a distinção entre forma de fabricante e malha
+  importada tem de sobreviver até a ficha do produto.
+- **Título/fabricante da página** vêm da cascata do `build.py`, que começa por
+  `CLASSE_SIMBOLOGIA_3D.NOME_CLASSE` ("Fabricante - Linha") e cai para a **pasta** do
+  arquivo. Um `.aq` gerado fora de `input/<Fabricante>/<Linha>/` publica com o nome da
+  pasta onde estiver.
+- **Confira com o leitor do projeto**, não com o SQLite: `eng-reversa/tools/validar_aq.py`
+  (a checagem "barras de tubo com 600 cm" é da Akato e não se aplica) e
+  `read_aq.extract_simbologias` + `oq3d.to_buffers` devolvendo a mesma contagem, bbox e cor.
+
+---
+
 ## Inferir fabricante e título
 
 Fabricante e título são o cabeçalho da página publicada — **nunca podem sair vazios nem em forma de slug**. Cascata validada nas três bibliotecas:
@@ -1068,6 +1100,8 @@ precisão nativa do AltoQi é o centímetro.
 ---
 
 ## Histórico
+
+**2.5.0** — Nova subseção "Um `.aq` mínimo a partir de qualquer malha": a lista de tabelas que uma peça só exige, uma raiz OQ3D por malha de cor uniforme (dividir por cor antes de escrever), a conversão de unidades do viewer, o enquadramento inofensivo (conexão, sem código de diâmetro), a origem gravada em propriedade, e a armadilha do título vindo da pasta. Vem do `scripts/geo_to_aq.py` do `bilds-bim-3d`, verificado com um STEP tesselado relido pelo `read_aq.py`/`oq3d.py`.
 
 **2.4.0** — Três aprendizados de quem **edita** a geometria depois de extraída (POC de
 edição, `bilds-bim-3d` branch `poc-edicao`): a estrutura de partes perdida no

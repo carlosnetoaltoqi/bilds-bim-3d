@@ -48,16 +48,18 @@ não está aqui, isso é uma falha desta documentação — registre-a antes de 
 | Vocabulário do domínio (GeometryStore, Import, Geometry Pointer) | `CONCEPTS.md` |
 | **Como ESCREVER um `.aq` e OQ3D, e extrair catálogo de PDF** | **`eng-reversa/`** — ver `eng-reversa/README.md` |
 | **POC de edição (informações + modelo 3D, branch `poc-edicao`)** | este arquivo, "POC de edição" + `docs/sessoes/S7.1-poc-edicao.md` + docstrings em `www/apps/web/src/components/bim-editor/` |
+| **Ler STEP (.stp) e tesselar; escrever `.aq` a partir de qualquer malha** | `scripts/step_to_geo.py`, `scripts/geo_to_aq.py`, `docs/sessoes/S7.2-step-e-aq.md`, skill `docs/skills/leitor-step/` |
 
 ### Skills — versionadas aqui, em `docs/skills/`
 
-Três skills de agente cobrem o terreno técnico do projeto e **moram neste
+Quatro skills de agente cobrem o terreno técnico do projeto e **moram neste
 repositório**:
 
 | Skill | Assunto |
 |---|---|
-| `docs/skills/leitor-biblioteca-aq/` | ler `.aq`, schema do banco, formato OQ3D |
-| `docs/skills/leitor-ifc/` | parsear IFC4, geometria, cores, armadilhas STEP |
+| `docs/skills/leitor-biblioteca-aq/` | ler e escrever `.aq`, schema do banco, formato OQ3D |
+| `docs/skills/leitor-ifc/` | parsear e escrever IFC4, geometria, cores, armadilhas STEP |
+| `docs/skills/leitor-step/` | ler STEP (.stp) B-rep e tesselar com OpenCASCADE |
 | `docs/skills/pagina-biblioteca/` | gerar as páginas de catálogo com viewer 3D |
 
 `~/.claude/skills/` recebe **symlinks** apontando para cá — existe uma cópia só,
@@ -95,11 +97,12 @@ para servir de base à POC de edição (ver "POC de edição", abaixo):
 | O quê | Estado atual |
 |---|---|
 | `companies` | **1** — `poc-edicao` (customUrl), sem logo |
-| `bim_catalogs` | **1** — `bomba-de-combate-a-incencio`, 13 produtos, `series-rows` |
-| `bim_imports` | **1** — `ccd89188…`, `publicado` |
-| `bim_products` | **13**, todos com `geoKey` e `thumbKey` |
-| `www/storage/bim/geo/ccd89188…/` | 13 JSON (o `.orig.json` só aparece depois de editar geometria) |
-| Editor | `http://localhost:3000/poc-edicao/bomba-de-combate-a-incencio/editar` |
+| `bim_catalogs` | **2** — `bomba-de-combate-a-incencio` (13 produtos, `series-rows`) e `pecas-step` (1 produto, `catalog-grid`, vindo de `input/STEP/2831A09.stp`) |
+| `bim_imports` | **2** — `ccd89188…` (Dancor) e `b96d8aa1…` (STEP), ambos `publicado` |
+| `bim_products` | **14**, todos com `geoKey` e `thumbKey` |
+| `www/storage/bim/geo/<importId>/` | 13 + 1 JSON (o `.orig.json` só aparece depois de editar geometria) |
+| Editor | `http://localhost:3000/poc-edicao/bomba-de-combate-a-incencio/editar` · `…/poc-edicao/pecas-step/editar` |
+| Importar STEP | `http://localhost:3000/importar-step` (precisa do `OCP` em Python — ver abaixo) |
 
 Para voltar ao vazio: `deleteMany({})` nas quatro coleções e apagar `www/storage/bim/*/*`
 (receita em "POC subida local, armadilha do Atlas e limpeza da base", no histórico).
@@ -272,14 +275,32 @@ escalada e um tubo novo: `parse_ifc.py` devolve os **mesmos 27.937 triângulos**
 `ifcopenshell.validate` **0 erros**, psets lidos de volta com "Incêndio" íntegro. O
 `ifcopenshell.geom` conta 27.871 (descarta 66 degenerados — também conhecido).
 
-Como testar sem browser: `node scratchpad/e2e-editor.mjs` e `e2e-ifc.mjs` (Playwright com
-SwiftShader — descritos em `docs/sessoes/S7.1-poc-edicao.md`).
+**STEP → editor, e editor → `.aq`** (S7.2, `docs/sessoes/S7.2-step-e-aq.md`). Um `.stp`
+é ISO 10303-21 como o IFC, mas B-rep paramétrico: não há triângulo no arquivo, a malha
+nasce na tesselação. `scripts/step_to_geo.py` faz isso com OpenCASCADE (`pip install --user
+--break-system-packages cadquery-ocp`, 165 MB em `~/.local`): nomes e cores via XCAF, cor
+por face, sentido invertido nas faces `REVERSED`, `×0,001` (o OCC entrega mm) e `(x, z, −y)`,
+dedup do pipeline. `POST /step/importar` (e a página `/importar-step`) tessela e cria um
+produto no catálogo `pecas-step` — daí o editor abre a peça como qualquer outra;
+`POST /step/tesselar` acrescenta um STEP como partes de um produto existente. No sentido
+inverso, `scripts/geo_to_aq.py` embala as partes do editor num `.aq` mínimo — schema 607,
+`Gerador` cp1252 e `oq3d_writer` do `eng-reversa`, uma raiz OQ3D por parte, `PECA` +
+`SIMBOLOGIA_3D` + propriedades + `ITEM` com o código — servido por `POST /exportar/aq`
+(botão **Exportar .aq**). Verificado na 2831A09 (Inventor, 152 × 107 × 152 mm): 7.506
+triângulos no JSON, no `.aq` relido pelo `read_aq.py`/`oq3d.py` e no IFC relido pelo
+`parse_ifc.py`, com a mesma bbox e cor. Duas armadilhas da binding OCP dão **segfault sem
+traceback**: documento XCAF liberado enquanto os rótulos ainda são usados, e
+`ex.Current()` guardado após o `Next()` — ver a skill `leitor-step`.
+
+Como testar sem browser: `node scratchpad/e2e-editor.mjs`, `e2e-ifc.mjs` e `e2e-step.mjs`
+(Playwright com SwiftShader — descritos em `docs/sessoes/S7.1-poc-edicao.md` e `S7.2`).
 
 **Pendências desta linha:**
 - **Miniatura fica desatualizada depois de editar geometria** — o `thumbKey` continua
   apontando para a imagem do import. Regenerar com o `thumb-worker.ts` no `PUT`.
-- Voltar ao `.aq`: as partes do editor (metros, Y-up) são o que o `oq3d_writer.py` do
-  `eng-reversa` espera receber (cm, Z-up: `x, −z·100, y·100`), uma malha por objeto-raiz.
+- ~~Voltar ao `.aq`~~ — feito na S7.2 (`scripts/geo_to_aq.py`, botão **Exportar .aq**).
+  Falta fechar o ciclo: `.aq` exportado → `build.py` e → import pela POC.
+- Montagem STEP com várias peças e cores por face só foi testada sinteticamente.
 - Gizmo com várias partes selecionadas gira cada uma em torno do pivô da principal.
 
 ### Dependência cruzada com o bilds.com
@@ -521,6 +542,8 @@ bilds-bim-3d/
 │   ├── read_aq.py               ← .aq AltoQi → dados, metadados e simbologias
 │   ├── parse_ifc.py             ← IFC4 → JSON de geometria (só no modo --ifc)
 │   ├── dedup.py                 ← deduplicação de vértices (~79% redução)
+│   ├── step_to_geo.py           ← STEP (.stp) → {pos,col,idx} via OpenCASCADE (POC de edição)
+│   ├── geo_to_aq.py             ← {pos,col,idx} ou partes → .aq mínimo (usa eng-reversa/)
 │   ├── thumbs.mjs               ← render das miniaturas no Chromium (Node)
 │   ├── setup_vendor.sh          ← baixa Three.js para templates/vendor/
 │   └── link_skills.sh           ← liga docs/skills/ a ~/.claude/skills/
@@ -1508,6 +1531,11 @@ via modo `'recursive'` do `scan_input()`.
 | IFC exportado abre com a geometria em dobro | A montagem recebeu Representation — o `parse_ifc.py` processa `IFCELEMENTASSEMBLY` e `IFCBUILDINGELEMENTPROXY`; só as proxies podem ter malha |
 | IFC exportado: `parse_ifc.py` ignora um face set | Entidade quebrada em várias linhas — `build_entity_index` casa `#id=TIPO(args);` **por linha** |
 | IFC exportado: parte rotacionada fora do lugar | Axis/RefDirection do `IFCAXIS2PLACEMENT3D` montados sem converter os eixos — é `Axis = C·coluna_Y`, `RefDirection = C·coluna_X`, com `C: (x,y,z)→(x,−z,y)` |
+| `step_to_geo.py` morre com `Segmentation fault` | Referência morta da binding OCP: documento XCAF liberado com rótulos em uso, ou `ex.Current()` guardado após `Next()`. Manter `doc`/`reader`/sequência vivos; copiar com `TopoDS.Solid_s()`; `python3 -X faulthandler` mostra a linha |
+| `POST /step/importar` → 500 "step_to_geo.py falhou: No module named 'OCP'" | OpenCASCADE não instalado para o Python que a API chama — `pip install --user --break-system-packages cadquery-ocp` (PEP 668 exige a flag no Ubuntu) |
+| STEP importado 1000× maior ou deitado | Faltou `×0,001` (o OCC entrega mm) ou a troca `(x, z, −y)` — o script já faz os dois; conferir se a geometria veio de outro caminho |
+| `.aq` exportado publica com título estranho (ex.: "scratchpad") | `peek_aq` infere o título da pasta pai — pôr o arquivo em `input/<Fabricante>/<Linha>/` antes do `build.py` |
+| `validar_aq.py` falha só em "barras de tubo com 600 cm" | Regra específica do catálogo da Akato; um `.aq` de peça única gerado pelo `geo_to_aq.py` não tem tubo — as outras 19 checagens é que valem |
 
 ---
 
@@ -1573,6 +1601,27 @@ python3 -m http.server 8080 --directory output/preview
 ---
 
 ## Histórico de sessões
+
+### 2026-09-03 — S7.2: STEP no editor 3D e exportação em `.aq`
+
+Pedido: a peça `.stp` de `input/` aberta no editor "como fizemos com os catálogos", com
+saída em IFC ou `.aq`. O arquivo (`2831A09.stp`, Inventor 2013, AP214, mm, um sólido de
+26 faces) estava em Downloads do Windows; copiado para `input/STEP/`. Registro em
+`docs/sessoes/S7.2-step-e-aq.md`.
+
+**Entregue:** `scripts/step_to_geo.py` (OpenCASCADE via `cadquery-ocp`, instalado em
+`~/.local`), `scripts/geo_to_aq.py` (reaproveita schema, `Gerador` cp1252 e `oq3d_writer`
+do `eng-reversa`), `StepModule` na API (`/step/importar`, `/step/tesselar`,
+`/exportar/aq`), página `/importar-step`, botão **Exportar .aq** e `.stp` no "importar
+parte". Skill nova **`leitor-step` 1.0.0**; `leitor-biblioteca-aq` 2.5.0 ganhou a receita
+do `.aq` mínimo.
+
+**Verificado:** 7.506 triângulos e 152 × 107 × 152 mm em todo o ciclo — JSON, produto no
+catálogo (miniatura gerada), `.aq` relido pelo `read_aq.py`/`oq3d.py` (mesma bbox e cor,
+19/20 no `validar_aq.py`), IFC relido pelo `parse_ifc.py`; browser sem erro de console.
+
+**Surpresas:** duas referências mortas da binding OCP dão segfault (documento XCAF e
+`ex.Current()`); `GetColor` só aceita forma; `dedup.dedup()` devolve tupla.
 
 ### 2026-09-03 — S7.1: POC de edição (informações + modelo 3D) na branch `poc-edicao`
 
