@@ -255,8 +255,25 @@ o que o visitante verá. Plano de corte em Y (corta também o fantasma laranja d
 senão a comparação não faz sentido), grade em cm proporcional ao modelo, eixos na origem.
 Atalhos: 1–4 ferramentas, F enquadra, H oculta, Del exclui, Ctrl+Z/Shift+Z, Ctrl+S.
 
-Como testar sem browser: `node scratchpad/e2e-editor.mjs` (Playwright com SwiftShader —
-o script desta sessão está descrito em `docs/sessoes/S7.1-poc-edicao.md`).
+**Exportar IFC4** (`ifc-export.ts`, botões "Exportar IFC" e "salvar geometria e exportar
+IFC"): gera o STEP **do que está na tela**, salvo ou não, separado do storage. É o inverso
+do `parse_ifc.py` e obedece às armadilhas dele: uma entidade por linha; a
+`IFCELEMENTASSEMBLY` (o produto) **sem** Representation e uma `IFCBUILDINGELEMENTPROXY`
+por parte (o parser processa os dois tipos — geometria nos dois contaria em dobro);
+`METRE` com valores em metros (o parser não converte unidade); eixos `ifc = (x, −z, y)`;
+`REAL` sempre com ponto e sem expoente; `IFCINDEXEDCOLOURMAP` com índice 1-based por
+triângulo mais `IFCSTYLEDITEM` para viewers que ignoram o mapa; `Closed=.T.` só sem
+aresta de borda. Matriz rígida (ortonormal, det>0) vira `IFCLOCALPLACEMENT` com
+`Axis = C·coluna_Y`, `RefDirection = C·coluna_X`; escala é assada nos vértices. As
+informações do Mongo viajam em `IFCPROPERTYSET` (`bilds_Produto`, `bilds_Especificacoes`),
+com acento em `\X2\…\X0\`. Verificado na 2CV com uma parte girada+deslocada, uma
+escalada e um tubo novo: `parse_ifc.py` devolve os **mesmos 27.937 triângulos**, pontos a
+10 µm com desvio máximo de 14 µm (fronteira de arredondamento — a armadilha conhecida),
+`ifcopenshell.validate` **0 erros**, psets lidos de volta com "Incêndio" íntegro. O
+`ifcopenshell.geom` conta 27.871 (descarta 66 degenerados — também conhecido).
+
+Como testar sem browser: `node scratchpad/e2e-editor.mjs` e `e2e-ifc.mjs` (Playwright com
+SwiftShader — descritos em `docs/sessoes/S7.1-poc-edicao.md`).
 
 **Pendências desta linha:**
 - **Miniatura fica desatualizada depois de editar geometria** — o `thumbKey` continua
@@ -1488,6 +1505,9 @@ via modo `'recursive'` do `scan_input()`.
 | Parte com milhares de "arestas de borda" na Dancor | Não é defeito do editor: a malha do fabricante é sopa de triângulos (25–32% das arestas). O alarme vale para malha gerada/importada, que deve dar 0 |
 | Depois de salvar geometria, a miniatura do card não muda | Esperado na POC de edição — thumb não é regenerada (pendência). O viewer 3D já mostra o novo, porque a ETag deriva de tamanho+mtime |
 | Mensagem "salvo" some no mesmo instante | `useEffect` que reseta o formulário dependia de `editadoEm` e rodava logo após o save — a dependência tem de ser só o `_id` do produto |
+| IFC exportado abre com a geometria em dobro | A montagem recebeu Representation — o `parse_ifc.py` processa `IFCELEMENTASSEMBLY` e `IFCBUILDINGELEMENTPROXY`; só as proxies podem ter malha |
+| IFC exportado: `parse_ifc.py` ignora um face set | Entidade quebrada em várias linhas — `build_entity_index` casa `#id=TIPO(args);` **por linha** |
+| IFC exportado: parte rotacionada fora do lugar | Axis/RefDirection do `IFCAXIS2PLACEMENT3D` montados sem converter os eixos — é `Axis = C·coluna_Y`, `RefDirection = C·coluna_X`, com `C: (x,y,z)→(x,−z,y)` |
 
 ---
 
@@ -1577,6 +1597,11 @@ editar nome e voltar pelo `infoOriginal` — **zero erros de console**.
 Dancor e Amanco (dizia que não); a base já não está zerada (Dancor recarregada nesta
 sessão sob a empresa `poc-edicao`); e a contagem de arestas de borda não é critério de
 qualidade universal — malha de fabricante tem 25–32% de arestas abertas.
+
+**Exportar IFC4** (commit seguinte): botão que gera o STEP do estado atual do editor,
+separado do salvar — `ifc-export.ts`, inverso do `parse_ifc.py`. Round-trip pelo próprio
+parser do projeto: mesmos triângulos, 14 µm de desvio máximo, `ifcopenshell.validate` sem
+erros. Skill `leitor-ifc` 1.6.0 ganhou a seção "Escrever IFC que este parser lê".
 
 **Aprendizado para a skill `leitor-biblioteca-aq` (2.4.0):** a estrutura de partes perdida
 no `{pos,col,idx}` se recupera por componentes conexos, porque o dedup carrega a cor na

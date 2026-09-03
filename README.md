@@ -199,7 +199,9 @@ No editor: selecionar partes do modelo (o JSON plano é re-segmentado em compone
 conexos), mover/girar/escalar com gizmo ou campos em cm, recolorir, espelhar, fundir,
 excluir, adicionar cilindro/tubo/caixa ou STL/OBJ, corte em Y, fantasma do original.
 **Salvar** grava de volta o `{pos, col, idx}` que o viewer público lê, preservando o
-original para "restaurar". A aba **Informações** edita nome, série, specs, curva Q-H,
+original para "restaurar". **Exportar IFC** baixa um IFC4 do que está na tela (uma
+`IFCBUILDINGELEMENTPROXY` por parte, cores por face, informações do produto em
+`IFCPROPERTYSET`), lido de volta pelo `scripts/parse_ifc.py` com os mesmos triângulos. A aba **Informações** edita nome, série, specs, curva Q-H,
 potência e conexões no banco, com "voltar" por campo. Detalhes em
 `docs/sessoes/S7.1-poc-edicao.md`.
 

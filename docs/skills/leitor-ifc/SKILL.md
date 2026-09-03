@@ -1,7 +1,7 @@
 ---
 name: leitor-ifc
 description: Transforma arquivos IFC4 em JSONs de geometria prontos para consumo em viewers 3D. Cobre parse de entidades STEP, resolução de transforms, conversão de coordenadas, cores por face (IFCINDEXEDCOLOURMAP) e geração de buffers de vértices. Se a origem for uma biblioteca AltoQi, verifique antes se há um .aq — ele traz a mesma geometria.
-version: 1.5.0
+version: 1.6.0
 author: Bilds / carlosnetoaltoqi
 ---
 
@@ -643,6 +643,34 @@ outro parser não bate nesse número, ele está perdendo geometria.
 
 ---
 
+## Escrever IFC que este parser lê — o caminho inverso
+
+Feito em `bilds-bim-3d` (`www/apps/web/src/components/bim-editor/ifc-export.ts`), a partir
+de um `{pos, col, idx}` em metros Y-up, e conferido com o próprio `parse_ifc.py`
+(mesmos triângulos, 14 µm de desvio máximo) e com `ifcopenshell.validate` (0 erros). Cada
+regra abaixo é uma armadilha deste documento vista pelo outro lado:
+
+| Regra ao escrever | Por quê |
+|---|---|
+| **Uma entidade por linha**, `#id=TIPO(args);` | `build_entity_index` casa por linha; face set em várias linhas é descartado em silêncio |
+| **A montagem não tem Representation** — geometria só nas `IFCBUILDINGELEMENTPROXY` | o parser processa `IFCELEMENTASSEMBLY` *e* proxies; malha nos dois conta em dobro |
+| **`IFCSIUNIT … .METRE.` com valores em metros** | o parser não converte unidade, só troca eixos — a incoerência do CATIA (declara mm, escreve m) é a armadilha da seção "Unidades" |
+| **Eixos: `ifc = (x, −z, y)`** a partir de Y-up | inverso exato de `ifc_to_threejs` (`x, z, −y`) |
+| **Transformação rígida → `IFCLOCALPLACEMENT`; escala → assar nos vértices** | `IFCAXIS2PLACEMENT3D` só expressa rotação+translação. Com `C: (x,y,z)→(x,−z,y)`: `Axis = C·coluna_Y`, `RefDirection = C·coluna_X`, `Location = C·t` — o `axis2placement_mat` refaz por Gram-Schmidt |
+| **`REAL` sempre com ponto, nunca `1e-7`** | `parse_floats` e a regex do `IFCCOLOURRGBLIST` (`[0-9.,\s]+`) não aceitam expoente |
+| **`IFCINDEXEDCOLOURMAP(#fs, 1., #rgblist, (i,…))`**, índice **1-based**, um por triângulo | é o que `build_face_color_map` lê; o parser então expande os vértices e some com `idx` |
+| **`IFCSTYLEDITEM` além do mapa de cor** | muitos viewers ignoram `IFCINDEXEDCOLOURMAP`; o estilo de superfície garante a cor dominante |
+| **`Closed = .T.` só sem aresta de borda** | malha de fabricante tem 25–32% de arestas abertas; `.T.` seria mentira |
+| **Strings: `'` → `''`, não-ASCII em `\X2\hhhh\X0\`** | "Incêndio" chega íntegro ao `ifcopenshell`; `split_top` respeita as aspas |
+| **`IFCPROPERTYSET` ligado à montagem** | as informações do produto (nome, série, specs, potência) viajam com a geometria |
+
+Ao conferir o arquivo gerado, valem as **quatro armadilhas de comparação** acima: compare o
+conjunto de pontos por tolerância (~10 µm), espere alguns pontos na fronteira do
+arredondamento (122 em 16.580 a 14 µm), e conte triângulos pelo `CoordIndex` — o
+`ifcopenshell.geom` devolve menos (descarta degenerados).
+
+---
+
 ## Diagnóstico de problemas
 
 | Sintoma | Causa provável | Solução |
@@ -668,6 +696,8 @@ outro parser não bate nesse número, ele está perdendo geometria.
 ---
 
 ## Histórico
+
+**1.6.0** — Nova seção "Escrever IFC que este parser lê": as regras para gerar IFC4 a partir de um `{pos,col,idx}` (uma entidade por linha, montagem sem Representation, METRE coerente, eixos `(x,−z,y)`, placement rígido vs escala assada, REAL sem expoente, mapa de cor 1-based + `IFCSTYLEDITEM`, `Closed` honesto, strings `\X2\`, propriedades). Cada uma é uma armadilha deste documento vista pelo lado de quem escreve. Conferido com o próprio `parse_ifc.py` (mesmos triângulos, 14 µm) e `ifcopenshell.validate` (0 erros).
 
 **1.5.0** — Nova seção "O IFC como gabarito": como reconstruir a geometria de um arquivo tessellated direto do STEP (sem tesselador, exato) e usá-la para validar o parser de outro formato. Quatro armadilhas de comparação, todas encontradas na prática: bbox não distingue rotação de transposta, centróide não serve de âncora quando um lado solda vértices e o outro não, igualdade de conjunto arredondado falha na fronteira, e o `ifcopenshell` descarta degenerados (50 triângulos a menos que o STEP numa peça real).
 
