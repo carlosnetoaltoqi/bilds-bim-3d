@@ -181,6 +181,28 @@ Peças sem geometria no banco são puladas, e o build informa quantas. Normalmen
 
 Se faltar uma peça que deveria ter forma, verifique se ela existe só como IFC: nesse caso use `--ifc`.
 
+## POC de edição (branch `poc-edicao`, local)
+
+Sobre a POC dinâmica em `www/` (NestJS + Next.js + Mongo), a branch `poc-edicao` acrescenta
+**edição das informações e do modelo 3D** de cada produto, sem login:
+
+```bash
+cd www && cp .env.example .env      # preencher Mongo, seed, JWT, STORAGE_PATH
+pnpm install
+pnpm dev:api                        # :4000
+pnpm dev:web                        # :3000  (outro terminal)
+# importar uma biblioteca (interface em /empresa/importar, ou pela API — ver CLAUDE.md)
+# abrir http://localhost:3000/<empresa>/<catalogo>/editar
+```
+
+No editor: selecionar partes do modelo (o JSON plano é re-segmentado em componentes
+conexos), mover/girar/escalar com gizmo ou campos em cm, recolorir, espelhar, fundir,
+excluir, adicionar cilindro/tubo/caixa ou STL/OBJ, corte em Y, fantasma do original.
+**Salvar** grava de volta o `{pos, col, idx}` que o viewer público lê, preservando o
+original para "restaurar". A aba **Informações** edita nome, série, specs, curva Q-H,
+potência e conexões no banco, com "voltar" por campo. Detalhes em
+`docs/sessoes/S7.1-poc-edicao.md`.
+
 ## Documentação
 
 - `CLAUDE.md` — arquitetura, formato OQ3D, decisões e armadilhas conhecidas
@@ -189,6 +211,7 @@ Se faltar uma peça que deveria ter forma, verifique se ela existe só como IFC:
 - `docs/estudo-oq3d/` — como a geometria dentro do `.aq` foi descoberta e validada
 - `docs/skills/` — skills de agente sobre `.aq`, IFC e páginas de catálogo
 - `eng-reversa/` — como **escrever** um `.aq` e OQ3D, e extrair catálogo de um PDF comercial (o caminho inverso do pipeline)
+- `docs/sessoes/S7.1-poc-edicao.md` — a POC de edição: o que faz, como foi verificada, o que ficou pendente
 
 ## Skills de agente
 

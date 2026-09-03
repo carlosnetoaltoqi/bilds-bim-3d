@@ -47,6 +47,7 @@ não está aqui, isso é uma falha desta documentação — registre-a antes de 
 | Aprendizados arquiteturais da POC (ADRs, bugs, diretrizes para a reconstrução) | `docs/solutions/architecture-patterns/` |
 | Vocabulário do domínio (GeometryStore, Import, Geometry Pointer) | `CONCEPTS.md` |
 | **Como ESCREVER um `.aq` e OQ3D, e extrair catálogo de PDF** | **`eng-reversa/`** — ver `eng-reversa/README.md` |
+| **POC de edição (informações + modelo 3D, branch `poc-edicao`)** | este arquivo, "POC de edição" + `docs/sessoes/S7.1-poc-edicao.md` + docstrings em `www/apps/web/src/components/bim-editor/` |
 
 ### Skills — versionadas aqui, em `docs/skills/`
 
@@ -85,19 +86,25 @@ originou — e não se perde se a máquina sumir.
 
 ---
 
-## 👉 Estado em 2026-09-02 — POC ENCERRADA, e a base está ZERADA
+## 👉 Estado em 2026-09-03 — POC dinâmica ENCERRADA; base com a carga da POC de edição
 
-**A POC de catálogo dinâmico está encerrada, e em 2026-09-02 o banco e o storage foram
-esvaziados de propósito.** Não há empresa, catálogo, importação nem produto. O código
-está intacto e sobe normalmente — só não há dado nenhum dentro dele.
+**A POC de catálogo dinâmico está encerrada** (2026-08-31). Em 2026-09-02 banco e storage
+foram esvaziados de propósito. **Em 2026-09-03 a branch `poc-edicao` recarregou a Dancor**
+para servir de base à POC de edição (ver "POC de edição", abaixo):
 
 | O quê | Estado atual |
 |---|---|
-| `companies` · `bim_catalogs` · `bim_imports` · `bim_products` | **0 documentos em cada** |
-| `www/storage/bim/{geo,thumbs,logos,geometrias}` | **0 arquivos** (os diretórios ficaram) |
-| API e web | sobem e respondem certo no vazio — ver a tabela de estado vazio abaixo |
+| `companies` | **1** — `poc-edicao` (customUrl), sem logo |
+| `bim_catalogs` | **1** — `bomba-de-combate-a-incencio`, 13 produtos, `series-rows` |
+| `bim_imports` | **1** — `ccd89188…`, `publicado` |
+| `bim_products` | **13**, todos com `geoKey` e `thumbKey` |
+| `www/storage/bim/geo/ccd89188…/` | 13 JSON (o `.orig.json` só aparece depois de editar geometria) |
+| Editor | `http://localhost:3000/poc-edicao/bomba-de-combate-a-incencio/editar` |
 
-O que a API devolve nesse estado, conferido em 2026-09-02:
+Para voltar ao vazio: `deleteMany({})` nas quatro coleções e apagar `www/storage/bim/*/*`
+(receita em "POC subida local, armadilha do Atlas e limpeza da base", no histórico).
+
+O que a API devolve com a base **vazia**, conferido em 2026-09-02:
 
 | Requisição | Resposta |
 |---|---|
@@ -108,12 +115,19 @@ O que a API devolve nesse estado, conferido em 2026-09-02:
 | `GET /{empresa}/{catalogo}` no web | `404` |
 | `/empresa` sem sessão | `307` para `/login` |
 
-> ⚠️ **Recarregar a POC exige os `.aq` da Dancor e da Amanco, que NÃO estão nesta
-> máquina.** `input/` tem só as 7 bibliotecas da Intelbras e a Akato. Sem esses dois
-> arquivos, o caminho de importação pela interface não tem o que ingerir — e as chaves em
-> disco embutem o `importId`, então nada do que foi apagado é reconstituível a partir do
-> que sobrou. Para exercitar a POC com o que existe aqui, importe uma biblioteca da
-> Intelbras: são pequenas (10 a 60 peças) e atravessam o mesmo caminho.
+> **Recarregar é só importar de novo.** `input/` tem os 15 `.aq` (Akato, Amanco, Dancor,
+> Intelbras ×7, Komeco ×4, Maxbar) — versões antigas deste arquivo diziam que Dancor e
+> Amanco não estavam nesta máquina, e estão. As chaves em disco embutem o `importId`,
+> então o que foi apagado não se reconstitui; **re-importar** produz um `importId` novo.
+> Sem interface, pela API:
+>
+> ```bash
+> cd www && set -a && . ./.env && set +a
+> TOKEN=$(curl -s -X POST localhost:4000/auth/login -H 'content-type: application/json' \
+>   -d "{\"email\":\"$SEED_USER\",\"password\":\"$SEED_PASSWORD\"}" | python3 -c 'import sys,json;print(json.load(sys.stdin)["token"])')
+> curl -s -X POST localhost:4000/empresas -H "Authorization: Bearer $TOKEN" -F name="POC" -F customUrl=poc
+> curl -s -X POST localhost:4000/importacoes -H "Authorization: Bearer $TOKEN" -F "file=@../input/Dancor/pecas_dancor_bombas_incendio_2026_04.1.aq"
+> ```
 
 ### O que havia antes, e como foi validado (histórico)
 
@@ -144,11 +158,14 @@ Registro da validação original em `docs/sessoes/S5.2-encerramento-poc.md`.
 
 **Versão base estável:** o topo de `main`. Confira com `git log --oneline -1`.
 
-### Duas linhas de trabalho
+### Quatro linhas de trabalho
 
 1. **Pipeline estático (esta é a linha madura).** `.aq` → catálogo → ZIP/preview → Vercel.
    É o que o resto deste arquivo documenta. Estável e em produção.
-2. **POC de catálogo dinâmico** — **ENCERRADA em 2026-08-31.** As 14 sessões
+2. **Engenharia reversa da escrita de `.aq`** (`eng-reversa/`, 2026-09-02) — ver o histórico.
+3. **POC de edição** (branch `poc-edicao`, 2026-09-03) — editar informações e modelo 3D
+   sobre a POC dinâmica. Ver a seção "POC de edição" logo abaixo.
+4. **POC de catálogo dinâmico** — **ENCERRADA em 2026-08-31.** As 14 sessões
    (S-rev a S4.3) mais a correção do parser (S5.1) e a validação final (S5.2) foram
    executadas. Aprendizados destilados em
    `docs/solutions/architecture-patterns/poc-catalogo-bim-dinamico-aprendizados.md`.
@@ -191,6 +208,62 @@ python3 scripts/build.py --all --force  # refaz todas
 
 **`output/` está vazia** desde o commit `e391a8f` — só a landing da Vercel sobrevive.
 Os 10 catálogos de `input/` são todos regeráveis com o comando acima.
+
+### POC de edição — branch `poc-edicao` (2026-09-03)
+
+Sobre a POC dinâmica (`www/`), sem mexer no import nem no viewer público: **editar as
+informações do produto no Mongo e o modelo 3D na tela, gravando de volta o JSON que o
+viewer lê.** Sem autenticação (rotas novas sem guard; páginas fora do matcher do
+middleware). Roda local. Registro completo em `docs/sessoes/S7.1-poc-edicao.md`.
+
+| Camada | O quê |
+|---|---|
+| API | `PUT /geometrias/:id` (valida `{pos,col,idx}` e grava via GeometryStore, preservando o original em `<id>.orig.json`), `GET /geometrias/:id/original`, `POST /geometrias/:id/restaurar`, `GET|PATCH /produtos/:id`, `PATCH /catalogos/:id`. Body JSON até 300 MB (`JSON_BODY_LIMIT`). |
+| Web | `/:empresa/:catalogo/editar` (lista + catálogo) e `/:empresa/:catalogo/editar/:produtoId` (editor). Links "editar" no modal e no hero. |
+| Modelo | `www/apps/web/src/components/bim-editor/mesh-model.ts` — puro, sem React. |
+
+**A ideia central: re-segmentar o JSON plano em partes.** O storage guarda `{pos,col,idx}`
+sem hierarquia; o editor divide a malha em **componentes conexos do grafo de triângulos**.
+Funciona porque o dedup do import põe a cor na chave — dois triângulos de cores diferentes
+nunca compartilham vértice — logo cada componente sai com cor uniforme e o conjunto
+aproxima as `TQi3DTriangleMesh` originais (58 partes na 20CV da Dancor, 31 na 2CV). Os
+bocais do AltoQi (verde `1,154,63`, azuis `10,84,152` e `0,116,232`) são detectados pela
+cor e listados como "Bocal N".
+
+Cada parte é `{pos, col, idx, matrix 4×4, visible, marker}`. Editar é mexer na matriz
+(TransformControls ou campos numéricos em cm/graus), na cor, na visibilidade, espelhar,
+inverter normais, fundir, duplicar, excluir, adicionar primitiva (caixa, cilindro, tubo)
+ou malha externa (STL/OBJ/JSON com unidade). Operações globais: centrar, apoiar em y=0,
+girar 90°, escala ×0,01…×100, remover bocais, re-segmentar. Undo/redo por snapshot
+(partes imutáveis — um snapshot custa o array de referências).
+
+**Salvar = `bake()`:** aplica as matrizes das partes visíveis, concatena, arredonda a
+1 µm e deduplica com **o mesmo algoritmo float32 do `parse-worker.ts`**. Round-trip sem
+edição preserva todos os triângulos (68.488 = 68.488) e reduz o JSON pela metade
+(6,3 MB → 3,2 MB) porque o arredondamento funde vizinhos a menos de 1 µm que o float32
+distinguia (239 vértices em 44.242 na 20CV). Partes ocultas **não** entram no arquivo.
+
+**Diagnóstico de malha no painel:** vértices, triângulos, arestas de borda (um só
+triângulo), não-manifold (>2), degenerados, bbox em cm. **Atenção à leitura das arestas
+de borda:** nas 13 geometrias da Dancor **25–32% das arestas são de borda** — a
+tesselação do fabricante chega como sopa de triângulos e o dedup exato não solda as
+emendas. O número só é alarme em malha **gerada ou importada**, que deve dar 0 (o tubo
+paramétrico dá 0; o perfil não soldado do `eng-reversa` daria `2 × lados`).
+
+Viewport: mesma luz, fundo e material do `buildScene()` do viewer, para o que se vê ser
+o que o visitante verá. Plano de corte em Y (corta também o fantasma laranja do original,
+senão a comparação não faz sentido), grade em cm proporcional ao modelo, eixos na origem.
+Atalhos: 1–4 ferramentas, F enquadra, H oculta, Del exclui, Ctrl+Z/Shift+Z, Ctrl+S.
+
+Como testar sem browser: `node scratchpad/e2e-editor.mjs` (Playwright com SwiftShader —
+o script desta sessão está descrito em `docs/sessoes/S7.1-poc-edicao.md`).
+
+**Pendências desta linha:**
+- **Miniatura fica desatualizada depois de editar geometria** — o `thumbKey` continua
+  apontando para a imagem do import. Regenerar com o `thumb-worker.ts` no `PUT`.
+- Voltar ao `.aq`: as partes do editor (metros, Y-up) são o que o `oq3d_writer.py` do
+  `eng-reversa` espera receber (cm, Z-up: `x, −z·100, y·100`), uma malha por objeto-raiz.
+- Gizmo com várias partes selecionadas gira cada uma em torno do pivô da principal.
 
 ### Dependência cruzada com o bilds.com
 
@@ -443,6 +516,12 @@ bilds-bim-3d/
 │   └── vendor/                  ← vazio no repo; setup_vendor.sh baixa o Three.js aqui
 ├── input/                       ← bibliotecas do usuário — gitignored
 │   └── <Fabricante>/[<Linha>/]<pecas>.aq
+├── www/                         ← POC dinâmica (pnpm workspace) + POC de edição
+│   ├── .env / .env.example      ← Mongo, seed, JWT, STORAGE_PATH (só o example é versionado)
+│   ├── apps/api/src/            ← NestJS :4000 — importacoes, catalogos, geometrias, produtos, thumbs
+│   ├── apps/web/src/            ← Next 15 :3000 — app/[empresa]/[catalogo]{,/editar}, components/bim-{catalog,editor}
+│   ├── tools/                   ← aq-reader.ts, oq3d-parser.ts, thumb-rasterizer.ts, scripts de medição
+│   └── storage/bim/             ← DiskGeometryStore: geo/, thumbs/, logos/ — gitignored
 └── output/                      ← gerado pelo build
     ├── <origem>/<slug>-<ts>.zip        ← ZIP para bilds.com (gitignored)
     ├── <origem>/<slug>-catalog.json    ← catálogo solto (gitignored)
@@ -1403,7 +1482,12 @@ via modo `'recursive'` do `scan_input()`.
 | Sobrou um `.aq` de 0 byte onde não havia arquivo | `open_aq` tenta `sqlite3.connect()` primeiro, e o `sqlite3` **cria** o arquivo num caminho inexistente cujo diretório existe. O fallback para ZIP então falha com `BadZipFile` |
 | API em `Retrying (n)...` eterno, sem responder request nenhum | Não conecta no Mongo. A mensagem do Mongoose culpa o whitelist, mas é texto fixo — meça DNS, TCP, TLS e auth separadamente (ver "A API não sobe e o Mongoose culpa o whitelist") |
 | `tlsv1 alert internal error` / `SSL alert number 80` nos 3 nós, com o TCP abrindo | **IP não liberado no Atlas** (ou cluster M0 pausado). O handshake morre antes da autenticação, então não é credencial. Liberar em *Network Access*; a API reconecta sozinha no próximo retry |
-| Página pública `404` e `/empresas/minha` `404` com a API saudável | A base está **vazia** — é o estado desde 2026-09-02, não um defeito. Ver "Estado em 2026-09-02" |
+| Página pública `404` e `/empresas/minha` `404` com a API saudável | A base está **vazia** (foi assim entre 2026-09-02 e 03). Ver "Estado" no topo e a receita de re-importar pela API |
+| `PUT /geometrias/:id` devolve `413 Payload Too Large` | Limite do body JSON — o padrão do express é 100 KB. `main.ts` sobe para `JSON_BODY_LIMIT` (300 MB) com `bodyParser: false` + `useBodyParser` |
+| Editor mostra centenas de partes numa peça de conexão | Normal: cada malha do OQ3D vira ≥1 componente; use **fundir** ou **re-segmentar** depois de mover. Na Dancor são 11–58 por bomba |
+| Parte com milhares de "arestas de borda" na Dancor | Não é defeito do editor: a malha do fabricante é sopa de triângulos (25–32% das arestas). O alarme vale para malha gerada/importada, que deve dar 0 |
+| Depois de salvar geometria, a miniatura do card não muda | Esperado na POC de edição — thumb não é regenerada (pendência). O viewer 3D já mostra o novo, porque a ETag deriva de tamanho+mtime |
+| Mensagem "salvo" some no mesmo instante | `useEffect` que reseta o formulário dependia de `editadoEm` e rodava logo após o save — a dependência tem de ser só o `_id` do produto |
 
 ---
 
@@ -1469,6 +1553,34 @@ python3 -m http.server 8080 --directory output/preview
 ---
 
 ## Histórico de sessões
+
+### 2026-09-03 — S7.1: POC de edição (informações + modelo 3D) na branch `poc-edicao`
+
+Nova linha de trabalho sobre a POC dinâmica, a pedido: **editar o que vai para o banco e
+mexer no modelo 3D na tela, com o resultado voltando ao JS/JSON que o viewer usa**. Sem
+auth, local. Registro completo em `docs/sessoes/S7.1-poc-edicao.md`; resumo técnico na
+seção "POC de edição" do estado atual.
+
+**Entregue** (commit `0545858`): API com `PUT/GET original/POST restaurar` em
+`/geometrias/:id`, `GET|PATCH /produtos/:id`, `PATCH /catalogos/:id`, body JSON de 300 MB;
+web com `/editar` e `/editar/:produtoId` — viewport Three.js (TransformControls, corte,
+fantasma do original), painel de geometria, formulário de informações e de catálogo.
+O núcleo é `mesh-model.ts`: re-segmenta o `{pos,col,idx}` em componentes conexos, opera
+por parte e refaz o JSON com o dedup float32 do import.
+
+**Verificado:** round-trip da 20CV (68.488 △ → 68.488 △, JSON 6,3 → 3,2 MB); ponta a ponta
+no browser com Playwright + SwiftShader — carregar (31 partes), selecionar, girar 90° X,
+salvar (bbox Y↔Z trocou, `.orig.json` criado), restaurar (bbox de volta, `.orig` apagado),
+editar nome e voltar pelo `infoOriginal` — **zero erros de console**.
+
+**Três coisas que este arquivo afirmava e não eram verdade**, corrigidas: `input/` tem
+Dancor e Amanco (dizia que não); a base já não está zerada (Dancor recarregada nesta
+sessão sob a empresa `poc-edicao`); e a contagem de arestas de borda não é critério de
+qualidade universal — malha de fabricante tem 25–32% de arestas abertas.
+
+**Aprendizado para a skill `leitor-biblioteca-aq` (2.4.0):** a estrutura de partes perdida
+no `{pos,col,idx}` se recupera por componentes conexos, porque o dedup carrega a cor na
+chave; e a tesselação de fabricante não é estanque.
 
 ### 2026-09-02 — Ambos os layouts para cada biblioteca + cores por fabricante no índice
 

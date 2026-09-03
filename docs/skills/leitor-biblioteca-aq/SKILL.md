@@ -1,7 +1,7 @@
 ---
 name: leitor-biblioteca-aq
 description: Lê E ESCREVE arquivos de biblioteca BIM do AltoQi Builder (.aq) — SQLite com geometria 3D embutida. Extrai peças, dados hidráulicos, curvas de bomba, propriedades, miniaturas e a malha 3D completa (formato OQ3D), dispensando os IFCs; e gera um .aq do zero, com o schema, os enums, o encoding cp1252 e o binário OQ3D corretos.
-version: 2.3.0
+version: 2.4.0
 author: Bilds / carlosnetoaltoqi
 ---
 
@@ -1011,6 +1011,25 @@ const DATA_BASE = '/' + CATALOG.slug + '/data/';
 
 **Nomes de geometria colidem entre bibliotecas.** `NOME` da simbologia costuma ser só a dimensão (`'50MM'`), que se repete em toda biblioteca de conexões. Se vários catálogos compartilham um diretório de dados, prefixe com o grupo ou isole por catálogo.
 
+**A estrutura de partes se recupera do `{pos,col,idx}` plano.** O `to_buffers()` concatena
+todas as malhas e o `dedup()` funde vértices por `(posição, cor)` em float32. Como a cor
+entra na chave, dois triângulos de cores diferentes **nunca** compartilham índice — logo
+os **componentes conexos do grafo de triângulos** (union-find sobre `idx`) devolvem partes
+de cor uniforme que aproximam as `TQi3DTriangleMesh` originais (58 na bomba 20CV da
+Dancor, 31 na 2CV). É isso que permite editar por parte sem mudar o formato do storage.
+Os bocais do AltoQi saem como componentes próprios, identificáveis pela cor (verde
+`1,154,63`, azuis `10,84,152` e `0,116,232`).
+
+**Arestas de borda não medem qualidade em malha de fabricante.** Contar arestas com um só
+triângulo pega perfil de revolução não soldado (`2 × lados`) em malha **gerada** — mas nas
+13 geometrias da Dancor **25–32% das arestas são de borda**: a tesselação chega como sopa
+de triângulos e o dedup exato não solda as emendas. Use o critério só para malha gerada ou
+importada, que deve dar 0.
+
+**Arredondar a 1 µm antes do dedup reduz o JSON pela metade** (6,3 → 3,2 MB na 20CV) sem
+perder triângulo: funde vizinhos que o float32 distinguia (239 vértices em 44.242). A
+precisão nativa do AltoQi é o centímetro.
+
 ---
 
 ## Diagnóstico de problemas comuns
@@ -1049,6 +1068,13 @@ const DATA_BASE = '/' + CATALOG.slug + '/data/';
 ---
 
 ## Histórico
+
+**2.4.0** — Três aprendizados de quem **edita** a geometria depois de extraída (POC de
+edição, `bilds-bim-3d` branch `poc-edicao`): a estrutura de partes perdida no
+`{pos,col,idx}` se recupera por componentes conexos porque o `dedup` carrega a cor na
+chave; a tesselação de fabricante não é estanque (25–32% de arestas de borda na Dancor),
+então esse critério só vale para malha gerada; e arredondar a 1 µm antes do dedup corta o
+JSON pela metade sem perder triângulo. Seção "Publicar num viewer web: armadilhas".
 
 **2.3.0** — **`DIAMETRO_PECA` é um CÓDIGO de diâmetro, não centímetro** — a 2.2.0 dizia
 "diâmetro nominal (cm)" e estava errado: na Amanco `50 mm` → 9 e `100 mm` → 12, e em
