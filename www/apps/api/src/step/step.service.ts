@@ -34,12 +34,17 @@ const PYTHON = process.env.PYTHON ?? 'python3';
 const TIMEOUT_MS = 5 * 60 * 1000;
 
 export interface StepGeo extends GeoBuffers {
-  partes: Array<{ nome: string; cor: number[]; triangulos: number; triangulo_inicial: number }>;
+  partes: Array<{ nome: string; cor?: number[]; tipo?: string; triangulos?: number; triangulo_inicial?: number }>;
   unidade: string;
   bbox_mm: number[];
   fonte: string;
-  deflexao_mm: number;
+  /** só STEP */
+  deflexao_mm?: number;
+  /** só IFC — 1, 0.001 ou 0.01 */
+  escala_aplicada?: number;
+  cor_por_face?: boolean;
   segundos: number;
+  formato?: 'step' | 'ifc';
 }
 
 export interface AqInfo {
@@ -101,17 +106,29 @@ export class StepService {
     });
   }
 
-  /** Tessela um STEP já em disco e devolve a geometria (apaga os temporários). */
+  /** STEP ou IFC, pela extensão do nome original (ou do caminho). */
+  static formatoDe(nome: string): 'step' | 'ifc' {
+    return /\.ifc(zip|xml)?$/i.test(nome) ? 'ifc' : 'step';
+  }
+
+  /**
+   * Converte um arquivo CAD já em disco na geometria do viewer (apaga os temporários).
+   * `.stp/.step` → `step_to_geo.py` (OpenCASCADE, tessela B-rep com a deflexão dada);
+   * `.ifc`       → `ifc_to_geo.py` (o `parse_ifc.py` do projeto + dedup; deflexão não se aplica).
+   */
   async tesselar(stpPath: string, deflexaoMm = 0.2, nomeOriginal?: string): Promise<StepGeo> {
-    const outJson = path.join(os.tmpdir(), `step-${crypto.randomUUID()}.json`);
+    const outJson = path.join(os.tmpdir(), `cad-${crypto.randomUUID()}.json`);
     const t0 = Date.now();
+    const formato = StepService.formatoDe(nomeOriginal ?? stpPath);
     try {
-      await this.runPython('step_to_geo.py', [stpPath, outJson, '--deflexao', String(deflexaoMm)]);
+      if (formato === 'ifc') await this.runPython('ifc_to_geo.py', [stpPath, outJson]);
+      else await this.runPython('step_to_geo.py', [stpPath, outJson, '--deflexao', String(deflexaoMm)]);
       const geo = JSON.parse(await fs.readFile(outJson, 'utf8')) as StepGeo;
       // o script grava o nome do arquivo temporário do multer; o que interessa é o original
       if (nomeOriginal) geo.fonte = path.basename(nomeOriginal);
+      geo.formato = formato;
       this.logger.log(
-        `STEP tesselado — ${geo.fonte}: ${geo.partes.length} parte(s), ${geo.idx.length / 3} triângulos, ` +
+        `${formato.toUpperCase()} convertido — ${geo.fonte}: ${geo.partes.length} parte(s), ${geo.idx.length / 3} triângulos, ` +
           `bbox ${geo.bbox_mm.map((v) => v.toFixed(0)).join('×')} mm, ${((Date.now() - t0) / 1000).toFixed(1)}s`,
       );
       return geo;
@@ -160,10 +177,11 @@ export class StepService {
 
     const geo = await this.tesselar(opts.stpPath, opts.deflexaoMm ?? 0.2, opts.fileName);
 
-    const fabricante = (opts.fabricante ?? '').trim() || 'STEP';
-    const titulo = (opts.catalogo ?? '').trim() || 'Peças STEP';
-    const slug = slugify(titulo) || 'pecas-step';
-    const nome = (opts.nome ?? '').trim() || path.basename(opts.fileName).replace(/\.(stp|step)$/i, '');
+    const ehIfc = geo.formato === 'ifc';
+    const fabricante = (opts.fabricante ?? '').trim() || (ehIfc ? 'IFC' : 'STEP');
+    const titulo = (opts.catalogo ?? '').trim() || (ehIfc ? 'Peças IFC' : 'Peças STEP');
+    const slug = slugify(titulo) || (ehIfc ? 'pecas-ifc' : 'pecas-step');
+    const nome = (opts.nome ?? '').trim() || path.basename(opts.fileName).replace(/\.(stp|step|ifc)$/i, '');
 
     const importId = crypto.randomUUID();
     await this.importModel.create({
@@ -172,7 +190,9 @@ export class StepService {
       status: 'publicado',
       fileName: opts.fileName,
       productCount: 1,
-      note: `STEP tesselado (deflexão ${geo.deflexao_mm} mm) — ${geo.partes.length} sólido(s), unidade ${geo.unidade}`,
+      note: ehIfc
+        ? `IFC convertido pelo parse_ifc.py — ${geo.partes.length} produto(s), unidade ${geo.unidade}, escala ${geo.escala_aplicada}`
+        : `STEP tesselado (deflexão ${geo.deflexao_mm} mm) — ${geo.partes.length} sólido(s), unidade ${geo.unidade}`,
       updatedAt: new Date(),
     });
 
@@ -209,15 +229,26 @@ export class StepService {
       id: prodSlug,
       nome,
       serie: fabricante,
-      specs: {
-        Fonte: geo.fonte,
-        Formato: 'STEP (ISO 10303-21)',
-        'Unidade do arquivo': geo.unidade,
-        'Dimensões (mm)': `${bb[0].toFixed(1)} × ${bb[1].toFixed(1)} × ${bb[2].toFixed(1)}`,
-        Sólidos: String(geo.partes.length),
-        Triângulos: String(geo.idx.length / 3),
-        'Deflexão (mm)': String(geo.deflexao_mm),
-      },
+      specs: ehIfc
+        ? {
+            Fonte: geo.fonte,
+            Formato: 'IFC4 (ISO 10303-21)',
+            'Unidade do arquivo': geo.unidade,
+            'Escala aplicada': String(geo.escala_aplicada ?? 1),
+            'Dimensões (mm)': `${bb[0].toFixed(1)} × ${bb[1].toFixed(1)} × ${bb[2].toFixed(1)}`,
+            Produtos: String(geo.partes.length),
+            Triângulos: String(geo.idx.length / 3),
+            Cores: geo.cor_por_face ? 'por face (IFCINDEXEDCOLOURMAP)' : 'uniforme',
+          }
+        : {
+            Fonte: geo.fonte,
+            Formato: 'STEP (ISO 10303-21)',
+            'Unidade do arquivo': geo.unidade,
+            'Dimensões (mm)': `${bb[0].toFixed(1)} × ${bb[1].toFixed(1)} × ${bb[2].toFixed(1)}`,
+            Sólidos: String(geo.partes.length),
+            Triângulos: String(geo.idx.length / 3),
+            'Deflexão (mm)': String(geo.deflexao_mm),
+          },
       curva: null,
       potencia: null,
       conexoes: null,
@@ -232,7 +263,7 @@ export class StepService {
     // miniatura: fire-and-forget, como no import de .aq
     this.importacoes.spawnThumbWorker(importId, [{ productId, geoKey }]).catch(() => {});
 
-    this.logger.log(`STEP importado — ${nome} → ${company.customUrl}/${slug} (produto ${productId})`);
+    this.logger.log(`${ehIfc ? 'IFC' : 'STEP'} importado — ${nome} → ${company.customUrl}/${slug} (produto ${productId})`);
     return {
       produtoId: productId,
       importId,
@@ -245,6 +276,7 @@ export class StepService {
       partes: geo.partes.length,
       bbox_mm: geo.bbox_mm,
       unidade: geo.unidade,
+      formato: geo.formato,
     };
   }
 }

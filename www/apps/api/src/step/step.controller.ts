@@ -13,21 +13,24 @@ import { Response } from 'express';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as crypto from 'node:crypto';
+import * as path from 'node:path';
 import { AqInfo, AqParte, StepService } from './step.service';
 import { GeoValidationError, validateGeoBuffers } from '../common/geo-buffers';
 
 /**
- * POST /step/tesselar   — .stp → { pos, col, idx, partes, … }  (para "adicionar parte" no editor)
- * POST /step/importar   — .stp → produto novo num catálogo, pronto para o editor
- * POST /exportar/aq     — partes do editor → arquivo .aq (download)
+ * POST /cad/tesselar   — .stp/.step/.ifc → { pos, col, idx, partes, … }  (para "adicionar parte" no editor)
+ * POST /cad/importar   — .stp/.step/.ifc → produto novo num catálogo, pronto para o editor
+ * POST /exportar/aq    — partes do editor → arquivo .aq (download)
  *
- * Sem auth: POC de edição, local.
+ * `/step/tesselar` e `/step/importar` continuam válidos (aliases). O formato é
+ * decidido pela extensão do nome original. Sem auth: POC de edição, local.
  */
 
 const MAX_STEP_BYTES = 200 * 1024 * 1024;
 const storage = diskStorage({
   destination: (_req, _file, cb) => cb(null, os.tmpdir()),
-  filename: (_req, _file, cb) => cb(null, `step-${crypto.randomUUID()}.stp`),
+  // preserva a extensão: é por ela que o serviço escolhe STEP ou IFC
+  filename: (_req, file, cb) => cb(null, `cad-${crypto.randomUUID()}${(path.extname(file.originalname ?? '') || '.stp').toLowerCase()}`),
 });
 
 function deflexaoDe(body: Record<string, string> | undefined): number {
@@ -40,10 +43,10 @@ function deflexaoDe(body: Record<string, string> | undefined): number {
 export class StepController {
   constructor(private readonly step: StepService) {}
 
-  @Post('step/tesselar')
+  @Post(['cad/tesselar', 'step/tesselar'])
   @UseInterceptors(FileInterceptor('file', { storage, limits: { fileSize: MAX_STEP_BYTES } }))
   async tesselar(@UploadedFile() file: Express.Multer.File, @Body() body: Record<string, string>) {
-    if (!file) throw new BadRequestException('campo "file" (.stp/.step) obrigatório');
+    if (!file) throw new BadRequestException('campo "file" (.stp/.step/.ifc) obrigatório');
     try {
       return await this.step.tesselar(file.path, deflexaoDe(body), file.originalname);
     } finally {
@@ -51,14 +54,14 @@ export class StepController {
     }
   }
 
-  @Post('step/importar')
+  @Post(['cad/importar', 'step/importar'])
   @UseInterceptors(FileInterceptor('file', { storage, limits: { fileSize: MAX_STEP_BYTES } }))
   async importar(@UploadedFile() file: Express.Multer.File, @Body() body: Record<string, string>) {
-    if (!file) throw new BadRequestException('campo "file" (.stp/.step) obrigatório');
+    if (!file) throw new BadRequestException('campo "file" (.stp/.step/.ifc) obrigatório');
     try {
       return await this.step.importar({
         stpPath: file.path,
-        fileName: file.originalname ?? 'peca.stp',
+        fileName: file.originalname ?? file.filename,
         empresa: body?.empresa,
         fabricante: body?.fabricante,
         catalogo: body?.catalogo,
