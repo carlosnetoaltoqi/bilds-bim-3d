@@ -21,6 +21,11 @@ export async function fetchGeo(url: string): Promise<GeoData> {
   return data
 }
 
+/** Remove a geometria do cache em memória — depois de um PUT /geometrias/:id. */
+export function invalidateGeo(url: string): void {
+  geoCache.delete(url)
+}
+
 export function buildScene(data: GeoData) {
   const scene = new THREE.Scene()
   const geom = new THREE.BufferGeometry()

@@ -1,5 +1,6 @@
 'use client'
 
+import { usePathname } from 'next/navigation'
 import { PocProduct } from './types'
 import { BimViewer } from './BimViewer'
 import { CurveChart } from './CurveChart'
@@ -10,6 +11,7 @@ interface Props {
 }
 
 export function ProductModal({ product, onClose }: Props) {
+  const pathname = usePathname()
   return (
     <div
       role="dialog"
@@ -30,7 +32,10 @@ export function ProductModal({ product, onClose }: Props) {
           ✕
         </button>
 
-        <h2 className="text-xl font-bold mb-4 pr-8">{product.nome}</h2>
+        <h2 className="text-xl font-bold mb-1 pr-8">{product.nome}</h2>
+        <p className="mb-4 text-[12px]">
+          <a href={`${pathname}/editar/${product._id}`} className="text-[#1e40af] hover:underline">Editar informações e modelo 3D →</a>
+        </p>
 
         <div className="h-[300px] bg-gray-100 rounded-lg mb-6 overflow-hidden">
           <BimViewer geoUrl={product.geoUrl} mode="modal" />

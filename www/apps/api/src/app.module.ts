@@ -8,6 +8,7 @@ import { CatalogosModule } from './catalogos/catalogos.module';
 import { ThumbsModule } from './thumbs/thumbs.module';
 import { AuthModule } from './auth/auth.module';
 import { EmpresasModule } from './empresas/empresas.module';
+import { ProdutosModule } from './produtos/produtos.module';
 import { Company, CompanySchema } from './companies/companies.schema';
 import { BimCatalog, BimCatalogSchema } from './bim-catalogs/bim-catalogs.schema';
 import { BimProduct, BimProductSchema } from './bim-products/bim-products.schema';
@@ -26,6 +27,7 @@ import { BimImport, BimImportSchema } from './bim-imports/bim-imports.schema';
     ThumbsModule,
     AuthModule,
     EmpresasModule,
+    ProdutosModule,
     MongooseModule.forFeature([
       { name: Company.name, schema: CompanySchema },
       { name: BimCatalog.name, schema: BimCatalogSchema },

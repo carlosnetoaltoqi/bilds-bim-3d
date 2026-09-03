@@ -48,6 +48,19 @@ export class BimProduct {
 
   @Prop({ default: Date.now })
   createdAt: Date;
+
+  // ── POC de edição (branch poc-edicao) ─────────────────────────────────────
+  /** Última edição das informações (PATCH /produtos/:id) */
+  @Prop({ type: Date })
+  editadoEm: Date | null;
+
+  /** Última escrita da geometria (PUT /geometrias/:id) */
+  @Prop({ type: Date })
+  geoEditadoEm: Date | null;
+
+  /** Snapshot dos campos editáveis como vieram do .aq, gravado na 1ª edição */
+  @Prop({ type: MongooseSchema.Types.Mixed })
+  infoOriginal: Record<string, unknown> | null;
 }
 
 export const BimProductSchema = SchemaFactory.createForClass(BimProduct);

@@ -1,7 +1,10 @@
 import {
+  BadRequestException,
+  Body,
   Controller,
   Get,
   Param,
+  Patch,
   Query,
   NotFoundException,
 } from '@nestjs/common';
@@ -61,7 +64,50 @@ export class CatalogosController {
         conexoes: p.conexoes,
         geoUrl: `/geometrias/${p._id}`,
         thumbUrl: p.thumbKey ? `/thumbs/${p._id}` : null,
+        editadoEm: (p as any).editadoEm ?? null,
+        geoEditadoEm: (p as any).geoEditadoEm ?? null,
       })),
+    };
+  }
+
+  /**
+   * Edição dos metadados do catálogo (POC de edição — sem auth).
+   * Aceita title, manufacturer e layout ('series-rows' | 'catalog-grid').
+   */
+  @Patch(':catalogId')
+  async patch(
+    @Param('catalogId') catalogId: string,
+    @Body() body: { title?: string; manufacturer?: string; layout?: string },
+  ) {
+    const catalog = await this.catalogModel.findById(catalogId).lean().exec();
+    if (!catalog) throw new NotFoundException('catálogo não encontrado');
+
+    const set: Record<string, string> = {};
+    if (body.title !== undefined) {
+      if (typeof body.title !== 'string' || !body.title.trim()) throw new BadRequestException('"title" não pode ser vazio');
+      set.title = body.title.trim();
+    }
+    if (body.manufacturer !== undefined) {
+      if (typeof body.manufacturer !== 'string' || !body.manufacturer.trim()) throw new BadRequestException('"manufacturer" não pode ser vazio');
+      set.manufacturer = body.manufacturer.trim();
+    }
+    if (body.layout !== undefined) {
+      if (body.layout !== 'series-rows' && body.layout !== 'catalog-grid') {
+        throw new BadRequestException('"layout" deve ser "series-rows" ou "catalog-grid"');
+      }
+      set.layout = body.layout;
+    }
+    if (Object.keys(set).length === 0) throw new BadRequestException('nenhum campo editável no corpo');
+
+    const atualizado = await this.catalogModel.findByIdAndUpdate(catalogId, { $set: set }, { new: true }).lean().exec();
+    return {
+      id: atualizado!._id,
+      slug: atualizado!.slug,
+      title: atualizado!.title,
+      manufacturer: atualizado!.manufacturer,
+      layout: atualizado!.layout,
+      filters: atualizado!.filters,
+      productCount: atualizado!.productCount,
     };
   }
 }

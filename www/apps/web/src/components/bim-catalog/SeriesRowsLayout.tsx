@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { usePathname } from 'next/navigation'
 import { PocCatalog, PocProduct } from './types'
 import { ProductModal } from './ProductModal'
 import { LazyBimCard } from './LazyBimCard'
@@ -12,6 +13,7 @@ interface Props {
 
 export function SeriesRowsLayout({ catalog, products }: Props) {
   const [selectedProduct, setSelectedProduct] = useState<PocProduct | null>(null)
+  const pathname = usePathname()
 
   const seriesMap = products.reduce<Record<string, PocProduct[]>>((acc, p) => {
     const key = p.serie
@@ -26,8 +28,9 @@ export function SeriesRowsLayout({ catalog, products }: Props) {
     <>
       <section className="bg-gradient-to-br from-[#002D72] to-[#00245B] px-8 pt-14 pb-12 text-white">
         <div className="max-w-[960px] mx-auto">
-          <p className="text-[13px] text-blue-300 mb-3 tracking-[0.04em]">
-            {catalog.manufacturer} · Biblioteca BIM
+          <p className="text-[13px] text-blue-300 mb-3 tracking-[0.04em] flex items-center gap-3">
+            <span>{catalog.manufacturer} · Biblioteca BIM</span>
+            <a href={`${pathname}/editar`} className="text-[11px] px-2 py-0.5 rounded border border-blue-300/50 hover:bg-white/10">editar catálogo</a>
           </p>
           <h1 className="text-[32px] font-bold mb-3" style={{ fontFamily: 'Fira Sans, Inter, system-ui, sans-serif' }}>
             {catalog.title}

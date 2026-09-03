@@ -6,10 +6,20 @@ import * as path from 'path';
 dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 
+// A geometria editada volta pelo PUT /geometrias/:id como JSON. Uma peça grande
+// (Maxbar) passa de 10 MB; o limite padrão do express é 100 KB.
+const JSON_BODY_LIMIT = process.env.JSON_BODY_LIMIT ?? '300mb';
+
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { logger: ['error', 'warn', 'log', 'verbose', 'debug'] });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    logger: ['error', 'warn', 'log', 'verbose', 'debug'],
+    bodyParser: false,
+  });
+  app.useBodyParser('json', { limit: JSON_BODY_LIMIT });
+  app.useBodyParser('urlencoded', { extended: true, limit: JSON_BODY_LIMIT });
 
   // HTTP request logger
   app.use((req: any, res: any, next: any) => {
