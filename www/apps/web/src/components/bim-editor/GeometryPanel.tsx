@@ -70,6 +70,10 @@ export interface GeometryPanelProps {
     restore: () => void
     download: () => void
     reload: () => void
+    /** gera e baixa o IFC4 do estado atual do editor (não grava no storage) */
+    exportIfc: (opts: { incluirBocais: boolean }) => void
+    /** grava o JSON no storage e em seguida baixa o IFC */
+    saveAndExportIfc: (opts: { incluirBocais: boolean }) => void
   }
 }
 
@@ -179,6 +183,7 @@ export function GeometryPanel(p: GeometryPanelProps) {
   // ── primitivas / importação ──────────────────────────────────────────────
   const [prim, setPrim] = useState({ tipo: 'cilindro' as 'caixa' | 'cilindro' | 'tubo', a: 5, b: 5, c: 10, cor: '#8896aa' })
   const [unidade, setUnidade] = useState<'mm' | 'cm' | 'm'>('mm')
+  const [ifcBocais, setIfcBocais] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
   function adicionarPrimitiva() {
@@ -399,6 +404,25 @@ export function GeometryPanel(p: GeometryPanelProps) {
         {p.geoState.msg && <p className={`text-[11px] mt-1 ${p.geoState.msg.tipo === 'erro' ? 'text-red-700' : p.geoState.msg.tipo === 'ok' ? 'text-green-700' : 'text-gray-600'}`}>{p.geoState.msg.texto}</p>}
         {p.geoState.geoEditadoEm && <p className="text-[11px] text-gray-400 mt-1">geometria editada em {new Date(p.geoState.geoEditadoEm).toLocaleString('pt-BR')} · original preservado no storage</p>}
         <p className="text-[11px] text-gray-400 mt-1">Partes ocultas não entram no arquivo salvo. Salvar aplica as matrizes, deduplica (float32, como o import) e grava o <code>{'{pos, col, idx}'}</code> que o viewer público lê.</p>
+      </Section>
+
+      {/* ── IFC ── */}
+      <Section title="Exportar IFC4">
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="button" onClick={() => p.geoState.exportIfc({ incluirBocais: ifcBocais })} disabled={p.geoState.saving || !parts.some((x) => x.visible)} className={btnPrimary}>
+            Exportar IFC
+          </button>
+          <button type="button" onClick={() => p.geoState.saveAndExportIfc({ incluirBocais: ifcBocais })} disabled={p.geoState.saving || !parts.some((x) => x.visible)} className={btnSmall}>
+            {p.geoState.dirty ? 'salvar geometria e exportar IFC' : 'exportar IFC (já salvo)'}
+          </button>
+          <Check label="incluir bocais" checked={ifcBocais} onChange={setIfcBocais} />
+        </div>
+        <p className="text-[11px] text-gray-400 mt-1">
+          Exporta <strong>o que está na tela agora</strong>, salvo ou não, separado do storage: um <code>IFCELEMENTASSEMBLY</code> com
+          uma <code>IFCBUILDINGELEMENTPROXY</code> por parte visível, malha <code>IFCTRIANGULATEDFACESET</code> em metros, Z para cima,
+          cor por face em <code>IFCINDEXEDCOLOURMAP</code>, e as informações do produto em <code>IFCPROPERTYSET</code>. Transformação
+          rígida vira <code>IFCLOCALPLACEMENT</code>; escala é aplicada nos vértices. Bocais ficam de fora por padrão — são marcadores do AltoQi.
+        </p>
       </Section>
     </div>
   )

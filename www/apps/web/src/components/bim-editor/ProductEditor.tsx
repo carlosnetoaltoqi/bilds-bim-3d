@@ -22,6 +22,7 @@ import { EditorViewport, type Tool, type ViewPreset } from './EditorViewport'
 import { GeometryPanel, type EditorUi } from './GeometryPanel'
 import { CatalogForm, InfoForm, type ProdutoDto } from './InfoForm'
 import { bake, segment, type Part } from './mesh-model'
+import { exportIfc as buildIfc } from './ifc-export'
 
 interface Snapshot { parts: Part[]; label: string }
 interface History { past: Snapshot[]; present: Snapshot; future: Snapshot[] }
@@ -141,8 +142,45 @@ export function ProductEditor(props: Props) {
     })
   }, [ui.tool])
 
-  async function save() {
+  /** Gera o IFC4 do estado atual (independente do storage) e dispara o download. */
+  function exportIfc(opts: { incluirBocais: boolean }, partsOverride?: Part[]) {
+    const src = partsOverride ?? hist?.present.parts
+    if (!src) return
+    try {
+      const r = buildIfc(src, {
+        nome: produto.nome,
+        id: produto.id,
+        serie: produto.serie,
+        fabricante: catalog.manufacturer,
+        catalogo: catalog.title,
+        specs: produto.specs,
+        potencia: produto.potencia,
+        conexoes: produto.conexoes,
+        produtoId: produto._id,
+      }, { incluirBocais: opts.incluirBocais, fileName: `${produto.id}.ifc` })
+      const blob = new Blob([r.ifc], { type: 'application/x-step' })
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(blob)
+      a.download = `${produto.id}.ifc`
+      a.click()
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000)
+      setMsg({ tipo: 'ok', texto: `IFC gerado: ${r.partes} parte(s), ${r.triangulos.toLocaleString('pt-BR')} triângulos, ${(r.bytes / 1024).toFixed(0)} KB.` })
+    } catch (e: any) {
+      setMsg({ tipo: 'erro', texto: `IFC: ${e.message ?? String(e)}` })
+    }
+  }
+
+  async function saveAndExportIfc(opts: { incluirBocais: boolean }) {
     if (!hist) return
+    if (dirty) {
+      const ok = await save()
+      if (!ok) return
+    }
+    exportIfc(opts, hist.present.parts)
+  }
+
+  async function save(): Promise<boolean> {
+    if (!hist) return false
     setSaving(true)
     setMsg(null)
     try {
@@ -156,8 +194,10 @@ export function ProductEditor(props: Props) {
       setProduto((p) => ({ ...p, geoEditadoEm: r.geoEditadoEm }))
       setHist((h) => h) // força re-render do dirty
       setMsg({ tipo: 'ok', texto: `Gravado: ${r.vertices.toLocaleString('pt-BR')} vértices, ${r.triangulos.toLocaleString('pt-BR')} triângulos, ${(r.bytes / 1024).toFixed(0)} KB${r.backupFeito ? ' — original preservado' : ''}.` })
+      return true
     } catch (e: any) {
       setMsg({ tipo: 'erro', texto: e.message ?? String(e) })
+      return false
     } finally {
       setSaving(false)
     }
@@ -304,7 +344,7 @@ export function ProductEditor(props: Props) {
                 onFit={() => setFitRequest((n) => n + 1)}
                 onView={(view) => setViewRequest((v) => ({ n: v.n + 1, view }))}
                 history={{ canUndo: hist.past.length > 0, canRedo: hist.future.length > 0, undo, redo, lastLabel: hist.present.label }}
-                geoState={{ dirty, saving, msg, geoEditadoEm: produto.geoEditadoEm, save, restore, download, reload }}
+                geoState={{ dirty, saving, msg, geoEditadoEm: produto.geoEditadoEm, save: () => { void save() }, restore, download, reload, exportIfc, saveAndExportIfc: (o) => { void saveAndExportIfc(o) } }}
               />
             )}
             {tab === 'informacoes' && (
