@@ -97,12 +97,12 @@ para servir de base à POC de edição (ver "POC de edição", abaixo):
 | O quê | Estado atual |
 |---|---|
 | `companies` | **1** — `poc-edicao` (customUrl), sem logo |
-| `bim_catalogs` | **2** — `bomba-de-combate-a-incencio` (13 produtos, `series-rows`) e `pecas-step` (1 produto, `catalog-grid`, vindo de `input/STEP/2831A09.stp`) |
-| `bim_imports` | **2** — `ccd89188…` (Dancor) e `b96d8aa1…` (STEP), ambos `publicado` |
-| `bim_products` | **14**, todos com `geoKey` e `thumbKey` |
-| `www/storage/bim/geo/<importId>/` | 13 + 1 JSON (o `.orig.json` só aparece depois de editar geometria) |
-| Editor | `http://localhost:3000/poc-edicao/bomba-de-combate-a-incencio/editar` · `…/poc-edicao/pecas-step/editar` |
-| Importar STEP | `http://localhost:3000/importar-step` (precisa do `OCP` em Python — ver abaixo) |
+| `bim_catalogs` | **3** — `bomba-de-combate-a-incencio` (13 produtos, `series-rows`), `pecas-step` (1, de `input/STEP/2831A09.stp`) e `pecas-ifc` (1, a 2CV editada reimportada do IFC exportado) |
+| `bim_imports` | **3** — Dancor, STEP e IFC, todos `publicado` |
+| `bim_products` | **15**, todos com `geoKey` e `thumbKey` |
+| `www/storage/bim/geo/<importId>/` | 13 + 1 + 1 JSON (o `.orig.json` só aparece depois de editar geometria) |
+| Editor | `http://localhost:3000/poc-edicao/<slug>/editar` para os três catálogos |
+| Importar STEP ou IFC | `http://localhost:3000/importar-step` (STEP precisa do `OCP` em Python — ver abaixo) |
 
 Para voltar ao vazio: `deleteMany({})` nas quatro coleções e apagar `www/storage/bim/*/*`
 (receita em "POC subida local, armadilha do Atlas e limpeza da base", no histórico).
@@ -1637,9 +1637,11 @@ catálogo (miniatura gerada), `.aq` relido pelo `read_aq.py`/`oq3d.py` (mesma bb
 
 **IFC como entrada** (mesmo dia, commit `04c2490`): `scripts/ifc_to_geo.py` sobre o
 `parse_ifc.py`; rotas `/cad/*` aceitam `.stp/.step/.ifc`; skill `leitor-ifc` 1.7.0. O teste
-ponta a ponta ficou pendente porque o **Atlas voltou a recusar o IP** da máquina no meio da
-sessão (TLS alert 80 nos três nós — a assinatura documentada); os scripts foram conferidos
-diretamente.
+ponta a ponta atrasou ~40 min porque o **Atlas voltou a recusar o IP** da máquina (TLS
+alert 80 nos três nós — a assinatura documentada); liberado o IP, rodou inteiro: o IFC
+exportado da 2CV editada virou o catálogo `pecas-ifc` com os mesmos 27.937 triângulos, e
+dele saíram `.aq` (32 malhas, três cores) e IFC de novo. O ciclo `.aq` → editor → IFC →
+editor → `.aq` fecha sem perder triângulo.
 
 ### 2026-09-03 — S7.1: POC de edição (informações + modelo 3D) na branch `poc-edicao`
 
