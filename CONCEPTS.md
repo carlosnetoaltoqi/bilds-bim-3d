@@ -30,6 +30,49 @@ Malha 3D gerada por parâmetro a partir do diâmetro nominal do catálogo e de p
 
 ---
 
+## Editor 3D e conversores CAD (POC de edição, branch `poc-edicao`)
+
+### Parte
+Unidade de edição no editor 3D: `{ pos, col, idx, matrix, visible, marker }`. Nasce da
+**re-segmentação** do `{pos,col,idx}` plano em componentes conexos do grafo de triângulos.
+Funciona porque o dedup do import põe a cor na chave — triângulos de cores diferentes nunca
+compartilham vértice — logo cada componente tem cor uniforme e aproxima uma
+`TQi3DTriangleMesh` do `.aq`. Uma parte com `marker = true` é um **bocal**: marcador de
+conexão do AltoQi (verde `1,154,63`, azuis `10,84,152` e `0,116,232`), não produto. Uma
+parte oculta não entra no arquivo salvo nem nos exports.
+
+### Bake
+Aplicar as matrizes das partes visíveis, concatenar, arredondar a 1 µm e deduplicar com a
+mesma quantização float32 do import. É o que "Salvar geometria", "Exportar IFC" e
+"Exportar .aq" fazem antes de escrever. Round-trip sem edição preserva os triângulos e
+reduz o JSON pela metade.
+
+### Original preservado
+Na primeira escrita de `PUT /geometrias/:id` o arquivo vivo é copiado para
+`<id>.orig.json` no mesmo prefixo do import; "restaurar original" copia de volta e apaga
+o backup. Para as informações, o equivalente é `infoOriginal` no documento do produto.
+
+### Importação CAD
+Um STEP ou IFC que entra como produto de um catálogo pelo `POST /cad/importar`. Tem um
+`BimImport` próprio (porque `geoKey` e miniatura embutem o `importId`) e passa pelo mesmo
+estado do import de `.aq`: recebido → parseando → gravando → publicado | falhou. É
+**assíncrona**: um Revit de 124 MB leva ~4 min. O progresso do conversor vai em
+`BimImport.note`.
+
+### Caminho exato e caminho rápido (IFC)
+O `ifc_to_geo.py` escolhe entre o `parse_ifc.py` do projeto (exato: `IFCINDEXEDCOLOURMAP`,
+placements, instâncias) para arquivo ≤ 20 MB com `IFCTRIANGULATEDFACESET`, e o
+`ifcopenshell.geom.iterator` (C++, cor por material) para o resto. O rápido descarta
+triângulos degenerados e já entrega metros.
+
+### Arestas de borda
+Arestas com um só triângulo. Zero em sólido fechado gerado (tubo, caixa). Em malha de
+fabricante **não** mede qualidade: a Dancor tem 25–32% de arestas de borda porque a
+tesselação chega como sopa de triângulos. O painel mostra o número; só é alarme em parte
+gerada ou importada.
+
+---
+
 ## Flagged Ambiguities
 
 _"import" (the verb, as in "upload and process") and "Import" (the domain entity with a state machine) — these are the same thing but the entity sense should be capitalized to distinguish it._

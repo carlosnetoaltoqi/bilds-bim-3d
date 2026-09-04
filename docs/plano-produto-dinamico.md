@@ -783,6 +783,12 @@ Uma linha por item: o que é, por que ficou de fora, e se é obrigatório na rec
 | **Re-processamento de imports legados** | O import ativo do Dancor (`563e5794`) foi feito antes da implementação do `dedupBuffers` em `parse-worker.ts`. Resultado: geo files 4× maiores (182.7 MB vs 44.7 MB com dedup). Não há rota de re-processamento. | **obrigatório** |
 | **LCP medido com Lighthouse real** | WSL não tem browser headless com DevTools para Web Vitals. S4.1 estimou LCP via soma de componentes medidos com `curl`. | **medir em produção** |
 
+| **Autenticação nas rotas da POC de edição** (`PATCH /produtos`, `PUT /geometrias`, `/cad/*`, `/exportar/aq`, páginas `/editar` e `/importar-step`) | Pedido explícito: POC local sem segurança | **obrigatório** — e com autorização por empresa |
+| **Regenerar miniatura ao salvar geometria editada** | Fora do escopo pedido em S7.1; o `thumb-worker.ts` já serve | **obrigatório** |
+| **Visibilidade do catálogo importado de CAD** | Mesmo problema do catálogo `.aq`: público ao existir | **obrigatório** |
+| **Limite de tamanho/tempo para conversão CAD** (Revit de 124 MB: 221 s e 3,6 GB de RAM no `ifcopenshell`) | POC aceita até 1 GB e 30 min; sem fila | **obrigatório** — fila com worker dedicado e limite por plano |
+| **Decimação de malha grande** (760 mil △ abrem em 3 s no editor, mas o viewer público carrega 31 MB) | `--max-triangulos` só avisa | avaliar |
+
 _Sessões: acrescentem linhas aqui em vez de deixar a decisão só no registro da sessão._
 
 ---

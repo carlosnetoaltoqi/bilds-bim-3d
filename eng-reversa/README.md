@@ -95,11 +95,11 @@ Todas são independentes e somente-leitura sobre as bibliotecas de `input/`.
 | `tools/pdf_akato.py` | Remonta as tabelas do catálogo a partir das células |
 | `tools/aq_referencia.py` | Levanta de um `.aq` real os valores de enum que um gerador precisa |
 | `tools/oq3d_anatomy.py` | Dissecação byte a byte de um blob OQ3D |
-| `tools/oq3d_writer.py` | **Escreve** OQ3D, e gera cilindro e tubo paramétricos |
+| `tools/oq3d_writer.py` | **Escreve** OQ3D, e gera cilindro e tubo paramétricos. Também usado por `scripts/geo_to_aq.py` (exportação `.aq` do editor 3D) |
 | `tools/oq3d_roundtrip.py` | Prova o escritor contra o `scripts/oq3d.py` do projeto |
 | `tools/formas.py` | **Geometria paramétrica representativa**, 23 formas |
 | `tools/formas_teste.py` | Gera as 262 formas e checa escala, proporção e estanqueidade |
-| `tools/gerar_aq.py` | Gera o `.aq` a partir do catálogo extraído |
+| `tools/gerar_aq.py` | Gera o `.aq` a partir do catálogo extraído. **`scripts/geo_to_aq.py` importa daqui** `criar_schema`, `Gerador` (cp1252) e as constantes do AltoQi — não mover nem renomear sem ajustar |
 | `tools/validar_aq.py` | Valida o `.aq` gerado com o `read_aq.py` do projeto |
 | `tools/pipeline_ponta_a_ponta.py` | Roda o `build.py` do projeto sobre o `.aq` gerado |
 | `tools/olhar_preview.mjs` | Abre a página no Playwright e fotografa as peças — a checagem que pega erro de posição relativa |

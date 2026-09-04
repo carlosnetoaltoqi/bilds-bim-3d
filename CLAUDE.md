@@ -49,6 +49,9 @@ não está aqui, isso é uma falha desta documentação — registre-a antes de 
 | **Como ESCREVER um `.aq` e OQ3D, e extrair catálogo de PDF** | **`eng-reversa/`** — ver `eng-reversa/README.md` |
 | **POC de edição (informações + modelo 3D, branch `poc-edicao`)** | este arquivo, "POC de edição" + `docs/sessoes/S7.1-poc-edicao.md` + docstrings em `www/apps/web/src/components/bim-editor/` |
 | **Ler STEP (.stp) e tesselar; escrever `.aq` a partir de qualquer malha** | `scripts/step_to_geo.py`, `scripts/geo_to_aq.py`, `docs/sessoes/S7.2-step-e-aq.md`, skill `docs/skills/leitor-step/` |
+| **Rotas da API da POC, páginas do web, como subir e testar `www/`** | `www/README.md` (mapa) + este arquivo (decisões) |
+| **Testes do editor e dos conversores** | `www/tools/testes-editor.sh`, `www/tools/e2e/*.mjs`, `www/tools/roundtrip-*.mts` |
+| **Vocabulário do editor** (Parte, Bake, Original preservado, Importação CAD, caminho exato/rápido, arestas de borda) | `CONCEPTS.md` |
 
 ### Skills — versionadas aqui, em `docs/skills/`
 
@@ -326,8 +329,17 @@ storage, miniatura em 4,7 s, `1622 × 723 × 1173 mm`. **O editor abre esse mode
 (642 partes por componentes conexos, 141 MB de heap, sem erro). `--max-triangulos` (2 M) não
 corta — só põe um `aviso` que a página mostra.
 
-Como testar sem browser: `node scratchpad/e2e-editor.mjs`, `e2e-ifc.mjs` e `e2e-step.mjs`
-(Playwright com SwiftShader — descritos em `docs/sessoes/S7.1-poc-edicao.md` e `S7.2`).
+**Como testar** (tudo versionado em `www/tools/`, nada depende do scratchpad de sessão):
+
+```bash
+bash www/tools/testes-editor.sh                 # sem browser: round-trip do mesh-model e do exportador IFC (Node + Python)
+node www/tools/e2e/e2e-editor.mjs --validar     # browser (Playwright + SwiftShader): editar, salvar, restaurar, info, IFC, .aq
+node www/tools/e2e/e2e-cad-import.mjs input/STEP/2831A09.stp   # importar CAD assíncrono, status, editor
+```
+
+O Playwright é o da raiz (`npm install`, o mesmo do `scripts/thumbs.mjs`); os testes `.mts`
+rodam com `node --experimental-strip-types` (Node ≥ 22.6) sobre uma cópia dos módulos do
+web com a extensão `.ts` nos imports — ver o cabeçalho do `testes-editor.sh`.
 
 **Pendências desta linha:**
 - **Miniatura fica desatualizada depois de editar geometria** — o `thumbKey` continua
@@ -398,6 +410,11 @@ cp www/.env.example www/.env
 | `SEED_USER` / `SEED_PASSWORD` | Login da POC. **Não consultam o banco** — `auth.controller.ts` compara direto com as variáveis (ADR 7.6). |
 | `JWT_SECRET` | Assina o token. Gere com `python3 -c "import secrets; print(secrets.token_hex(32))"`. |
 | `STORAGE_PATH` | Onde o `DiskGeometryStore` grava. Relativo ao CWD da API (`www/apps/api`). |
+| `WEB_ORIGIN` (opcional) | Origem aceita no CORS da API. Padrão `http://localhost:3000`. |
+| `NEXT_PUBLIC_API_URL` / `API_URL` (opcionais) | Base da API para o browser e para o servidor Next. Padrão `http://localhost:4000`. |
+| `JSON_BODY_LIMIT` (opcional) | Limite do body JSON — o `PUT /geometrias/:id` recebe MB. Padrão `300mb`. |
+| `PYTHON` (opcional) | Interpretador dos conversores `scripts/{step_to_geo,ifc_to_geo,geo_to_aq}.py`. Padrão `python3`; precisa de `cadquery-ocp` e `ifcopenshell` para STEP e IFC grande. |
+| `WORKER_PORT` (opcional) | Porta do servidor HTTP efêmero do `thumb-rasterizer.ts`. Padrão `0` (aleatória). |
 
 O pipeline estático (`scripts/build.py`) **não usa nenhuma delas** — lê só o `.aq`.
 A configuração daquele lado é o `config.example.json` da raiz.
@@ -578,7 +595,7 @@ bilds-bim-3d/
 │   ├── dedup.py                 ← deduplicação de vértices (~79% redução)
 │   ├── step_to_geo.py           ← STEP (.stp) → {pos,col,idx} via OpenCASCADE (POC de edição)
 │   ├── geo_to_aq.py             ← {pos,col,idx} ou partes → .aq mínimo (usa eng-reversa/)
-│   ├── ifc_to_geo.py            ← IFC → {pos,col,idx} via parse_ifc.py + dedup (entrada do editor)
+│   ├── ifc_to_geo.py            ← IFC → {pos,col,idx}: parse_ifc.py (exato) ou ifcopenshell (rápido)
 │   ├── thumbs.mjs               ← render das miniaturas no Chromium (Node)
 │   ├── setup_vendor.sh          ← baixa Three.js para templates/vendor/
 │   └── link_skills.sh           ← liga docs/skills/ a ~/.claude/skills/
@@ -591,11 +608,11 @@ bilds-bim-3d/
 │   └── vendor/                  ← vazio no repo; setup_vendor.sh baixa o Three.js aqui
 ├── input/                       ← bibliotecas do usuário — gitignored
 │   └── <Fabricante>/[<Linha>/]<pecas>.aq
-├── www/                         ← POC dinâmica (pnpm workspace) + POC de edição
-│   ├── .env / .env.example      ← Mongo, seed, JWT, STORAGE_PATH (só o example é versionado)
-│   ├── apps/api/src/            ← NestJS :4000 — importacoes, catalogos, geometrias, produtos, thumbs
-│   ├── apps/web/src/            ← Next 15 :3000 — app/[empresa]/[catalogo]{,/editar}, components/bim-{catalog,editor}
-│   ├── tools/                   ← aq-reader.ts, oq3d-parser.ts, thumb-rasterizer.ts, scripts de medição
+├── www/                         ← POC dinâmica (pnpm workspace) + POC de edição — ver www/README.md
+│   ├── .env / .env.example      ← Mongo, seed, JWT, STORAGE_PATH e opcionais (só o example é versionado)
+│   ├── apps/api/src/            ← NestJS :4000 — importacoes, catalogos, geometrias, produtos, step (CAD), thumbs
+│   ├── apps/web/src/            ← Next 15 :3000 — app/[empresa]/[catalogo]{,/editar}, importar-step, components/bim-{catalog,editor}
+│   ├── tools/                   ← aq-reader.ts, oq3d-parser.ts, thumb-rasterizer.ts, medições, testes (e2e/, roundtrip-*.mts, testes-editor.sh)
 │   └── storage/bim/             ← DiskGeometryStore: geo/, thumbs/, logos/ — gitignored
 └── output/                      ← gerado pelo build
     ├── <origem>/<slug>-<ts>.zip        ← ZIP para bilds.com (gitignored)
@@ -1641,6 +1658,30 @@ python3 -m http.server 8080 --directory output/preview
 ---
 
 ## Histórico de sessões
+
+### 2026-09-03 — S7.3: autocontenção da POC de edição
+
+Pedido: "documente todo o conhecimento no projeto, deixe tudo autocontido". Auditoria do
+que estava fora do repositório ou só no código:
+
+- **Testes** que viviam no scratchpad da sessão (e eram citados pelos registros) passaram
+  para `www/tools/`: `e2e/e2e-editor.mjs` (editar, salvar, restaurar, informações, IFC, `.aq`,
+  com `--validar` chamando os parsers do projeto), `e2e/e2e-cad-import.mjs` (import CAD
+  assíncrono + status + editor), `roundtrip-mesh-model.mts`, `roundtrip-ifc-export.mts` e o
+  `testes-editor.sh` que os roda sem browser. Os registros S7.1 e S7.2 apontam para eles.
+- **`www/README.md`** novo: como subir, tabela de todas as rotas da API (com auth ou não),
+  páginas do web, testes, mapa de pastas.
+- **`www/.env.example`** ganhou as variáveis opcionais que o código lê (`WEB_ORIGIN`,
+  `NEXT_PUBLIC_API_URL`, `API_URL`, `JSON_BODY_LIMIT`, `PYTHON`, `WORKER_PORT`); tabela de
+  variáveis deste arquivo idem.
+- **`CONCEPTS.md`**: Parte, Bake, Original preservado, Importação CAD, caminho exato/rápido,
+  arestas de borda.
+- **`docs/plano-produto-dinamico.md` §13**: cinco linhas do que a POC de edição não faz e é
+  obrigatório na reconstrução (auth, thumb ao salvar, visibilidade, fila para CAD, decimação).
+- **`eng-reversa/README.md`**: `scripts/geo_to_aq.py` importa `gerar_aq.py` e `oq3d_writer.py`
+  — não mover. **`requirements.txt`**: os dois pacotes opcionais e por que fora do arquivo.
+- A memória do agente ficou só com o que é da máquina (onde o OCP está instalado, de onde
+  veio o `.stp` de teste) — nada que o repositório não tenha.
 
 ### 2026-09-03 — S7.2: STEP no editor 3D e exportação em `.aq`
 
