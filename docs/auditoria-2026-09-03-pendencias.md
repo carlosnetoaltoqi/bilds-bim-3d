@@ -337,8 +337,9 @@ código foram reproduzidos uma segunda vez antes de fechar este documento.
    `docs/sessoes/` (criar S5.3 e as sessões de 08-23…28); conhecimento de formato para
    `docs/conhecimento/` ou para as skills como fonte única; POC de edição para
    `www/README.md`; `plano-produto-dinamico.md` marcado histórico com §13 extraído.
-5. **Ambiente declarado:** I5, I18, I19, `bootstrap.sh`, seção única "Pré-requisitos"
-   com "como verificar" (`node -v`, `python3 -c 'import OCP'`, Atlas allowlist como passo 0).
+5. ✅ **Ambiente declarado** (S7.8, 2026-09-04): ~~I5, I18, I19~~; `scripts/bootstrap.sh` (com `--check`,
+   `--www`, `--cad`; tabela "como conferir"; `tests/test_bootstrap.py`); seção "Pré-requisitos" no
+   CLAUDE.md aponta para ele. O Atlas fica na seção da POC em `www/README.md`.
 6. **Decisões que são do usuário:** ~~C6~~ (decidido e feito na S7.5), C7 (estratégia de
    deploy do preview), I10 (auth na POC ou aceitar só localhost), I6 (matar ou arquivar o
    modo `--ifc`), I4 (promover o writer de `.aq` para `scripts/`).

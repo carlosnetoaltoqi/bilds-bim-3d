@@ -10,11 +10,9 @@ Gera catálogos BIM com viewer 3D a partir de bibliotecas `.aq` do AltoQi Builde
 git clone https://github.com/carlosnetoaltoqi/bilds-bim-3d.git
 cd bilds-bim-3d
 
-pip install -r requirements.txt
-bash scripts/setup_vendor.sh          # baixa o Three.js — uma vez só
-
-pnpm install                          # miniaturas (Playwright + Chromium) — ver "Requisitos"
-sudo apt-get install -y libnss3 libnspr4 libasound2t64
+bash scripts/bootstrap.sh             # instala o que falta (pip, Three.js, Playwright) e imprime a tabela
+bash scripts/bootstrap.sh --check     # só confere: exit 1 se falta algo obrigatório
+sudo apt-get install -y libnss3 libnspr4 libasound2t64   # libs do Chromium — o único passo com sudo
 
 # copie as bibliotecas .aq para input/, organizadas por fabricante:
 #   input/Dancor/pecas_dancor_bombas.aq
@@ -147,6 +145,9 @@ miniaturas e a **paridade com o port TypeScript** de `www/tools` (rodado direto 
 está na máquina. Detalhes em `CLAUDE.md`, seção "Testes".
 
 ## Requisitos
+
+`bash scripts/bootstrap.sh --check` confere tudo abaixo e diz como corrigir cada linha
+(`--www` e `--cad` instalam os opcionais). O que ele confere:
 
 - Python 3.12 (`.python-version`); `pip install -r requirements.txt` — Jinja2 e numpy
 - Node 24 (`.nvmrc`) e pnpm 11 (`packageManager` no `package.json`) — só para as miniaturas e para `www/`
