@@ -1635,7 +1635,7 @@ via modo `'recursive'` do `scan_input()`.
 ## Testes — `tests/` (desde 2026-09-03, S7.6)
 
 ```bash
-python3 -m pytest                                   # 43 testes, ≈ 20 s
+python3 -m pytest                                   # 53 testes, ≈ 25 s
 python3 -m pytest -m "not thumbs"                   # sem abrir o Chromium
 python3 -m pytest -m "not thumbs and not paridade"  # só Python, sem Node
 ```
@@ -1747,6 +1747,16 @@ a coleta a `tests/` — `www/workers/aq-parser/.venv` tem os testes do numpy den
 **Identidade:** commits neste repo usam `carlosnetoaltoqi`.
 Verificar com `git config user.name` e `git config user.email`.
 Se necessário: `git config user.name "carlosnetoaltoqi"`
+
+**CI (desde 2026-09-04, S7.7, I20):** `.github/workflows/ci.yml` roda em push para `main` e
+`poc-edicao` e em PR. Job `pipeline-estatico`: Python 3.12 + Node 24, `pip install jinja2 numpy
+pytest`, `py_compile` de `scripts/` e `eng-reversa/tools/`, `pytest -m "not thumbs" -rs`. Job
+`www`: pnpm 11, `pnpm install --frozen-lockfile`, `pnpm -r build`. **O que pula no CI e por quê:**
+os `.aq` de `input/` e o `www/storage/` são gitignored (testes com fixture real pulam com
+motivo — 32 passam, 20 pulam numa árvore limpa); o Chromium (`thumbs`) exige libs de sistema.
+Reproduzir localmente: `git worktree add /tmp/ci HEAD && cd /tmp/ci && python3 -m pytest -m
+"not thumbs"`. `.editorconfig` e `.gitattributes` (`*.aq binary` — CRLF corrompe SQLite) entraram
+junto. **LICENSE não existe** — decisão do usuário.
 
 **`output/preview/` é gitignored, exceto `index.html`.**
 

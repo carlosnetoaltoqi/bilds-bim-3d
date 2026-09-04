@@ -1,0 +1,9 @@
+# Binários que o git não deve tentar diffar nem normalizar fim de linha.
+# .aq é SQLite (biblioteca do AltoQi Builder) — um CRLF trocado corrompe o arquivo.
+*.aq      binary
+*.sqlite  binary
+*.webp    binary
+*.png     binary
+*.jpg     binary
+*.zip     binary
+*.pdf     binary

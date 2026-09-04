@@ -52,7 +52,7 @@ código foram reproduzidos uma segunda vez antes de fechar este documento.
 | I17 | `http://localhost:4000` hardcoded em 3 páginas; porta fixa; dois defaults de `STORAGE_PATH` | www |
 | I18 | npm + pnpm na raiz, dois lockfiles versionados | repo |
 | I19 | Zero pins de versão (Node/pnpm/Python); heurística no `build.py` compensa | repo |
-| I20 | Sem CI, LICENSE, `.editorconfig`, `.gitattributes` | repo |
+| I20 ◐ | Sem CI, LICENSE, `.editorconfig`, `.gitattributes` — **CI mínimo, `.editorconfig` e `.gitattributes` em 2026-09-04** (S7.7: `.github/workflows/ci.yml`, jobs `pipeline-estatico` e `www`); **LICENSE é decisão do usuário** | repo |
 | I21 ✅ | `.git` com 6.867 objetos soltos, nunca `gc` — **resolvido 2026-09-03** pelo repack do filter-repo (1,3 MB em pack) | repo |
 | I22 | CLAUDE.md com 2.797 linhas, 41% histórico, 7 notas "versões antigas diziam" | docs |
 | I23 | Onze afirmações do CLAUDE.md/README quebradas ou desatualizadas (tabela abaixo) | docs |
@@ -232,7 +232,10 @@ código foram reproduzidos uma segunda vez antes de fechar este documento.
 - **I19.** Sem `.nvmrc`, `.python-version`, `packageManager`, `engines`. Máquina: Node
   24.18 (nvm), `/usr/bin/node` 18.19, pnpm 11.24, Python 3.12.3. `build.py:655-668` procura
   Node ≥ 20 em `~/.nvm` para compensar.
-- **I20.** Sem `.github/`, LICENSE, `.editorconfig`, `.gitattributes` (`*.aq binary`).
+- **I20.** ◐ (S7.7) Sem `.github/`, LICENSE, `.editorconfig`, `.gitattributes` (`*.aq binary`).
+  Feito: `.github/workflows/ci.yml` (pytest sem `thumbs` + py_compile; `pnpm -r build`),
+  `.editorconfig`, `.gitattributes`. Falta LICENSE (qual? — usuário). O Chromium no CI
+  (marcador `thumbs`) e os `.aq` de fixture (gitignored) ficam para depois.
   Testes existem e nada os roda.
 - **I21.** `git count-objects` → 6.867 soltos, 0 packs, 134 MB. `gc` só depois de decidir C6.
 - **Ambiente não declarado como pré-requisito:** Atlas IP allowlist (só como armadilha,
@@ -326,8 +329,9 @@ código foram reproduzidos uma segunda vez antes de fechar este documento.
 2. **Geração acusa erro** (o critério do usuário): ~~C1, C2, C3~~ (S7.4), ~~I1, I2, I3~~ e a
    ~~suíte `tests/` de I9~~ (S7.6) — **faltam I7 e I8**. Um commit por item, cada um
    com a linha correspondente no CLAUDE.md e na skill, e o teste em `tests/`.
-3. **Build e testes voltam a ser verdes:** C4, I13; depois um workflow mínimo (I20) que
-   rode `py_compile`, `pytest`, `pnpm -r build`, `testes-editor.sh`.
+3. ✅ **Build e testes voltam a ser verdes:** ~~C4~~ (S7.4), ~~I13~~ (S7.7); ~~workflow mínimo (I20)~~
+   (S7.7: `py_compile`, `pytest -m "not thumbs"`, `pnpm -r build`; o `testes-editor.sh` entra
+   pelo pytest, mas pula no CI porque o storage é gitignored).
 4. **Documentação passa a limpo:** corrigir C8, C9, C10, I23 primeiro (são erros ativos);
    depois a reestruturação de I22 — CLAUDE.md vira mapa de ~400 linhas; histórico vai para
    `docs/sessoes/` (criar S5.3 e as sessões de 08-23…28); conhecimento de formato para
