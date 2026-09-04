@@ -71,7 +71,8 @@ def main():
     geo_dir = os.path.join(SAIDA, 'data')
     os.makedirs(geo_dir, exist_ok=True)
 
-    catalog, n_geo, sem_3d = build.build_catalog_from_aq(config, aq, geo_dir)
+    catalog, n_geo, diag = build.build_catalog_from_aq(config, aq, geo_dir)
+    sem_3d = diag['pecas_sem_simbologia'] + diag['pecas_sim_descartada']
 
     print(f'build_catalog_from_aq:')
     print(f"  fabricante {catalog['fabricante']!r}  "
@@ -79,6 +80,7 @@ def main():
     print(f"  {len(catalog['produtos'])} produtos publicáveis, "
           f'{n_geo} geometrias, {sem_3d} peças sem forma 3D')
     print(f"  filtros: {catalog['filtros']}")
+    build.resumo_diag(diag, indent='  ')
 
     caminho_catalog = os.path.join(SAIDA, 'catalog.json')
     with open(caminho_catalog, 'w', encoding='utf-8') as f:
@@ -97,7 +99,12 @@ def main():
         print()
         print('build_thumbs (Chromium + Three.js, uma miniatura por geometria):')
         os.makedirs(thumbs_dir, exist_ok=True)
-        n_thumbs = build.build_thumbs(catalog, geo_dir, thumbs_dir)
+        try:
+            n_thumbs = build.build_thumbs(catalog, geo_dir, thumbs_dir)
+        except build.ThumbsError as e:
+            # Este script é de estudo: segue sem miniaturas, mas diz por quê.
+            print(f'  AVISO: miniaturas — {e}')
+            n_thumbs = sum(1 for p in catalog['produtos'] if p.get('thumb'))
         com_thumb = sum(1 for p in catalog['produtos'] if p.get('thumb'))
         print(f'  {n_thumbs} miniaturas, {com_thumb} de '
               f"{len(catalog['produtos'])} produtos com `thumb`")

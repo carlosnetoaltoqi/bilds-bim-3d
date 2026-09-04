@@ -64,6 +64,7 @@ import shutil
 import subprocess
 import sys
 import unicodedata
+import warnings
 import zipfile
 
 # Adiciona scripts/ ao path para importar os módulos irmãos
@@ -321,7 +322,22 @@ def build_catalog_from_aq(config, aq_path, geo_dir):
     puladas: na prática são tubos (cilindro paramétrico gerado pelo AltoQi) e
     kits de aparelho sanitário, que não têm forma fixa.
 
-    Retorna (catalog, n_geometrias, n_sem_3d).
+    Retorna (catalog, n_geometrias, diag). `diag` separa o que antes era um único
+    número "peças sem 3D (tubos/kits)":
+
+      pecas_sem_simbologia   peça sem linha em PECA_SIMBOLOGIA_3D — tubo ou kit,
+                             comportamento esperado (ver CLAUDE.md);
+      pecas_sim_descartada   peça cuja simbologia existe mas foi descartada por um
+                             dos motivos abaixo — ISSO é defeito de dado ou de parser;
+      sim_sem_blob           SIMBOLOGIA_3D com BLOB nulo/vazio;
+      sim_nao_oq3d           blob sem a assinatura OQ3D;
+      sim_ilegivel           [(id, nome, erro)] — `OQ3DError` (truncado/corrompido);
+      sim_vazia              [(id, nome)] — parse ok, mas nenhuma malha;
+      avisos                 [(id, nome, mensagem)] — `OQ3DAvisoParse` coletados
+                             durante o parse (hierarquia suspeita, bloco pulado).
+
+    Use `resumo_diag()` para imprimir. Nada aqui é engolido: o operador vê cada
+    categoria, e a suíte em tests/ cobre todas.
     """
     from read_aq import extract as extract_aq, extract_simbologias
     import oq3d
@@ -349,19 +365,38 @@ def build_catalog_from_aq(config, aq_path, geo_dir):
     # entre grupos — por isso o grupo entra no slug quando há colisão.
     geo_por_sim = {}
     usados = set()
+    diag = {
+        'pecas_sem_simbologia': 0, 'pecas_sim_descartada': 0,
+        'sim_sem_blob': 0, 'sim_nao_oq3d': 0,
+        'sim_ilegivel': [], 'sim_vazia': [], 'avisos': [],
+    }
     for sid in sorted(simbologias):
-        blob = simbologias[sid]['blob']
-        if not blob or not oq3d.is_oq3d(blob):
+        sim = simbologias[sid]
+        blob = sim['blob']
+        if not blob:
+            diag['sim_sem_blob'] += 1
             continue
-        try:
-            data = oq3d.to_buffers(blob)
-        except oq3d.OQ3DError as e:
-            print(f'  AVISO: simbologia {sid} ilegível ({e})')
+        if not oq3d.is_oq3d(blob):
+            diag['sim_nao_oq3d'] += 1
             continue
+        # `warnings.warn` sozinho não chega ao operador: o filtro padrão mostra só
+        # a primeira ocorrência por linha de código e o texto vai para o stderr
+        # sem dizer de qual simbologia é. Coleta-se por simbologia e imprime-se
+        # no resumo (resumo_diag).
+        with warnings.catch_warnings(record=True) as capturados:
+            warnings.simplefilter('always', oq3d.OQ3DAvisoParse)
+            try:
+                data = oq3d.to_buffers(blob)
+            except oq3d.OQ3DError as e:
+                diag['sim_ilegivel'].append((sid, sim['nome'], str(e)))
+                continue
+        for w in capturados:
+            if issubclass(w.category, oq3d.OQ3DAvisoParse):
+                diag['avisos'].append((sid, sim['nome'], str(w.message)))
         if not data['pos']:
+            diag['sim_vazia'].append((sid, sim['nome']))
             continue
 
-        sim = simbologias[sid]
         name = slugify(sim['nome'])[:60]
         if not name or name in usados:
             name = slugify(f"{sim['grupo']} {sim['nome']}")[:60]
@@ -400,15 +435,17 @@ def build_catalog_from_aq(config, aq_path, geo_dir):
 
     produtos = []
     series_set = set()
-    sem_3d = 0
     ids_usados = set()
 
     for p in aq_data['pecas']:
         pid = p['ID_PECA']
         sid = sim_por_peca.get(pid)
-        geo = geo_por_sim.get(sid) if sid else None
+        if sid is None or sid not in simbologias:
+            diag['pecas_sem_simbologia'] += 1      # tubo/kit: esperado
+            continue
+        geo = geo_por_sim.get(sid)
         if not geo:
-            sem_3d += 1
+            diag['pecas_sim_descartada'] += 1     # simbologia existe e falhou
             continue
 
         nome_gp = grupos_by_id.get(p['ID_GRUPO_PECA'], {}).get('NOME_GP', '')
@@ -449,7 +486,56 @@ def build_catalog_from_aq(config, aq_path, geo_dir):
         'filtros': sorted(s for s in series_set if s),
         'produtos': produtos,
     }
-    return catalog, len(geo_por_sim), sem_3d
+    return catalog, len(geo_por_sim), diag
+
+
+def resumo_diag(diag, indent='    ', max_itens=5):
+    """
+    Imprime o diagnóstico de build_catalog_from_aq e devolve True se houve algo
+    além de tubos/kits — simbologia descartada ou aviso de parse.
+
+    Tubos/kits são informativos. O resto sai como AVISO com id e nome da
+    simbologia, para que o operador saiba QUAL geometria olhar.
+    """
+    if diag['pecas_sem_simbologia']:
+        print(f"{indent}{diag['pecas_sem_simbologia']} peça(s) sem simbologia 3D "
+              f"(tubos/kits) puladas — esperado")
+
+    descartadas = (diag['sim_sem_blob'] + diag['sim_nao_oq3d']
+                   + len(diag['sim_ilegivel']) + len(diag['sim_vazia']))
+    problema = False
+    if descartadas:
+        problema = True
+        motivos = []
+        if diag['sim_sem_blob']:
+            motivos.append(f"{diag['sim_sem_blob']} sem blob")
+        if diag['sim_nao_oq3d']:
+            motivos.append(f"{diag['sim_nao_oq3d']} sem assinatura OQ3D")
+        if diag['sim_ilegivel']:
+            motivos.append(f"{len(diag['sim_ilegivel'])} ilegível(is)")
+        if diag['sim_vazia']:
+            motivos.append(f"{len(diag['sim_vazia'])} sem malha")
+        print(f"{indent}AVISO: {descartadas} simbologia(s) descartada(s) — "
+              f"{', '.join(motivos)}; {diag['pecas_sim_descartada']} peça(s) "
+              f"ficaram sem 3D por isso")
+        for sid, nome, erro in diag['sim_ilegivel'][:max_itens]:
+            print(f'{indent}    sim {sid} {nome!r}: {erro[:90]}')
+        for sid, nome in diag['sim_vazia'][:max_itens]:
+            print(f'{indent}    sim {sid} {nome!r}: parse sem nenhuma malha')
+
+    if diag['avisos']:
+        problema = True
+        por_sim = {}
+        for sid, nome, msg in diag['avisos']:
+            por_sim.setdefault((sid, nome), []).append(msg)
+        print(f"{indent}AVISO: {len(por_sim)} simbologia(s) com aviso de parse "
+              f"(geometria incompleta ou hierarquia suspeita)")
+        for (sid, nome), msgs in list(por_sim.items())[:max_itens]:
+            extra = f' (+{len(msgs) - 1})' if len(msgs) > 1 else ''
+            print(f'{indent}    sim {sid} {nome!r}: {msgs[0][:90]}{extra}')
+        if len(por_sim) > max_itens:
+            print(f'{indent}    … e {len(por_sim) - max_itens} outra(s)')
+    return problema
 
 
 # ─── Parse dos IFCs ───────────────────────────────────────────────────────────
@@ -675,6 +761,10 @@ def _find_node():
     return max(candidatos)[1] if candidatos else None
 
 
+class ThumbsError(RuntimeError):
+    """O passo de miniaturas não conseguiu gerar tudo o que o catálogo pede."""
+
+
 def build_thumbs(catalog, geo_dir, thumbs_dir):
     """
     Pré-renderiza uma miniatura por geometria e anota `thumb` nos produtos.
@@ -691,9 +781,12 @@ def build_thumbs(catalog, geo_dir, thumbs_dir):
     Uma miniatura por GEOMETRIA, não por produto: 856 produtos da Amanco
     compartilham 448 geometrias.
 
-    Degrada em silêncio: sem Node, sem playwright ou sem browser, o passo é
-    pulado e os produtos ficam sem `thumb`. O bilds.com cai no render dinâmico
-    de hoje, que continua funcionando.
+    NÃO degrada em silêncio (desde 2026-09-03): sem Node >= 20, sem Playwright,
+    sem browser, com timeout ou com qualquer geometria que falhou no render, lança
+    `ThumbsError` — depois de anotar `thumb` nas que deram certo. Quem decide se
+    o build segue é o `run_build`, com `--allow-no-thumbs`; sem a flag, o build
+    falha, porque um ZIP sem `thumbs/` é o cenário que custa 39,9 s de LCP no
+    bilds.com e antes saía com exit 0.
 
     Retorna a quantidade de miniaturas geradas.
     """
@@ -720,32 +813,30 @@ def build_thumbs(catalog, geo_dir, thumbs_dir):
 
     node = _find_node()
     if not node:
-        atual = _node_versao('node')
-        print(f'  AVISO: miniaturas puladas — Playwright exige Node >= {NODE_MINIMO}'
-              + (f', e o do PATH é v{atual}' if atual else ', e não há node no PATH'))
-        print('         Use `nvm use 20` (ou superior), ou aponte BILDS_NODE '
-              'para um executável compatível.')
         os.remove(cfg_path)
-        return 0
+        atual = _node_versao('node')
+        raise ThumbsError(
+            f'Playwright exige Node >= {NODE_MINIMO}'
+            + (f', e o do PATH é v{atual}' if atual else ', e não há node no PATH')
+            + '. Use `nvm use 20` (ou superior), ou aponte BILDS_NODE para um '
+              'executável compatível.')
 
     driver = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'thumbs.mjs')
     try:
         proc = subprocess.run([node, driver, cfg_path],
                               capture_output=True, text=True, timeout=1800)
     except FileNotFoundError:
-        print('  AVISO: node não encontrado — miniaturas puladas '
-              '(a página cai no render dinâmico)')
-        return 0
+        raise ThumbsError(f'executável node não encontrado: {node}')
     except subprocess.TimeoutExpired:
-        print('  AVISO: render de miniaturas excedeu 30 min — pulado')
-        return 0
+        raise ThumbsError('render de miniaturas excedeu 30 min')
     finally:
         if os.path.exists(cfg_path):
             os.remove(cfg_path)
 
     if proc.returncode == 1:
-        print(f'  AVISO: miniaturas puladas — {proc.stderr.strip()[:160]}')
-        return 0
+        # thumbs.mjs sai com 1 quando não consegue nem começar: playwright
+        # ausente, Chromium não instalado, libs de sistema faltando.
+        raise ThumbsError(proc.stderr.strip()[:300] or 'thumbs.mjs falhou sem mensagem')
 
     ok, erros = {}, []
     for linha in proc.stdout.splitlines():
@@ -763,15 +854,16 @@ def build_thumbs(catalog, geo_dir, thumbs_dir):
         if stem in ok:
             produto['thumb'] = f'{stem}.{THUMB_EXT}'
 
-    if erros:
-        print(f'  AVISO: {len(erros)} miniatura(s) falharam '
-              f'(esses produtos usam render dinâmico)')
-        for g, e in erros[:3]:
-            print(f'      {g}: {e[:70]}')
-
     if ok:
         media = sum(ok.values()) / len(ok) / 1024
         print(f'    {len(ok)} miniaturas ({media:.0f} KB em média)')
+
+    if erros:
+        detalhe = '; '.join(f'{g}: {e[:70]}' for g, e in erros[:3])
+        raise ThumbsError(f'{len(erros)} de {len(geos)} miniatura(s) falharam — {detalhe}')
+    if not ok:
+        raise ThumbsError(f'nenhuma das {len(geos)} miniaturas foi gerada '
+                          f'(exit {proc.returncode}: {proc.stderr.strip()[:200]})')
     return len(ok)
 
 
@@ -780,10 +872,15 @@ def build_thumbs(catalog, geo_dir, thumbs_dir):
 def build_zip(catalog, out_dir=None, geo_dir=None, thumbs_dir=None):
     """
     Gera <out_dir>/<slug>-AAAAMMDDHHMM.zip com:
-      manifest.json     — slug, title, manufacturer, description, layout, filters, productCount
+      manifest.json     — slug, title, manufacturer, description, layout, filters,
+                          productCount, thumbCount
       catalog.json      — dados completos dos produtos (campos em português)
       geo/<slug>.json   — geometria de cada produto
       thumbs/<slug>.webp — miniatura pré-renderizada, quando houver (ver build_thumbs)
+
+    `thumbCount` é quantos arquivos entraram em thumbs/. Zero num catálogo com
+    produtos é o sinal de que o build correu com --skip-thumbs ou
+    --allow-no-thumbs — e de que a página vai renderizar no browser.
 
     out_dir espelha a pasta do .aq dentro de input/ (ver aq_rel_dir).
     """
@@ -793,6 +890,14 @@ def build_zip(catalog, out_dir=None, geo_dir=None, thumbs_dir=None):
     ts = datetime.datetime.now().strftime('%Y%m%d%H%M')
     zip_name = f"{catalog['slug']}-{ts}.zip"
     zip_path = os.path.join(out_dir, zip_name)
+    # thumbs que existem em disco — decididas antes do manifest para thumbCount
+    thumbs = []
+    if thumbs_dir and os.path.isdir(thumbs_dir):
+        for produto in catalog['produtos']:
+            nome = produto.get('thumb')
+            if nome and nome not in thumbs and os.path.exists(os.path.join(thumbs_dir, nome)):
+                thumbs.append(nome)
+
     with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
         # manifest: campos em inglês conforme contrato da API bilds.com
         manifest = {
@@ -803,6 +908,7 @@ def build_zip(catalog, out_dir=None, geo_dir=None, thumbs_dir=None):
             'layout':       catalog['layout'],
             'filters':      catalog['filtros'],
             'productCount': len(catalog['produtos']),
+            'thumbCount':   len(thumbs),
         }
         zf.writestr('manifest.json', json.dumps(manifest, ensure_ascii=False, indent=2))
 
@@ -829,17 +935,9 @@ def build_zip(catalog, out_dir=None, geo_dir=None, thumbs_dir=None):
             print(f'  AVISO: +{faltando - 5} geometrias ausentes')
 
         # thumbs — só as que build_thumbs conseguiu gerar; produto sem `thumb`
-        # simplesmente cai no render dinâmico do viewer
-        if thumbs_dir and os.path.isdir(thumbs_dir):
-            enviadas = set()
-            for produto in catalog['produtos']:
-                nome = produto.get('thumb')
-                if not nome or nome in enviadas:
-                    continue
-                src = os.path.join(thumbs_dir, nome)
-                if os.path.exists(src):
-                    zf.write(src, f'thumbs/{nome}')
-                    enviadas.add(nome)
+        # cai no render dinâmico do viewer (e thumbCount denuncia isso)
+        for nome in thumbs:
+            zf.write(os.path.join(thumbs_dir, nome), f'thumbs/{nome}')
 
     size_kb = os.path.getsize(zip_path) / 1024
     print(f'ZIP: {zip_path} ({size_kb:.0f}KB)')
@@ -1410,9 +1508,9 @@ def run_build(config, aq_path, geo_dir, zip_dir, args):
         catalog = build_catalog(config, product_map, set(geo_files))
     else:
         print('  Extraindo geometria do .aq...')
-        catalog, n_geo, sem_3d = build_catalog_from_aq(config, aq_path, geo_dir)
-        print(f'    {n_geo} geometrias extraídas'
-              + (f'; {sem_3d} peças sem 3D (tubos/kits) puladas' if sem_3d else ''))
+        catalog, n_geo, diag = build_catalog_from_aq(config, aq_path, geo_dir)
+        print(f'    {n_geo} geometrias extraídas')
+        resumo_diag(diag)
 
     print(f'    {len(catalog["produtos"])} produtos, layout: {catalog["layout"]}')
     if not catalog['produtos']:
@@ -1423,9 +1521,22 @@ def run_build(config, aq_path, geo_dir, zip_dir, args):
     # e tanto o arquivo solto quanto o do ZIP precisam sair já com o campo.
     # thumbs/ espelha a árvore de geo/ para não colidir entre bibliotecas.
     thumbs_dir = os.path.join(THUMBS_DIR, os.path.relpath(geo_dir, GEO_DIR))
-    if not args.skip_thumbs:
+    if args.skip_thumbs:
+        print('  Miniaturas puladas (--skip-thumbs): a página renderiza no browser')
+    else:
         print('  Renderizando miniaturas...')
-        build_thumbs(catalog, geo_dir, thumbs_dir)
+        try:
+            build_thumbs(catalog, geo_dir, thumbs_dir)
+        except ThumbsError as e:
+            if not args.allow_no_thumbs:
+                print(f'  ERRO: miniaturas — {e}')
+                print('        Sem miniaturas o ZIP sai sem thumbs/ e a página paga o '
+                      'render no browser (39,9 s de LCP medidos). Para aceitar isso '
+                      'de propósito: --allow-no-thumbs; para nem tentar: --skip-thumbs.')
+                raise
+            print(f'  AVISO: miniaturas — {e}')
+            print('         Aceito por --allow-no-thumbs: produtos sem `thumb` usam '
+                  'render dinâmico; thumbCount no manifest mostra quantas saíram.')
 
     # catalog.json solto acompanha o ZIP, na mesma pasta espelhada
     os.makedirs(zip_dir, exist_ok=True)
@@ -1523,7 +1634,7 @@ def run_all(input_dir, args):
         sys.exit(1)
 
 
-def main():
+def build_parser():
     parser = argparse.ArgumentParser(
         description='bilds-bim-3d — gera catálogo BIM 3D a partir de bibliotecas .aq',
         epilog='Por padrão lê só o .aq. Use --ifc para também parsear os IFCs da pasta.')
@@ -1540,7 +1651,10 @@ def main():
                              'Sem esta flag, a geometria vem toda do .aq.')
     parser.add_argument('--skip-preview', action='store_true',   help='Pula geração do preview HTML')
     parser.add_argument('--skip-thumbs',  action='store_true',
-                        help='Pula o render das miniaturas (a página volta a gerá-las no browser)')
+                        help='Nem tenta renderizar miniaturas (a página volta a gerá-las no browser)')
+    parser.add_argument('--allow-no-thumbs', action='store_true',
+                        help='Tenta renderizar; se falhar (sem Node/Playwright/Chromium, ou '
+                             'geometria que não renderiza), avisa e segue em vez de falhar')
     parser.add_argument('--skip-zip',     action='store_true',   help='Pula geração do ZIP')
     parser.add_argument('--skip-ifc',     action='store_true',   help=argparse.SUPPRESS)
     parser.add_argument('--layout',       choices=['series-rows', 'catalog-grid'], default=None,
@@ -1548,7 +1662,11 @@ def main():
                              'reutiliza geometria já extraída)')
     # --interactive mantido por compatibilidade, mas agora é sempre o modo padrão
     parser.add_argument('--interactive', '-i', action='store_true', help=argparse.SUPPRESS)
-    args = parser.parse_args()
+    return parser
+
+
+def main():
+    args = build_parser().parse_args()
 
     input_dir = os.path.join(ROOT, args.input_dir)
 
@@ -1582,7 +1700,11 @@ def main():
     geo_dir = os.path.join(GEO_DIR, rel_dir, config['slug']) if rel_dir \
         else os.path.join(GEO_DIR, config['slug'])
 
-    catalog, zip_path = run_build(config, aq_path, geo_dir, zip_dir, args)
+    try:
+        catalog, zip_path = run_build(config, aq_path, geo_dir, zip_dir, args)
+    except ThumbsError:
+        print('\n=== Build FALHOU: miniaturas (veja o ERRO acima) ===')
+        sys.exit(1)
     if not catalog['produtos']:
         print('\n=== Build FALHOU: nenhum produto ===')
         sys.exit(1)
