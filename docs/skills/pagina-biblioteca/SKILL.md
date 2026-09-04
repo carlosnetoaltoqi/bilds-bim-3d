@@ -1,7 +1,7 @@
 ---
 name: pagina-biblioteca
 description: Constrói páginas HTML de catálogo BIM com cards de produto, miniaturas 3D estáticas (click-to-activate), viewer 3D no modal, curvas Q-H em SVG e layout responsivo. Padrões validados em produção com Three.js self-hosted.
-version: 1.6.0
+version: 1.7.0
 author: Bilds / carlosnetoaltoqi
 ---
 
@@ -825,6 +825,10 @@ Ambos usam o mesmo `buildScene`, `loadThumbnail`, `initModalViewer` e `buildChar
 ---
 
 ## Histórico
+
+**1.7.0** — Jinja2 passa a ser obrigatório no gerador: o "fallback" sem Jinja2 entregava a página
+com `{% for %}` cru e nenhum card, e o chamador ignorava o `False`. Regra nova na seção de chips:
+sem o motor de template, falhe alto antes de escrever qualquer arquivo (bilds-bim-3d, I7, 2026-09-04).
 
 **1.6.0** — Nomes de série com aspas (`1" x 1"`, `"T" Horizontal`) quebravam os chips de
 filtro em 6 catálogos gerados pelo `bilds-bim-3d`: atributo truncado, `onclick` com erro de

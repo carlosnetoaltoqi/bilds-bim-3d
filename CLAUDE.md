@@ -117,14 +117,14 @@ Para voltar ao vazio: `deleteMany({})` nas quatro coleções e apagar `www/stora
 > conhecimento serem corrigidos. A lista de pendências, com evidência e ordem de ataque,
 > está em `docs/auditoria-2026-09-03-pendencias.md`.
 >
-> **Resolvidos:** C1–C6, C8, I1, I2, I3, I9 (suíte `tests/`, 43 testes, `python3 -m pytest`),
-> I21. **A S7.6 (2026-09-03) fechou I1/I2/I3/I9** e, no caminho, achou e corrigiu um bug de
-> formato: a Maxbar grava malhas OQ3D **versão 3** e o parser só aceitava a 2 — 31
-> simbologias (56 peças) saíam sem geometria e eram contadas como "tubos/kits". Detalhes
-> em `docs/sessoes/S7.6-geracao-acusa-erro-e-tests.md`.
+> **Resolvidos:** C1–C6, C8, I1, I2, I3, I7, I8, I9, I13, I21; I20 parcial (CI mínimo,
+> `.editorconfig`, `.gitattributes` — falta LICENSE, decisão do usuário). Suíte `tests/` com
+> **53 testes** (`python3 -m pytest`, ≈ 20 s). **A S7.7 (2026-09-04) fechou o passo 2 (I7, I8) e
+> o passo 3 (I13, CI)** — detalhes em `docs/sessoes/S7.7-passo-2-e-3-i7-i8-i13-ci.md`. A S7.6
+> (2026-09-03) fechou I1/I2/I3/I9 e corrigiu a malha OQ3D **versão 3** da Maxbar.
 >
-> **A próxima sessão começa no resto do passo 2** (I7 fallback sem Jinja2, I8 roundtrip
-> com caminho errado) **e no passo 3** (I13, workflow mínimo de CI rodando `pytest`).
+> **A próxima sessão começa no passo 4** (documentação passa a limpo: C9, C10, I23 e a
+> reestruturação I22 deste arquivo) **e no passo 5** (ambiente declarado: I5, I18, I19).
 > Regras que valem: um commit por item; cada fix acompanhado da linha no CLAUDE.md e na
 > skill; **todo comportamento novo entra em `tests/`** antes de fechar o item.
 >
@@ -132,9 +132,10 @@ Para voltar ao vazio: `deleteMany({})` nas quatro coleções e apagar `www/stora
 > filter-repo`, `main` + `poc-edicao` enviadas com `--force` — **todo SHA anterior a essa
 > data mudou**; o mapa antigo → novo está em
 > `docs/sessoes/S7.5-push-e-reescrita-do-historico.md`, e os SHAs citados neste arquivo já
-> são os novos. Três decisões esperam o usuário: C7 (deploy do preview), I10 (auth na
-> POC), I6 (modo `--ifc`); mais I4 (promover o writer de `.aq`). A raiz está **sem
-> `config.json`** (apagado na S7.4; o build interativo recria) e a tabela acima está um
+> são os novos. **O remoto está 9 commits atrás** (S7.6 e S7.7 não fizeram push); o CI só
+> roda no GitHub depois do push. Decisões que esperam o usuário: C7 (deploy do preview), I10
+> (auth na POC), I6 (modo `--ifc`), I4 (promover o writer de `.aq`), LICENSE. A raiz está
+> **sem `config.json`** (apagado na S7.4; o build interativo recria) e a tabela acima está um
 > import atrás (resíduo `dd393c56` dos testes).
 
 O que a API devolve com a base **vazia**, conferido em 2026-09-02:
@@ -1635,7 +1636,7 @@ via modo `'recursive'` do `scan_input()`.
 ## Testes — `tests/` (desde 2026-09-03, S7.6)
 
 ```bash
-python3 -m pytest                                   # 53 testes, ≈ 25 s
+python3 -m pytest                                   # 53 testes, ≈ 20 s
 python3 -m pytest -m "not thumbs"                   # sem abrir o Chromium
 python3 -m pytest -m "not thumbs and not paridade"  # só Python, sem Node
 ```
@@ -1821,6 +1822,25 @@ python3 -m http.server 8080 --directory output/preview
 ---
 
 ## Histórico de sessões
+
+### 2026-09-04 — S7.7: fim do passo 2 (I7, I8) e passo 3 (I13, CI mínimo)
+
+Registro completo em `docs/sessoes/S7.7-passo-2-e-3-i7-i8-i13-ci.md`.
+
+**I7:** `build_preview()` lança `RuntimeError` sem Jinja2 ou sem template, antes de copiar
+geometria; `run_build` ignorava o `False` e gerava ZIP sem preview. **I8:** o
+`oq3d_roundtrip.py` apontava uma subpasta da Amanco que nunca existiu, pulava o caso real e
+saía 0; agora `.aq` ausente é falha e `--sem-real` pula de propósito. **I13:** o round-trip
+do `mesh-model` comparava strings `toFixed(5)` e falhava sempre (28–32% "fora" em malha
+idêntica); passou a agrupar vértices por grade de 2 µm com union-find (original + bake
+juntos) e comparar triângulos por grupo com o sentido — 22 geometrias do storage com 0 fora,
+e `ROUNDTRIP_SABOTAR=1` prova que a métrica acusa. **I20:** `.github/workflows/ci.yml`
+(pytest sem `thumbs` + `py_compile`; `pnpm -r build`), `.editorconfig`, `.gitattributes`.
+Suíte: 43 → **53 testes** (`test_oq3d_roundtrip.py`, `test_editor_roundtrips.py`).
+
+**Achado:** "vizinho mais próximo a 2 µm", como a auditoria pedia, não basta — o `dedup` do
+`bake` chaveia por posição **e cor** (partes que se tocam duplicam vértices) e dois originais
+a 1,5 µm viram dois do bake a 1 µm; só o agrupamento transitivo zera.
 
 ### 2026-09-03 — S7.6: a geração acusa erro (I1, I2, I3) e nasce a suíte `tests/` (I9)
 
