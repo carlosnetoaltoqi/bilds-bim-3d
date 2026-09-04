@@ -41,3 +41,7 @@ www/**/dist/
 www/storage/
 **/.venv/
 *.tsbuildinfo
+
+# Saída descartável da suíte de testes (tests/conftest.py)
+output/.pytest-tmp/
+.pytest_cache/
