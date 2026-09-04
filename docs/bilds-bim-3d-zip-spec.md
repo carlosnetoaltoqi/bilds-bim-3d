@@ -46,7 +46,8 @@ Lido pelo servidor para registrar o catálogo no MongoDB. Todos os campos em ing
   "description":  "Linha CAM-W e TJM para sistemas de combate a incêndio.",
   "layout":       "series-rows",
   "filters":      ["W", "TJM"],
-  "productCount": 12
+  "productCount": 12,
+  "thumbCount":   8
 }
 ```
 
@@ -61,6 +62,7 @@ Lido pelo servidor para registrar o catálogo no MongoDB. Todos os campos em ing
 | `layout`       | string   | não         | `"series-rows"` (default) ou `"catalog-grid"`. Ver seção 5.     |
 | `filters`      | string[] | não         | Lista de séries/filtros. Default: `[]`. Usado pelos chips de filtro no `catalog-grid` e na eyebrow do hero. |
 | `productCount` | number   | não         | Quantidade de produtos. Default: `0`. Apenas informativo no dashboard. |
+| `thumbCount`   | number   | não         | Quantidade de arquivos em `thumbs/` (uma miniatura por geometria, não por produto). Default: `0`. Emitido pelo `build.py` desde 2026-09-03; `0` num catálogo com produtos significa build com `--skip-thumbs`/`--allow-no-thumbs` e página renderizando no browser. |
 
 ### Regras de `slug`
 

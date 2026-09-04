@@ -115,17 +115,27 @@ Para voltar ao vazio: `deleteMany({})` nas quatro coleções e apagar `www/stora
 > **👉 Fase atual (desde 2026-09-03, S7.4): passar o projeto a limpo.** Os catálogos são
 > POC e ninguém os consome — o que importa é a geração **acusar erro** e código +
 > conhecimento serem corrigidos. A lista de pendências, com evidência e ordem de ataque,
-> está em `docs/auditoria-2026-09-03-pendencias.md`; C1–C4 e C8 já foram corrigidos. **A
-> próxima sessão começa no passo 2 da ordem sugerida** (I1, I2, I3, I7, I8 e a suíte
-> `tests/` de I9) — ver "Onde a próxima sessão começa" em
-> `docs/sessoes/S7.4-auditoria-passar-a-limpo.md`. **C5 e C6 foram resolvidos na S7.5**
-> (2026-09-03): o histórico foi reescrito com `git filter-repo` para remover a geometria
-> morta de `output/preview/**` e `eng-reversa/saida/`, e `main` + `poc-edicao` foram
-> enviadas ao GitHub com `--force` — **todo SHA anterior a essa data mudou**; o mapa
-> antigo → novo está em `docs/sessoes/S7.5-push-e-reescrita-do-historico.md`, e os SHAs
-> citados neste arquivo já são os novos. Três decisões esperam o usuário: C7 (deploy do
-> preview), I10 (auth na POC), I6 (modo `--ifc`). A raiz está **sem `config.json`** (apagado na S7.4; o build interativo
-> recria) e a tabela acima está um import atrás (resíduo `dd393c56` dos testes).
+> está em `docs/auditoria-2026-09-03-pendencias.md`.
+>
+> **Resolvidos:** C1–C6, C8, I1, I2, I3, I9 (suíte `tests/`, 43 testes, `python3 -m pytest`),
+> I21. **A S7.6 (2026-09-03) fechou I1/I2/I3/I9** e, no caminho, achou e corrigiu um bug de
+> formato: a Maxbar grava malhas OQ3D **versão 3** e o parser só aceitava a 2 — 31
+> simbologias (56 peças) saíam sem geometria e eram contadas como "tubos/kits". Detalhes
+> em `docs/sessoes/S7.6-geracao-acusa-erro-e-tests.md`.
+>
+> **A próxima sessão começa no resto do passo 2** (I7 fallback sem Jinja2, I8 roundtrip
+> com caminho errado) **e no passo 3** (I13, workflow mínimo de CI rodando `pytest`).
+> Regras que valem: um commit por item; cada fix acompanhado da linha no CLAUDE.md e na
+> skill; **todo comportamento novo entra em `tests/`** antes de fechar o item.
+>
+> **C5 e C6 foram resolvidos na S7.5** (2026-09-03): histórico reescrito com `git
+> filter-repo`, `main` + `poc-edicao` enviadas com `--force` — **todo SHA anterior a essa
+> data mudou**; o mapa antigo → novo está em
+> `docs/sessoes/S7.5-push-e-reescrita-do-historico.md`, e os SHAs citados neste arquivo já
+> são os novos. Três decisões esperam o usuário: C7 (deploy do preview), I10 (auth na
+> POC), I6 (modo `--ifc`); mais I4 (promover o writer de `.aq`). A raiz está **sem
+> `config.json`** (apagado na S7.4; o build interativo recria) e a tabela acima está um
+> import atrás (resíduo `dd393c56` dos testes).
 
 O que a API devolve com a base **vazia**, conferido em 2026-09-02:
 
@@ -778,7 +788,7 @@ O arquivo é gerado em `output/<slug>-AAAAMMDDHHMM.zip` (ex: `dancor-bombas-ince
 
 ```
 <slug>-AAAAMMDDHHMM.zip
-├── manifest.json    { slug, title, manufacturer, description, layout, filters, productCount }
+├── manifest.json    { slug, title, manufacturer, description, layout, filters, productCount, thumbCount }
 ├── catalog.json     dados completos dos produtos (campos em português)
 ├── geo/
 │   ├── cam-w10.json
@@ -890,9 +900,21 @@ ordem: `$BILDS_NODE`, o `node` do PATH, e a maior versão em `~/.nvm/versions/no
 Sem sudo para as libs de sistema, dá para extrair os `.deb` localmente e exportar
 `LD_LIBRARY_PATH` — receita no `README.md`, seção "Miniaturas".
 
-**Sem isso o build não quebra.** `build_thumbs()` avisa e segue: os produtos ficam sem
-`thumb`, o ZIP sai sem `thumbs/`, e o viewer do bilds.com usa o render dinâmico de
-sempre. Mesma coisa com `--skip-thumbs`.
+**Sem isso o build QUEBRA — desde 2026-09-03 (S7.6, I1).** `build_thumbs()` lança
+`ThumbsError` quando não há Node >= 20, Playwright ou Chromium, quando o render estoura
+30 min ou quando **qualquer** geometria falha no render; `run_build` imprime `ERRO:
+miniaturas — …` e o processo sai com código 1 (no lote, a biblioteca entra em `falhas`).
+Antes era um `AVISO` com exit 0, e o ZIP sem `thumbs/` subia para o bilds.com — o cenário
+dos 39,9 s de LCP. Duas saídas explícitas:
+
+| Flag | O que faz |
+|---|---|
+| `--allow-no-thumbs` | tenta; se falhar, avisa e segue (produtos sem `thumb` usam render dinâmico) |
+| `--skip-thumbs` | nem tenta |
+
+Nos dois casos o `manifest.json` do ZIP sai com `thumbCount` (novo campo) menor que
+`productCount`, para quem consome o ZIP ver que as miniaturas faltam. Testes:
+`tests/test_build.py::test_run_build_*`.
 
 Em máquina sem GPU (WSL, CI, container) o Chromium roda WebGL por SwiftShader — os flags
 `--use-gl=angle --use-angle=swiftshader --enable-unsafe-swiftshader` estão no
@@ -938,22 +960,38 @@ offset  bytes                      significado
 Os 5 primeiros bytes são constantes nas 12 bibliotecas e nas 6 versões de schema
 (552–607). Não se sabe o que significam; sabe-se que não variam.
 
-> **O campo em +29 serve de verificação de parse, e revela um defeito real.**
+> **O campo em +29 serve de verificação de parse, e revelou DOIS defeitos reais.**
 > O parse encontra **sempre mais** raízes do que o cabeçalho declara, nunca menos.
-> Medido em **todas** as 783 geometrias das 12 bibliotecas de fabricante: **54 divergem
+> Medido em **todas** as 783 geometrias das 12 bibliotecas de fabricante: **54 divergiam
 > (6,9%), em 6 bibliotecas** — as cinco da Intelbras que têm geometria e a Maxbar, esta com
 > 31 de 135.
+>
+> **Corrigido em 2026-09-03 (S7.6): as 31 da Maxbar eram outro bug.** Elas gravam
+> `TQi3DIndexedTriangleMeshData` **versão 3** (e o arquivo também é versão 3 em +25); o
+> parser só aceitava a 2, não consumia o bloco, e o scanner tolerante via `0x5B`/`0x5D`
+> dentro dos doubles — daí as raízes a mais. **A geometria dessas 31 simbologias (56 peças)
+> era perdida por inteiro** e o build as contava como "peças sem 3D (tubos/kits)". O layout
+> da versão 3 é byte a byte igual ao da 2 (mesma cauda de 19 bytes entre malhas); aceitar
+> `ver in (2, 3)` (`oq3d.MESH_VERSOES`, e `MESH_VERSOES` no `oq3d-parser.ts`) devolve
+> bbox plausível (70 × 70 × 9 cm), índices válidos e contagem de raízes exata. Restam **23
+> divergências, todas na Intelbras** (CFTV 4, Cont. Acesso 4, PPCI 4, SDAI 6, Sensor 5),
+> essas sim com geometria completa e a causa abaixo. Teste:
+> `tests/test_oq3d.py::test_maxbar_malhas_versao_3_agora_tem_geometria`.
 > 
 > A diferença vai de **+2 a +10 e não é sempre par** (+7 e +9 aparecem), o que descarta
 > "um `0x5D` desempilha um nível e promove dois filhos" como regra única: o
 > desempilhamento espúrio acontece em quantidade variável dentro do mesmo blob.
 >
-> A geometria emitida não muda — o `_collect` desce a árvore toda —, mas a hierarquia
-> muda, e com ela a composição dos transforms dos nós promovidos. Nas seis bibliotecas
-> afetadas (Intelbras e Maxbar, ambas de equipamento) as malhas já vêm em coordenadas de
-> mundo, então não aparece; numa biblioteca de conexões deslocaria a peça.
+> Nesses 23 casos a geometria emitida não muda — o `_collect` desce a árvore toda —, mas a
+> hierarquia muda, e com ela a composição dos transforms dos nós promovidos. Na Intelbras
+> (equipamentos) as malhas já vêm em coordenadas de mundo, então não aparece; numa
+> biblioteca de conexões deslocaria a peça.
 >
-> O `parse()` passou a avisar com `OQ3DAvisoParse` quando isso acontece (2026-09-02).
+> O `parse()` avisa com `OQ3DAvisoParse` quando isso acontece (2026-09-02) e, desde a S7.6,
+> **o aviso chega ao operador**: `build_catalog_from_aq` coleta os avisos por simbologia e
+> `resumo_diag` imprime `AVISO: N simbologia(s) com aviso de parse` com id e nome de cada
+> uma. Antes o `warnings.warn` ia para o stderr, uma vez por linha de código, sem dizer de
+> qual simbologia era (I3).
 
 Árvore de objetos serializada no estilo Delphi:
 
@@ -967,7 +1005,7 @@ Os 5 primeiros bytes são constantes nas 12 bibliotecas e nas 6 versões de sche
 
 ```
 TQi3DIndexedTriangleMeshData
-    u32 versao(=2) | u32 nCoords | u32 reservado
+    u32 versao(2 ou 3 — layout idêntico; a 3 aparece na Maxbar) | u32 nCoords | u32 reservado
     nCoords doubles                 → nCoords/3 vértices (x,y,z)
     u32 nIdx | u32 reservado
     nIdx u32                        → nIdx/3 triângulos
@@ -1067,7 +1105,16 @@ oq3d.parse(blob)                       # árvore de nós
 oq3d.extract(blob, skip_markers=True)  # [(verts_cm, tris, rgba)] com transforms
 oq3d.to_buffers(blob)                  # {'pos','col','idx'} em metros, Y-up
 oq3d.bbox(blob) / oq3d.stats(blob)     # validação e logs
+oq3d.MESH_VERSOES                      # (2, 3) — versões de malha com layout conhecido
 ```
+
+**Contrato de erro (igual ao `oq3d-parser.ts`, conferido em `tests/test_paridade_ts.py`):**
+blob sem assinatura ou **truncado** (contagem declarada excede o buffer) → `OQ3DError`,
+antes de alocar; bloco de malha com **layout desconhecido** (versão fora de
+`MESH_VERSOES`, zero coordenadas, contagem não múltipla de 3) → bloco **pulado** +
+`OQ3DAvisoParse`, porque a geometria fica incompleta; contagem de raízes diferente do
+cabeçalho → `OQ3DAvisoParse`. Até a S7.6 o `_read_mesh` devolvia o offset em silêncio nos
+dois primeiros casos, e o port TS já lançava — os dois lados divergiam.
 
 ### Instâncias repetidas — RESOLVIDO em 2026-08-30
 
@@ -1360,6 +1407,23 @@ o cilindro a partir de diâmetro × comprimento) e **kits de aparelho sanitário
 (ramal de ventilação, tanque de lavar, vaso com tê) — entradas de projeto. Na Amanco
 são 312 de 1.168 (27%). Pular é o esperado; o build informa quantas.
 
+**Mas "sem 3D" tinha dois significados, e até a S7.6 o build somava os dois (I2).**
+`build_catalog_from_aq` devolve agora `(catalog, n_geo, diag)` e `resumo_diag(diag)`
+imprime cada categoria separada:
+
+| Categoria em `diag` | Significado | Como sai |
+|---|---|---|
+| `pecas_sem_simbologia` | tubo/kit — sem linha em `PECA_SIMBOLOGIA_3D` | linha informativa "— esperado" |
+| `sim_sem_blob`, `sim_nao_oq3d` | simbologia existe mas o BLOB é nulo ou não é OQ3D | `AVISO: N simbologia(s) descartada(s)` |
+| `sim_ilegivel` | `OQ3DError` (truncado/corrompido), com id, nome e erro | idem, uma linha por simbologia |
+| `sim_vazia` | parse ok, nenhuma malha (era o sintoma da versão 3 na Maxbar) | idem |
+| `pecas_sim_descartada` | peças que ficaram sem 3D **por causa** dos itens acima | contagem no mesmo AVISO |
+| `avisos` | `OQ3DAvisoParse` por simbologia (I3) | `AVISO: N simbologia(s) com aviso de parse` |
+
+Nas 15 bibliotecas de `input/` (2026-09-03) só a Intelbras produz avisos (23 simbologias,
+raízes divergentes) e nenhuma produz simbologia descartada — a Maxbar produzia 31 `sim_vazia`
+até a correção da versão 3. Teste: `tests/test_build.py::test_diag_separa_tubos_de_simbologia_descartada`.
+
 ### Escrever um `.aq` — o inverso do `read_aq.py`
 
 Estudado em 2026-09-02. O corpo completo está em `eng-reversa/estudo/01-escrever-um-aq.md`;
@@ -1555,6 +1619,34 @@ via modo `'recursive'` do `scan_input()`.
 
 ---
 
+## Testes — `tests/` (desde 2026-09-03, S7.6)
+
+```bash
+python3 -m pytest                                   # 43 testes, ≈ 20 s
+python3 -m pytest -m "not thumbs"                   # sem abrir o Chromium
+python3 -m pytest -m "not thumbs and not paridade"  # só Python, sem Node
+```
+
+| Arquivo | O que prova |
+|---|---|
+| `tests/test_oq3d.py` | contrato do parser: truncado → `OQ3DError`; layout desconhecido → pulado + aviso; versões 2 e 3 iguais; raízes do cabeçalho; Akato 262/262 sem aviso; Maxbar versão 3 com geometria |
+| `tests/test_read_aq.py` | `open_aq` não cria arquivo, abre read-only, rejeita lixo; Akato 83 grupos/262 peças/1.756 propriedades; cp1252 sem `\x80–\x9f` nem U+FFFD |
+| `tests/test_build.py` | `auto_config`; `build_catalog_from_aq` + `diag` em cópia da Akato corrompida de propósito; render dos dois layouts com série `1" x 1" <script>`; `thumbCount`; `ThumbsError` sem Node, `--allow-no-thumbs`, `--skip-thumbs`, `run_all` com exit 1; uma miniatura real no Chromium |
+| `tests/test_paridade_ts.py` | Python ↔ TypeScript: blobs sintéticos (inclusive defeituosos) e a Akato inteira — `read_aq`/`aq-reader` campo a campo e SHA-1 dos blobs, `oq3d`/`oq3d-parser` valor a valor; curvas Q-H da Dancor |
+
+**Como funciona.** `tests/conftest.py` põe `scripts/` e `eng-reversa/tools/` no path;
+`tests/oq3d_sintetico.py` gera blobs com o `oq3d_writer.py` e os deforma (versão, contagens,
+truncamento, raízes declaradas); `tests/paridade/dump_ts.mjs` roda os `.ts` de `www/tools`
+**direto no Node 24** (sem transpilar; `node:sqlite` incluído) e imprime JSON para o pytest
+comparar. A fixture `saida` redireciona `OUTPUT_DIR`/`GEO_DIR`/`THUMBS_DIR`/`PREVIEW_DIR`
+para `output/.pytest-tmp/` — **dentro da raiz**, porque o `thumbs.mjs` serve a geometria
+por HTTP relativo à raiz e recusa caminhos fora dela (foi a primeira armadilha da suíte).
+Fixtures reais são os `.aq` de `input/` (gitignored): os testes que precisam deles pulam
+com motivo quando faltam; os de formato rodam em qualquer máquina.
+
+**Regra:** comportamento novo no pipeline entra aqui no mesmo commit. `pytest.ini` restringe
+a coleta a `tests/` — `www/workers/aq-parser/.venv` tem os testes do numpy dentro.
+
 ## Diagnóstico rápido de problemas
 
 | Sintoma | Causa provável |
@@ -1704,6 +1796,25 @@ python3 -m http.server 8080 --directory output/preview
 ---
 
 ## Histórico de sessões
+
+### 2026-09-03 — S7.6: a geração acusa erro (I1, I2, I3) e nasce a suíte `tests/` (I9)
+
+Registro completo em `docs/sessoes/S7.6-geracao-acusa-erro-e-tests.md`.
+
+Passo 2 da auditoria. **I1:** `build_thumbs()` lança `ThumbsError` e o build falha (exit 1)
+em vez de sair sem `thumbs/`; `--allow-no-thumbs` aceita de propósito; `thumbCount` no
+manifest. **I2:** `build_catalog_from_aq` devolve `diag` com tubos/kits separados de
+simbologia descartada (sem blob, não-OQ3D, ilegível, vazia) e das peças afetadas;
+`_read_mesh` passou a lançar `OQ3DError` em blob truncado, como o port TS. **I3:** os
+`OQ3DAvisoParse` são coletados por simbologia e impressos por `resumo_diag`. **I9:** 43
+testes em `tests/` (Python puro, Akato real, paridade com TS via Node 24, miniatura real).
+
+**Achado que virou correção:** ao varrer as 15 bibliotecas com o diagnóstico novo, a Maxbar
+mostrou 31 simbologias **sem nenhuma malha** e 182 avisos "layout inesperado": suas malhas
+são `TQi3DIndexedTriangleMeshData` **versão 3**, idêntica à 2 no layout, e o parser (py e
+ts) só aceitava a 2. 56 peças da Maxbar estavam sem geometria desde sempre, contadas como
+"tubos/kits". A explicação "0x5D dentro de double" para as divergências de raízes valia só
+para as 23 da Intelbras. Corrigido nos dois parsers (`MESH_VERSOES`).
 
 ### 2026-09-03 — S7.5: push da branch e reescrita do histórico git (C5 e C6)
 
@@ -2495,7 +2606,9 @@ num `package.json` próprio e degrada em silêncio quando ausente.
   É o que permite letterbox invisível quando o card é mais largo que a proporção da imagem.
 - **Tudo opcional.** Sem Node, sem Playwright, sem browser ou com `--skip-thumbs`, o build
   avisa e segue. Produto sem `thumb` cai no render dinâmico. Catálogo publicado antes disso
-  continua funcionando sem re-upload.
+  continua funcionando sem re-upload. *(Revisto na S7.6, 2026-09-03: agora o build FALHA
+  sem miniaturas; `--allow-no-thumbs` restaura o comportamento descrito aqui — ver
+  "Dependências e degradação".)*
 
 **Armadilhas pagas:**
 

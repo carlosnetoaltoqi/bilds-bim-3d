@@ -85,8 +85,14 @@ python3 scripts/build.py --ifc              # geometria dos IFCs (ver acima)
 python3 scripts/build.py --input-dir PASTA  # varre outra pasta
 python3 scripts/build.py --skip-preview     # só catalog.json e ZIP
 python3 scripts/build.py --skip-zip         # só preview
-python3 scripts/build.py --skip-thumbs      # não renderiza as miniaturas
+python3 scripts/build.py --skip-thumbs      # nem tenta renderizar as miniaturas
+python3 scripts/build.py --allow-no-thumbs  # tenta; se falhar, avisa e segue em vez de parar
 ```
+
+**Sem miniaturas o build falha** (exit 1) — é o cenário que custa 39,9 s de LCP na página
+publicada, e até 2026-09-03 saía como aviso. As duas flags acima são as saídas explícitas;
+nos dois casos o `manifest.json` do ZIP registra `thumbCount` para quem consome ver que
+faltam.
 
 Sem `--all`, o build pergunta fabricante, título, descrição e layout — com tudo pré-preenchido a partir do `.aq`. Basta ir dando Enter. Com `--all` nada é perguntado: os campos são inferidos.
 
@@ -120,6 +126,20 @@ git push
 python3 scripts/read_aq.py caminho/para/pecas.aq --meta
 # → fabricante, linhas, nº de peças, nº de geometrias, curvas Q-H, versão do schema
 ```
+
+## Testes
+
+```bash
+python3 -m pytest                                   # 43 testes, ≈ 20 s
+python3 -m pytest -m "not thumbs"                   # sem abrir o Chromium
+python3 -m pytest -m "not thumbs and not paridade"  # só Python, sem Node
+```
+
+Cobrem o parser OQ3D (inclusive blobs truncados e de versão desconhecida), a leitura do
+`.aq`, o diagnóstico do build, o escape dos templates, o ZIP, o comportamento sem
+miniaturas e a **paridade com o port TypeScript** de `www/tools` (rodado direto no Node
+24). Os testes que usam bibliotecas reais de `input/` pulam com motivo quando o arquivo não
+está na máquina. Detalhes em `CLAUDE.md`, seção "Testes".
 
 ## Requisitos
 
@@ -170,14 +190,17 @@ for d in *.deb; do dpkg-deb -x "$d" root/; done
 export LD_LIBRARY_PATH=~/.local/chromium-libs/root/usr/lib/x86_64-linux-gnu
 ```
 
-**Não instalar não quebra nada:** o build avisa, pula o passo e o ZIP sai sem `thumbs/`.
-A página do catálogo volta a gerar as miniaturas no browser do visitante — que é o
-comportamento antigo, e é justamente o que custa 39,9 s de LCP nos catálogos com
-geometria pesada. Vale instalar.
+**Não instalar quebra o build** (desde 2026-09-03): o passo de miniaturas falha com
+`ERRO: miniaturas — …` e o processo sai com código 1, porque um ZIP sem `thumbs/` faz a
+página gerar as miniaturas no browser do visitante — 39,9 s de LCP nos catálogos com
+geometria pesada. Se for de propósito, `--allow-no-thumbs` (tenta e segue) ou
+`--skip-thumbs` (nem tenta).
 
 ## Uma peça não apareceu no catálogo
 
-Peças sem geometria no banco são puladas, e o build informa quantas. Normalmente são **tubos** (que o AltoQi gera como cilindro a partir do diâmetro e do comprimento) e **kits de aparelho sanitário** — entradas de projeto, não peças com forma fixa. Na biblioteca de esgoto da Amanco são 312 de 1.168 peças, e é o comportamento correto.
+Peças sem geometria no banco são puladas, e o build informa quantas. Normalmente são **tubos** (que o AltoQi gera como cilindro a partir do diâmetro e do comprimento) e **kits de aparelho sanitário** — entradas de projeto, não peças com forma fixa. Na biblioteca de esgoto da Amanco são 312 de 1.168 peças, e é o comportamento correto. Essa linha sai como `N peça(s) sem simbologia 3D (tubos/kits) puladas — esperado`.
+
+Se em vez disso aparecer `AVISO: N simbologia(s) descartada(s)` ou `AVISO: N simbologia(s) com aviso de parse`, **não é tubo**: a peça tem geometria no banco e o parser não conseguiu lê-la (blob nulo, sem assinatura OQ3D, truncado, sem malha, ou com layout que o `oq3d.py` não conhece). O aviso traz o id e o nome da simbologia. Foi assim que se descobriu, em 2026-09-03, que 56 peças da Maxbar estavam sem 3D por usarem uma versão de malha que o parser rejeitava.
 
 Se faltar uma peça que deveria ter forma, verifique se ela existe só como IFC: nesse caso use `--ifc`.
 

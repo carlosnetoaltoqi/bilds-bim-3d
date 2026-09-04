@@ -33,15 +33,15 @@ código foram reproduzidos uma segunda vez antes de fechar este documento.
 | **C8** ✅ | Diagnóstico do CLAUDE.md manda usar `latin-1`; o correto é cp1252 — **corrigido 2026-09-03** | docs |
 | **C9** | README ensina fluxo de publicação que não publica nada | docs |
 | **C10** | Estado da base aparece em três versões contraditórias no CLAUDE.md | docs |
-| I1 | Miniaturas degradam em silêncio no build (ZIP sem `thumbs/`, exit 0) | geração |
-| I2 | Geometria inválida/vazia contabilizada como "tubos/kits"; `_read_mesh` muda | geração |
-| I3 | `OQ3DAvisoParse` não chega ao operador | geração |
+| I1 ✅ | Miniaturas degradam em silêncio no build (ZIP sem `thumbs/`, exit 0) — **corrigido 2026-09-03** (S7.6: `ThumbsError`, `--allow-no-thumbs`, `thumbCount`) | geração |
+| I2 ✅ | Geometria inválida/vazia contabilizada como "tubos/kits"; `_read_mesh` muda — **corrigido 2026-09-03** (S7.6: `diag` por categoria; `_read_mesh` lança em truncado; **bônus: malha versão 3 da Maxbar, 56 peças recuperadas**) | geração |
+| I3 ✅ | `OQ3DAvisoParse` não chega ao operador — **corrigido 2026-09-03** (S7.6: coletado por simbologia, `resumo_diag`) | geração |
 | I4 | `scripts/geo_to_aq.py` depende de `eng-reversa/tools/` (estudo) | geração |
 | I5 | `requirements.txt` incoerente; OCP/ifcopenshell/pypdf fora de qualquer requirements | ambiente |
 | I6 | Modo `--ifc` do build é código morto (~450 linhas) com `config.example.json` obsoleto | geração |
 | I7 | Fallback sem Jinja2 gera HTML quebrado | geração |
 | I8 | `oq3d_roundtrip.py` pula o caso real (caminho errado) e reporta sucesso | testes |
-| I9 | Não há suíte de testes do pipeline; `validar_aq.py` é específico da Akato | testes |
+| I9 ✅ | Não há suíte de testes do pipeline; `validar_aq.py` é específico da Akato — **suíte criada 2026-09-03** (S7.6: `tests/`, 43 testes, paridade py ↔ ts); a parte do `validar_aq.py` segue em aberto como L-item | testes |
 | I10 | Rotas de escrita/conversão sem auth, body 300 MB, upload 1 GB, python sem concorrência | www |
 | I11 | Importação assíncrona sem fila nem recuperação após restart | www |
 | I12 | `@nestjs/mongoose@12` sobre Nest 10 (peer violada); dois drivers Mongo | www |
@@ -145,15 +145,19 @@ código foram reproduzidos uma segunda vez antes de fechar este documento.
 
 ## Importantes — geração e testes
 
-- **I1.** `build.py:691-693, 719-745`: sem Node/Playwright o passo de miniaturas vira
+- **I1.** ✅ (S7.6) `build.py:691-693, 719-745`: sem Node/Playwright o passo de miniaturas vira
   AVISO e o ZIP sai sem `thumbs/` com exit 0 — o cenário que devolve 39,9 s de LCP na
   bilds.com. Falhar por padrão; `--allow-no-thumbs` explícito; `thumbCount` no manifest.
-- **I2.** `build.py:354-355` (blob sem assinatura OQ3D → `continue`), `:361-362` (`pos`
+  *Feito exatamente assim; também falha quando parte das miniaturas não renderiza.*
+- **I2.** ✅ (S7.6) `build.py:354-355` (blob sem assinatura OQ3D → `continue`), `:361-362` (`pos`
   vazio → `continue`), `:410-412` (somados em `sem_3d` como "tubos/kits").
   `oq3d._read_mesh:301-315` devolve offset em malha malformada sem sinal, enquanto o port
   TS lança `OQ3DError`. Contar separadamente e emitir `OQ3DAvisoParse`.
-- **I3.** `oq3d.py:263-269` usa `warnings.warn`; o filtro padrão mostra só a 1ª por local e
+  *Feito. O contador separado revelou que a Maxbar tinha 31 simbologias "vazias": malhas
+  de versão 3, que nenhum dos dois parsers aceitava. Corrigido nos dois (`MESH_VERSOES`).*
+- **I3.** ✅ (S7.6) `oq3d.py:263-269` usa `warnings.warn`; o filtro padrão mostra só a 1ª por local e
   `build.py` não agrega. `catch_warnings(record=True)` por simbologia e linha no resumo.
+  *Feito exatamente assim (`resumo_diag`).*
 - **I4.** `scripts/geo_to_aq.py:54-60` importa `gerar_aq`, `oq3d_writer` e lê
   `eng-reversa/dados/schema-aq-607.sql`; é chamado pela API (`step.service.ts:23-24`).
   Promover para `scripts/aq_writer.py` + `scripts/schema-aq-607.sql`; `eng-reversa`
@@ -173,7 +177,7 @@ código foram reproduzidos uma segunda vez antes de fechar este documento.
 - **I8.** `eng-reversa/tools/oq3d_roundtrip.py:200-201` aponta
   `input/Amanco/PVC Esgoto SN, SR e Silentium/…aq`; o real é `input/Amanco/…aq`. Saída
   "6. pulado" e exit 0.
-- **I9.** Nenhum `tests/`, `test_*.py`, pytest. `validar_aq.py:239-244` exige 1:1
+- **I9.** ✅ suíte (S7.6) — `validar_aq.py` segue Akato-específico. Nenhum `tests/`, `test_*.py`, pytest. `validar_aq.py:239-244` exige 1:1
   peça→simbologia e tubos de 600 cm — a Komeco (válida) dá 18/20 e exit 1. Criar `tests/`
   com o `.aq` da Akato (7 MB, gerado pelo projeto) como fixture: `open_aq`, `extract`,
   `to_buffers`, `dedup`, `build_catalog_from_aq`, render dos dois layouts com série
@@ -316,9 +320,9 @@ código foram reproduzidos uma segunda vez antes de fechar este documento.
 ## Ordem sugerida para "passar a limpo"
 
 1. ✅ **Hoje, 5 minutos, sem risco:** `git push -u origin poc-edicao` (C5) — feito na S7.5, junto com C6.
-2. **Geração acusa erro** (o critério do usuário): C1, C2, C3, I1, I2, I3, I7, I8 — mais a
-   suíte `tests/` de I9 com fixture Akato e paridade py ↔ ts. Um commit por item, cada um
-   com a linha correspondente no CLAUDE.md e na skill.
+2. **Geração acusa erro** (o critério do usuário): ~~C1, C2, C3~~ (S7.4), ~~I1, I2, I3~~ e a
+   ~~suíte `tests/` de I9~~ (S7.6) — **faltam I7 e I8**. Um commit por item, cada um
+   com a linha correspondente no CLAUDE.md e na skill, e o teste em `tests/`.
 3. **Build e testes voltam a ser verdes:** C4, I13; depois um workflow mínimo (I20) que
    rode `py_compile`, `pytest`, `pnpm -r build`, `testes-editor.sh`.
 4. **Documentação passa a limpo:** corrigir C8, C9, C10, I23 primeiro (são erros ativos);

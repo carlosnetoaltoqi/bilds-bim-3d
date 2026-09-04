@@ -1,7 +1,7 @@
 ---
 name: leitor-biblioteca-aq
 description: Lê E ESCREVE arquivos de biblioteca BIM do AltoQi Builder (.aq) — SQLite com geometria 3D embutida. Extrai peças, dados hidráulicos, curvas de bomba, propriedades, miniaturas e a malha 3D completa (formato OQ3D), dispensando os IFCs; e gera um .aq do zero, com o schema, os enums, o encoding cp1252 e o binário OQ3D corretos.
-version: 2.7.0
+version: 2.8.0
 author: Bilds / carlosnetoaltoqi
 ---
 
@@ -387,26 +387,37 @@ offset  bytes                      significado
 Os 5 primeiros bytes são constantes nas 12 bibliotecas e nas 6 versões de schema. Não se
 sabe o que significam; sabe-se que não variam.
 
-> **O campo em +29 serve de verificação de parse, e revela um defeito real do parser
+> **O campo em +29 serve de verificação de parse, e revelou DOIS defeitos reais do parser
 > tolerante.**
 > O parse encontra **sempre mais** raízes do que o cabeçalho declara, nunca menos.
-> Medido em **todas** as 783 geometrias das 12 bibliotecas de fabricante: **54 divergem
+> Medido em **todas** as 783 geometrias das 12 bibliotecas de fabricante: **54 divergiam
 > (6,9%), em 6 bibliotecas** — as cinco da Intelbras que têm geometria e a Maxbar, esta com
 > 31 de 135.
+>
+> **As 31 da Maxbar eram outro bug (corrigido em 2026-09-03):** malhas
+> `TQi3DIndexedTriangleMeshData` de **versão 3** — e arquivo versão 3 no offset +25 —, que o
+> parser rejeitava por só conhecer a 2. O bloco não consumido deixava os `0x5B`/`0x5D` dos
+> doubles à vista do scanner (daí as raízes a mais) e **a geometria era perdida por
+> inteiro**: 56 peças saíam do catálogo como "sem 3D". O layout da versão 3 é byte a byte o
+> da versão 2 (mesma cauda de 19 bytes entre malhas). Aceite `ver in (2, 3)`. Restam 23
+> divergências, todas na Intelbras, com a causa abaixo e geometria completa.
 > 
 > A diferença vai de **+2 a +10 e não é sempre par** (+7 e +9 aparecem), o que descarta
 > "um `0x5D` desempilha um nível e promove dois filhos" como regra única: o
 > desempilhamento espúrio acontece em quantidade variável dentro do mesmo blob.
 >
-> A geometria emitida não muda, mas a hierarquia muda — e com ela a composição dos
-> transforms dos nós promovidos. Nas seis bibliotecas afetadas as malhas já vêm em
+> Nesses 23 casos a geometria emitida não muda, mas a hierarquia muda — e com ela a
+> composição dos transforms dos nós promovidos. Na Intelbras as malhas já vêm em
 > coordenadas de mundo, então não aparece; numa biblioteca de conexões deslocaria a peça.
+> **Nunca deixe esse aviso só no `warnings.warn`:** colete-o por simbologia
+> (`catch_warnings(record=True)`) e mostre id + nome no resumo do build — foi assim que a
+> versão 3 apareceu.
 
 ### Classes que carregam dados
 
 ```
 TQi3DIndexedTriangleMeshData
-    u32 versao(=2) | u32 nCoords | u32 reservado
+    u32 versao(2 ou 3 — layout idêntico; a 3 aparece na Maxbar) | u32 nCoords | u32 reservado
     nCoords doubles                 → nCoords/3 vértices (x,y,z)
     u32 nIdx | u32 reservado
     nIdx u32                        → nIdx/3 triângulos
@@ -544,7 +555,16 @@ oq3d.extract(blob, skip_markers=True) # [(verts_cm, tris, rgba)] com transforms 
 oq3d.to_buffers(blob)                 # {'pos','col','idx'} em metros, Y-up
 oq3d.bbox(blob)                       # (dx,dy,dz) em cm — para validação
 oq3d.stats(blob)                      # resumo para logs
+oq3d.MESH_VERSOES                     # (2, 3) — versões de malha aceitas
 ```
+
+**Contrato de erro** (o mesmo do port TypeScript `www/tools/oq3d-parser.ts`, conferido
+por teste de paridade): sem assinatura ou **truncado** (contagem declarada excede o
+buffer) → `OQ3DError` antes de alocar; malha com **layout desconhecido** (versão fora de
+`MESH_VERSOES`, zero coordenadas, contagem não múltipla de 3) → bloco pulado +
+`OQ3DAvisoParse`; contagem de raízes ≠ cabeçalho → `OQ3DAvisoParse`. Um parser que devolve
+o offset em silêncio nesses casos entrega geometria incompleta sem ninguém saber — foi o
+estado do `oq3d.py` até 2026-09-03.
 
 ---
 
@@ -1100,7 +1120,9 @@ precisão nativa do AltoQi é o centímetro.
 | Título vira o nome do fabricante | Pasta pai é o fabricante (`input/Intelbras/`) | Comparar o slug da pasta com o 1º token do arquivo antes de usá-la |
 | Título sai em forma de slug | Derivado do nome do arquivo sem limpeza | Remover ruído (`pecas`, anos, versões) e capitalizar |
 | Nome do produto redundante (`Pontos de comando Interruptor…`) | Grupo prefixado sem necessidade | Prefixar só quando o nome for ambíguo — e decidir **por grupo** |
-| Menos produtos que peças no banco | Peças sem `PECA_SIMBOLOGIA_3D` | Esperado: tubos e kits não têm forma fixa |
+| Menos produtos que peças no banco | Peças sem `PECA_SIMBOLOGIA_3D` | Esperado: tubos e kits não têm forma fixa — **mas confira** que a diferença é toda de peças sem vínculo, e não de simbologias que o parser descartou |
+| Simbologia com blob OQ3D válido devolve `pos` vazio | Malha em versão que o parser não conhece (Maxbar: versão 3) ou bloco malformado | Aceitar `ver in (2, 3)`; em versão desconhecida, avisar com id da simbologia em vez de devolver vazio em silêncio |
+| Raízes encontradas > declaradas no cabeçalho **e** geometria vazia/parcial | Bloco de malha não consumido (versão desconhecida) expõe `0x5B`/`0x5D` dos doubles | É o sintoma da linha acima; raízes a mais **com** geometria completa é o caso Intelbras (0x5D dentro de double) |
 | ZIP com arquivos duplicados | Peças compartilham geometria | Escrever cada arquivo de geo uma única vez |
 | Query com `WHERE NOME_x = 'algo acentuado'` volta vazia, sem erro | O texto é cp1252 e o `sqlite3` vincula `str` como UTF-8 | `CAST(? AS TEXT)` com `.encode('cp1252')` |
 | Diâmetro vale ~2× o esperado, ou vem `-1.8e308` | `DIAMETRO_PECA` é **código**, e `-DBL_MAX` é a sentinela de "não definido" | Ver o aviso na tabela da `PECA` |
@@ -1115,6 +1137,14 @@ precisão nativa do AltoQi é o centímetro.
 ---
 
 ## Histórico
+
+**2.8.0** — Malha OQ3D **versão 3** (Maxbar, 31 simbologias, 56 peças): mesmo layout da
+2, aceita em `MESH_VERSOES`. Corrige a explicação das 54 divergências de raízes: 31 eram
+esse bug e perdiam a geometria inteira; só as 23 da Intelbras são o `0x5D` dentro de
+double. Contrato de erro do parser explicitado (truncado → `OQ3DError`; layout
+desconhecido → pulado + `OQ3DAvisoParse`), igual ao port TS, e a regra de mostrar o aviso
+por simbologia no resumo do build. Três linhas novas na tabela de diagnóstico. Tudo isto
+tem teste em `bilds-bim-3d/tests/`.
 
 **2.7.0** — Registro de que o `.aq` gerado pela receita "Escrever um `.aq`" **abre no AltoQi
 Builder** (Akato, 2026-09-02): propriedades personalizadas e acentos corretos, colunas no
