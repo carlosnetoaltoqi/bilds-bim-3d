@@ -360,6 +360,7 @@ corta — só põe um `aviso` que a página mostra.
 
 ```bash
 bash www/tools/testes-editor.sh                 # sem browser: round-trip do mesh-model e do exportador IFC (Node + Python)
+ROUNDTRIP_SABOTAR=1 bash www/tools/testes-editor.sh   # tem de FALHAR: prova que a métrica do round-trip acusa erro
 node www/tools/e2e/e2e-editor.mjs --validar     # browser (Playwright + SwiftShader): editar, salvar, restaurar, info, IFC, .aq
 node www/tools/e2e/e2e-cad-import.mjs input/STEP/2831A09.stp   # importar CAD assíncrono, status, editor
 ```
@@ -367,6 +368,14 @@ node www/tools/e2e/e2e-cad-import.mjs input/STEP/2831A09.stp   # importar CAD as
 O Playwright é o da raiz (`npm install`, o mesmo do `scripts/thumbs.mjs`); os testes `.mts`
 rodam com `node --experimental-strip-types` (Node ≥ 22.6) sobre uma cópia dos módulos do
 web com a extensão `.ts` nos imports — ver o cabeçalho do `testes-editor.sh`.
+
+O round-trip do `mesh-model` compara original e `bake(segment())` **por agrupamento espacial a
+≤ 2 µm** (union-find por grade, vértices dos dois lados juntos) e depois triângulo a triângulo
+por grupo, com o sentido. Até 2026-09-04 (I13) comparava strings `toFixed(5)` e falhava sempre
+(28–32% "fora" em malha idêntica), então o `testes-editor.sh` saía 1 e ninguém olhava. "Vizinho
+mais próximo" também não basta: o `dedup` do bake chaveia por posição **e cor**, e dois vértices
+a 1,5 µm podem virar dois a 1 µm. `python3 -m pytest tests/test_editor_roundtrips.py` roda o
+script e o autoteste sabotado (marcador `paridade`; pula sem Node, sem `three` ou sem storage).
 
 **Pendências desta linha:**
 - **Miniatura fica desatualizada depois de editar geometria** — o `thumbKey` continua
@@ -1637,6 +1646,7 @@ python3 -m pytest -m "not thumbs and not paridade"  # só Python, sem Node
 | `tests/test_read_aq.py` | `open_aq` não cria arquivo, abre read-only, rejeita lixo; Akato 83 grupos/262 peças/1.756 propriedades; cp1252 sem `\x80–\x9f` nem U+FFFD |
 | `tests/test_build.py` | `auto_config`; `build_catalog_from_aq` + `diag` em cópia da Akato corrompida de propósito; render dos dois layouts com série `1" x 1" <script>`; `thumbCount`; `ThumbsError` sem Node, `--allow-no-thumbs`, `--skip-thumbs`, `run_all` com exit 1; uma miniatura real no Chromium |
 | `tests/test_oq3d_roundtrip.py` | o `eng-reversa/tools/oq3d_roundtrip.py` como processo: caminho padrão é o da Amanco; seis casos passam; `.aq` ausente → exit 1 (não "pulado"); `--sem-real` pula de propósito (I8) |
+| `tests/test_editor_roundtrips.py` | `www/tools/testes-editor.sh` como processo sobre a primeira geometria do storage: round-trip do `mesh-model` passa; com `ROUNDTRIP_SABOTAR=1` a métrica **falha** (I13) |
 | `tests/test_paridade_ts.py` | Python ↔ TypeScript: blobs sintéticos (inclusive defeituosos) e a Akato inteira — `read_aq`/`aq-reader` campo a campo e SHA-1 dos blobs, `oq3d`/`oq3d-parser` valor a valor; curvas Q-H da Dancor |
 
 **Como funciona.** `tests/conftest.py` põe `scripts/` e `eng-reversa/tools/` no path;

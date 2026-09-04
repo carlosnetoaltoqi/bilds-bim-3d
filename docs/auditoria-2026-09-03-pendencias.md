@@ -45,7 +45,7 @@ código foram reproduzidos uma segunda vez antes de fechar este documento.
 | I10 | Rotas de escrita/conversão sem auth, body 300 MB, upload 1 GB, python sem concorrência | www |
 | I11 | Importação assíncrona sem fila nem recuperação após restart | www |
 | I12 | `@nestjs/mongoose@12` sobre Nest 10 (peer violada); dois drivers Mongo | www |
-| I13 | `testes-editor.sh` falha sempre (métrica de round-trip errada), não sinaliza nada | testes |
+| I13 ✅ | `testes-editor.sh` falha sempre (métrica de round-trip errada), não sinaliza nada — **corrigido 2026-09-04** (S7.7: agrupamento por grade a ≤ 2 µm com union-find, triângulos por grupo e sentido; 22 geometrias do storage passam; `ROUNDTRIP_SABOTAR` prova que a métrica falha; `tests/test_editor_roundtrips.py`) | testes |
 | I14 | Miniatura desatualizada após editar geometria | www |
 | I15 | Erros de processo filho engolidos (`type:'error'` do thumb-worker; promise presa) | www |
 | I16 | Validação de entrada 100% manual, sem `ValidationPipe` | www |
@@ -183,10 +183,13 @@ código foram reproduzidos uma segunda vez antes de fechar este documento.
   `to_buffers`, `dedup`, `build_catalog_from_aq`, render dos dois layouts com série
   contendo aspas, e **paridade** `oq3d.py` ↔ `oq3d-parser.ts` e `read_aq` ↔ `aq-reader`
   byte a byte.
-- **I13.** `www/tools/roundtrip-mesh-model.mts:43` compara strings `toFixed(5)` de valores
+- **I13.** ✅ (S7.7) `www/tools/roundtrip-mesh-model.mts:43` compara strings `toFixed(5)` de valores
   com ruído float32 antes/depois do arredondamento a 1 µm: 32% "fora" na 2CV, 28% na
   2831A09, idêntico no commit anterior. Real: 65 de 16.488 vértices sem par exato (0,4%),
-  triângulos preservados. Comparar por vizinho a ≤ 2 µm.
+  triângulos preservados. Comparar por vizinho a ≤ 2 µm. *Feito com agrupamento (union-find)*,
+  não com "vizinho mais próximo": o `dedup` do bake chaveia por posição+cor (partes que se
+  tocam duplicam vértices) e dois originais a 1,5 µm viram dois do bake a 1 µm — o mais
+  próximo de cada lado divergia e ainda sobravam 34 de 68.488 na bomba 20cv.
 
 ## Importantes — `www/`
 

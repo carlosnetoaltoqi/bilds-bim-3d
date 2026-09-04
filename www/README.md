@@ -50,6 +50,7 @@ Páginas do web: `/login`, `/empresa`, `/empresa/criar`, `/empresa/importar` (co
 
 ```bash
 bash tools/testes-editor.sh                                   # round-trips sem browser (Node + Python)
+ROUNDTRIP_SABOTAR=1 bash tools/testes-editor.sh               # tem de falhar — autoteste da métrica do round-trip
 node tools/e2e/e2e-editor.mjs --validar                       # editor no browser (Playwright + SwiftShader)
 node tools/e2e/e2e-cad-import.mjs ../input/STEP/2831A09.stp   # importar CAD e abrir no editor
 pnpm smoke:geo · pnpm thumb:measure · pnpm thumb:regen        # ferramentas da POC dinâmica (tools/)

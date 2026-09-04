@@ -2,7 +2,8 @@
  * roundtrip-mesh-model.mts — prova o modelo de edição (mesh-model.ts) fora do browser.
  *
  * Sobre um JSON de geometria real do storage:
- *   - segment() → bake() devolve o MESMO conjunto de triângulos (a 1 µm);
+ *   - segment() → bake() devolve o MESMO conjunto de triângulos (vértices casados
+ *     por agrupamento espacial a ≤ 2 µm, sentido preservado);
  *   - espelhar duas vezes devolve a mesma parte;
  *   - recentrar na base põe min.y = 0 e o centro XZ na origem;
  *   - o tubo paramétrico é estanque (0 arestas de borda);
@@ -26,21 +27,77 @@ const t0 = performance.now()
 const parts = segment(geo)
 console.log(`segment: ${parts.length} partes em ${(performance.now() - t0).toFixed(0)} ms — ${parts.filter((p) => p.marker).length} bocais`)
 
-function triSet(g: { pos: number[]; idx: number[] }) {
-  const set = new Set<string>()
-  const v = (i: number) => `${g.pos[i * 3].toFixed(5)},${g.pos[i * 3 + 1].toFixed(5)},${g.pos[i * 3 + 2].toFixed(5)}`
-  for (let t = 0; t < g.idx.length; t += 3) {
-    const a = v(g.idx[t]), b = v(g.idx[t + 1]), c = v(g.idx[t + 2])
-    set.add([[a, b, c], [b, c, a], [c, a, b]].map((x) => x.join('|')).sort()[0])
+// Round-trip por agrupamento espacial, não por string (I13 da auditoria, 2026-09-04).
+// O bake arredonda a 1 µm e o original carrega ruído float32: comparar `toFixed(5)`
+// dos dois lados dava 28–32% de triângulos "fora" em malhas idênticas (0,0123455
+// vira "0.01235" de um lado e "0.01234" do outro). Aqui os vértices do original e
+// do bake entram juntos num union-find por grade de TOL: dois vértices a ≤ TOL caem
+// no mesmo grupo, transitivamente. Isso resolve dois casos que "vizinho mais
+// próximo" não resolve: (a) o dedup do bake chaveia por posição+cor, então partes
+// de cores diferentes que se tocam têm vértices coincidentes duplicados; (b) dois
+// vértices originais a 1,5 µm podem virar dois vértices do bake a 1 µm, e cada lado
+// escolheria o "mais próximo" diferente. Malha de fabricante não tem aresta menor
+// que dezenas de µm, então TOL = 2 µm não funde nada que não fosse o mesmo ponto.
+const TOL = 2e-6
+function agrupar(pos: ArrayLike<number>, tol: number): Int32Array {
+  const n = pos.length / 3
+  const pai = new Int32Array(n)
+  for (let i = 0; i < n; i++) pai[i] = i
+  const raiz = (i: number) => { while (pai[i] !== i) { pai[i] = pai[pai[i]]; i = pai[i] } return i }
+  const unir = (a: number, b: number) => { a = raiz(a); b = raiz(b); if (a !== b) pai[Math.max(a, b)] = Math.min(a, b) }
+  const grade = new Map<string, number[]>()
+  const cel = (v: number) => Math.floor(v / tol)
+  for (let i = 0; i < n; i++) {
+    const k = `${cel(pos[i * 3])},${cel(pos[i * 3 + 1])},${cel(pos[i * 3 + 2])}`
+    const lista = grade.get(k)
+    if (lista) lista.push(i)
+    else grade.set(k, [i])
   }
-  return set
+  const tol2 = tol * tol
+  for (let i = 0; i < n; i++) {
+    const x = pos[i * 3], y = pos[i * 3 + 1], z = pos[i * 3 + 2]
+    const cx = cel(x), cy = cel(y), cz = cel(z)
+    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (let dz = -1; dz <= 1; dz++) {
+      for (const j of grade.get(`${cx + dx},${cy + dy},${cz + dz}`) ?? []) {
+        if (j <= i) continue
+        const d = (pos[j * 3] - x) ** 2 + (pos[j * 3 + 1] - y) ** 2 + (pos[j * 3 + 2] - z) ** 2
+        if (d <= tol2) unir(i, j)
+      }
+    }
+  }
+  const grupo = new Int32Array(n)
+  for (let i = 0; i < n; i++) grupo[i] = raiz(i)
+  return grupo
+}
+// chave canônica de um triângulo: gira até o menor grupo vir primeiro (mantém o sentido)
+function chaveTri(a: number, b: number, c: number) {
+  if (b < a && b <= c) return `${b}|${c}|${a}`
+  if (c < a && c < b) return `${c}|${a}|${b}`
+  return `${a}|${b}|${c}`
 }
 const baked = bake(parts)
+if (process.env.ROUNDTRIP_SABOTAR) {
+  // autoteste da métrica (tests/test_editor_roundtrips.py): um triângulo com o sentido
+  // invertido e um vértice 1 mm fora têm de aparecer como FALHA — senão o teste não prova nada
+  ;[baked.idx[1], baked.idx[2]] = [baked.idx[2], baked.idx[1]]
+  baked.pos[baked.pos.length - 3] += 1e-3
+}
 check(baked.idx.length === geo.idx.length, `bake preserva a contagem de triângulos (${baked.idx.length / 3})`)
-const A = triSet(geo), B = triSet(baked)
-let faltam = 0
-for (const t of A) if (!B.has(t)) faltam++
-check(faltam / A.size < 0.02, `round-trip a 10 µm: ${faltam} de ${A.size} triângulos fora (arredondamento a 1 µm funde vizinhos)`)
+const nBake = baked.pos.length / 3, nOrig = geo.pos.length / 3
+const grupo = agrupar([...baked.pos, ...geo.pos], TOL)   // bake primeiro, original depois (offset nBake)
+const gruposDoBake = new Set<number>()
+for (let i = 0; i < nBake; i++) gruposDoBake.add(grupo[i])
+let semPar = 0
+for (let i = 0; i < nOrig; i++) if (!gruposDoBake.has(grupo[nBake + i])) semPar++
+const trisBake = new Set<string>()
+for (let t = 0; t < baked.idx.length; t += 3) trisBake.add(chaveTri(grupo[baked.idx[t]], grupo[baked.idx[t + 1]], grupo[baked.idx[t + 2]]))
+let triFora = 0
+for (let t = 0; t < geo.idx.length; t += 3) {
+  const a = grupo[nBake + geo.idx[t]], b = grupo[nBake + geo.idx[t + 1]], c = grupo[nBake + geo.idx[t + 2]]
+  if (!trisBake.has(chaveTri(a, b, c))) triFora++
+}
+check(semPar === 0, `todo vértice original tem par no bake a ≤ ${TOL * 1e6} µm (${semPar} de ${nOrig} sem par)`)
+check(triFora === 0, `todo triângulo original existe no bake com o mesmo sentido (${triFora} de ${geo.idx.length / 3} fora)`)
 console.log(`  bytes: original ${(readFileSync(file).length / 1024).toFixed(0)} KB → salvo ${(JSON.stringify(baked).length / 1024).toFixed(0)} KB`)
 
 const p0 = parts[0]
