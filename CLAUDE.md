@@ -132,8 +132,8 @@ Para voltar ao vazio: `deleteMany({})` nas quatro coleções e apagar `www/stora
 > filter-repo`, `main` + `poc-edicao` enviadas com `--force` — **todo SHA anterior a essa
 > data mudou**; o mapa antigo → novo está em
 > `docs/sessoes/S7.5-push-e-reescrita-do-historico.md`, e os SHAs citados neste arquivo já
-> são os novos. **O remoto está 9 commits atrás** (S7.6 e S7.7 não fizeram push); o CI só
-> roda no GitHub depois do push. Decisões que esperam o usuário: C7 (deploy do preview), I10
+> são os novos. Push feito no fim da S7.7; **o CI rodou verde no GitHub** (run 33871581983:
+> 32 passed, 20 skipped no runner). Decisões que esperam o usuário: C7 (deploy do preview), I10
 > (auth na POC), I6 (modo `--ifc`), I4 (promover o writer de `.aq`), LICENSE. A raiz está
 > **sem `config.json`** (apagado na S7.4; o build interativo recria) e a tabela acima está um
 > import atrás (resíduo `dd393c56` dos testes).
@@ -1755,6 +1755,9 @@ pytest`, `py_compile` de `scripts/` e `eng-reversa/tools/`, `pytest -m "not thum
 `www`: pnpm 11, `pnpm install --frozen-lockfile`, `pnpm -r build`. **O que pula no CI e por quê:**
 os `.aq` de `input/` e o `www/storage/` são gitignored (testes com fixture real pulam com
 motivo — 32 passam, 20 pulam numa árvore limpa); o Chromium (`thumbs`) exige libs de sistema.
+Primeiro run (2026-09-04, `33871581983`): verde, `pipeline-estatico` 13 s e `www` 41 s. **Push com
+arquivo em `.github/workflows/` exige o escopo `workflow` no token** — o `gh` vinha só com `gist`,
+`read:org`, `repo` e o GitHub rejeitou; `gh auth refresh -h github.com -s workflow` resolve.
 Reproduzir localmente: `git worktree add /tmp/ci HEAD && cd /tmp/ci && python3 -m pytest -m
 "not thumbs"`. `.editorconfig` e `.gitattributes` (`*.aq binary` — CRLF corrompe SQLite) entraram
 junto. **LICENSE não existe** — decisão do usuário.
