@@ -1,7 +1,7 @@
 ---
 name: leitor-biblioteca-aq
 description: Lê E ESCREVE arquivos de biblioteca BIM do AltoQi Builder (.aq) — SQLite com geometria 3D embutida. Extrai peças, dados hidráulicos, curvas de bomba, propriedades, miniaturas e a malha 3D completa (formato OQ3D), dispensando os IFCs; e gera um .aq do zero, com o schema, os enums, o encoding cp1252 e o binário OQ3D corretos.
-version: 2.6.0
+version: 2.7.0
 author: Bilds / carlosnetoaltoqi
 ---
 
@@ -550,7 +550,13 @@ oq3d.stats(blob)                      # resumo para logs
 
 ## Escrever um `.aq`
 
-Um `.aq` gerado do zero foi validado contra este próprio leitor, em 2026-09-02.
+Um `.aq` gerado do zero foi validado contra este próprio leitor em 2026-09-02 — e, no
+mesmo dia, **aberto no AltoQi Builder real**: árvore de classes, grupos e peças correta,
+propriedades personalizadas visíveis, acentos íntegros (`Água`, `Redução`, `kgf/cm²`).
+É a prova de que a receita abaixo (schema 607 do `sqlite_master`, texto em cp1252 via
+`CAST(? AS TEXT)`, colunas não observadas deixadas no `DEFAULT` do DDL, sentinelas onde
+a biblioteca real as usa) produz um arquivo que o Builder aceita. Não foi verificado no
+Builder: a malha OQ3D na janela 3D, e a peça lançada numa rede sem `ENTRADA_PECA`.
 
 ### O texto tem de ser gravado em cp1252
 
@@ -1109,6 +1115,11 @@ precisão nativa do AltoQi é o centímetro.
 ---
 
 ## Histórico
+
+**2.7.0** — Registro de que o `.aq` gerado pela receita "Escrever um `.aq`" **abre no AltoQi
+Builder** (Akato, 2026-09-02): propriedades personalizadas e acentos corretos, colunas no
+`DEFAULT` aceitas. Antes a skill só afirmava compatibilidade com o próprio leitor. Fica
+explícito o que ainda não foi visto no Builder (render OQ3D, lançamento em rede).
 
 **2.6.0** — `open_aq` do exemplo corrigido: `isfile` antes de conectar e abertura em
 `mode=ro` via URI (com `pathname2url`, porque os caminhos reais têm espaço e acento). O

@@ -170,11 +170,19 @@ isso que a validação é contra o leitor do projeto, não contra o AltoQi.
 
 ## O limite desta validação
 
-Não há AltoQi Builder nesta máquina. O que está provado é que o `.aq` gerado é
-lido, sem ressalva, pelos leitores do projeto — `read_aq.py` e `oq3d.py`,
-validados em 12 bibliotecas de fabricante e 6 versões de schema — e que
-atravessa o `build.py` até uma página publicável.
+**O `.aq` gerado abriu no AltoQi Builder** (teste do usuário em 2026-09-02, em outra
+máquina; registrado em 2026-09-03). Árvore de classes, grupos e peças correta,
+propriedades personalizadas visíveis com acentos íntegros — a confirmação de que o
+cp1252 via `CAST(? AS TEXT)` é o que o Builder espera. Print em
+`estudo/img/builder-akato-aberto-2026-09-02.png`; detalhe em
+`estudo/01-escrever-um-aq.md`, seção 8.
 
-O que **falta provar** é a abertura no AltoQi Builder. Os riscos concretos
-estão listados em `estudo/01-escrever-um-aq.md`, seção "O que só o Builder pode
-dizer".
+Nesta máquina não há Builder. Aqui o que está provado é que o `.aq` gerado é lido,
+sem ressalva, pelos leitores do projeto — `read_aq.py` e `oq3d.py`, validados em 12
+bibliotecas de fabricante e 6 versões de schema — e que atravessa o `build.py` até
+uma página publicável.
+
+O que **ainda falta provar** no Builder: a malha OQ3D renderizando na janela 3D, a
+peça lançada numa rede (sem `ENTRADA_PECA` o encaixe automático é improvável) e o
+comportamento sem simbologia 2D. Os riscos estão em `estudo/01-escrever-um-aq.md`,
+seção "O que só o Builder pode dizer".

@@ -354,6 +354,30 @@ caso legado.
 
 ## 8. O que só o Builder pode dizer
 
+> **Resultado (registrado em 2026-09-03, teste feito em 2026-09-02):** o `.aq` da Akato **abriu
+> no AltoQi Builder** — a variante com formas paramétricas, a mesma do ZIP publicado. O teste
+> foi feito pelo usuário em outra máquina, antes do round-trip que reescreve a geometria real
+> da Amanco. Evidência: `img/builder-akato-aberto-2026-09-02.png`. O que o print mostra:
+>
+> - A árvore de biblioteca com as classes (`Akato - PVC Água Fria Roscável`, `… Soldável`,
+>   `… Acessórios`, `… Polietileno`), os grupos (`Bucha de Redução Roscável`, `Joelho 90°
+>   Roscável`, `Nípel Roscável`…) e as peças (`1" x 3/4"`, `3/4" x 1/2"`) nos lugares certos.
+> - **As propriedades personalizadas aparecem**, agrupadas sob `Akato: Construção Civil`:
+>   Norma `NBR 5648`, Pressão de serviço `até 7,5 kgf/cm²`, Cor, Tipo de junta, Código Akato
+>   `21212`, Embalagem `20 un`, Caixa master `1000 un`, Temperatura máxima, e a propriedade
+>   `Geometria 3D` com o texto "forma representativa gerada por parâmetros…".
+> - **O cp1252 está certo**: `Água`, `Redução`, `Pressão`, `Nípel`, `°`, `²` e `até` saem
+>   legíveis. É a prova que faltava de que `CAST(? AS TEXT)` com bytes cp1252 é o que o
+>   Builder espera.
+> - `Comprimento equivalente direto/lateral` mostram `0` — as colunas omitidas ficaram com o
+>   `DEFAULT` do DDL e o Builder aceitou.
+>
+> **O que o print não prova**, e continua em aberto: se a malha OQ3D renderiza na janela 3D do
+> Builder, se a peça é lançável numa rede (sem `ENTRADA_PECA` provavelmente não encaixa
+> automaticamente), e como o Builder trata a simbologia 2D ausente. Dos cinco riscos abaixo,
+> o **5** (sentinelas/DEFAULT) está descartado como bloqueio de abertura; o 1, o 2 e o 4
+> seguem por verificar; o 3 não foi exercitado.
+
 Não há AltoQi Builder nesta máquina. O arquivo gerado passa nas 20 checagens do
 `validar_aq.py` e atravessa o `build.py` até uma página com viewer 3D, mas isso
 prova compatibilidade com o **leitor do projeto**, não com o Builder. Os riscos

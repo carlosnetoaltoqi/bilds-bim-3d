@@ -1365,6 +1365,14 @@ são 312 de 1.168 (27%). Pular é o esperado; o build informa quantas.
 Estudado em 2026-09-02. O corpo completo está em `eng-reversa/estudo/01-escrever-um-aq.md`;
 o essencial:
 
+> **O `.aq` gerado abre no AltoQi Builder de verdade** — testado pelo usuário em 2026-09-02
+> com a biblioteca da Akato (variante paramétrica), registrado em 2026-09-03: árvore de
+> classes/grupos/peças correta e **propriedades personalizadas visíveis com acentos
+> íntegros** (`Água`, `Redução`, `kgf/cm²`). Print em
+> `eng-reversa/estudo/img/builder-akato-aberto-2026-09-02.png`. Versões anteriores deste
+> arquivo e do `eng-reversa/README.md` diziam que isso faltava provar. O que **ainda** não
+> foi visto no Builder: a malha OQ3D na janela 3D e a peça lançada numa rede.
+
 **O texto tem de ser gravado em cp1252, e errar isso corrompe o arquivo em silêncio.**
 O módulo `sqlite3` do Python vincula `str` como UTF-8 e `bytes` como BLOB — nenhum dos
 dois serve. A saída é o `CAST`:
@@ -1982,7 +1990,9 @@ preview e olhando — daí `eng-reversa/tools/olhar_preview.mjs`.
 **O que segue em aberto:** a simbologia 2D (`CONTEUDO_SIMBOLOGIA`) e o `WIREFRAME`
 **não foram decifrados** — um `.aq` gerado não tem representação em planta —, e a causa
 das 54 divergências de contagem de raízes do OQ3D é conhecida por sintoma, não por
-mecanismo.
+mecanismo. **Fechado depois (registrado na S7.5):** o `.aq` da Akato **abriu no AltoQi
+Builder** em 2026-09-02, com propriedades personalizadas e acentos corretos — ver
+"Escrever um `.aq`" acima.
 
 ### 2026-08-31 — S6.1: validador de cache dos assets do storage
 
