@@ -56,7 +56,7 @@ node tools/e2e/e2e-cad-import.mjs ../input/STEP/2831A09.stp   # importar CAD e a
 pnpm smoke:geo · pnpm thumb:measure · pnpm thumb:regen        # ferramentas da POC dinâmica (tools/)
 ```
 
-O Playwright vem do `npm install` da **raiz** do repositório (o mesmo do `scripts/thumbs.mjs`).
+O Playwright vem do `pnpm install` da **raiz** do repositório (o mesmo do `scripts/thumbs.mjs`).
 
 ## Onde está o quê
 

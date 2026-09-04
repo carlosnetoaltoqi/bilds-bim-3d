@@ -8,5 +8,10 @@
   },
   "dependencies": {
     "playwright": "1.62.1"
+  },
+  "packageManager": "pnpm@11.24.0",
+  "engines": {
+    "node": ">=22.6",
+    "pnpm": ">=11"
   }
 }

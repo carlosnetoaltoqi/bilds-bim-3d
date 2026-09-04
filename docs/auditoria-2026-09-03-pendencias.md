@@ -37,7 +37,7 @@ código foram reproduzidos uma segunda vez antes de fechar este documento.
 | I2 ✅ | Geometria inválida/vazia contabilizada como "tubos/kits"; `_read_mesh` muda — **corrigido 2026-09-03** (S7.6: `diag` por categoria; `_read_mesh` lança em truncado; **bônus: malha versão 3 da Maxbar, 56 peças recuperadas**) | geração |
 | I3 ✅ | `OQ3DAvisoParse` não chega ao operador — **corrigido 2026-09-03** (S7.6: coletado por simbologia, `resumo_diag`) | geração |
 | I4 | `scripts/geo_to_aq.py` depende de `eng-reversa/tools/` (estudo) | geração |
-| I5 | `requirements.txt` incoerente; OCP/ifcopenshell/pypdf fora de qualquer requirements | ambiente |
+| I5 ✅ | `requirements.txt` incoerente; OCP/ifcopenshell/pypdf fora de qualquer requirements — **corrigido 2026-09-04** (S7.8: `requirements.txt` só jinja2+numpy; `requirements-dev.txt`; `requirements-cad.txt` pinado) | ambiente |
 | I6 | Modo `--ifc` do build é código morto (~450 linhas) com `config.example.json` obsoleto | geração |
 | I7 ✅ | Fallback sem Jinja2 gera HTML quebrado — **corrigido 2026-09-04** (S7.7: `build_preview` lança `RuntimeError` sem Jinja2 ou sem template; `run_build` não ignora mais o retorno) | geração |
 | I8 ✅ | `oq3d_roundtrip.py` pula o caso real (caminho errado) e reporta sucesso — **corrigido 2026-09-04** (S7.7: caminho certo em `PADRAO_AQ`; `.aq` ausente é FALHA/exit 1, `--sem-real` pula de propósito; 4 testes) | testes |
@@ -50,8 +50,8 @@ código foram reproduzidos uma segunda vez antes de fechar este documento.
 | I15 | Erros de processo filho engolidos (`type:'error'` do thumb-worker; promise presa) | www |
 | I16 | Validação de entrada 100% manual, sem `ValidationPipe` | www |
 | I17 | `http://localhost:4000` hardcoded em 3 páginas; porta fixa; dois defaults de `STORAGE_PATH` | www |
-| I18 | npm + pnpm na raiz, dois lockfiles versionados | repo |
-| I19 | Zero pins de versão (Node/pnpm/Python); heurística no `build.py` compensa | repo |
+| I18 ✅ | npm + pnpm na raiz, dois lockfiles versionados — **corrigido 2026-09-04** (S7.8: `package-lock.json` removido, pnpm só) | repo |
+| I19 ✅ | Zero pins de versão (Node/pnpm/Python) — **corrigido 2026-09-04** (S7.8: `.nvmrc` 24, `.python-version` 3.12, `packageManager`/`engines` nos dois `package.json`; CI lê deles). A heurística `_find_node` do `build.py` fica, porque o nvm não entra no PATH de subprocess | repo |
 | I20 ◐ | Sem CI, LICENSE, `.editorconfig`, `.gitattributes` — **CI mínimo, `.editorconfig` e `.gitattributes` em 2026-09-04** (S7.7: `.github/workflows/ci.yml`, jobs `pipeline-estatico` e `www`); **LICENSE é decisão do usuário** | repo |
 | I21 ✅ | `.git` com 6.867 objetos soltos, nunca `gc` — **resolvido 2026-09-03** pelo repack do filter-repo (1,3 MB em pack) | repo |
 | I22 | CLAUDE.md com 2.797 linhas, 41% histórico, 7 notas "versões antigas diziam" | docs |

@@ -13,7 +13,7 @@ cd bilds-bim-3d
 pip install -r requirements.txt
 bash scripts/setup_vendor.sh          # baixa o Three.js — uma vez só
 
-npm install                           # miniaturas — opcional, ver "Requisitos"
+pnpm install                          # miniaturas (Playwright + Chromium) — ver "Requisitos"
 sudo apt-get install -y libnss3 libnspr4 libasound2t64
 
 # copie as bibliotecas .aq para input/, organizadas por fabricante:
@@ -148,11 +148,15 @@ está na máquina. Detalhes em `CLAUDE.md`, seção "Testes".
 
 ## Requisitos
 
-- Python 3.8+
-- `pip install -r requirements.txt` — Jinja2 e numpy
+- Python 3.12 (`.python-version`); `pip install -r requirements.txt` — Jinja2 e numpy
+- Node 24 (`.nvmrc`) e pnpm 11 (`packageManager` no `package.json`) — só para as miniaturas e para `www/`
 - bash e curl, para o `setup_vendor.sh`
+- testes: `pip install -r requirements-dev.txt`
 
-`ifcopenshell` só é necessário para o modo `--ifc` com IFCs B-rep (`IFCADVANCEDBREP`), como os do AltoQi Hidráulico. O modo padrão não usa.
+`ifcopenshell`, `cadquery-ocp` e `pypdf` são opcionais e estão pinados em `requirements-cad.txt`:
+modo `--ifc` com IFCs B-rep (`IFCADVANCEDBREP`), STEP no editor e extração de PDF. O modo
+padrão não usa nenhum deles. O repositório é **pnpm só** — não use `npm install` (gera um
+`package-lock.json` que não é versionado).
 
 ### Miniaturas (opcional, mas recomendado)
 
@@ -160,7 +164,7 @@ O passo que pré-renderiza as miniaturas precisa de **Node 20+** (exigência do
 Playwright) e do Chromium:
 
 ```bash
-npm install                                            # playwright + Chromium
+pnpm install                                           # playwright + Chromium (postinstall)
 sudo apt-get install -y libnss3 libnspr4 libasound2t64  # libs de sistema
 ```
 

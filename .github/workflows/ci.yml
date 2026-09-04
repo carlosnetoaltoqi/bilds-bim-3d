@@ -8,6 +8,7 @@
 #     sintéticos (Node 24 roda os .ts de www/tools direto, sem transpilar).
 #   www — `pnpm install --frozen-lockfile` + `pnpm -r build` (API com tsc, web com
 #     next build). Não sobe Mongo nem roda a POC; só prova que compila.
+#   Versões: Node em .nvmrc, pnpm em packageManager (package.json), Python em .python-version.
 #
 # Localmente a mesma coisa é: python3 -m pytest -m "not thumbs"  e  (cd www && pnpm -r build)
 name: ci
@@ -37,10 +38,10 @@ jobs:
       # --experimental-strip-types e usa node:sqlite — precisa de Node >= 22.5; 24 é o da máquina de dev).
       - uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version-file: .nvmrc
 
-      - name: Dependências Python (só o que o pipeline padrão usa)
-        run: python -m pip install --upgrade pip && python -m pip install "jinja2>=3.1" "numpy>=1.24" pytest
+      - name: Dependências Python (requirements.txt + requirements-dev.txt)
+        run: python -m pip install --upgrade pip && python -m pip install -r requirements-dev.txt
 
       - name: py_compile de scripts/ e eng-reversa/tools/
         run: python -m py_compile scripts/*.py eng-reversa/tools/*.py
@@ -57,13 +58,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # a versão do pnpm vem do campo packageManager do www/package.json
       - uses: pnpm/action-setup@v4
         with:
-          version: 11
+          package_json_file: www/package.json
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version-file: .nvmrc
           cache: pnpm
           cache-dependency-path: www/pnpm-lock.yaml
 
