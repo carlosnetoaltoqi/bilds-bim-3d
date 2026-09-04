@@ -1,0 +1,10 @@
+# Opcionais — só para o que segue. Versões pinadas nas que rodaram nesta máquina
+# (Ubuntu 24.04, Python 3.12.3, 2026-09-04). Instale FORA do pipeline padrão:
+#
+#   pip install --user --break-system-packages -r requirements-cad.txt
+#   (PEP 668: o Ubuntu exige a flag; ou use um venv)
+#
+-r requirements.txt
+ifcopenshell==0.8.5      # build.py --ifc com IFC B-rep (IFCADVANCEDBREP); scripts/ifc_to_geo.py para IFC grande
+cadquery-ocp==7.9.3.1.1  # OpenCASCADE: scripts/step_to_geo.py (tesselar .stp); ~165 MB
+pypdf==6.14.2            # eng-reversa/tools/pdf_coords.py (catálogo comercial em PDF → células)

@@ -1,12 +1,7 @@
-jinja2>=3.1.0
-numpy>=1.24.0
+# Pipeline padrão (scripts/build.py lendo o .aq). Só isto:
+jinja2>=3.1,<4
+numpy>=1.24,<3
 
-# Só necessário para o modo de compatibilidade (build.py --ifc) com IFCs
-# B-rep (IFCADVANCEDBREP). O modo padrão, que lê a geometria do .aq, não usa.
-ifcopenshell>=0.8.0
-
-# ── Opcionais — só para a POC de edição (www/), importar STEP/IFC e exportar .aq ──
-# Instale FORA do requirements (PEP 668 no Ubuntu exige a flag):
-#   pip install --user --break-system-packages cadquery-ocp ifcopenshell
-# cadquery-ocp  → OpenCASCADE: scripts/step_to_geo.py (tesselar .stp)
-# ifcopenshell  → scripts/ifc_to_geo.py (IFC grande ou B-rep) e o modo --ifc do build.py
+# Testes: requirements-dev.txt.  STEP/IFC B-rep/PDF: requirements-cad.txt.
+# (Até 2026-09-04 este arquivo puxava ifcopenshell por padrão — 200 MB para um modo
+#  que quase ninguém usa; I5 da auditoria.)
