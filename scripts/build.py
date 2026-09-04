@@ -595,6 +595,24 @@ def build_preview(catalog, layout, geo_dir=None, thumbs_dir=None):
     Arquivos compartilhados (vendor/) ficam em output/preview/vendor/.
     Cada catálogo fica em seu próprio subdiretório para não sobrescrever o índice.
     """
+    # Sem Jinja2 não há preview possível: os templates usam `{% for %}`, `{% if %}`
+    # e filtros, e o antigo "fallback" que só trocava `{{ catalog | tojson }}` por
+    # texto entregava um index.html com tags Jinja cruas e nenhum card (I7).
+    # Falha alto, como o build_thumbs sem Node — run_build ignorava um `return
+    # False` daqui e seguia gerando o ZIP como se o preview existisse.
+    if not HAS_JINJA2:
+        raise RuntimeError(
+            'Jinja2 não está instalado e o preview não pode ser renderizado sem ele. '
+            'Instale com `pip install jinja2` (está em requirements.txt) ou rode com '
+            '--skip-preview.')
+
+    layouts_dir = os.path.join(TEMPLATES_DIR, 'layouts')
+    template_path = os.path.join(layouts_dir, f'{layout}.html')
+    if not os.path.exists(template_path):
+        raise RuntimeError(
+            f'template {layout}.html não encontrado em templates/layouts/ '
+            f'(disponíveis: {", ".join(sorted(os.listdir(layouts_dir)))})')
+
     geo_dir = geo_dir or GEO_DIR
     catalog_slug = catalog['slug']
     catalog_dir = os.path.join(PREVIEW_DIR, catalog_slug)
@@ -645,28 +663,16 @@ def build_preview(catalog, layout, geo_dir=None, thumbs_dir=None):
         json.dump(catalog, f, ensure_ascii=False, indent=2)
 
     # Renderiza template HTML
-    template_path = os.path.join(TEMPLATES_DIR, 'layouts', f'{layout}.html')
-    if not os.path.exists(template_path):
-        print(f'  ERRO: template {layout}.html não encontrado em templates/layouts/')
-        print(f'  Templates disponíveis: {os.listdir(os.path.join(TEMPLATES_DIR, "layouts"))}')
-        return False
-
-    if HAS_JINJA2:
-        env = Environment(
-            loader=FileSystemLoader(os.path.join(TEMPLATES_DIR, 'layouts')),
-            undefined=StrictUndefined,
-            # Nomes de série/título vêm do .aq e podem ter aspas (Komeco: `1" x 1"`).
-            # Sem escape, `data-filter="{{ f }}"` era truncado e o onclick quebrava.
-            # `| tojson` continua seguro: sob autoescape ele escapa <, > e & em \uXXXX.
-            autoescape=True,
-        )
-        tmpl = env.get_template(f'{layout}.html')
-        html = tmpl.render(catalog=catalog, items=catalog['produtos'])
-    else:
-        with open(template_path, encoding='utf-8') as f:
-            html = f.read()
-        html = html.replace('{{ catalog | tojson | safe }}', json.dumps(catalog, ensure_ascii=False))
-        html = html.replace('{{ items | tojson | safe }}', json.dumps(catalog['produtos'], ensure_ascii=False))
+    env = Environment(
+        loader=FileSystemLoader(layouts_dir),
+        undefined=StrictUndefined,
+        # Nomes de série/título vêm do .aq e podem ter aspas (Komeco: `1" x 1"`).
+        # Sem escape, `data-filter="{{ f }}"` era truncado e o onclick quebrava.
+        # `| tojson` continua seguro: sob autoescape ele escapa <, > e & em \uXXXX.
+        autoescape=True,
+    )
+    tmpl = env.get_template(f'{layout}.html')
+    html = tmpl.render(catalog=catalog, items=catalog['produtos'])
 
     out_html = os.path.join(catalog_dir, 'index.html')
     with open(out_html, 'w', encoding='utf-8') as f:
@@ -1545,9 +1551,11 @@ def run_build(config, aq_path, geo_dir, zip_dir, args):
         json.dump(catalog, f, ensure_ascii=False, indent=2)
 
     if not args.skip_preview:
-        if build_preview(catalog, catalog['layout'], geo_dir=geo_dir, thumbs_dir=thumbs_dir):
-            update_catalog_registry(catalog)
-            print(f'    Preview: output/preview/{catalog["slug"]}/index.html')
+        # build_preview lança em vez de devolver False (I7): sem Jinja2 ou sem o
+        # template, o build inteiro para aqui — não sai ZIP sem preview.
+        build_preview(catalog, catalog['layout'], geo_dir=geo_dir, thumbs_dir=thumbs_dir)
+        update_catalog_registry(catalog)
+        print(f'    Preview: output/preview/{catalog["slug"]}/index.html')
 
     zip_path = None
     if not args.skip_zip:

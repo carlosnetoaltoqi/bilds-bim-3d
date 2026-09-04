@@ -152,6 +152,34 @@ def test_render_escapa_aspas_e_html(saida, layout):
     assert (saida / 'preview' / 'mini' / 'data' / 'g.json').is_file()
 
 
+
+# ── I7: sem Jinja2 (ou sem template) o preview falha alto ─────────────────────
+
+def test_render_sem_jinja2_lanca_e_nao_escreve_html(saida, monkeypatch):
+    # Antes da S7.7 um "fallback" trocava só `{{ catalog | tojson }}` por texto e
+    # entregava um index.html com `{% for %}` cru e nenhum card — e run_build
+    # ignorava o `return False` e seguia gerando o ZIP.
+    catalog, geo_dir = _catalog_minimo(saida, 'catalog-grid', 'S')
+    monkeypatch.setattr(build, 'HAS_JINJA2', False)
+    with pytest.raises(RuntimeError, match='Jinja2'):
+        build.build_preview(catalog, 'catalog-grid', geo_dir=str(geo_dir), thumbs_dir=None)
+    assert not (saida / 'preview' / 'mini').exists()   # falha antes de copiar nada
+
+
+def test_render_layout_inexistente_lanca_listando_os_disponiveis(saida):
+    catalog, geo_dir = _catalog_minimo(saida, 'nao-existe', 'S')
+    with pytest.raises(RuntimeError, match='nao-existe.*catalog-grid'):
+        build.build_preview(catalog, 'nao-existe', geo_dir=str(geo_dir), thumbs_dir=None)
+
+
+def test_run_build_sem_jinja2_nao_gera_zip(saida, akato_aq, monkeypatch):
+    monkeypatch.setattr(build, 'HAS_JINJA2', False)
+    config = _config_akato(akato_aq)
+    with pytest.raises(RuntimeError, match='Jinja2'):
+        build.run_build(config, akato_aq, str(saida / 'geo' / config['slug']),
+                        str(saida / 'zips'), args_build('--skip-thumbs'))
+    assert not list(saida.glob('zips/*.zip'))
+
 # ── ZIP / manifest ────────────────────────────────────────────────────────────
 
 def test_build_zip_manifest_com_thumbcount(saida):
@@ -205,7 +233,7 @@ def test_run_build_sem_thumbs_falha_por_padrao(saida, akato_aq, sem_node, capsys
         _run_akato(saida, akato_aq)
     out = capsys.readouterr().out
     assert 'ERRO: miniaturas' in out and '--allow-no-thumbs' in out
-    assert not list((saida / 'zips').glob('*.zip')) if (saida / 'zips').exists() else True
+    assert not list(saida.glob('zips/*.zip'))
 
 
 def test_run_build_allow_no_thumbs_segue_com_aviso(saida, akato_aq, sem_node, capsys):

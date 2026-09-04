@@ -778,7 +778,11 @@ const ITEMS   = CATALOG.produtos;
 </script>
 ```
 
-Fallback sem Jinja2: `build.py` substitui `{{ catalog | tojson | safe }}` por string literal.
+**Jinja2 é obrigatório** (desde 2026-09-04, S7.7, I7): sem ele `build_preview()` lança
+`RuntimeError` antes de copiar qualquer coisa, e `run_build` para — não sai ZIP sem preview.
+O antigo "fallback" só trocava `{{ catalog | tojson | safe }}` por texto e entregava um
+`index.html` com `{% for %}` cru e nenhum card. Template inexistente também lança, listando
+os disponíveis; antes devolvia `False` e `run_build` ignorava.
 
 ---
 

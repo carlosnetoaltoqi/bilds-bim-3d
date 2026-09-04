@@ -789,6 +789,9 @@ function renderGrid(filter) {
 > ("Invalid or unexpected token" só ao clicar). Regras:
 > - render do template com `autoescape=True` (Jinja2); `| tojson` continua seguro porque
 >   escapa `<`, `>` e `&` como `\uXXXX` dentro do `<script>`;
+> - Jinja2 é **obrigatório**, não opcional: um "fallback" que só troca `{{ dados | tojson }}`
+>   por texto entrega a página com `{% for %}` cru e nenhum card. Sem Jinja2, falhe alto
+>   antes de escrever qualquer arquivo (bilds-bim-3d, I7, 2026-09-04);
 > - o handler lê o valor do DOM — `onclick="filterBy(this.dataset.filter, this)"` — e
 >   nunca repete o texto dentro de uma string JS;
 > - conferir clicando: um `node --check` dos blocos inline passa, porque o erro está no
