@@ -32,7 +32,7 @@ código foram reproduzidos uma segunda vez antes de fechar este documento.
 | **C7** | Deploy da Vercel é irreproduzível: serve o `output/preview` local desta máquina | infra |
 | **C8** ✅ | Diagnóstico do CLAUDE.md manda usar `latin-1`; o correto é cp1252 — **corrigido 2026-09-03** | docs |
 | **C9** ✅ | README ensina fluxo de publicação que não publica nada — **corrigido 2026-09-04** (S7.8: seção "Publicar o preview" descreve o CLI e o gitignore; C7 continua em aberto) | docs |
-| **C10** | Estado da base aparece em três versões contraditórias no CLAUDE.md | docs |
+| **C10** ✅ | Estado da base aparece em três versões contraditórias no CLAUDE.md — **corrigido 2026-09-04** (S7.8: uma versão só, em `www/README.md`; o CLAUDE.md aponta) | docs |
 | I1 ✅ | Miniaturas degradam em silêncio no build (ZIP sem `thumbs/`, exit 0) — **corrigido 2026-09-03** (S7.6: `ThumbsError`, `--allow-no-thumbs`, `thumbCount`) | geração |
 | I2 ✅ | Geometria inválida/vazia contabilizada como "tubos/kits"; `_read_mesh` muda — **corrigido 2026-09-03** (S7.6: `diag` por categoria; `_read_mesh` lança em truncado; **bônus: malha versão 3 da Maxbar, 56 peças recuperadas**) | geração |
 | I3 ✅ | `OQ3DAvisoParse` não chega ao operador — **corrigido 2026-09-03** (S7.6: coletado por simbologia, `resumo_diag`) | geração |
@@ -54,10 +54,10 @@ código foram reproduzidos uma segunda vez antes de fechar este documento.
 | I19 ✅ | Zero pins de versão (Node/pnpm/Python) — **corrigido 2026-09-04** (S7.8: `.nvmrc` 24, `.python-version` 3.12, `packageManager`/`engines` nos dois `package.json`; CI lê deles). A heurística `_find_node` do `build.py` fica, porque o nvm não entra no PATH de subprocess | repo |
 | I20 ◐ | Sem CI, LICENSE, `.editorconfig`, `.gitattributes` — **CI mínimo, `.editorconfig` e `.gitattributes` em 2026-09-04** (S7.7: `.github/workflows/ci.yml`, jobs `pipeline-estatico` e `www`); **LICENSE é decisão do usuário** | repo |
 | I21 ✅ | `.git` com 6.867 objetos soltos, nunca `gc` — **resolvido 2026-09-03** pelo repack do filter-repo (1,3 MB em pack) | repo |
-| I22 | CLAUDE.md com 2.797 linhas, 41% histórico, 7 notas "versões antigas diziam" | docs |
-| I23 | Onze afirmações do CLAUDE.md/README quebradas ou desatualizadas (tabela abaixo) | docs |
-| I24 | Skills e CLAUDE.md com conhecimento só de um lado; regra "mesmo commit" nunca cumprida | docs |
-| I25 | `docs/plano-produto-dinamico.md` não marcado histórico; §11 incompleto; §13 com tabela quebrada | docs |
+| I22 ✅ | CLAUDE.md com 2.797 linhas, 41% histórico, 7 notas "versões antigas diziam" — **reescrito 2026-09-04** (S7.8: mapa de 254 linhas; conhecimento em `docs/conhecimento/`, POC em `www/README.md`, histórico em `docs/sessoes/` com índice) | docs |
+| I23 ✅ | Onze afirmações do CLAUDE.md/README quebradas ou desatualizadas — **corrigidas 2026-09-04** (S7.8, no texto movido; a de `NEXT_PUBLIC_API_URL` ficou anotada porque o código I17 continua em aberto) | docs |
+| I24 ◐ | Skills e CLAUDE.md com conhecimento só de um lado; regra "mesmo commit" nunca cumprida — **regra reescrita 2026-09-04** (S7.8: bump da skill no commit `docs:` de fechamento, como sempre foi a prática); a convergência de conteúdo skill ↔ `docs/conhecimento/` fica para quando cada área for tocada | docs |
+| I25 ✅ | `docs/plano-produto-dinamico.md` não marcado histórico; §11 incompleto; §13 com tabela quebrada — **corrigido 2026-09-04** (S7.8; CONCEPTS.md ganhou os 13 termos que faltavam) | docs |
 | L1–L14 | Limpeza (duplicações, código legado, `any`, funções gigantes, etc.) | todas |
 
 ---
@@ -332,11 +332,11 @@ código foram reproduzidos uma segunda vez antes de fechar este documento.
 3. ✅ **Build e testes voltam a ser verdes:** ~~C4~~ (S7.4), ~~I13~~ (S7.7); ~~workflow mínimo (I20)~~
    (S7.7: `py_compile`, `pytest -m "not thumbs"`, `pnpm -r build`; o `testes-editor.sh` entra
    pelo pytest, mas pula no CI porque o storage é gitignored).
-4. **Documentação passa a limpo:** corrigir C8, C9, C10, I23 primeiro (são erros ativos);
-   depois a reestruturação de I22 — CLAUDE.md vira mapa de ~400 linhas; histórico vai para
-   `docs/sessoes/` (criar S5.3 e as sessões de 08-23…28); conhecimento de formato para
-   `docs/conhecimento/` ou para as skills como fonte única; POC de edição para
-   `www/README.md`; `plano-produto-dinamico.md` marcado histórico com §13 extraído.
+4. ✅ **Documentação passa a limpo** (S7.8, 2026-09-04): ~~C8~~ (S7.4), ~~C9, C10, I23~~; ~~I22~~ — CLAUDE.md
+   virou mapa (254 linhas); histórico em `docs/sessoes/` (15 registros criados, entre eles S5.3 e as
+   sessões de 08-23…28, 21 anexados; índice `docs/sessoes/README.md`); conhecimento em
+   `docs/conhecimento/` (6 arquivos); POC em `www/README.md`; ~~I25~~ plano marcado histórico, §13
+   consertado (a §13 ficou no plano, com ponteiro, em vez de extraída); I24 ◐ (regra reescrita).
 5. ✅ **Ambiente declarado** (S7.8, 2026-09-04): ~~I5, I18, I19~~; `scripts/bootstrap.sh` (com `--check`,
    `--www`, `--cad`; tabela "como conferir"; `tests/test_bootstrap.py`); seção "Pré-requisitos" no
    CLAUDE.md aponta para ele. O Atlas fica na seção da POC em `www/README.md`.

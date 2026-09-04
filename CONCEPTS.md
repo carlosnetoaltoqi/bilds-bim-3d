@@ -73,6 +73,27 @@ gerada ou importada.
 
 ---
 
+## Termos usados em todo o repositório (acrescentados em 2026-09-04, S7.8)
+
+A auditoria (I25/CONCEPTS) apontou termos usados em dezenas de arquivos sem definição. Uma linha cada:
+
+| Termo | Significado aqui |
+|---|---|
+| **OQ3D** | Formato binário proprietário do AltoQi para a malha 3D dentro do `.aq` (BLOB `SIMBOLOGIA_3D.SIMBOLOGIA_3D`). Assinatura de 37 bytes, árvore de nós com transforms column-major, unidades em **centímetros**. Leitor: `scripts/oq3d.py` e `www/tools/oq3d-parser.ts`; escritor: `eng-reversa/tools/oq3d_writer.py`. Ver `docs/conhecimento/oq3d.md`. |
+| **Simbologia 3D** | Registro de `SIMBOLOGIA_3D` no `.aq`: uma malha OQ3D com nome, ligada às peças por `PECA_SIMBOLOGIA_3D`. Peça sem simbologia (tubo, kit) não tem forma fixa e é pulada por design. |
+| **TQi3DReusedObject** | Nó do OQ3D que reaproveita por referência uma malha já lida (parafusos, repetições). Não resolvê-lo custava ~30% dos triângulos (S5.1, 2026-08-30). |
+| **ADR** | *Architecture Decision Record* — decisão numerada com contexto e consequência. Vivem em `docs/plano-produto-dinamico.md` §9 e em `docs/solutions/architecture-patterns/`. |
+| **importId** | UUID de um `BimImport` da POC. Entra nas chaves de storage (`geo/<importId>/…`, `thumbs/<importId>/…`), então apagar e reimportar produz chaves novas. |
+| **slug** | Identificador em minúsculas com hifens, derivado do título (`slugify`, com normalização NFD). Nomeia o catálogo na URL, a pasta do preview e o ZIP. |
+| **dedup** | Deduplicação de vértices por chave exata (posição quantizada em float32, e cor quando há) — `scripts/dedup.py` e o equivalente no `parse-worker.ts`/`mesh-model.ts`. Reduz ~79% dos vértices; **não** solda emendas de malha de fabricante. |
+| **series-rows / catalog-grid** | Os dois layouts de página: fileiras por série (bombas, com curva Q-H) e grade densa com filtros (conexões). Escolhido pela inferência do `build.py`. |
+| **Q-H** | Curva vazão × altura manométrica de uma bomba, lida de `CURVA_BOMBA` do `.aq` e desenhada em SVG no layout `series-rows`. |
+| **bocal** | Marcador de conexão do AltoQi dentro da malha: partes verdes `(1,154,63)` e azuis `(10,84,152)`, `(0,116,232)`. Não é produto; o leitor pode filtrá-los (`skip_markers`) e o editor os lista como "Bocal N". |
+| **customUrl** | Campo da empresa na POC que vira o primeiro segmento da URL pública (`/<customUrl>/<slug>`). |
+| **SwiftShader** | Renderizador WebGL por software do Chromium; obrigatório (flags) para o Playwright renderizar miniaturas e rodar os testes e2e em WSL/CI sem GPU. |
+| **harness** | `templates/thumbs/harness.html`: página mínima com o mesmo Three.js, `buildScene()` e câmera do viewer, aberta pelo Playwright para fotografar cada geometria. |
+| **Import** (POC) vs **importar** | Ver "Flagged Ambiguities" abaixo. |
+
 ## Flagged Ambiguities
 
 _"import" (the verb, as in "upload and process") and "Import" (the domain entity with a state machine) — these are the same thing but the entity sense should be capitalized to distinguish it._

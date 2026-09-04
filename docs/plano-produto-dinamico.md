@@ -1,6 +1,10 @@
 # Plano — POC de catálogo BIM com dados dinâmicos
 
-> **Status:** entendimento e quebra em sessões. Nenhuma linha de código escrita ainda.
+> **Status: HISTÓRICO** (marcado em 2026-09-04, S7.8, I25). A POC que este plano descreve foi executada
+> entre 2026-08-29 e 2026-08-31 (S0–S4.4, S5.1, S5.2, S6.1) e **encerrada**; registros em `docs/sessoes/`
+> e aprendizados em `docs/solutions/architecture-patterns/`. Não use como guia do estado atual — o estado
+> da base está em `www/README.md`. A seção 13 ("o que a POC não implementa") continua útil para quem for
+> reconstruir na bilds.com. Texto original abaixo, sem alteração fora das marcas.
 > **Criado em:** 2026-08-29 · **Reescrito em:** 2026-08-29 após definição do escopo real
 > **Documento âncora:** toda sessão desta linha de trabalho começa lendo este arquivo e
 > termina atualizando a tabela de progresso (seção 11).
@@ -719,6 +723,10 @@ carregar o contexto da anterior além deste documento.
 
 ## 11. Progresso
 
+> **Nota (2026-09-04):** a tabela para em S4.4. As sessões seguintes — S5.1 (instâncias repetidas do OQ3D),
+> S5.2 (encerramento e carga limpa), S5.3 (auditoria de autocontenção), S6.1 (cache de assets) — têm registro
+> próprio em `docs/sessoes/` e não foram acrescentadas aqui; o índice cronológico é `docs/sessoes/README.md`.
+
 Preenchido ao **encerrar** cada sessão (regra R3). O campo "Registro" é o que a sessão
 seguinte lê — e ela lê **só o mais recente**.
 
@@ -782,7 +790,6 @@ Uma linha por item: o que é, por que ficou de fora, e se é obrigatório na rec
 | **Fidelidade visual das miniaturas server-side** | ADR-003 escolheu rasterizador TS (flat shading, 65 ms) sobre Playwright+PBR (240 ms). S4.1 estimou LCP ~300ms (POC com thumbs) vs ~100ms (CDN estático com thumbs) — a diferença é no TTFB do SSR, não no tamanho das thumbs. Em bytes e fidelidade os rasterizadores são equivalentes. **A decisão para a reconstrução**: se o SSR for cacheado no CDN, o LCP dos dois modelos converge. A fidelidade visual (flat shading vs PBR) é o único diferencial remanescente — reavaliar com o requisito do produto. ✅ **RESPONDIDA em S4.4:** o produto exige fidelidade; flat shading foi recusado (27 dB × 47 dB de PSNR contra o viewer). A reconstrução deve renderizar no Three.js real — ver ADR-004. | **respondida (S4.4)** |
 | **Re-processamento de imports legados** | O import ativo do Dancor (`563e5794`) foi feito antes da implementação do `dedupBuffers` em `parse-worker.ts`. Resultado: geo files 4× maiores (182.7 MB vs 44.7 MB com dedup). Não há rota de re-processamento. | **obrigatório** |
 | **LCP medido com Lighthouse real** | WSL não tem browser headless com DevTools para Web Vitals. S4.1 estimou LCP via soma de componentes medidos com `curl`. | **medir em produção** |
-
 | **Autenticação nas rotas da POC de edição** (`PATCH /produtos`, `PUT /geometrias`, `/cad/*`, `/exportar/aq`, páginas `/editar` e `/importar-step`) | Pedido explícito: POC local sem segurança | **obrigatório** — e com autorização por empresa |
 | **Regenerar miniatura ao salvar geometria editada** | Fora do escopo pedido em S7.1; o `thumb-worker.ts` já serve | **obrigatório** |
 | **Visibilidade do catálogo importado de CAD** | Mesmo problema do catálogo `.aq`: público ao existir | **obrigatório** |
