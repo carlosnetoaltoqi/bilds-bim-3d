@@ -1,7 +1,7 @@
 # S0 — Scaffold da POC
 
 **Data:** 2026-08-29 · **Sessão do plano:** S0 · **Status:** concluída
-**Commits:** `bd5d376`
+**Commits:** `08e9037`
 
 ---
 
@@ -111,7 +111,7 @@ Antes de começar:
 4. Ler `docs/sessoes/S-rev-revisao-do-plano.md` (ADR-001)
 
 Pré-condições:
-- `www/` existe com o scaffold commitado (`bd5d376`)
+- `www/` existe com o scaffold commitado (`08e9037`)
 - `pnpm install` já rodou; `node_modules/` está em `www/`
 - `GET /health` funciona — prove antes de começar: `pnpm dev:api` + `curl localhost:4000/health`
 
@@ -131,4 +131,4 @@ Armadilhas concretas:
 | `apps/api` | NestJS 10 rodando na porta 4000 | `pnpm --filter api dev` → `curl localhost:4000/health` → `{"status":"ok","mongo":"8.0.30"}` |
 | `apps/web` | Next.js 15 buildável | `cd www/apps/web && npx next build` → sem erro |
 | Atlas | conectado, MongoDB 8.0.30 | output do health endpoint |
-| Commit | `bd5d376` em `main` | `git log --oneline -1` |
+| Commit | `08e9037` em `main` | `git log --oneline -1` |

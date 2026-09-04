@@ -1,7 +1,7 @@
 # S-rev — Revisão do plano com ce-doc-review
 
 **Data:** 2026-08-29 · **Sessão do plano:** S-rev · **Status:** concluída
-**Commits:** `4df1b2f` `14da46a` `9feb427` `a9869c3` `571f463` `dc0aeea` `11b509b` `8660791`
+**Commits:** `2a8574f` `ac0e217` `7ffa739` `107edbf` `4acbf0b` `7a75772` `b95e765` `926c435`
 
 ---
 

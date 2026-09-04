@@ -5,7 +5,7 @@
 > recomendada para o ambiente real (containers na AWS, S3, banco de produção) e as
 > armadilhas que não devem ser redescobertas.
 >
-> **Data:** 2026-08-31 · **Repos lidos:** `bilds-bim-3d` (topo de `main`, commit `79997d0`)
+> **Data:** 2026-08-31 · **Repos lidos:** `bilds-bim-3d` (topo de `main`, commit `9e1e6fc`)
 > e `bilds.com` (branch `develop`, commit `7d99f072`).
 >
 > **Este documento é a entrada para:** um `ce-plan` (planejamento), um `ce-doc-review`

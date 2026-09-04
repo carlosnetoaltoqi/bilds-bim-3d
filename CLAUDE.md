@@ -53,6 +53,7 @@ não está aqui, isso é uma falha desta documentação — registre-a antes de 
 | **Testes do editor e dos conversores** | `www/tools/testes-editor.sh`, `www/tools/e2e/*.mjs`, `www/tools/roundtrip-*.mts` |
 | **Vocabulário do editor** (Parte, Bake, Original preservado, Importação CAD, caminho exato/rápido, arestas de borda) | `CONCEPTS.md` |
 | **Pendências de sistema levantadas para "passar a limpo" (C1–C10, I1–I25, L1–L14) e a ordem sugerida** | **`docs/auditoria-2026-09-03-pendencias.md`** + registro `docs/sessoes/S7.4-auditoria-passar-a-limpo.md` |
+| **Reescrita do histórico git (2026-09-03) e mapa de SHAs antigo → novo** | `docs/sessoes/S7.5-push-e-reescrita-do-historico.md` |
 
 ### Skills — versionadas aqui, em `docs/skills/`
 
@@ -117,9 +118,13 @@ Para voltar ao vazio: `deleteMany({})` nas quatro coleções e apagar `www/stora
 > está em `docs/auditoria-2026-09-03-pendencias.md`; C1–C4 e C8 já foram corrigidos. **A
 > próxima sessão começa no passo 2 da ordem sugerida** (I1, I2, I3, I7, I8 e a suíte
 > `tests/` de I9) — ver "Onde a próxima sessão começa" em
-> `docs/sessoes/S7.4-auditoria-passar-a-limpo.md`. Cinco decisões esperam o usuário: C5
-> (push da branch), C6 (histórico git), C7 (deploy do preview), I10 (auth na POC), I6
-> (modo `--ifc`). A raiz está **sem `config.json`** (apagado na S7.4; o build interativo
+> `docs/sessoes/S7.4-auditoria-passar-a-limpo.md`. **C5 e C6 foram resolvidos na S7.5**
+> (2026-09-03): o histórico foi reescrito com `git filter-repo` para remover a geometria
+> morta de `output/preview/**` e `eng-reversa/saida/`, e `main` + `poc-edicao` foram
+> enviadas ao GitHub com `--force` — **todo SHA anterior a essa data mudou**; o mapa
+> antigo → novo está em `docs/sessoes/S7.5-push-e-reescrita-do-historico.md`, e os SHAs
+> citados neste arquivo já são os novos. Três decisões esperam o usuário: C7 (deploy do
+> preview), I10 (auth na POC), I6 (modo `--ifc`). A raiz está **sem `config.json`** (apagado na S7.4; o build interativo
 > recria) e a tabela acima está um import atrás (resíduo `dd393c56` dos testes).
 
 O que a API devolve com a base **vazia**, conferido em 2026-09-02:
@@ -224,7 +229,7 @@ python3 scripts/build.py --all --force  # refaz todas
 > vieram do apt e já estão em `/usr/lib/x86_64-linux-gnu`. O export é inofensivo, mas
 > inútil. A receita sem sudo continua documentada no `README.md`, para outras máquinas.
 
-**`output/` está vazia** desde o commit `e391a8f` — só a landing da Vercel sobrevive.
+**`output/` está vazia** desde o commit `eb21380` — só a landing da Vercel sobrevive.
 Os 10 catálogos de `input/` são todos regeráveis com o comando acima.
 
 ### POC de edição — branch `poc-edicao` (2026-09-03)
@@ -321,7 +326,7 @@ exportado da 2CV editada volta com os mesmos 27.937 triângulos; o IFC do STEP, 
 718.699 faces, 2,5 milhões de entidades) derrubou o fluxo original: o `parse_ifc.py` indexa
 o arquivo por regex em Python e levaria minutos e gigabytes; a requisição síncrona estourava
 o timeout (300 s do Node, 300 s do Python) e o browser via só **"Failed to fetch"**, sem
-nada no log da API — o pedido nunca terminava. Correções, todas em `449f778`:
+nada no log da API — o pedido nunca terminava. Correções, todas em `eb60843`:
 - `ifc_to_geo.py` escolhe o caminho: arquivo ≤ 20 MB **com** `IFCTRIANGULATEDFACESET` →
   `parse_ifc.py` (exato, `IFCINDEXEDCOLOURMAP`); senão → `ifcopenshell.geom.iterator`
   (C++, todas as CPUs, `USE_WORLD_COORDS`, cor por material) com dedup vetorizado em numpy.
@@ -1565,15 +1570,15 @@ via modo `'recursive'` do `scan_input()`.
 | Taxa de match IFC → .aq baixa | `file_map` usa só filename — chave deve ser o caminho relativo completo (`Cap/PVC SN/100mm.ifc`) para enriquecer tokens da busca fuzzy |
 | Nome do produto é só dimensão ("100mm") | Esperado para catálogos flat no .aq — build.py prefixa com GRUPO_PECA automaticamente |
 | ZIP 0KB + "X não encontrado em input/" | scan_input escolheu modo subdir com múltiplos IFCs — fix: modo subdir só ativa quando cada subdir tem exatamente 1 IFC; caso contrário cai em recursive |
-| Fabricante/título stale do catálogo anterior | aq_stale não estava resetando titulo/slug — fix em commit 056e729; deletar config.json corrompido se necessário |
+| Fabricante/título stale do catálogo anterior | aq_stale não estava resetando titulo/slug — fix em commit 5e38b65; deletar config.json corrompido se necessário |
 | `Fabricante []` sem sugestão | BIBLIOTECA vazia no .aq e pasta avô é genérica — peek_aq tenta pasta avô, depois filename |
 | Título sugerido ruim (ex: `"Esgoto Sn Sr"`) | Pasta pai do .aq é genérica (`input/`, `.`) — organizar como `input/Fabricante/Nome da Linha/pecas.aq` |
-| Slug com acento (`inc-ndio`) | slugify não normalizava unicode — corrigido com NFD + strip combining marks (commit 8e2f67d) |
-| Slug mostra valor antigo do config.json | ec.get('slug') tomava precedência sobre titulo atual — removido; slug sempre = slugify(titulo) (commit fefb627) |
+| Slug com acento (`inc-ndio`) | slugify não normalizava unicode — corrigido com NFD + strip combining marks (commit 8b4272a) |
+| Slug mostra valor antigo do config.json | ec.get('slug') tomava precedência sobre titulo atual — removido; slug sempre = slugify(titulo) (commit fbbf292) |
 | **Fabricante vazio na página publicada** | `PECA.BIBLIOTECA` está vazia nas três bibliotecas testadas — usar o prefixo de `CLASSE_SIMBOLOGIA_3D.NOME_CLASSE` |
 | **Título vira o nome do fabricante** | Pasta pai é o fabricante (`input/Intelbras/pecas_Intelbras_*.aq`) — comparar o slug da pasta com o 1º token do arquivo antes de usá-la como título |
 | **Título em forma de slug** na página | Derivado do filename sem limpeza — remover ruído (`pecas`, anos, versões), preservar siglas (CFTV, PPCI) e separar CamelCase |
-| **Título colado** (`"Barramentoblindado"`) | Filename com palavra composta toda-minúscula (ex: `pecas_maxbar_barramentoblindado.aq`) — CamelCase split não actua, token fica capitalizado só na 1ª letra. Fix (commit 48a0f65): token único todo-minúsculo > 10 chars é ignorado; a cascata cai para `linhas` do banco, que devolve `'Barramento Blindado'`. Organizar o filename como `barramento_blindado.aq` ou `BarramentoBlindado.aq` evita o problema. |
+| **Título colado** (`"Barramentoblindado"`) | Filename com palavra composta toda-minúscula (ex: `pecas_maxbar_barramentoblindado.aq`) — CamelCase split não actua, token fica capitalizado só na 1ª letra. Fix (commit ec42af2): token único todo-minúsculo > 10 chars é ignorado; a cascata cai para `linhas` do banco, que devolve `'Barramento Blindado'`. Organizar o filename como `barramento_blindado.aq` ou `BarramentoBlindado.aq` evita o problema. |
 | Nome do produto redundante (`Pontos de comando Interruptor…`) | Prefixo do grupo aplicado sem necessidade — prefixar só quando o nome é ambíguo, decidindo **por grupo** |
 | **Preview 404 em `data/*.json`, erro `Unexpected token 'T'`** | Template usava `./data/`; com `cleanUrls` a página é servida em `/<slug>` sem barra final e o relativo vai para a raiz. Usar caminho absoluto `'/' + CATALOG.slug + '/data/'`. O `'T'` é a página 404 da Vercel ("The page…") caindo no `JSON.parse` |
 | **Thumbs 404 na Vercel** | Mesmo root cause de `data/`: `./thumbs/` resolvia para `/thumbs/` (raiz). Corrigido em 2026-09-02 — `THUMB_BASE = '/' + CATALOG.slug + '/thumbs/'` nos dois layouts |
@@ -1616,7 +1621,7 @@ via modo `'recursive'` do `scan_input()`.
 | `validar_aq.py` falha só em "barras de tubo com 600 cm" | Regra específica do catálogo da Akato; um `.aq` de peça única gerado pelo `geo_to_aq.py` não tem tubo — as outras 19 checagens é que valem |
 | IFC importado no editor 1000× maior ou 1000× menor | `ifc_to_geo.py` escala ×0,001 só com `.MILLI.` declarado **e** bbox bruta > 50. Um IFC em mm de peça pequena (< 50 mm) não dispara — importar e aplicar ×0,001 no editor ("escala global") |
 | `/cad/importar` de um IFC devolve "não extraiu geometria" | Arquivo B-rep (`IFCADVANCEDBREP`) sem `ifcopenshell` no Python da API, ou IFC só com curvas — `python3 -c "import ifcopenshell"` |
-| **"Failed to fetch" / "fetch error" ao importar CAD grande, e nada no log da API** | A requisição nunca terminou: conversão de minutos contra timeout de 300 s. Desde `449f778` a importação é assíncrona (202 + `GET /cad/importacoes/:id`); se voltar a acontecer, a API está fora ou o `requestTimeout` foi reduzido |
+| **"Failed to fetch" / "fetch error" ao importar CAD grande, e nada no log da API** | A requisição nunca terminou: conversão de minutos contra timeout de 300 s. Desde `eb60843` a importação é assíncrona (202 + `GET /cad/importacoes/:id`); se voltar a acontecer, a API está fora ou o `requestTimeout` foi reduzido |
 | IFC grande importado sai todo cinza | Caminho `ifcopenshell`: `style.diffuse.r()` é método no 0.8 — `_rgb_do_material` trata os dois casos; se ainda assim cinza, o arquivo não tem `IfcSurfaceStyle` (Revit exporta material só com a opção de cores) |
 | Importação fica em `parseando` por minutos | Normal para B-rep facetado grande: 124 MB → 221 s e 3,6 GB de RAM. Acompanhe em `/importar-step` ou `GET /cad/importacoes/:id`; `falhou` traz o erro do Python |
 
@@ -1629,6 +1634,13 @@ Verificar com `git config user.name` e `git config user.email`.
 Se necessário: `git config user.name "carlosnetoaltoqi"`
 
 **`output/preview/` é gitignored, exceto `index.html`.**
+
+> **O histórico foi reescrito em 2026-09-03 (S7.5).** 398 MB de `output/preview/<slug>/**` e
+> 8 MB de `eng-reversa/saida/` foram removidos de todos os commits com `git filter-repo`, e
+> `main` + `poc-edicao` foram reenviadas com `--force`. **Todo SHA anterior a essa data mudou**
+> — o mapa está em `docs/sessoes/S7.5-push-e-reescrita-do-historico.md`. Um clone antigo não
+> faz `pull`: clone de novo ou `git fetch && git reset --hard origin/<branch>`. O `.git` caiu de
+> 137 MB para 1,6 MB. Backup da história antiga: bundle em `/home/foltz/backups/` nesta máquina.
 
 > ⚠️ Versões antigas deste arquivo diziam o contrário — que o preview inteiro era
 > versionado e que `output/preview/vendor/` era a cópia oficial do Three.js. **Nunca
@@ -1685,9 +1697,29 @@ python3 -m http.server 8080 --directory output/preview
 
 ## Histórico de sessões
 
+### 2026-09-03 — S7.5: push da branch e reescrita do histórico git (C5 e C6)
+
+Registro completo em `docs/sessoes/S7.5-push-e-reescrita-do-historico.md`, com o mapa dos
+158 SHAs antigo → novo em anexo.
+
+O usuário antecipou dois itens do passo 6 da auditoria: "pode subir tudo para o remoto e
+limpar a geometria morta". Feito nesta ordem: **bundle de backup** com todos os refs em
+`/home/foltz/backups/`; inventário dos blobs (397,6 MB em 953 blobs de
+`output/preview/<slug>/**`, 8,2 MB em três `.aq` de `eng-reversa/saida/`, 12,9 MB em todo
+o resto); `git filter-repo --invert-paths --path-regex '^output/preview/[^/]+/' --path
+eng-reversa/saida/`, preservando `output/preview/{index.html,.gitignore,.gitkeep}` em todos
+os commits; `git push --force -u origin main poc-edicao`. Resultado: `.git` de **137 MB →
+1,6 MB**, 158 commits com mensagem e autoria intactas, `poc-edicao` pela primeira vez no
+GitHub.
+
+**Todo SHA citado em documentação mudou.** As 85 referências em 21 arquivos `.md` foram
+trocadas pelo SHA novo a partir do `commit-map` do filter-repo (só prefixos que resolviam
+para exatamente um commit). Auditoria: C5, C6 e I21 marcados como resolvidos. O GitHub ainda
+reporta ~63 MB até o `gc` do lado deles; um clone novo já vem com 1,3 MB.
+
 ### 2026-09-03 — S7.4: auditoria de pendências de sistema (início do "passar a limpo")
 
-Registro completo em `docs/sessoes/S7.4-auditoria-passar-a-limpo.md`. Commit `e45afa8`.
+Registro completo em `docs/sessoes/S7.4-auditoria-passar-a-limpo.md`. Commit `fa45705`.
 
 Diretriz nova do usuário: **os catálogos gerados são POC e ninguém os consome; podem
 ficar errados desde que a geração acuse o erro e que código e conhecimento sejam
@@ -1782,13 +1814,13 @@ catálogo (miniatura gerada), `.aq` relido pelo `read_aq.py`/`oq3d.py` (mesma bb
 **Surpresas:** duas referências mortas da binding OCP dão segfault (documento XCAF e
 `ex.Current()`); `GetColor` só aceita forma; `dedup.dedup()` devolve tupla.
 
-**Arquivo gigante** (mesmo dia, commit `449f778`): o usuário subiu de propósito o
+**Arquivo gigante** (mesmo dia, commit `eb60843`): o usuário subiu de propósito o
 `Projeto4.ifc` do Revit (124 MB) e viu "fetch error". Causa: importação síncrona contra
 conversão de minutos. Solução: caminho rápido no `ifc_to_geo.py` (`ifcopenshell` +
 numpy) e importação assíncrona com status. Resultado: 760.038 triângulos publicados em
 221 s, com miniatura. Detalhes na seção "POC de edição".
 
-**IFC como entrada** (mesmo dia, commit `04c2490`): `scripts/ifc_to_geo.py` sobre o
+**IFC como entrada** (mesmo dia, commit `4662b5a`): `scripts/ifc_to_geo.py` sobre o
 `parse_ifc.py`; rotas `/cad/*` aceitam `.stp/.step/.ifc`; skill `leitor-ifc` 1.7.0. O teste
 ponta a ponta atrasou ~40 min porque o **Atlas voltou a recusar o IP** da máquina (TLS
 alert 80 nos três nós — a assinatura documentada); liberado o IP, rodou inteiro: o IFC
@@ -1803,7 +1835,7 @@ mexer no modelo 3D na tela, com o resultado voltando ao JS/JSON que o viewer usa
 auth, local. Registro completo em `docs/sessoes/S7.1-poc-edicao.md`; resumo técnico na
 seção "POC de edição" do estado atual.
 
-**Entregue** (commit `0545858`): API com `PUT/GET original/POST restaurar` em
+**Entregue** (commit `8acf47a`): API com `PUT/GET original/POST restaurar` em
 `/geometrias/:id`, `GET|PATCH /produtos/:id`, `PATCH /catalogos/:id`, body JSON de 300 MB;
 web com `/editar` e `/editar/:produtoId` — viewport Three.js (TransformControls, corte,
 fantasma do original), painel de geometria, formulário de informações e de catálogo.
@@ -1842,7 +1874,7 @@ banda de cor alternada branco / azul claro (`#EEF3FF`) por grupo de fabricante.
 6 fabricantes → 3 grupos brancos (Akato, Dancor, Komeco) e 3 azuis (Amanco,
 Intelbras, Maxbar).
 
-Commit `7363ebb`.
+Commit `117a9f1`.
 
 ### 2026-09-02 — Build completo das 15 bibliotecas e fix de thumbs na Vercel
 
@@ -1854,7 +1886,7 @@ ZIPs gerados e preview publicado em https://bilds-bim-3d.vercel.app via
 **Bug corrigido:** thumbs quebradas na Vercel. `./thumbs/` resolvia para `/thumbs/`
 (raiz) quando `cleanUrls: true` serve a página em `/<slug>` sem barra final — mesmo
 root cause do bug de `./data/` já documentado. Corrigido nos dois layouts com
-`THUMB_BASE = '/' + CATALOG.slug + '/thumbs/'`. Commit `5653ab8`.
+`THUMB_BASE = '/' + CATALOG.slug + '/thumbs/'`. Commit `4da3ab2`.
 
 ### 2026-09-02 — POC subida local, armadilha do Atlas e limpeza da base
 
@@ -2185,7 +2217,7 @@ Guard atualizado de `len(fs_parts) < 2` → `< 4`.
 - Amanco: código de B-rep implementado (ifcopenshell), mas estrutura de dirs aninhada ainda
   limita quais categorias são detectadas pelo `scan_input` (problema arquitetural separado)
 
-### 2026-08-24 — Bug 5: parse_floats quebrava em notação científica sem dígito fracionário (commit 2bf5607)
+### 2026-08-24 — Bug 5: parse_floats quebrava em notação científica sem dígito fracionário (commit 8d0d8ec)
 
 Coordenadas IFC exportadas pelo CATIA usam formato `-4.E-16` e `1.E+00` — notação científica
 sem dígitos entre o ponto decimal e o expoente. A regex `[0-9]*\.?[0-9]+` exigia ao menos
@@ -2210,7 +2242,7 @@ r'[-+]?(?:[0-9]+\.?[0-9]*|[0-9]*\.[0-9]+)(?:[eE][-+]?[0-9]+)?'
 - `output/preview/.gitignore` criado para excluir `*_raw.json` (artefatos do CLI do parse_ifc).
 - Skill `leitor-ifc` atualizada para v1.3.0 com todos os 5 bugs e suas correções documentadas.
 
-### 2026-08-24 — Matching fuzzy IFC → .aq por cobertura de tokens (commit d75cf7b)
+### 2026-08-24 — Matching fuzzy IFC → .aq por cobertura de tokens (commit b55b528)
 
 `find_aq_product(slug, product_map, ifc_path_hint=None)` — substituição do match por
 prefixo simples por scoring de cobertura de tokens:
@@ -2227,9 +2259,9 @@ prefixo simples por scoring de cobertura de tokens:
 
 `build_catalog()` passa `ifc_name` (a chave do `file_map`) como `ifc_path_hint`.
 
-### 2026-08-24 — interactive_config: aq_stale, scan_input e inferência do .aq (commits 572956a…8c2deff)
+### 2026-08-24 — interactive_config: aq_stale, scan_input e inferência do .aq (commits c443f26…2a16399)
 
-**Bug 7 — scan_input modo subdir com múltiplos IFCs quebrava o parse (commit fb7dcc8)**
+**Bug 7 — scan_input modo subdir com múltiplos IFCs quebrava o parse (commit f738987)**
 
 `input/Dancor/` com 14 IFCs era detectado como modo `subdir` (1 produto = subdir inteiro).
 O display name `"Dancor/ (14 IFCs)"` ia como chave do `file_map`; o parser tentava abrir
@@ -2238,7 +2270,7 @@ esse string como arquivo → AVISO + ZIP 0KB.
 Correção: modo `subdir` só ativo quando cada subdir tem **exatamente 1 IFC**; caso contrário
 cai em modo `recursive` (cada IFC = um produto).
 
-**Bug 8 — aq_stale não resetava titulo/slug (commit 056e729)**
+**Bug 8 — aq_stale não resetava titulo/slug (commit 5e38b65)**
 
 Quando o .aq mudava (ex: Amanco → Dancor), `fabricante` era resetado mas `titulo` e `slug`
 continuavam vindo do `config.json` stale. Slugs errados (ex: `"amanco-conexoes"`) persistiam
@@ -2247,7 +2279,7 @@ para o novo catálogo.
 Correção: quando `aq_stale=True`, `sug_titulo` e `sug_slug` derivam apenas dos hints/filename
 do novo .aq, não do `ec` (config existente).
 
-**Bug 9 — fabricante e título não inferidos do filename do .aq (commit 8c2deff)**
+**Bug 9 — fabricante e título não inferidos do filename do .aq (commit 2a16399)**
 
 Campo `BIBLIOTECA` na Dancor .aq está vazio → `hints['fabricante'] = ''` → prompt sem default.
 
@@ -2258,7 +2290,7 @@ Correção: `peek_aq()` analisa o filename após falha no banco:
 
 Resultado: usuário passa por `--interactive` só com Enter em todos os campos.
 
-**Bug 10 — slugify não normalizava acentos (commit 8e2f67d)**
+**Bug 10 — slugify não normalizava acentos (commit 8b4272a)**
 
 `re.sub(r'[^a-z0-9]+', '-', s.lower())` convertia `ê` em `-` (não é ASCII).
 `"Incêndio"` → `"inc-ndio"`. Corrigido com NFD + strip combining marks:
@@ -2268,7 +2300,7 @@ s = ''.join(c for c in s if unicodedata.category(c) != 'Mn')
 ```
 Agora: `"Bombas de Combate a Incêndio"` → `"bombas-de-combate-a-incendio"`.
 
-**Bug 11 — slug derivava de fabricante+1ªpalavra, não do título completo (commits 8e2f67d, fefb627)**
+**Bug 11 — slug derivava de fabricante+1ªpalavra, não do título completo (commits 8b4272a, fbbf292)**
 
 `sug_slug` usava `f"{fabricante}-{titulo.split()[0]}"` → `"dancor-bombas"` em vez de
 `"bombas-de-combate-a-incendio"`. Além disso, `ec.get('slug')` tomava precedência e
@@ -2277,7 +2309,7 @@ exibia o slug antigo do `config.json` mesmo após o usuário alterar o título.
 Correção: `sug_slug = slugify(titulo or fabricante or 'catalogo')` — sempre re-calculado
 a partir do título confirmado na pergunta anterior, sem herdar valor do config.
 
-### 2026-08-24 — Refinamentos do modo interativo (sessão 2, commit c740086 → 5f2f2d2)
+### 2026-08-24 — Refinamentos do modo interativo (sessão 2, commit 84d269f → d68b316)
 
 **Slug removido do fluxo interativo**
 
@@ -2310,10 +2342,10 @@ dados de input (fabricantes são variáveis e efêmeros).
 - Correto: `feat(peek_aq): inferir título da pasta pai do .aq`
 - Errado: `feat: pipeline validado com Amanco 502 IFCs`
 
-**Ponto estável: commit `6336f60`** — pipeline completo, documentação autocontida, preview dos dois catálogos no repo.
-Para retornar: `git checkout 6336f60`.
+**Ponto estável: commit `ff49845`** — pipeline completo, documentação autocontida, preview dos dois catálogos no repo.
+Para retornar: `git checkout ff49845`.
 
-### 2026-08-24 — Bug WebGL: shared renderer + JPEG capture (commits b73ee8a, 35d63db)
+### 2026-08-24 — Bug WebGL: shared renderer + JPEG capture (commits 888652b, 0a39225)
 
 **Problema:** ao rolar para baixo e carregar muitos cards 3D, depois voltar para cima,
 as miniaturas desapareciam. Console exibia: `WARNING: Too many active WebGL contexts. Oldest context will be lost.`
@@ -2336,7 +2368,7 @@ destruía o contexto — o browser limita a ~8–16 contextos simultâneos.
 - Máximo 3 contextos WebGL em qualquer momento: `sharedRenderer` + `activeCard.renderer`
   + `modalViewer.renderer`.
 
-**Bug 12 — `observeCards()` não chamado no carregamento inicial (commit 35d63db)**
+**Bug 12 — `observeCards()` não chamado no carregamento inicial (commit 0a39225)**
 
 O evento `cards-rendered` disparava no script síncrono (durante o parse do HTML), mas
 o listener no módulo ES só registrava após `DOMContentLoaded` — chegava tarde demais.
@@ -2345,10 +2377,10 @@ Resultado: Amanco não carregava miniaturas até o primeiro clique em filtro.
 Correção: adicionar `observeCards()` direto após o `addEventListener` no módulo, além
 de manter o listener para re-renders (ao filtrar).
 
-**Ponto estável: commit `35d63db`** — WebGL context overflow resolvido, validado em produção.
-Para retornar: `git checkout 35d63db`.
+**Ponto estável: commit `0a39225`** — WebGL context overflow resolvido, validado em produção.
+Para retornar: `git checkout 0a39225`.
 
-### 2026-08-24 — Estudo OQ3D: a geometria sai do .aq (commits 912bf38, 8414bb2, 9b85f6c)
+### 2026-08-24 — Estudo OQ3D: a geometria sai do .aq (commits 237e247, d32a4ca, c3be58b)
 
 **A descoberta.** O `.aq` não é só o banco de dados de produto: carrega a malha 3D
 completa, com cor e miniatura, no BLOB `SIMBOLOGIA_3D.SIMBOLOGIA_3D`, em formato
@@ -2413,8 +2445,8 @@ aparelho sanitário. O build informa quantas pulou.
 dois bugs distintos: a referência da instância repetida e a rotação column-major.
 Ver "Instâncias repetidas — RESOLVIDO" na seção do `oq3d.py`.
 
-**Ponto estável: commit `9b85f6c`** — 9 catálogos em produção, geometria servindo
-200 em todos. Para retornar: `git checkout 9b85f6c`.
+**Ponto estável: commit `c3be58b`** — 9 catálogos em produção, geometria servindo
+200 em todos. Para retornar: `git checkout c3be58b`.
 
 ### 2026-08-27 — Miniaturas pré-renderizadas no build (BILDS-552)
 
@@ -2620,7 +2652,7 @@ Encapsulado no script `pnpm ingest` via filtro `--filter api exec sh -c '...'`.
 ### 2026-08-30 — S3.3: página pública do catálogo (POC dinâmico)
 
 **Entregável:** `/{empresa}/{catalogo}` renderizando com viewer 3D lendo geometria da API,
-sem nenhum import de `react-i18next`. Commit `d4f6b1e`.
+sem nenhum import de `react-i18next`. Commit `7f79a21`.
 
 **`www/apps/web/src/components/bim-catalog/`** — 9 arquivos novos, todos sem i18n:
 `types.ts`, `bim-viewer-engine.ts`, `BimViewer.tsx`, `LazyBimCard.tsx`, `CurveChart.tsx`,

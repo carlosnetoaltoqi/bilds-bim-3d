@@ -206,7 +206,7 @@ estudo os tocasse**:
 
 Era trabalho paralelo do próprio autor do repo — um parâmetro `thumbs_dir` no
 `build_preview` e o uso do WebP pré-gerado nos dois layouts, em vez do render dinâmico
-via Three.js. Ficaram intocados aqui e entraram no commit `911ea60`
+via Three.js. Ficaram intocados aqui e entraram no commit `ba8ecf4`
 (`feat(preview): preview usa WebPs pré-gerados, igual ao bilds.com`).
 
 Vale registrar como método: quando aparece mudança não commitada que não é sua, o certo é

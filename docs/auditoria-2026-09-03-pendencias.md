@@ -6,7 +6,7 @@ geração acuse o erro** e que código e conhecimento sejam corrigidos. O valor 
 código e na documentação, não na saída.
 
 **Método.** Quatro varreduras independentes, somente leitura, na branch `poc-edicao`
-(topo `6692094`): pipeline estático (`scripts/`, `templates/`, `eng-reversa/`), POC
+(topo `50cb484`): pipeline estático (`scripts/`, `templates/`, `eng-reversa/`), POC
 dinâmica (`www/`), documentação (CLAUDE.md, README, docs/, skills, CONCEPTS) e higiene
 do repositório/infra. Cada achado traz evidência reproduzida; os quatro críticos de
 código foram reproduzidos uma segunda vez antes de fechar este documento.
@@ -27,8 +27,8 @@ código foram reproduzidos uma segunda vez antes de fechar este documento.
 | **C2** ✅ | `read_aq.open_aq` cria `.aq` vazio quando o caminho não existe e mascara o erro — **corrigido 2026-09-03** | geração |
 | **C3** ✅ | `build.py` sempre sai com código 0, mesmo sem produto ou com falhas em `--all` — **corrigido 2026-09-03** | geração |
 | **C4** ✅ | Build da API (`tsc -p`) quebrado por erro de tipo em `tools/aq-reader.ts:203` — **corrigido 2026-09-03** | www |
-| **C5** | Branch `poc-edicao` (12 commits, ~6.300 linhas) existe só nesta máquina | repo |
-| **C6** | 398 MB de geometria morta (`output/preview/**`) no histórico git e no GitHub | repo |
+| **C5** ✅ | Branch `poc-edicao` (12 commits, ~6.300 linhas) existe só nesta máquina — **corrigido 2026-09-03** (S7.5, push após a reescrita) | repo |
+| **C6** ✅ | 398 MB de geometria morta (`output/preview/**`) no histórico git e no GitHub — **corrigido 2026-09-03** (S7.5, `git filter-repo` + force-push) | repo |
 | **C7** | Deploy da Vercel é irreproduzível: serve o `output/preview` local desta máquina | infra |
 | **C8** ✅ | Diagnóstico do CLAUDE.md manda usar `latin-1`; o correto é cp1252 — **corrigido 2026-09-03** | docs |
 | **C9** | README ensina fluxo de publicação que não publica nada | docs |
@@ -53,7 +53,7 @@ código foram reproduzidos uma segunda vez antes de fechar este documento.
 | I18 | npm + pnpm na raiz, dois lockfiles versionados | repo |
 | I19 | Zero pins de versão (Node/pnpm/Python); heurística no `build.py` compensa | repo |
 | I20 | Sem CI, LICENSE, `.editorconfig`, `.gitattributes` | repo |
-| I21 | `.git` com 6.867 objetos soltos, nunca `gc` | repo |
+| I21 ✅ | `.git` com 6.867 objetos soltos, nunca `gc` — **resolvido 2026-09-03** pelo repack do filter-repo (1,3 MB em pack) | repo |
 | I22 | CLAUDE.md com 2.797 linhas, 41% histórico, 7 notas "versões antigas diziam" | docs |
 | I23 | Onze afirmações do CLAUDE.md/README quebradas ou desatualizadas (tabela abaixo) | docs |
 | I24 | Skills e CLAUDE.md com conhecimento só de um lado; regra "mesmo commit" nunca cumprida | docs |
@@ -64,8 +64,10 @@ código foram reproduzidos uma segunda vez antes de fechar este documento.
 
 ## Críticos
 
-> C1–C4 e C8 corrigidos em 2026-09-03 (S7.4). O texto abaixo descreve o estado **antes** da
-> correção; a verificação está na entrada S7.4 do `CLAUDE.md`.
+> C1–C4 e C8 corrigidos em 2026-09-03 (S7.4); C5 e C6 em 2026-09-03 (S7.5). O texto abaixo
+> descreve o estado **antes** da correção; a verificação está nas entradas S7.4 e S7.5 do
+> `CLAUDE.md`. **Os SHAs citados neste documento são os pós-reescrita** — o mapa
+> antigo → novo está em `docs/sessoes/S7.5-push-e-reescrita-do-historico.md`.
 
 ### C1. Aspas no nome de série quebram o filtro HTML
 - `templates/layouts/series-rows.html:242` e `catalog-grid.html:183`:
@@ -108,13 +110,16 @@ código foram reproduzidos uma segunda vez antes de fechar este documento.
 ### C6. Geometria morta no histórico git
 - 397,6 MB / 958 blobs de `output/preview/**` (mais um `.aq` de 6,7 MB de
   `eng-reversa/saida/`) em commits de "build: catálogo…"; removidos da árvore em
-  `c22a36e`, `912bf38`, `e26d8cb`, `e391a8f` mas presentes em `origin/main`. `.git` sem
+  `130cb5b`, `237e247`, `2166c96`, `eb21380` mas presentes em `origin/main`. `.git` sem
   nenhum pack (I21).
 - Correção: decidir se reescreve o histórico (`git filter-repo --invert-paths`) e
   force-push coordenado, ou aceita o peso. Só depois rodar `git gc`.
+- **Feito na S7.5:** reescrita com `--invert-paths --path-regex '^output/preview/[^/]+/'
+  --path eng-reversa/saida/`, preservando `output/preview/{index.html,.gitignore,.gitkeep}`;
+  `.git` de 137 MB → 1,6 MB; `main` e `poc-edicao` reenviadas com `--force`.
 
 ### C7. Deploy Vercel irreproduzível
-- `vercel.json` → `outputDirectory: output/preview` (gitignored). Commit `a30acaa`
+- `vercel.json` → `outputDirectory: output/preview` (gitignored). Commit `dd9f943`
   desconectou a integração git; deploy é `vercel --prod` do conteúdo local (2,1 GB).
   Nenhum outro clone reproduz ou reverte. CORS `*` global sem justificativa registrada.
 - Correção: script `deploy.sh` (`build.py --all` + `vercel --prod`) com manifesto do que
@@ -257,7 +262,7 @@ código foram reproduzidos uma segunda vez antes de fechar este documento.
   e `object-fit` só na skill; deflexão do STEP e `GetColor` só na skill `leitor-step`;
   `n_raizes_declarado`/`OQ3DAvisoParse` só no CLAUDE.md. Regra "bump da skill no mesmo
   commit" (`CLAUDE.md:90-91`) não foi cumprida em nenhum dos 20 commits auditados — a
-  prática é o commit `docs:` seguinte; a regra em 14-19 até implica isso. Commit `911ea60`
+  prática é o commit `docs:` seguinte; a regra em 14-19 até implica isso. Commit `ba8ecf4`
   (`feat(preview): WebPs pré-gerados`) sem entrada no histórico. S5.3 referenciada
   (`1911-1935`) sem arquivo em `docs/sessoes/`. Sessões de 08-23 a 08-28 só no CLAUDE.md.
 - **I25.** `docs/plano-produto-dinamico.md`: cabeçalho "nenhuma linha de código escrita";
@@ -310,7 +315,7 @@ código foram reproduzidos uma segunda vez antes de fechar este documento.
 
 ## Ordem sugerida para "passar a limpo"
 
-1. **Hoje, 5 minutos, sem risco:** `git push -u origin poc-edicao` (C5).
+1. ✅ **Hoje, 5 minutos, sem risco:** `git push -u origin poc-edicao` (C5) — feito na S7.5, junto com C6.
 2. **Geração acusa erro** (o critério do usuário): C1, C2, C3, I1, I2, I3, I7, I8 — mais a
    suíte `tests/` de I9 com fixture Akato e paridade py ↔ ts. Um commit por item, cada um
    com a linha correspondente no CLAUDE.md e na skill.
@@ -323,7 +328,7 @@ código foram reproduzidos uma segunda vez antes de fechar este documento.
    `www/README.md`; `plano-produto-dinamico.md` marcado histórico com §13 extraído.
 5. **Ambiente declarado:** I5, I18, I19, `bootstrap.sh`, seção única "Pré-requisitos"
    com "como verificar" (`node -v`, `python3 -c 'import OCP'`, Atlas allowlist como passo 0).
-6. **Decisões que são do usuário:** C6 (reescrever histórico ou não), C7 (estratégia de
+6. **Decisões que são do usuário:** ~~C6~~ (decidido e feito na S7.5), C7 (estratégia de
    deploy do preview), I10 (auth na POC ou aceitar só localhost), I6 (matar ou arquivar o
    modo `--ifc`), I4 (promover o writer de `.aq` para `scripts/`).
 7. **Limpeza** (L1–L14) conforme cada área for tocada, nunca em commit separado gigante.

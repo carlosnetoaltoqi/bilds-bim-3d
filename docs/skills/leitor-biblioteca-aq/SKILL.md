@@ -1155,6 +1155,6 @@ latin-1 era byte-preserving e o round-trip `.encode('latin-1')` do BLOB de geome
 sobrevive à troca. Verificado com hash SHA-256 dos blobs antes e depois, e zero bytes de
 controle nos nomes de 1.441 peças em nove bibliotecas.
 
-**2.0.0** — Formato OQ3D documentado e validado em nove bibliotecas, seis versões de schema (552–607) e três domínios: o `.aq` dispensa os IFCs para gerar 3D com forma, cor e miniatura. Adicionados: tabelas de geometria, vínculo determinístico peça → malha, cascata de inferência de fabricante/título, regra de prefixo por grupo, armadilhas do parser binário, análise de cobertura (variantes com/sem luva, peças sem forma fixa) e armadilhas de publicação web. Em produção no bilds-bim-3d desde o commit `9b85f6c`.
+**2.0.0** — Formato OQ3D documentado e validado em nove bibliotecas, seis versões de schema (552–607) e três domínios: o `.aq` dispensa os IFCs para gerar 3D com forma, cor e miniatura. Adicionados: tabelas de geometria, vínculo determinístico peça → malha, cascata de inferência de fabricante/título, regra de prefixo por grupo, armadilhas do parser binário, análise de cobertura (variantes com/sem luva, peças sem forma fixa) e armadilhas de publicação web. Em produção no bilds-bim-3d desde o commit `c3be58b`.
 
 **1.1.0** — Extração de peças, curvas Q-H e propriedades personalizadas.
