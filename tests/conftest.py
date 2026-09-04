@@ -35,6 +35,7 @@ sys.path.insert(0, str(ROOT / 'eng-reversa' / 'tools'))
 AKATO_AQ = ROOT / 'input' / 'Akato' / 'PVC Construção Civil' / 'pecas_akato_construcao_civil.aq'
 MAXBAR_AQ = ROOT / 'input' / 'Maxbar' / 'pecas_maxbar_barramentoblindado.aq'
 DANCOR_AQ = ROOT / 'input' / 'Dancor' / 'pecas_dancor_bombas_incendio_2026_04.1.aq'
+AMANCO_AQ = ROOT / 'input' / 'Amanco' / 'pecas_Amanco_Esgoto_SN_SR_Silentium.aq'
 
 
 def _fixture_aq(caminho):
@@ -56,6 +57,11 @@ def maxbar_aq():
 @pytest.fixture(scope='session')
 def dancor_aq():
     return _fixture_aq(DANCOR_AQ)
+
+
+@pytest.fixture(scope='session')
+def amanco_aq():
+    return _fixture_aq(AMANCO_AQ)
 
 
 @pytest.fixture

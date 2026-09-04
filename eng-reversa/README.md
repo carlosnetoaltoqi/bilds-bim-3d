@@ -96,7 +96,7 @@ Todas são independentes e somente-leitura sobre as bibliotecas de `input/`.
 | `tools/aq_referencia.py` | Levanta de um `.aq` real os valores de enum que um gerador precisa |
 | `tools/oq3d_anatomy.py` | Dissecação byte a byte de um blob OQ3D |
 | `tools/oq3d_writer.py` | **Escreve** OQ3D, e gera cilindro e tubo paramétricos. Também usado por `scripts/geo_to_aq.py` (exportação `.aq` do editor 3D) |
-| `tools/oq3d_roundtrip.py` | Prova o escritor contra o `scripts/oq3d.py` do projeto |
+| `tools/oq3d_roundtrip.py` | Prova o escritor contra o `scripts/oq3d.py` do projeto. O caso 6 reescreve um blob real da Amanco (`input/Amanco/…aq`, sid 169); sem o `.aq` é **FALHA**, não "pulado" — `--sem-real` pula de propósito (I8, 2026-09-04) |
 | `tools/formas.py` | **Geometria paramétrica representativa**, 23 formas |
 | `tools/formas_teste.py` | Gera as 262 formas e checa escala, proporção e estanqueidade |
 | `tools/gerar_aq.py` | Gera o `.aq` a partir do catálogo extraído. **`scripts/geo_to_aq.py` importa daqui** `criar_schema`, `Gerador` (cp1252) e as constantes do AltoQi — não mover nem renomear sem ajustar |
@@ -117,7 +117,8 @@ python3 eng-reversa/tools/pdf_akato.py \
         eng-reversa/dados/akato-celulas.json \
         eng-reversa/dados/akato-catalogo.json
 
-# 2. o escritor de geometria, antes de confiar nele
+# 2. o escritor de geometria, antes de confiar nele (exit 1 se input/Amanco faltar;
+#    --sem-real para pular o blob real de propósito)
 python3 eng-reversa/tools/oq3d_roundtrip.py
 
 # 3. as formas, antes de confiar nelas

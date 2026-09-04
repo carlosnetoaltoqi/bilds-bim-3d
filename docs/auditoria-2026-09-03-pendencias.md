@@ -40,7 +40,7 @@ código foram reproduzidos uma segunda vez antes de fechar este documento.
 | I5 | `requirements.txt` incoerente; OCP/ifcopenshell/pypdf fora de qualquer requirements | ambiente |
 | I6 | Modo `--ifc` do build é código morto (~450 linhas) com `config.example.json` obsoleto | geração |
 | I7 ✅ | Fallback sem Jinja2 gera HTML quebrado — **corrigido 2026-09-04** (S7.7: `build_preview` lança `RuntimeError` sem Jinja2 ou sem template; `run_build` não ignora mais o retorno) | geração |
-| I8 | `oq3d_roundtrip.py` pula o caso real (caminho errado) e reporta sucesso | testes |
+| I8 ✅ | `oq3d_roundtrip.py` pula o caso real (caminho errado) e reporta sucesso — **corrigido 2026-09-04** (S7.7: caminho certo em `PADRAO_AQ`; `.aq` ausente é FALHA/exit 1, `--sem-real` pula de propósito; 4 testes) | testes |
 | I9 ✅ | Não há suíte de testes do pipeline; `validar_aq.py` é específico da Akato — **suíte criada 2026-09-03** (S7.6: `tests/`, 43 testes, paridade py ↔ ts); a parte do `validar_aq.py` segue em aberto como L-item | testes |
 | I10 | Rotas de escrita/conversão sem auth, body 300 MB, upload 1 GB, python sem concorrência | www |
 | I11 | Importação assíncrona sem fila nem recuperação após restart | www |
@@ -174,7 +174,7 @@ código foram reproduzidos uma segunda vez antes de fechar este documento.
   pequeno de fixture, ou remover.
 - **I7.** ✅ (S7.7) `build.py:576-580`: fallback sem Jinja2 só substitui `{{ catalog | tojson }}`,
   mas os templates usam `{% for %}`. Abortar com mensagem clara.
-- **I8.** `eng-reversa/tools/oq3d_roundtrip.py:200-201` aponta
+- **I8.** ✅ (S7.7) `eng-reversa/tools/oq3d_roundtrip.py:200-201` aponta
   `input/Amanco/PVC Esgoto SN, SR e Silentium/…aq`; o real é `input/Amanco/…aq`. Saída
   "6. pulado" e exit 0.
 - **I9.** ✅ suíte (S7.6) — `validar_aq.py` segue Akato-específico. Nenhum `tests/`, `test_*.py`, pytest. `validar_aq.py:239-244` exige 1:1

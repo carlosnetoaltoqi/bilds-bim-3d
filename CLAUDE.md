@@ -1636,6 +1636,7 @@ python3 -m pytest -m "not thumbs and not paridade"  # só Python, sem Node
 | `tests/test_oq3d.py` | contrato do parser: truncado → `OQ3DError`; layout desconhecido → pulado + aviso; versões 2 e 3 iguais; raízes do cabeçalho; Akato 262/262 sem aviso; Maxbar versão 3 com geometria |
 | `tests/test_read_aq.py` | `open_aq` não cria arquivo, abre read-only, rejeita lixo; Akato 83 grupos/262 peças/1.756 propriedades; cp1252 sem `\x80–\x9f` nem U+FFFD |
 | `tests/test_build.py` | `auto_config`; `build_catalog_from_aq` + `diag` em cópia da Akato corrompida de propósito; render dos dois layouts com série `1" x 1" <script>`; `thumbCount`; `ThumbsError` sem Node, `--allow-no-thumbs`, `--skip-thumbs`, `run_all` com exit 1; uma miniatura real no Chromium |
+| `tests/test_oq3d_roundtrip.py` | o `eng-reversa/tools/oq3d_roundtrip.py` como processo: caminho padrão é o da Amanco; seis casos passam; `.aq` ausente → exit 1 (não "pulado"); `--sem-real` pula de propósito (I8) |
 | `tests/test_paridade_ts.py` | Python ↔ TypeScript: blobs sintéticos (inclusive defeituosos) e a Akato inteira — `read_aq`/`aq-reader` campo a campo e SHA-1 dos blobs, `oq3d`/`oq3d-parser` valor a valor; curvas Q-H da Dancor |
 
 **Como funciona.** `tests/conftest.py` põe `scripts/` e `eng-reversa/tools/` no path;

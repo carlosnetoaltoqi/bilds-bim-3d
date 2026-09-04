@@ -43,6 +43,13 @@ import oq3d_writer as w          # noqa: E402
 TOL = 1e-9
 falhas = []
 
+# Caso 6 (blob real). Até 2026-09-04 o padrão apontava uma subpasta
+# `Amanco/PVC Esgoto SN, SR e Silentium/` que não existe: o caso era pulado em
+# silêncio e o script saía 0 dizendo "todos os casos passaram" (I8 da auditoria).
+PADRAO_AQ = os.path.join(RAIZ, 'input', 'Amanco',
+                         'pecas_Amanco_Esgoto_SN_SR_Silentium.aq')
+PADRAO_SID = 169   # 'DN150 - QUADRADA', 4 malhas, 676 triângulos
+
 
 def checar(nome, condicao, detalhe=''):
     marca = 'ok  ' if condicao else 'FALHA'
@@ -196,10 +203,13 @@ def caso_real(aq, sid):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--aq', default=os.path.join(
-        RAIZ, 'input', 'Amanco', 'PVC Esgoto SN, SR e Silentium',
-        'pecas_Amanco_Esgoto_SN_SR_Silentium.aq'))
-    ap.add_argument('--sid', type=int, default=169)
+    ap.add_argument('--aq', default=PADRAO_AQ,
+                    help='biblioteca .aq do caso 6 (padrão: Amanco Esgoto)')
+    ap.add_argument('--sid', type=int, default=PADRAO_SID,
+                    help='ID_SIMBOLOGIA_3D a reescrever (padrão: 169)')
+    ap.add_argument('--sem-real', action='store_true',
+                    help='pula o caso 6 de propósito (máquina sem input/); '
+                         'sem esta flag, .aq ausente é FALHA, não "pulado"')
     args = ap.parse_args()
 
     print('oq3d_roundtrip — escritor OQ3D contra o leitor do projeto')
@@ -208,10 +218,15 @@ def main():
     caso_rotacao()
     caso_varias()
     caso_bbox()
-    if os.path.exists(args.aq):
+    if args.sem_real:
+        print('\n6. pulado de propósito (--sem-real)')
+    elif os.path.exists(args.aq):
         caso_real(args.aq, args.sid)
     else:
-        print(f'\n6. pulado — {args.aq} não existe')
+        print('\n6. reescrita de geometria real')
+        checar('biblioteca do caso real existe', False,
+               f'{args.aq} não existe — aponte outra com --aq ou pule '
+               f'explicitamente com --sem-real')
 
     print()
     if falhas:
