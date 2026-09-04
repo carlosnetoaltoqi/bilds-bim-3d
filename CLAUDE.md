@@ -133,7 +133,11 @@ Para voltar ao vazio: `deleteMany({})` nas quatro coleções e apagar `www/stora
 > data mudou**; o mapa antigo → novo está em
 > `docs/sessoes/S7.5-push-e-reescrita-do-historico.md`, e os SHAs citados neste arquivo já
 > são os novos. Push feito no fim da S7.7; **o CI rodou verde no GitHub** (run 33871581983:
-> 32 passed, 20 skipped no runner). Decisões que esperam o usuário: C7 (deploy do preview), I10
+> 32 passed, 20 skipped no runner). **Em 2026-09-04 `main` recebeu `poc-edicao` por fast-forward**
+> (`95e31f3..095dda8`, 27 commits, decisão do usuário): a linha principal do projeto é `main`;
+> `poc-edicao` ficou como marcador no mesmo commit e não recebe mais trabalho. Onde este arquivo
+> diz "branch `poc-edicao`" leia-se o estado que hoje está em `main` (a reescrita I22 vai
+> limpar isso). Decisões que esperam o usuário: C7 (deploy do preview), I10
 > (auth na POC), I6 (modo `--ifc`), I4 (promover o writer de `.aq`), LICENSE. A raiz está
 > **sem `config.json`** (apagado na S7.4; o build interativo recria) e a tabela acima está um
 > import atrás (resíduo `dd393c56` dos testes).
@@ -1761,6 +1765,10 @@ arquivo em `.github/workflows/` exige o escopo `workflow` no token** — o `gh` 
 Reproduzir localmente: `git worktree add /tmp/ci HEAD && cd /tmp/ci && python3 -m pytest -m
 "not thumbs"`. `.editorconfig` e `.gitattributes` (`*.aq binary` — CRLF corrompe SQLite) entraram
 junto. **LICENSE não existe** — decisão do usuário.
+
+**Branches (desde 2026-09-04):** trabalho em `main`. `poc-edicao` foi mergeada por fast-forward
+(`git merge --ff-only`, sem commit de merge, histórico linear) e ficou no remoto só como marcador
+histórico. Não abrir branch nova para cada sessão; a fase "passar a limpo" segue em `main`.
 
 **`output/preview/` é gitignored, exceto `index.html`.**
 
