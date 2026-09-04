@@ -79,7 +79,7 @@ C8, C9, C10, I22, I23, I24, I25) e passo 5 (ambiente: I5, I18, I19, `bootstrap.s
 C6 (histórico reescrito — **todo SHA anterior a 2026-09-03 mudou**), I21. Suíte: **57 testes**,
 `python3 -m pytest` ≈ 25 s; CI verde em `main`.
 
-**Próxima sessão:** ver `docs/sessoes/S7.8-*.md`, seção 7. Em resumo: os itens de `www/`
+**Próxima sessão:** ver `docs/sessoes/S7.8-passo-4-e-5-documentacao-e-ambiente.md`, seção 7. Em resumo: os itens de `www/`
 (I11, I12, I14–I17), a limpeza L1–L14 conforme cada área for tocada, e as **decisões que só o
 usuário toma**: C7 (deploy do preview), I10 (auth na POC), I6 (modo `--ifc`: matar ou arquivar),
 I4 (promover o writer de `.aq`), LICENSE, se vale um `--strict`.
