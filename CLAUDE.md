@@ -52,6 +52,7 @@ não está aqui, isso é uma falha desta documentação — registre-a antes de 
 | **Rotas da API da POC, páginas do web, como subir e testar `www/`** | `www/README.md` (mapa) + este arquivo (decisões) |
 | **Testes do editor e dos conversores** | `www/tools/testes-editor.sh`, `www/tools/e2e/*.mjs`, `www/tools/roundtrip-*.mts` |
 | **Vocabulário do editor** (Parte, Bake, Original preservado, Importação CAD, caminho exato/rápido, arestas de borda) | `CONCEPTS.md` |
+| **Pendências de sistema levantadas para "passar a limpo" (C1–C10, I1–I25, L1–L14) e a ordem sugerida** | **`docs/auditoria-2026-09-03-pendencias.md`** |
 
 ### Skills — versionadas aqui, em `docs/skills/`
 
@@ -1447,6 +1448,18 @@ const mat = new THREE.MeshStandardMaterial({
 if (data.idx) geom.setIndex(data.idx);  // guard — ausente em geo expandida
 ```
 
+### Escape no template — nomes vêm do fabricante
+
+Série, título e descrição saem do `.aq` e chegam ao HTML por Jinja2. A Komeco tem séries
+`1" x 1"`; a Maxbar, `MAXBAR CMAX - "T" Horizontal`. Com `autoescape=False` o chip
+`data-filter="{{ f }}" onclick="filterBy('{{ f }}')"` era truncado e o `onclick` virava
+erro de sintaxe que só aparecia ao clicar — 6 catálogos publicados assim, sem aviso no
+build. Desde S7.4 o `Environment` tem `autoescape=True` e o handler é
+`filterBy(this.dataset.filter, this)`. `| tojson | safe` continua correto: sob autoescape o
+`tojson` escapa `<`, `>` e `&` em `\uXXXX`, o que também protege o `<script>` de um nome
+com `</script>`. Não desligar o autoescape para "consertar" um `&#34;` visível — o lugar
+de decodificar é o DOM, e ele já faz isso.
+
 ### Design tokens bilds.com
 
 ```css
@@ -1534,8 +1547,10 @@ via modo `'recursive'` do `scan_input()`.
 | Canvas não encontrado no init | Módulo rodou antes de 'cards-rendered' — verificar handshake |
 | GPU trava | Loop de animação em todos os cards — thumbnail estática + loop só no click |
 | ZIP vazio de geo files | IFCs não foram parseados — verificar output/geo/ após o build |
-| .aq não abre como SQLite | Tentar abrir como ZIP; se falhar: arquivo corrompido |
-| Texto com lixo | Encoding não configurado — usar `latin-1` |
+| .aq não abre como SQLite | Tentar abrir como ZIP; se falhar: arquivo corrompido. Caminho inexistente é `FileNotFoundError` explícito desde S7.4 |
+| Chip de filtro não filtra e o console só erra ao clicar ("Invalid or unexpected token") | Nome de série com `"` (Komeco `1" x 1"`, Maxbar `"T" Horizontal`) em `data-filter`/`onclick` sem escape — **corrigido em S7.4**: `autoescape=True` e handler lê `this.dataset.filter`. Se voltar, alguém desligou o autoescape |
+| `build.py` falhou mas o shell viu exit 0 | Até S7.4 `run_all` e `main` nunca chamavam `sys.exit(1)`. Hoje: catálogo sem produto e qualquer falha no `--all` saem com 1 e "gerados" conta builds, não ZIPs |
+| Texto com lixo (`5U \x96 19\x94`) | Texto lido como `latin-1` ou UTF-8 — o `.aq` é **cp1252** (ver "Encoding é cp1252, não latin-1") |
 | Taxa de match IFC → .aq baixa | `file_map` usa só filename — chave deve ser o caminho relativo completo (`Cap/PVC SN/100mm.ifc`) para enriquecer tokens da busca fuzzy |
 | Nome do produto é só dimensão ("100mm") | Esperado para catálogos flat no .aq — build.py prefixa com GRUPO_PECA automaticamente |
 | ZIP 0KB + "X não encontrado em input/" | scan_input escolheu modo subdir com múltiplos IFCs — fix: modo subdir só ativa quando cada subdir tem exatamente 1 IFC; caso contrário cai em recursive |
@@ -1571,7 +1586,7 @@ via modo `'recursive'` do `scan_input()`.
 | `.aq` sem geometria publica com fabricante vindo do nome da pasta | Sem `CLASSE_SIMBOLOGIA_3D` o passo 1 da cascata não existe e `PECA.BIBLIOTECA` está vazio nas 12 bibliotecas reais — preencher `PECA.BIBLIOTECA` ao gerar |
 | Sólido gerado mostra o interior por uma emenda | Perfil de revolução que fecha em si mesmo sem soldar o último anel no primeiro: `2 × lados` arestas de borda |
 | Peça gerada com partes soltas ou flutuando | Malhas corretas em posição relativa errada — não aparece em bbox, contagem nem round-trip; conferir abrindo o preview |
-| Sobrou um `.aq` de 0 byte onde não havia arquivo | `open_aq` tenta `sqlite3.connect()` primeiro, e o `sqlite3` **cria** o arquivo num caminho inexistente cujo diretório existe. O fallback para ZIP então falha com `BadZipFile` |
+| Sobrou um `.aq` de 0 byte onde não havia arquivo | `sqlite3.connect()` **cria** o arquivo num caminho inexistente. **Corrigido em S7.4**: `open_aq` checa `isfile` e abre em `mode=ro` (URI com `pathname2url`); `peek_metadata` deixa `FileNotFoundError` subir. Esta linha existiu desde 2026-09-02 sem o código ser corrigido — a tabela não substitui o fix |
 | API em `Retrying (n)...` eterno, sem responder request nenhum | Não conecta no Mongo. A mensagem do Mongoose culpa o whitelist, mas é texto fixo — meça DNS, TCP, TLS e auth separadamente (ver "A API não sobe e o Mongoose culpa o whitelist") |
 | `tlsv1 alert internal error` / `SSL alert number 80` nos 3 nós, com o TCP abrindo | **IP não liberado no Atlas** (ou cluster M0 pausado). O handshake morre antes da autenticação, então não é credencial. Liberar em *Network Access*; a API reconecta sozinha no próximo retry |
 | Página pública `404` e `/empresas/minha` `404` com a API saudável | A base está **vazia** (foi assim entre 2026-09-02 e 03). Ver "Estado" no topo e a receita de re-importar pela API |
@@ -1658,6 +1673,56 @@ python3 -m http.server 8080 --directory output/preview
 ---
 
 ## Histórico de sessões
+
+### 2026-09-03 — S7.4: auditoria de pendências de sistema (início do "passar a limpo")
+
+Diretriz nova do usuário: **os catálogos gerados são POC e ninguém os consome; podem
+ficar errados desde que a geração acuse o erro e que código e conhecimento sejam
+corrigidos.** Pedido: identificar pendências de sistema para passar o projeto a limpo.
+
+Quatro varreduras somente leitura (pipeline Python, `www/`, documentação, higiene do
+repo), consolidadas em **`docs/auditoria-2026-09-03-pendencias.md`** — 10 críticos, 25
+importantes, 14 de limpeza, com evidência e ordem de ataque. Os críticos de código foram
+reproduzidos duas vezes: aspas em nome de série quebram o filtro HTML em 6 catálogos
+(`series-rows.html:242`, `catalog-grid.html:183`); `read_aq.open_aq` **cria um `.aq`
+vazio** quando o caminho não existe e mascara o erro; `build.py` sai com código 0 mesmo
+sem produto; `tsc -p` da API falha em `tools/aq-reader.ts:203`. Fora do código: a branch
+`poc-edicao` só existe nesta máquina; 398 MB de `output/preview` no histórico git; a
+tabela de diagnóstico deste arquivo (linha "Texto com lixo") ainda manda usar `latin-1`;
+o README ensina um fluxo de publicação que não publica; o estado da base aparece em três
+versões contraditórias neste arquivo.
+
+**Corrigidos na mesma sessão os quatro críticos de código** (C1–C4 do documento):
+- **C1** `templates/layouts/{series-rows,catalog-grid}.html` + `build.py`: `autoescape=True`
+  e `onclick="filterBy(this.dataset.filter,this)"`. Verificado com Playwright clicando o
+  chip `1" x 1"` na Komeco (24 → 8 cards) e `"T" Horizontal` na Maxbar, nos dois layouts,
+  zero erros de console. Os 6 catálogos afetados foram regerados em `output/preview/`.
+- **C2** `read_aq.open_aq`: `isfile` antes de conectar, abertura `mode=ro` via URI com
+  `pathname2url` (caminhos com espaço/acento); `peek_metadata` deixa `FileNotFoundError`
+  subir. A armadilha estava na tabela de diagnóstico e na skill desde 2026-09-02 **sem o
+  código ter sido corrigido** — documentar o sintoma não fechou o bug.
+- **C3** `build.py`: `main` sai com 1 quando o catálogo não tem produto; `run_all` conta
+  "nenhum produto" como falha, sai com 1 se houver falhas e "gerados" conta builds (não
+  ZIPs). Verificado com dois `.aq` de teste (um corrompido, um com `ATIVO=0` em todas as
+  peças): lote → `falhas: 2`, exit 1; modo single → exit 1.
+- **C4** `www/tools/aq-reader.ts`: as linhas de curva são mapeadas campo a campo para
+  `AqCurvaPonto` em vez do cast; `tsc -p` da API volta a passar. Conferido em runtime na
+  Dancor (curvas com as mesmas chaves).
+- Também corrigida a linha "Texto com lixo → `latin-1`" da tabela de diagnóstico (C8), que
+  contradizia o próprio arquivo.
+
+Skills: `leitor-biblioteca-aq` **2.6.0** (snippet do `open_aq` corrigido, duas linhas na
+tabela), `pagina-biblioteca` **1.6.0** (subseção "Nomes de série … têm aspas", linha na
+tabela).
+
+**Armadilha desta sessão:** o teste do modo single (`build.py` sem `--all`) grava
+`config.json` na raiz — e sobrescreveu o `config.json` real (gitignored, regenerável pelo
+próximo build interativo). Apagado o de teste; a raiz ficou sem `config.json`. Testes do
+modo interativo devem rodar com `--config` apontando para fora da raiz **e** conferir
+onde `interactive_config` salva.
+
+Efeitos colaterais dos testes rodados: import `dd393c56` ("auditoria-e2e") em `pecas-step`
+e o produto `dd73f0b2` com `editadoEm`/`infoOriginal` preenchidos (geometria restaurada).
 
 ### 2026-09-03 — S7.3: autocontenção da POC de edição
 

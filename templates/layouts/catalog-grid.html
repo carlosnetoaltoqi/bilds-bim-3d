@@ -180,7 +180,7 @@ body{background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
     <div class="toolbar" id="toolbar">
       <button class="chip active" data-filter="all" onclick="filterBy('all',this)">Todos</button>
       {% for f in catalog.filtros %}
-      <button class="chip" data-filter="{{ f }}" onclick="filterBy('{{ f }}',this)">{{ f }}</button>
+      <button class="chip" data-filter="{{ f }}" onclick="filterBy(this.dataset.filter,this)">{{ f }}</button>
       {% endfor %}
       <span class="toolbar-count" id="count-label"></span>
     </div>

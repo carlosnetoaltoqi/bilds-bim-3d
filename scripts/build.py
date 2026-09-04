@@ -569,7 +569,10 @@ def build_preview(catalog, layout, geo_dir=None, thumbs_dir=None):
         env = Environment(
             loader=FileSystemLoader(os.path.join(TEMPLATES_DIR, 'layouts')),
             undefined=StrictUndefined,
-            autoescape=False,
+            # Nomes de série/título vêm do .aq e podem ter aspas (Komeco: `1" x 1"`).
+            # Sem escape, `data-filter="{{ f }}"` era truncado e o onclick quebrava.
+            # `| tojson` continua seguro: sob autoescape ele escapa <, > e & em \uXXXX.
+            autoescape=True,
         )
         tmpl = env.get_template(f'{layout}.html')
         html = tmpl.render(catalog=catalog, items=catalog['produtos'])
@@ -1452,6 +1455,7 @@ def run_all(input_dir, args):
     print(f'\n=== bilds-bim-3d — lote: {len(aq_paths)} biblioteca(s) .aq ===\n')
 
     feitos, pulados, falhas = [], [], []
+    concluidos = 0
     for i, aq_path in enumerate(aq_paths, 1):
         rel_dir = aq_rel_dir(aq_path, input_dir)
         nome = os.path.basename(aq_path)
@@ -1494,13 +1498,19 @@ def run_all(input_dir, args):
             falhas.append((aq_path, str(e)))
             continue
 
+        if not catalog['produtos']:
+            falhas.append((aq_path, 'nenhum produto no catálogo'))
+            print()
+            continue
+
+        concluidos += 1
         if zip_path:
             print(f'    ZIP: {os.path.relpath(zip_path, ROOT)}')
             feitos.append(zip_path)
         print()
 
     print('=== Lote concluído ===')
-    print(f'  gerados : {len(feitos)}')
+    print(f'  gerados : {concluidos}' + (' (sem ZIP)' if args.skip_zip else ''))
     if pulados:
         print(f'  pulados : {len(pulados)} (já tinham ZIP)')
     if falhas:
@@ -1509,6 +1519,8 @@ def run_all(input_dir, args):
             print(f'      {os.path.basename(p)}: {e[:70]}')
     for z in feitos:
         print(f'  → {os.path.relpath(z, ROOT)}')
+    if falhas:
+        sys.exit(1)
 
 
 def main():
@@ -1571,9 +1583,11 @@ def main():
         else os.path.join(GEO_DIR, config['slug'])
 
     catalog, zip_path = run_build(config, aq_path, geo_dir, zip_dir, args)
-    if catalog['produtos']:
-        print(f'    Local: python3 -m http.server 8080 --directory output/preview')
-        print(f'    URL:   http://localhost:8080/{catalog["slug"]}')
+    if not catalog['produtos']:
+        print('\n=== Build FALHOU: nenhum produto ===')
+        sys.exit(1)
+    print(f'    Local: python3 -m http.server 8080 --directory output/preview')
+    print(f'    URL:   http://localhost:8080/{catalog["slug"]}')
     if zip_path:
         print(f'\n    Upload na bilds.com: {os.path.relpath(zip_path, ROOT)}')
     print('\n=== Build concluído ===')

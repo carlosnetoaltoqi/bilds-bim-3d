@@ -1,7 +1,7 @@
 ---
 name: pagina-biblioteca
 description: Constrói páginas HTML de catálogo BIM com cards de produto, miniaturas 3D estáticas (click-to-activate), viewer 3D no modal, curvas Q-H em SVG e layout responsivo. Padrões validados em produção com Three.js self-hosted.
-version: 1.5.0
+version: 1.6.0
 author: Bilds / carlosnetoaltoqi
 ---
 
@@ -781,6 +781,19 @@ function renderGrid(filter) {
 }
 ```
 
+> ### ⚠️ Nomes de série vêm do fabricante e têm aspas
+>
+> `1" x 1"` (Komeco), `MAXBAR CMAX - "T" Horizontal` (Maxbar). Se o chip for gerado no
+> template do servidor como `data-filter="{{ f }}" onclick="filterBy('{{ f }}')"` **sem
+> escape**, o atributo é truncado na primeira aspa e o `onclick` vira erro de sintaxe
+> ("Invalid or unexpected token" só ao clicar). Regras:
+> - render do template com `autoescape=True` (Jinja2); `| tojson` continua seguro porque
+>   escapa `<`, `>` e `&` como `\uXXXX` dentro do `<script>`;
+> - o handler lê o valor do DOM — `onclick="filterBy(this.dataset.filter, this)"` — e
+>   nunca repete o texto dentro de uma string JS;
+> - conferir clicando: um `node --check` dos blocos inline passa, porque o erro está no
+>   atributo, não no script.
+
 **Diferença chave:** `catalog-grid` filtra por `produto.serie` usando chips;
 `series-rows` agrupa por `produto.serie` em linhas separadas.
 Ambos usam o mesmo `buildScene`, `loadThumbnail`, `initModalViewer` e `buildChart`.
@@ -798,6 +811,7 @@ Ambos usam o mesmo `buildScene`, `loadThumbnail`, `initModalViewer` e `buildChar
 | Viewer do modal usa geometria errada | Modal não limpou viewer anterior | Guard `if (modalViewer !== mv) return` no loop de animação |
 | Filtrar recria cards, viewers re-iniciam | `thumbStates` não foi limpo antes | Limpar estados órfãos antes de re-observar |
 | Canvas tem tamanho errado em mobile | `offsetWidth` retorna 0 antes do layout | Fallback: `const W = wrap.offsetWidth \|\| 224` |
+| Chip de filtro não filtra; console só erra ao clicar | Nome de série com `"` injetado sem escape em `data-filter`/`onclick` | `autoescape=True` + handler lê `this.dataset.filter` (ver "Nomes de série … têm aspas") |
 | `cleanUrls` funciona na Vercel mas não local | Comportamento de servidor | Localmente usar extensão `.html`; na Vercel a rota sem extensão funciona |
 | `data/*.json` dá 404 na Vercel, ok local | `cleanUrls` serve a página em `/<slug>` sem barra final — `./data/` resolve para a raiz | Caminho absoluto: `'/' + CATALOG.slug + '/data/'` |
 | `SyntaxError: Unexpected token 'T'` | 404 devolveu HTML e caiu no `JSON.parse` ("**T**he page…") | Checar `r.ok` antes de `.json()` |
@@ -808,6 +822,12 @@ Ambos usam o mesmo `buildScene`, `loadThumbnail`, `initModalViewer` e `buildChar
 ---
 
 ## Histórico
+
+**1.6.0** — Nomes de série com aspas (`1" x 1"`, `"T" Horizontal`) quebravam os chips de
+filtro em 6 catálogos gerados pelo `bilds-bim-3d`: atributo truncado, `onclick` com erro de
+sintaxe, e nenhum aviso no build. Corrigido com `autoescape=True` no Jinja2 e handler que
+lê `this.dataset.filter`. Verificado com Playwright clicando o chip nas duas variantes de
+layout. Nova subseção em "catalog-grid" e linha na tabela de armadilhas.
 
 **1.5.0** — Duas armadilhas de **verificação** de página gerada, ambas encontradas ao
 conferir um catálogo de 262 peças. (a) O `/vendor/` do importmap é root-relative: mover o

@@ -25,6 +25,7 @@ import os
 import shutil
 import tempfile
 import argparse
+from urllib.request import pathname2url
 
 
 def _decode_texto(b):
@@ -49,9 +50,16 @@ def open_aq(aq_path):
     Retorna (connection, tmp_dir_or_None).
     Caller deve fechar a connection e remover tmp_dir se não for None.
     """
+    # `sqlite3.connect(caminho)` CRIA um arquivo vazio se ele não existir e depois
+    # falha no SELECT — o erro virava "não é SQLite nem ZIP" e ficava um .aq de 0 bytes
+    # no disco. Checar antes e abrir somente-leitura.
+    if not os.path.isfile(aq_path):
+        raise FileNotFoundError(f'biblioteca .aq não encontrada: {aq_path}')
+
     # Tentativa 1: SQLite direto
     try:
-        con = sqlite3.connect(aq_path)
+        uri = 'file:' + pathname2url(os.path.abspath(aq_path)) + '?mode=ro'
+        con = sqlite3.connect(uri, uri=True)
         con.text_factory = _decode_texto
         con.row_factory = sqlite3.Row
         con.execute('SELECT 1 FROM GRUPO_PECA LIMIT 1')
@@ -277,8 +285,10 @@ def peek_metadata(aq_path):
             'n_pecas': 0, 'n_simbologias': 0, 'schema': None}
     try:
         con, tmp = open_aq(aq_path)
+    except FileNotFoundError:
+        raise                       # caminho errado é erro do operador, não "sem metadados"
     except Exception:
-        return meta
+        return meta                 # arquivo existe mas não é .aq legível: o caller decide
 
     try:
         classes = read_classes(con)

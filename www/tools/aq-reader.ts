@@ -212,7 +212,15 @@ export function extract(aqPath: string): AqData {
           'WHERE p.ATIVO = 1 ' +
           'ORDER BY p.ID_PECA, icb.VAZAO_ICB',
         )
-        .all() as AqCurvaPonto[];
+        .all()
+        .map((r: any): AqCurvaPonto => ({
+          ID_PECA: r.ID_PECA,
+          potencia_cv: r.potencia_cv ?? null,
+          VAZAO_ICB: r.VAZAO_ICB,
+          ALTURA_ICB: r.ALTURA_ICB,
+          POTENCIA_ICB: r.POTENCIA_ICB ?? null,
+          RENDIMENTO_ICB: r.RENDIMENTO_ICB ?? null,
+        }));
     } catch {
       // Tabelas de bomba ausentes em bibliotecas não-hidráulicas
     }

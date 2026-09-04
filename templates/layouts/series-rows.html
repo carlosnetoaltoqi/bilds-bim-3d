@@ -239,7 +239,7 @@ body{background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
     <div class="filter-bar" id="filter-bar" style="margin-bottom:32px">
       <button class="chip active" data-filter="all" onclick="filterBy('all',this)">Todos</button>
       {% for f in catalog.filtros %}
-      <button class="chip" data-filter="{{ f }}" onclick="filterBy('{{ f }}',this)">Série {{ f }}</button>
+      <button class="chip" data-filter="{{ f }}" onclick="filterBy(this.dataset.filter,this)">Série {{ f }}</button>
       {% endfor %}
     </div>
 

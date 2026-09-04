@@ -1,7 +1,7 @@
 ---
 name: leitor-biblioteca-aq
 description: Lê E ESCREVE arquivos de biblioteca BIM do AltoQi Builder (.aq) — SQLite com geometria 3D embutida. Extrai peças, dados hidráulicos, curvas de bomba, propriedades, miniaturas e a malha 3D completa (formato OQ3D), dispensando os IFCs; e gera um .aq do zero, com o schema, os enums, o encoding cp1252 e o binário OQ3D corretos.
-version: 2.5.0
+version: 2.6.0
 author: Bilds / carlosnetoaltoqi
 ---
 
@@ -58,9 +58,17 @@ def open_aq(aq_path):
     Retorna (connection, tmp_dir_ou_None).
     Caller deve fechar a connection; se tmp_dir não for None, remover com shutil.rmtree.
     """
+    # `sqlite3.connect(caminho)` CRIA um arquivo vazio se ele não existir — e o erro
+    # que sobra é o do fallback ("não é ZIP"), não "arquivo não encontrado".
+    # Checar antes e abrir somente-leitura (URI com percent-encoding: os caminhos
+    # de biblioteca têm espaço e acento).
+    if not os.path.isfile(aq_path):
+        raise FileNotFoundError(f'biblioteca .aq não encontrada: {aq_path}')
+
     # Tentativa 1: SQLite direto (alguns .aq são SQLite com extensão .aq)
     try:
-        con = sqlite3.connect(aq_path)
+        uri = 'file:' + pathname2url(os.path.abspath(aq_path)) + '?mode=ro'
+        con = sqlite3.connect(uri, uri=True)        # from urllib.request import pathname2url
         con.text_factory = _decode_texto
         con.row_factory = sqlite3.Row
         con.execute('SELECT 1 FROM GRUPO_PECA LIMIT 1')
@@ -1095,11 +1103,19 @@ precisão nativa do AltoQi é o centímetro.
 | `.aq` gerado sem geometria publica com o fabricante errado | Sem `CLASSE_SIMBOLOGIA_3D` o passo 1 da cascata não existe | Preencher `PECA.BIBLIOTECA` |
 | Sólido gerado mostra o interior por uma emenda | Perfil de revolução fechado sem soldar o último anel no primeiro | Descartar o anel repetido e costurar a última faixa no anel 0 |
 | Peça gerada com partes soltas ou flutuando | Malhas corretas em posição relativa errada | Não aparece em bbox nem em round-trip — abrir o viewer e olhar |
-| Sobrou um `.aq` de 0 byte onde não havia arquivo | `sqlite3.connect()` **cria** o arquivo num caminho inexistente cujo diretório existe | Checar `os.path.exists()` antes de tentar abrir |
+| Sobrou um `.aq` de 0 byte onde não havia arquivo | `sqlite3.connect()` **cria** o arquivo num caminho inexistente cujo diretório existe | `os.path.isfile()` antes e `connect('file:…?mode=ro', uri=True)` — a armadilha ficou dois meses documentada aqui sem o código ser corrigido; a tabela não substitui o fix |
+| Função "só de leitura" (`peek_metadata`) devolve vazio para caminho errado | `except Exception: return meta` engolia o `FileNotFoundError` junto com "não é .aq" | Deixar `FileNotFoundError` subir; engolir só o que é "arquivo existe mas não é legível" |
 
 ---
 
 ## Histórico
+
+**2.6.0** — `open_aq` do exemplo corrigido: `isfile` antes de conectar e abertura em
+`mode=ro` via URI (com `pathname2url`, porque os caminhos reais têm espaço e acento). O
+`peek_metadata` deixa `FileNotFoundError` subir. A armadilha já estava na tabela desde a
+2.3.0 e o código do `bilds-bim-3d` continuou com o bug até 2026-09-03 — lição para quem
+lê esta skill: a tabela de armadilhas descreve o sintoma, não garante que o código ao lado
+já o evite.
 
 **2.5.0** — Nova subseção "Um `.aq` mínimo a partir de qualquer malha": a lista de tabelas que uma peça só exige, uma raiz OQ3D por malha de cor uniforme (dividir por cor antes de escrever), a conversão de unidades do viewer, o enquadramento inofensivo (conexão, sem código de diâmetro), a origem gravada em propriedade, e a armadilha do título vindo da pasta. Vem do `scripts/geo_to_aq.py` do `bilds-bim-3d`, verificado com um STEP tesselado relido pelo `read_aq.py`/`oq3d.py`.
 
