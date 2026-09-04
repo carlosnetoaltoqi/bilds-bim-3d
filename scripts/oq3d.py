@@ -24,7 +24,7 @@ tamanho conhecido têm de ser consumidos por inteiro antes de qualquer varredura
 Classes que carregam dados:
 
     TQi3DIndexedTriangleMeshData
-        u32 versao(=2) | u32 nCoords | u32 reservado
+        u32 versao(2 ou 3, mesmo layout) | u32 nCoords | u32 reservado
         nCoords doubles                    -> nCoords/3 vértices (x,y,z)
         u32 nIdx | u32 reservado
         nIdx u32                           -> nIdx/3 triângulos
@@ -114,6 +114,8 @@ DEFAULT_RGBA = (150, 150, 150, 255)
 
 # TQi3DReusedObject: bytes entre o fim do GUID e o discriminador, por versão.
 REUSED_BLOCK = {2: 15, 3: 16}
+# TQi3DIndexedTriangleMeshData: versões com o layout conhecido (ver _read_mesh).
+MESH_VERSOES = (2, 3)
 GUID_LEN = 36
 DISC_REF, DISC_INLINE = 0x01, 0x02
 
@@ -123,7 +125,13 @@ class OQ3DError(ValueError):
 
 
 class OQ3DAvisoParse(UserWarning):
-    """A árvore parseada não confere com o que o cabeçalho declara."""
+    """
+    O blob foi lido, mas algo nele não confere: a contagem de raízes difere da
+    declarada no cabeçalho, ou um bloco de malha tem layout que o parser não
+    reconhece e foi pulado. A geometria devolvida pode estar incompleta ou com
+    a hierarquia errada — quem chama deve mostrar isto ao operador (o
+    `build.py` agrega os avisos por simbologia; ver `catch_warnings`).
+    """
 
 
 class Node:
@@ -299,20 +307,52 @@ def _read_reused(buf, off, node, n):
 
 
 def _read_mesh(buf, off, node, n):
-    """Preenche node.mesh e devolve a posição logo após o bloco."""
-    try:
-        ver, n_coord, _ = struct.unpack_from('<3I', buf, off)
-    except struct.error:
-        return off
-    if ver != 2 or not n_coord or n_coord % 3:
+    """
+    Preenche node.mesh e devolve a posição logo após o bloco.
+
+    Espelha o `readMesh` do port TS (`www/tools/oq3d-parser.ts`), que é o
+    contrato entre os dois parsers:
+
+    - contagem declarada que **excede o buffer** é blob truncado ou corrompido
+      → `OQ3DError`, antes de alocar qualquer coisa;
+    - layout que não é o esperado (versão ≠ 2, zero coordenadas, contagem não
+      múltipla de 3) → o bloco é **pulado** (devolve `off`, sem malha) e sai um
+      `OQ3DAvisoParse`, porque a geometria resultante fica incompleta.
+
+    Antes (até 2026-09-03) os dois casos devolviam `off` em silêncio e a
+    simbologia entrava no catálogo com menos malhas — ou nenhuma —, contada
+    como "peça sem 3D".
+    """
+    if off + 12 > n:
+        raise OQ3DError('blob truncado: cabeçalho de malha além do buffer')
+    ver, n_coord, _ = struct.unpack_from('<3I', buf, off)
+    # Versões 2 e 3 têm layout idêntico (doubles, u32, mesma cauda de 19 bytes).
+    # A 3 aparece na Maxbar (arquivo também versão 3): 31 das 135 simbologias.
+    # Até 2026-09-03 o parser só aceitava a 2 e essas 31 saíam SEM geometria,
+    # contadas como "peça sem 3D" — e a contagem de raízes divergia porque o
+    # bloco não consumido deixava 0x5B/0x5D dos doubles à vista do scanner.
+    if ver not in MESH_VERSOES or not n_coord or n_coord % 3:
+        warnings.warn(
+            f'OQ3D: bloco de malha em +{off} com layout inesperado '
+            f'(versão {ver}, {n_coord} coordenadas) — pulado; a geometria '
+            f'desta simbologia está incompleta.',
+            OQ3DAvisoParse, stacklevel=3)
         return off
     idx_off = off + 12 + n_coord * 8
     if idx_off + 8 > n:
-        return off
+        raise OQ3DError(f'blob truncado: {n_coord} coordenadas declaradas × 8 bytes '
+                        f'excedem o buffer restante')
     n_idx = struct.unpack_from('<I', buf, idx_off)[0]
-    end = idx_off + 8 + n_idx * 4
-    if n_idx % 3 or end > n:
+    if not n_idx or n_idx % 3:
+        warnings.warn(
+            f'OQ3D: bloco de malha em +{off} com {n_idx} índices (não múltiplo '
+            f'de 3 ou zero) — pulado; a geometria desta simbologia está incompleta.',
+            OQ3DAvisoParse, stacklevel=3)
         return off
+    end = idx_off + 8 + n_idx * 4
+    if end > n:
+        raise OQ3DError(f'blob truncado: {n_idx} índices declarados × 4 bytes '
+                        f'excedem o buffer restante')
 
     if HAS_NUMPY:
         verts = np.frombuffer(buf, '<f8', n_coord, off + 12).reshape(-1, 3)

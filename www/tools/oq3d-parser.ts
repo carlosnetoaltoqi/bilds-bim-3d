@@ -100,8 +100,14 @@ function classAt(buf: Buffer, p: number): { name: string; payloadOffset: number 
  * Lê a malha indexada de um TQi3DIndexedTriangleMeshData.
  * Lança OQ3DError se a contagem declarada exceder o buffer —
  * sem alocar nenhum array antes da validação.
- * Retorna null para layout inválido não-malicioso (versão ≠ 2, zero coords, etc.)
+ * Retorna null para layout inválido não-malicioso (versão desconhecida, zero coords, etc.)
+ *
+ * Versões 2 e 3 têm layout idêntico; a 3 aparece na Maxbar (31 de 135
+ * simbologias) e até 2026-09-03 era rejeitada aqui e no oq3d.py — a peça
+ * saía sem geometria. Espelha MESH_VERSOES do scripts/oq3d.py.
  */
+const MESH_VERSOES = new Set([2, 3]);
+
 function readMesh(
   buf: Buffer,
   off: number,
@@ -113,7 +119,7 @@ function readMesh(
   const nCoord = buf.readUInt32LE(off + 4);
   // off+8: reservado
 
-  if (ver !== 2 || nCoord === 0 || nCoord % 3 !== 0) return null;
+  if (!MESH_VERSOES.has(ver) || nCoord === 0 || nCoord % 3 !== 0) return null;
 
   // Segurança: validar tamanho ANTES de qualquer alocação
   const coordsEndOff = off + 12 + nCoord * 8;
