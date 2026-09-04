@@ -52,7 +52,7 @@ não está aqui, isso é uma falha desta documentação — registre-a antes de 
 | **Rotas da API da POC, páginas do web, como subir e testar `www/`** | `www/README.md` (mapa) + este arquivo (decisões) |
 | **Testes do editor e dos conversores** | `www/tools/testes-editor.sh`, `www/tools/e2e/*.mjs`, `www/tools/roundtrip-*.mts` |
 | **Vocabulário do editor** (Parte, Bake, Original preservado, Importação CAD, caminho exato/rápido, arestas de borda) | `CONCEPTS.md` |
-| **Pendências de sistema levantadas para "passar a limpo" (C1–C10, I1–I25, L1–L14) e a ordem sugerida** | **`docs/auditoria-2026-09-03-pendencias.md`** |
+| **Pendências de sistema levantadas para "passar a limpo" (C1–C10, I1–I25, L1–L14) e a ordem sugerida** | **`docs/auditoria-2026-09-03-pendencias.md`** + registro `docs/sessoes/S7.4-auditoria-passar-a-limpo.md` |
 
 ### Skills — versionadas aqui, em `docs/skills/`
 
@@ -110,6 +110,17 @@ para servir de base à POC de edição (ver "POC de edição", abaixo):
 
 Para voltar ao vazio: `deleteMany({})` nas quatro coleções e apagar `www/storage/bim/*/*`
 (receita em "POC subida local, armadilha do Atlas e limpeza da base", no histórico).
+
+> **👉 Fase atual (desde 2026-09-03, S7.4): passar o projeto a limpo.** Os catálogos são
+> POC e ninguém os consome — o que importa é a geração **acusar erro** e código +
+> conhecimento serem corrigidos. A lista de pendências, com evidência e ordem de ataque,
+> está em `docs/auditoria-2026-09-03-pendencias.md`; C1–C4 e C8 já foram corrigidos. **A
+> próxima sessão começa no passo 2 da ordem sugerida** (I1, I2, I3, I7, I8 e a suíte
+> `tests/` de I9) — ver "Onde a próxima sessão começa" em
+> `docs/sessoes/S7.4-auditoria-passar-a-limpo.md`. Cinco decisões esperam o usuário: C5
+> (push da branch), C6 (histórico git), C7 (deploy do preview), I10 (auth na POC), I6
+> (modo `--ifc`). A raiz está **sem `config.json`** (apagado na S7.4; o build interativo
+> recria) e a tabela acima está um import atrás (resíduo `dd393c56` dos testes).
 
 O que a API devolve com a base **vazia**, conferido em 2026-09-02:
 
@@ -1675,6 +1686,8 @@ python3 -m http.server 8080 --directory output/preview
 ## Histórico de sessões
 
 ### 2026-09-03 — S7.4: auditoria de pendências de sistema (início do "passar a limpo")
+
+Registro completo em `docs/sessoes/S7.4-auditoria-passar-a-limpo.md`. Commit `e45afa8`.
 
 Diretriz nova do usuário: **os catálogos gerados são POC e ninguém os consome; podem
 ficar errados desde que a geração acuse o erro e que código e conhecimento sejam
