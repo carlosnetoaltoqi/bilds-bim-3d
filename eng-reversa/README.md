@@ -107,7 +107,7 @@ Todas são independentes e somente-leitura sobre as bibliotecas de `input/`.
 ### Refazer tudo
 
 ```bash
-cd /home/foltz/bilds-bim-3d
+cd <raiz do repositório>
 
 # 1. PDF → células com coordenadas → catálogo estruturado
 python3 eng-reversa/tools/pdf_coords.py \

@@ -109,15 +109,20 @@ Escolhido automaticamente: `series-rows` se a biblioteca tem curvas Q-H, `catalo
 
 ## Publicar o preview
 
-O push para `main` dispara o deploy na Vercel automaticamente.
+`output/preview/` é **gitignored** (só a landing `index.html` é versionada) e a integração
+git da Vercel está **desligada** desde 2026-09-02 — push não publica nada. O único fluxo
+que funciona é o CLI, sempre da raiz do repositório, depois de um build local:
 
 ```bash
-git add output/preview/
-git commit -m "build: catálogo <slug>"
-git push
+python3 scripts/build.py --all        # gera output/preview/ nesta máquina
+vercel --prod --yes                   # sobe output/preview/ (vercel.json) para bilds-bim-3d.vercel.app
 ```
 
 Índice em `bilds-bim-3d.vercel.app`, cada catálogo em `bilds-bim-3d.vercel.app/<slug>`.
+**Nunca** passe `output/preview` como argumento do `vercel` — isso ignora o
+`.vercel/project.json` e cria um projeto novo. A estratégia definitiva (build na Vercel,
+storage externo ou preview só local) é uma decisão em aberto — item C7 de
+`docs/auditoria-2026-09-03-pendencias.md`.
 
 ## Ferramentas auxiliares
 
@@ -130,7 +135,7 @@ python3 scripts/read_aq.py caminho/para/pecas.aq --meta
 ## Testes
 
 ```bash
-python3 -m pytest                                   # 43 testes, ≈ 20 s
+python3 -m pytest                                   # 53 testes, ≈ 20 s
 python3 -m pytest -m "not thumbs"                   # sem abrir o Chromium
 python3 -m pytest -m "not thumbs and not paridade"  # só Python, sem Node
 ```
@@ -204,9 +209,9 @@ Se em vez disso aparecer `AVISO: N simbologia(s) descartada(s)` ou `AVISO: N sim
 
 Se faltar uma peça que deveria ter forma, verifique se ela existe só como IFC: nesse caso use `--ifc`.
 
-## POC de edição (branch `poc-edicao`, local)
+## POC de edição (em `www/`, local)
 
-Sobre a POC dinâmica em `www/` (NestJS + Next.js + Mongo), a branch `poc-edicao` acrescenta
+Sobre a POC dinâmica em `www/` (NestJS + Next.js + Mongo), a POC de edição acrescenta
 **edição das informações e do modelo 3D** de cada produto, sem login:
 
 ```bash
@@ -230,7 +235,7 @@ potência e conexões no banco, com "voltar" por campo. Detalhes em
 
 ## Peça STEP ou IFC no editor, e saída em `.aq`
 
-Na mesma branch, um `.stp`/`.step` (Inventor, SolidWorks, CATIA…) ou um `.ifc` entra no
+No mesmo `www/`, um `.stp`/`.step` (Inventor, SolidWorks, CATIA…) ou um `.ifc` entra no
 editor como produto de um catálogo e sai como IFC4 ou `.aq`:
 
 ```bash

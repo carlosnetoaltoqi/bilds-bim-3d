@@ -30,7 +30,7 @@ Malha 3D gerada por parâmetro a partir do diâmetro nominal do catálogo e de p
 
 ---
 
-## Editor 3D e conversores CAD (POC de edição, branch `poc-edicao`)
+## Editor 3D e conversores CAD (POC de edição, `www/`)
 
 ### Parte
 Unidade de edição no editor 3D: `{ pos, col, idx, matrix, visible, marker }`. Nasce da

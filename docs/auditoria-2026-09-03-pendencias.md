@@ -31,7 +31,7 @@ código foram reproduzidos uma segunda vez antes de fechar este documento.
 | **C6** ✅ | 398 MB de geometria morta (`output/preview/**`) no histórico git e no GitHub — **corrigido 2026-09-03** (S7.5, `git filter-repo` + force-push) | repo |
 | **C7** | Deploy da Vercel é irreproduzível: serve o `output/preview` local desta máquina | infra |
 | **C8** ✅ | Diagnóstico do CLAUDE.md manda usar `latin-1`; o correto é cp1252 — **corrigido 2026-09-03** | docs |
-| **C9** | README ensina fluxo de publicação que não publica nada | docs |
+| **C9** ✅ | README ensina fluxo de publicação que não publica nada — **corrigido 2026-09-04** (S7.8: seção "Publicar o preview" descreve o CLI e o gitignore; C7 continua em aberto) | docs |
 | **C10** | Estado da base aparece em três versões contraditórias no CLAUDE.md | docs |
 | I1 ✅ | Miniaturas degradam em silêncio no build (ZIP sem `thumbs/`, exit 0) — **corrigido 2026-09-03** (S7.6: `ThumbsError`, `--allow-no-thumbs`, `thumbCount`) | geração |
 | I2 ✅ | Geometria inválida/vazia contabilizada como "tubos/kits"; `_read_mesh` muda — **corrigido 2026-09-03** (S7.6: `diag` por categoria; `_read_mesh` lança em truncado; **bônus: malha versão 3 da Maxbar, 56 peças recuperadas**) | geração |
