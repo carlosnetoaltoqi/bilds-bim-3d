@@ -16,6 +16,7 @@ import { WorkerResult, ProductResult, CatalogMeta } from './parse-worker';
 import { ThumbWorkerInput } from './thumb-worker';
 import { aguardarResultado, aguardarMiniaturas, descreveResumo, ResumoMiniaturas } from './worker-ipc';
 import { storagePath } from '../common/storage-path';
+import { FILA_IMPORTACOES, Fila } from '../common/fila';
 
 const WORKER_TIMEOUT_MS = 5 * 60 * 1000; // 5 min
 /** thumb-worker sem mensagem por este tempo = Chromium travado: mata e registra (I15). */
@@ -31,6 +32,7 @@ export class ImportacoesService {
     @InjectModel(BimProduct.name) private readonly productModel: Model<BimProductDocument>,
     @InjectModel(Company.name) private readonly companyModel: Model<CompanyDocument>,
     @Inject('GEOMETRY_STORE') private readonly store: IGeometryStore,
+    @Inject(FILA_IMPORTACOES) private readonly fila: Fila,
   ) {}
 
   async findById(importId: string) {
@@ -91,10 +93,17 @@ export class ImportacoesService {
     });
 
     this.logger.log(`import ${importId} criado — disparando processamento`);
-    // processAsync registra as falhas no documento; se nem isso conseguir, fica no log
-    this.processAsync(importId, filePath, company._id as string).catch((e: any) =>
-      this.logger.error(`[${importId.slice(0, 8)}] processAsync escapou — ${e?.message ?? e}`),
-    );
+    // Uma importação por vez (I11): as demais esperam em `recebido` com a posição no `note`.
+    // processAsync registra as falhas no documento; se nem isso conseguir, fica no log.
+    this.fila
+      .executar(importId, () => this.processAsync(importId, filePath, company._id as string), (naFrente) => {
+        if (naFrente > 0) {
+          this.logger.log(`[${importId.slice(0, 8)}] na fila — ${naFrente} à frente`);
+          this.importModel.findByIdAndUpdate(importId, { note: `na fila — ${naFrente} importação(ões) à frente`, updatedAt: new Date() })
+            .exec().catch(() => undefined);
+        }
+      })
+      .catch((e: any) => this.logger.error(`[${importId.slice(0, 8)}] processAsync escapou — ${e?.message ?? e}`));
 
     return { importId, status: 'recebido' };
   }

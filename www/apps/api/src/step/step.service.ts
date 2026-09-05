@@ -13,6 +13,7 @@ import { Company, CompanyDocument } from '../companies/companies.schema';
 import { IGeometryStore } from '../geometry-store/geometry-store.interface';
 import { ImportacoesService } from '../importacoes/importacoes.service';
 import { GeoBuffers } from '../common/geo-buffers';
+import { FILA_IMPORTACOES, Fila } from '../common/fila';
 
 /**
  * STEP ↔ geometria do viewer, e geometria → `.aq` (POC de edição — sem auth).
@@ -100,6 +101,7 @@ export class StepService {
     @InjectModel(Company.name) private readonly companyModel: Model<CompanyDocument>,
     @Inject('GEOMETRY_STORE') private readonly store: IGeometryStore,
     private readonly importacoes: ImportacoesService,
+    @Inject(FILA_IMPORTACOES) private readonly fila: Fila,
   ) {}
 
   // ── Python ───────────────────────────────────────────────────────────────
@@ -203,11 +205,17 @@ export class StepService {
       note: `${StepService.formatoDe(opts.fileName).toUpperCase()} de ${((opts.fileSize ?? 0) / 1024 / 1024).toFixed(1)} MB recebido`,
       updatedAt: new Date(),
     });
-    // não aguarda: erros vão para o documento do import
+    // não aguarda: erros vão para o documento do import. Mesma fila dos imports de .aq (I11);
     // processar registra a falha no documento; se nem isso conseguir, fica no log
-    this.processar(importId, company as any, opts).catch((e: any) =>
-      this.logger.error(`import ${importId.slice(0, 8)} — processar escapou: ${e?.message ?? e}`),
-    );
+    this.fila
+      .executar(importId, () => this.processar(importId, company as any, opts), (naFrente) => {
+        if (naFrente > 0) {
+          this.logger.log(`import ${importId.slice(0, 8)} na fila — ${naFrente} à frente`);
+          this.importModel.findByIdAndUpdate(importId, { note: `na fila — ${naFrente} importação(ões) à frente`, updatedAt: new Date() })
+            .exec().catch(() => undefined);
+        }
+      })
+      .catch((e: any) => this.logger.error(`import ${importId.slice(0, 8)} — processar escapou: ${e?.message ?? e}`));
     return { importId, status: 'recebido', statusUrl: `/cad/importacoes/${importId}` };
   }
 

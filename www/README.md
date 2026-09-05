@@ -407,6 +407,7 @@ cp www/.env.example www/.env
 | `STORAGE_PATH` | Onde o `DiskGeometryStore` grava geometria, miniaturas e logos. Relativo ao CWD da API (`www/apps/api`). Resolvida só em `apps/api/src/common/storage-path.ts` (I17); sem ela, `<cwd>/storage` e um aviso no boot. |
 | `WEB_ORIGIN` (opcional) | Origem aceita no CORS da API. Padrão `http://localhost:3000`. |
 | `PORT` (opcional) | Porta da API. Padrão `4000` (I17, 2026-09-05 — antes era fixa em `main.ts`). |
+| `IMPORTACOES_CONCORRENCIA` (opcional) | Quantas importações (`.aq` e CAD) rodam ao mesmo tempo. Padrão `1`: uma fila em memória (`common/fila.ts`); as demais ficam em `recebido` com `na fila — N à frente` no `note`. No boot, imports que a queda anterior deixou abertos viram `falhou` e os uploads temporários são apagados (I11). |
 | `NEXT_PUBLIC_API_URL` / `API_URL` (opcionais) | Base da API para o browser e para o servidor Next; no servidor `API_URL` tem precedência. Padrão `http://localhost:4000`. Resolvida em um só lugar, `apps/web/src/lib/api.ts` — `tests/test_www_config.py` acusa qualquer `localhost:4000` fora dele (I17). |
 | `JSON_BODY_LIMIT` (opcional) | Limite do body JSON — o `PUT /geometrias/:id` recebe MB. Padrão `300mb`. |
 | `PYTHON` (opcional) | Interpretador dos conversores `scripts/{step_to_geo,ifc_to_geo,geo_to_aq}.py`. Padrão `python3`; precisa de `cadquery-ocp` e `ifcopenshell` para STEP e IFC grande. |
