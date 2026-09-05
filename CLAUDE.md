@@ -84,12 +84,15 @@ a conferência do exportador IFC no `testes-editor.sh` acusava fronteira de arre
 **S7.11 (2026-09-05):** três itens de `www/` — I15 (morte de processo filho não é mais engolida:
 `importacoes/worker-ipc.ts`, resumo das miniaturas no import, JSON órfão do STEP limpo), I17 (host,
 `PORT` e `STORAGE_PATH` resolvidos em um lugar cada, com guarda de regressão) e I14 (`PUT`/`restaurar`
-de geometria regeram a miniatura). Suíte: **76 testes**, `python3 -m pytest` ≈ 55 s.
+de geometria regeram a miniatura). **S7.12 (2026-09-05):** os três itens de `www/` que restavam — I16
+(`ValidationPipe` global + um DTO por corpo), I11 (fila de importações em memória e recuperação no boot)
+e I12 (`@nestjs/mongoose@11`, um só driver Mongo, health pela conexão). Com isso **todos os itens de
+`www/` da auditoria estão fechados**. Suíte: **100 testes**, `python3 -m pytest` ≈ 50 s.
 
-**Próxima sessão:** ver `docs/sessoes/S7.11-i15-i17-i14-www.md`, seção 7. Em resumo: os itens de `www/`
-que restam (I11 fila/recuperação da importação, I12 Nest × Mongoose, I16 `ValidationPipe`), a limpeza
-L1–L14 conforme cada área for tocada, e as **decisões que só o usuário toma**: C7 (deploy do preview),
-I10 (auth na POC), I4 (promover o writer de `.aq`), LICENSE, se vale um `--strict`.
+**Próxima sessão:** ver `docs/sessoes/S7.12-i16-i11-i12-www.md`, seção 7. Restam a limpeza L1–L14
+conforme cada área for tocada, o teste de aceitação com a API de pé (S7.11 §7 e S7.12 §7), e as
+**decisões que só o usuário toma**: C7 (deploy do preview), I10 (auth na POC), I4 (promover o writer de
+`.aq`), LICENSE, se vale um `--strict`, se `STORAGE_PATH` vira obrigatória, se o Nest sobe para 11.
 
 **Estado da base da POC:** em `www/README.md`, "Estado da base e do storage" — única versão.
 A raiz está **sem `config.json`** (o build interativo recria).
@@ -206,7 +209,7 @@ esperadas estão **nos arquivos**, não em texto: `.python-version`, `.nvmrc`, `
 ## Testes — `tests/`
 
 ```bash
-python3 -m pytest                                   # 76 testes, ≈ 55 s (abre o Chromium uma vez)
+python3 -m pytest                                   # 100 testes, ≈ 50 s (abre o Chromium uma vez)
 python3 -m pytest -m "not thumbs"                   # sem Chromium — é o que o CI roda
 python3 -m pytest -m "not thumbs and not paridade"  # só Python, sem Node
 ```
@@ -222,6 +225,9 @@ python3 -m pytest -m "not thumbs and not paridade"  # só Python, sem Node
 | `test_worker_ipc.py` | `www/apps/api/src/importacoes/worker-ipc.ts` (I15): filho falso morrendo de cada jeito (exit 0 sem mensagem, exit ≠ 0, sinal, timeout, ocioso, `error`), cada `type:'error'` contado, gancho que rejeita vira falha; thumb-worker real com geoKey inexistente |
 | `test_www_config.py` | I17: só `lib/api.ts` conhece `localhost:4000`; só `common/storage-path.ts` lê `STORAGE_PATH`; `main.ts` escuta `PORT`; o resolvedor roda no Node |
 | `test_geometrias_thumb.py` | I14: `PUT`/`restaurar` chamam `regerarMiniatura(productId, importId, geoKey)`; falha do thumb-worker vira `thumbErro` no produto (controller e service sem Nest/Mongo, via ts-node) |
+| `test_www_validacao.py` | I16: 36 corpos pelo mesmo `ValidationPipe` do `main.ts` contra cada DTO — aceitos saem normalizados (trim, `specs` em texto, `curva` ordenada), rejeitados dão 400 com a mensagem; campo fora do DTO é 400 |
+| `test_www_importacao.py` | I11: `Fila` (FIFO, posição informada, rejeição repassada, concorrência 2, `IMPORTACOES_CONCORRENCIA` inválida derruba); recuperação no boot marca `falhou` todo não terminal, limpa produtos/`geo/`, apaga só `bim-*.aq`/`cad-*` do tmp |
+| `test_www_deps.py` | I12: lê `pnpm-lock.yaml` — peers de `@nestjs/mongoose` e `@nestjs/platform-express` satisfeitas pelo Nest instalado; sem pacote `mongodb` nem `from 'mongodb'` em `apps/api`/`tools`; health com `@InjectConnection()` |
 | `test_bootstrap.py` | `bootstrap.sh --check` imprime a tabela e acusa Node ausente com exit 1 |
 
 Fixtures reais são os `.aq` de `input/` e o `www/storage/` — gitignored, então esses testes

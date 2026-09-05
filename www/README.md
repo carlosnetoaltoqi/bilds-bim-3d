@@ -29,17 +29,17 @@ ver "A API não sobe e o Mongoose culpa o whitelist", abaixo.
 |---|---|---|
 | `POST /auth/login` | — | JWT do usuário semente (não consulta o banco) |
 | `POST /empresas`, `GET /empresas/minha`, `GET /logos/:id` | Bearer | empresa do usuário |
-| `POST /importacoes`, `GET /importacoes/ultima`, `GET /importacoes/:id` | Bearer | import de `.aq` (worker em processo filho); o documento traz `thumbCount`/`thumbFailed`/`thumbError` e o `note` ganha `miniaturas: N/M geradas…` ao fim do lote (I15) |
+| `POST /importacoes`, `GET /importacoes/ultima`, `GET /importacoes/:id` | Bearer | import de `.aq` (worker em processo filho); o documento traz `thumbCount`/`thumbFailed`/`thumbError` e o `note` ganha `miniaturas: N/M geradas…` ao fim do lote (I15); uma importação por vez, as outras esperam em `recebido` com `na fila — N à frente` (I11) |
 | `GET /catalogos/:empresa/:slug` | — | catálogo público `{ catalog, products }` |
-| `PATCH /catalogos/:catalogId` | — | título, fabricante, layout (POC de edição) |
-| `GET /produtos/:id`, `PATCH /produtos/:id` | — | informações do produto; `infoOriginal` na 1ª edição |
+| `PATCH /catalogos/:catalogId` | — | título, fabricante, layout (POC de edição); corpo validado por `PatchCatalogoDto` (I16) |
+| `GET /produtos/:id`, `PATCH /produtos/:id` | — | informações do produto; `infoOriginal` na 1ª edição; corpo validado por `PatchProdutoDto` — campo fora do DTO é 400, `specs` só texto/número/booleano, `curva` ≤ 1000 pontos (I16) |
 | `GET /geometrias/:id` | — | `{pos,col,idx}` com ETag por tamanho+mtime |
 | `PUT /geometrias/:id`, `GET …/original`, `POST …/restaurar` | — | geometria editada; original preservado em `<id>.orig.json`; ambos regeram a miniatura em segundo plano (I14) — `thumbAtualizadaEm`/`thumbErro` no produto |
 | `GET /thumbs/:id` | — | miniatura WebP |
-| `POST /cad/importar` (`?sync=1`), `GET /cad/importacoes/:id` | — | STEP/IFC → produto, assíncrono com status |
+| `POST /cad/importar` (`?sync=1`), `GET /cad/importacoes/:id` | — | STEP/IFC → produto, assíncrono com status; campos do formulário em `ImportarCadDto` (`deflexao` 0 < mm ≤ 10); mesma fila dos `.aq` (I11) |
 | `POST /cad/tesselar` | — | STEP/IFC → geometria, para "adicionar parte" no editor |
 | `POST /exportar/aq` | — | partes do editor → `.aq` (download) |
-| `GET /health` | — | `{ status, mongo }` |
+| `GET /health` | — | `{ status, mongo, conexao, banco }` pela conexão do Mongoose da API; **503** com o `readyState` quando desconectada (I12) |
 
 `/step/importar` e `/step/tesselar` são aliases de `/cad/*`.
 

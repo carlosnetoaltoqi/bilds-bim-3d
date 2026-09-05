@@ -43,12 +43,12 @@ código foram reproduzidos uma segunda vez antes de fechar este documento.
 | I8 ✅ | `oq3d_roundtrip.py` pula o caso real (caminho errado) e reporta sucesso — **corrigido 2026-09-04** (S7.7: caminho certo em `PADRAO_AQ`; `.aq` ausente é FALHA/exit 1, `--sem-real` pula de propósito; 4 testes) | testes |
 | I9 ✅ | Não há suíte de testes do pipeline; `validar_aq.py` é específico da Akato — **suíte criada 2026-09-03** (S7.6: `tests/`, 43 testes, paridade py ↔ ts); a parte do `validar_aq.py` segue em aberto como L-item | testes |
 | I10 | Rotas de escrita/conversão sem auth, body 300 MB, upload 1 GB, python sem concorrência | www |
-| I11 | Importação assíncrona sem fila nem recuperação após restart | www |
-| I12 | `@nestjs/mongoose@12` sobre Nest 10 (peer violada); dois drivers Mongo | www |
+| I11 ✅ | Importação assíncrona sem fila nem recuperação após restart — **corrigido 2026-09-05** (S7.12: `common/fila.ts` com `IMPORTACOES_CONCORRENCIA`; `RecuperacaoService` marca `falhou` no boot e apaga uploads temporários) | www |
+| I12 ✅ | `@nestjs/mongoose@12` sobre Nest 10 (peer violada); dois drivers Mongo — **corrigido 2026-09-05** (S7.12: `@nestjs/mongoose@11`; `mongodb` removido; health pela conexão do Mongoose; guarda `tests/test_www_deps.py`) | www |
 | I13 ✅ | `testes-editor.sh` falha sempre (métrica de round-trip errada), não sinaliza nada — **corrigido 2026-09-04** (S7.7: agrupamento por grade a ≤ 2 µm com union-find, triângulos por grupo e sentido; 22 geometrias do storage passam; `ROUNDTRIP_SABOTAR` prova que a métrica falha; `tests/test_editor_roundtrips.py`) | testes |
 | I14 ✅ | Miniatura desatualizada após editar geometria — **corrigido 2026-09-05** (S7.11: `PUT`/`restaurar` disparam `regerarMiniatura`; `thumbAtualizadaEm`/`thumbErro` no produto) | www |
 | I15 ✅ | Erros de processo filho engolidos (`type:'error'` do thumb-worker; promise presa) — **corrigido 2026-09-05** (S7.11: `worker-ipc.ts`; exit sem resultado é erro; resumo das miniaturas no import; JSON órfão do STEP limpo) | www |
-| I16 | Validação de entrada 100% manual, sem `ValidationPipe` | www |
+| I16 ✅ | Validação de entrada 100% manual, sem `ValidationPipe` — **corrigido 2026-09-05** (S7.12: pipe global + DTOs para todos os corpos; `IsSpecs`/`IsCurva`; limites de POC; `tests/test_www_validacao.py`) | www |
 | I17 ✅ | `http://localhost:4000` hardcoded em 3 páginas; porta fixa; dois defaults de `STORAGE_PATH` — **corrigido 2026-09-05** (S7.11: só `lib/api.ts` conhece o host; `PORT`; `common/storage-path.ts`; guarda em `tests/test_www_config.py`) | www |
 | I18 ✅ | npm + pnpm na raiz, dois lockfiles versionados — **corrigido 2026-09-04** (S7.8: `package-lock.json` removido, pnpm só) | repo |
 | I19 ✅ | Zero pins de versão (Node/pnpm/Python) — **corrigido 2026-09-04** (S7.8: `.nvmrc` 24, `.python-version` 3.12, `packageManager`/`engines` nos dois `package.json`; CI lê deles). A heurística `_find_node` do `build.py` fica, porque o nvm não entra no PATH de subprocess | repo |
@@ -212,13 +212,19 @@ código foram reproduzidos uma segunda vez antes de fechar este documento.
   números; upload 1 GB em `os.tmpdir()` (`step.controller.ts:35-40`); `python3` por até
   30 min sem limite de concorrência (Revit = 3,6 GB RSS por processo). Guard ou
   `EDICAO_ABERTA=1` explícito; `JSON_BODY_LIMIT` ~50 MB; semáforo de 1 nas conversões.
-- **I11.** `step.service.ts:207` (`.catch(() => {})`) e `importacoes.service.ts:90` em
-  memória. Restart deixa `BimImport` em `recebido/parseando/gravando` para sempre e a
-  página em "Convertendo…"; multer não limpa o tmp. No `onModuleInit`, marcar `falhou` os
-  não terminais com `updatedAt` > 1 h.
-- **I12.** `@nestjs/mongoose@12.0.0` exige Nest ^11||^12; instalado `10.4.22`. `mongodb@6`
-  só em `health.controller.ts:2`; `mongoose@9.9.4` traz `mongodb ~7.5`. Health via
-  `@InjectConnection()`; alinhar Nest.
+- **I11.** ✅ (S7.12, 2026-09-05) A importação rodava em memória sem fila; restart deixava `BimImport`
+  em `recebido/parseando/gravando` para sempre (página em "Convertendo…") e o multer não limpava o tmp.
+  Agora `common/fila.ts` (FIFO, `IMPORTACOES_CONCORRENCIA`, padrão 1) serializa `.aq` e CAD, com
+  `na fila — N à frente` no `note`; `importacoes/recuperacao.service.ts` marca `falhou` no boot **todo**
+  não terminal (a POC é um processo — nada pode estar legitimamente em andamento; o `> 1 h` sugerido
+  aqui ficou como parâmetro `minIdadeMs` para um sweep futuro), limpa produtos e `geo/<importId>/` e
+  apaga `bim-<uuid>.aq`/`cad-<uuid>.<ext>` do tmp. Teste: `tests/test_www_importacao.py`.
+- **I12.** ✅ (S7.12, 2026-09-05) `@nestjs/mongoose@12.0.0` exigia Nest ^11||^12 sobre `10.4.22`;
+  `mongodb@6` só no health; `mongoose@9.9.4` traz `mongodb 7.5`. Resolvido **descendo** `@nestjs/mongoose`
+  para 11.0.4 (peers ^10||^11 — subir o Nest para 11 traz Express 5 e `path-to-regexp` 8, sem ganho para
+  a POC), removendo `mongodb` de `apps/api` (as ferramentas de `www/tools` usam `mongoose.mongo`) e
+  reescrevendo o health com `@InjectConnection()` (503 quando `readyState ≠ 1`). Guarda:
+  `tests/test_www_deps.py` lê o lockfile e acusa peer violada.
 - **I14.** ✅ (S7.11, 2026-09-05) `geometrias.controller.ts` não chamava o thumb-worker no `PUT`. Confirmado: 4CV
   (`fa9806df`) com `geoEditadoEm` e thumb do import. Agora `PUT` e `restaurar` disparam
   `ImportacoesService.regerarMiniatura` (mesma chave, bytes novos; ETag por tamanho+mtime revalida) e o
@@ -230,9 +236,13 @@ código foram reproduzidos uma segunda vez antes de fechar este documento.
   timeout/ocioso mata com SIGKILL); `gerarMiniaturas` grava `thumbCount`/`thumbFailed`/`thumbError` e
   uma linha no `note` do import; `limparImport` remove `geo/<importId>/` sempre que a publicação falha.
   Teste: `tests/test_worker_ipc.py` (11 cenários, inclusive o thumb-worker real).
-- **I16.** Zero `ValidationPipe`/`class-validator`. `produtos.controller.ts:76` transforma
-  objeto em `"[object Object]"`; `curva` e `partes` sem limite; `info.specs` livre ao
-  Python.
+- **I16.** ✅ (S7.12, 2026-09-05) Zero `ValidationPipe`/`class-validator`; `specs` virava
+  `"[object Object]"`; `curva` e `partes` sem limite; `info.specs` livre ao Python. Agora
+  `common/validation.ts` (pipe global: whitelist, forbidNonWhitelisted, transform; `IsSpecs`, `IsCurva`;
+  limites de POC) e um DTO por corpo: `PatchProdutoDto`, `PatchCatalogoDto`, `ExportarAqDto`,
+  `ImportarCadDto`, `CriarEmpresaDto`, `LoginDto`. Os números de `pos/col/idx` continuam no
+  `validateGeoBuffers` (loop simples; class-validator por elemento seria lento). Teste:
+  `tests/test_www_validacao.py` passa 36 corpos pelo mesmo pipe do `main.ts`.
 - **I17.** ✅ (S7.11, 2026-09-05) `http://localhost:4000` fixo em três páginas (ignoravam `lib/api.ts`);
   `main.ts` `listen(4000)` sem `PORT`; `STORAGE_PATH` com defaults distintos em `disk-geometry-store.ts`
   e `empresas.controller.ts`. Agora `lib/api.ts` é a única origem do host (páginas e os sete route
