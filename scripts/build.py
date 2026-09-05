@@ -9,7 +9,9 @@ MODO PADRÃO (só o .aq)
   SIMBOLOGIA_3D.SIMBOLOGIA_3D, no formato binário OQ3D (ver scripts/oq3d.py) —
   é o mesmo sólido que o AltoQi exporta como IFC. O vínculo peça → geometria
   vem da chave estrangeira PECA_SIMBOLOGIA_3D, então não existe file_map nem
-  matching por nome de arquivo.
+  matching por nome de arquivo. (O modo --ifc, que lia os IFCs da pasta e casava
+  nomes, foi removido em 2026-09-05 — I6; scripts/parse_ifc.py continua para o
+  conversor da POC, scripts/ifc_to_geo.py.)
 
 MODO LOTE (--all)
   python3 scripts/build.py --all
@@ -21,15 +23,6 @@ MODO LOTE (--all)
     input/Amanco/linha/pecas.aq  →  output/Amanco/linha/<slug>-<ts>.zip
     input/Dancor/pecas.aq        →  output/Dancor/<slug>-<ts>.zip
 
-MODO COMPATIBILIDADE (--ifc)
-  python3 scripts/build.py --ifc
-
-  Volta a ler os IFCs da pasta input/ para a geometria, usando o .aq apenas
-  para os dados de produto. Útil quando a biblioteca traz IFCs de peças que não
-  estão cadastradas no banco, ou para conferir uma contra a outra.
-  Combinável com --all: aí o file_map de cada biblioteca é montado a partir dos
-  IFCs que estiverem na pasta do próprio .aq.
-
 config.json (gerado pelo fluxo interativo; editável à mão):
   {
     "slug":        "bombas-de-combate-a-incendio",
@@ -37,10 +30,7 @@ config.json (gerado pelo fluxo interativo; editável à mão):
     "fabricante":  "Dancor",
     "descricao":   "...",
     "layout":      "series-rows",        // "series-rows" | "catalog-grid"
-    "aq_file":     "input/Dancor/pecas.aq",
-    "ifc_dir":     "input/",             // usado só com --ifc
-    "file_map":    { "CAM-W10.IFC": "cam-w10", ... },   // idem
-    "products_override": []              // peças no IFC e ausentes no .aq
+    "aq_file":     "input/Dancor/pecas.aq"
   }
 
 Saídas (<rel> = pasta do .aq relativa a input/):
@@ -70,9 +60,8 @@ import zipfile
 # Adiciona scripts/ ao path para importar os módulos irmãos
 sys.path.insert(0, os.path.dirname(__file__))
 
-from parse_ifc import parse_ifc_file
 from dedup import dedup
-from read_aq import extract as extract_aq, build_product_map
+from read_aq import extract as extract_aq
 
 try:
     from jinja2 import Environment, FileSystemLoader, StrictUndefined
@@ -92,7 +81,7 @@ THUMB_W, THUMB_H = 448, 324
 THUMB_MIME, THUMB_EXT, THUMB_QUALITY = 'image/webp', 'webp', 0.85
 
 
-# ─── Matching IFC → AQ ───────────────────────────────────────────────────────
+# ─── Nomes e slugs ───────────────────────────────────────────────────────────
 
 def slugify(s):
     s = unicodedata.normalize('NFD', s)
@@ -103,204 +92,6 @@ def slugify(s):
 def tokenize(s):
     """Tokens alfanuméricos em minúsculas extraídos de qualquer string."""
     return set(re.findall(r'[a-z0-9]+', s.lower()))
-
-
-def find_aq_product(slug, product_map, ifc_path_hint=None):
-    """
-    Associa um IFC a um grupo/peça no product_map do .aq.
-
-    Se ifc_path_hint for fornecido (caminho relativo do IFC, ex:
-    'Curvas/Curva 45 curta SN/100mm.ifc'), usa todos os componentes do
-    caminho como tokens de busca — útil quando a hierarquia de pastas
-    encode informação do produto ausente no slug isolado.
-
-    Estratégia:
-    1. Fuzzy por cobertura: score = fração dos tokens do GRUPO_PECA
-       cobertos pelos tokens do caminho completo.
-       Prioriza grupo com cobertura máxima e mais tokens (mais específico).
-       Dentro do grupo, seleciona a PECA com maior sobreposição com
-       os tokens do nome do arquivo (sem extensão).
-       Tenta primeiro cobertura 100%, relaxa para 75% se nada encontrado.
-    2. Fallback por prefixo/número para IFCs flat sem hierarquia de pastas.
-
-    Retorna (nome_gp, peca_dict) ou None.
-    """
-    if ifc_path_hint:
-        # Tokens de todos os componentes do caminho (sem extensão do arquivo)
-        path_no_ext = re.sub(r'\.[a-zA-Z0-9]+$', '', ifc_path_hint.replace('\\', '/'))
-        query_tokens = tokenize(path_no_ext.replace('/', ' '))
-        # Leaf: nome do arquivo sem extensão — usado para escolher PECA no grupo
-        leaf_no_ext = path_no_ext.split('/')[-1]
-        leaf_tokens = tokenize(leaf_no_ext)
-    else:
-        query_tokens = tokenize(slug)
-        leaf_tokens = query_tokens
-
-    # Passo 1: fuzzy por cobertura — tenta 100%, depois relaxa para 75%
-    for min_score in (1.0, 0.75):
-        best_score = -1.0
-        best_spec = 0
-        best_match = None
-
-        for nome_gp, group in product_map.items():
-            pecas = group.get('pecas', [])
-            if not pecas:
-                continue
-            gp_tokens = tokenize(nome_gp)
-            if not gp_tokens:
-                continue
-            covered = len(query_tokens & gp_tokens)
-            gp_score = covered / len(gp_tokens)
-            if gp_score < min_score:
-                continue
-            # Preferir o grupo mais específico (maior número de tokens cobertos)
-            if gp_score > best_score or (gp_score == best_score and len(gp_tokens) > best_spec):
-                # Dentro do grupo: PECA com maior sobreposição com o nome do arquivo
-                peca_best = pecas[0]
-                peca_best_score = -1.0
-                for peca in pecas:
-                    p_toks = tokenize(peca.get('nome', ''))
-                    p_score = len(leaf_tokens & p_toks) / max(len(p_toks), 1)
-                    if p_score > peca_best_score:
-                        peca_best_score = p_score
-                        peca_best = peca
-                best_score = gp_score
-                best_spec = len(gp_tokens)
-                best_match = (nome_gp, peca_best)
-
-        if best_match:
-            return best_match
-
-    # Passo 2: fallback por prefixo/número (IFCs flat sem hierarquia)
-    slug_norm = slugify(slug)
-    nums_slug = re.findall(r'\d+', slug_norm)
-    for nome_gp, group in product_map.items():
-        gp_norm = slugify(nome_gp)
-        nums_gp = re.findall(r'\d+', gp_norm)
-        prefix_match = (gp_norm.startswith(slug_norm[:12]) or slug_norm.startswith(gp_norm[:12])
-                        or gp_norm in slug_norm)
-        num_match = (bool(nums_gp) and nums_slug[:len(nums_gp)] == nums_gp)
-        if prefix_match or num_match:
-            pecas = group['pecas']
-            if pecas:
-                return nome_gp, pecas[0]
-    return None
-
-
-# ─── Geração do catalog.json ──────────────────────────────────────────────────
-
-def build_catalog(config, product_map, geo_files):
-    """
-    Combina dados do .aq com os slugs dos IFCs para gerar catalog.json.
-
-    catalog.json schema:
-    {
-      "slug": "...",
-      "titulo": "...",
-      "fabricante": "...",
-      "descricao": "...",
-      "layout": "series-rows" | "catalog-grid",
-      "filtros": ["W", "TJM", ...],
-      "produtos": [
-        {
-          "id": "cam-w10",
-          "nome": "CAM-W10 1CV T 220/380V INC FLG IR3",
-          "serie": "CAM-W10",
-          "geo": "cam-w10.json",
-          "potencia": 1.0,
-          "conexoes": "1½\" × 1½\"",
-          "specs": { "Tensão": "...", "Rotação": "..." },
-          "curva": [[vazao, altura, potencia, rend], ...] | null
-        }
-      ]
-    }
-    """
-    file_map = config.get('file_map', {})
-    overrides_by_slug = {p['id']: p for p in config.get('products_override', [])}
-
-    produtos = []
-    series_set = set()
-
-    for ifc_name, slug in file_map.items():
-        if slug not in geo_files:
-            print(f'  AVISO: geo/{slug}.json não encontrado (IFC não foi parseado?)')
-            continue
-
-        if slug in overrides_by_slug:
-            p = overrides_by_slug[slug].copy()
-            p['geo'] = f'{slug}.json'
-            produtos.append(p)
-            series_set.add(p.get('serie', ''))
-            continue
-
-        match = find_aq_product(slug, product_map, ifc_path_hint=ifc_name)
-        if match is None:
-            print(f'  AVISO: {slug} não encontrado no .aq — usando stub mínimo')
-            produtos.append({
-                'id': slug,
-                'nome': slug.replace('-', ' ').upper(),
-                'serie': '',
-                'geo': f'{slug}.json',
-                'potencia': None,
-                'conexoes': '',
-                'specs': {},
-                'curva': None,
-            })
-            continue
-
-        nome_gp, peca = match
-        serie = nome_gp.split()[0] if ' ' in nome_gp else nome_gp
-
-        # Nome completo: combina grupo + peça quando o grupo não está no nome da peça
-        nome_peca = peca['nome']
-        if nome_gp.lower() not in nome_peca.lower():
-            nome_peca = f'{nome_gp} {nome_peca}'
-
-        # Extrai potência do nome do grupo ou specs
-        pot = None
-        pot_match = re.search(r'(\d+(?:[.,]\d+)?)\s*CV', nome_gp, re.IGNORECASE)
-        if pot_match:
-            pot = float(pot_match.group(1).replace(',', '.'))
-        elif 'potencia_cv' in peca:
-            pot = peca.get('potencia_cv')
-
-        # Curva Q-H: lista de [vazao, altura, potencia, rendimento]
-        curva = None
-        if peca.get('curva_pts'):
-            curva = peca['curva_pts']
-
-        produto = {
-            'id': slug,
-            'nome': nome_peca,
-            'serie': serie,
-            'geo': f'{slug}.json',
-            'potencia': pot,
-            'conexoes': peca.get('conexoes', ''),
-            'specs': peca.get('specs', {}),
-            'curva': curva,
-        }
-        produtos.append(produto)
-        series_set.add(serie)
-
-    # Adiciona overrides que não estavam no file_map
-    for slug, p in overrides_by_slug.items():
-        if slug not in file_map.values():
-            p2 = p.copy()
-            p2['geo'] = f'{slug}.json'
-            produtos.append(p2)
-            series_set.add(p.get('serie', ''))
-
-    filtros = sorted([s for s in series_set if s])
-
-    return {
-        'slug': config['slug'],
-        'titulo': config['titulo'],
-        'fabricante': config['fabricante'],
-        'descricao': config.get('descricao', ''),
-        'layout': config.get('layout', 'series-rows'),
-        'filtros': filtros,
-        'produtos': produtos,
-    }
 
 
 # ─── Catálogo a partir do .aq (caminho padrão) ───────────────────────────────
@@ -536,55 +327,6 @@ def resumo_diag(diag, indent='    ', max_itens=5):
         if len(por_sim) > max_itens:
             print(f'{indent}    … e {len(por_sim) - max_itens} outra(s)')
     return problema
-
-
-# ─── Parse dos IFCs ───────────────────────────────────────────────────────────
-
-def run_ifc_parse(config, geo_dir=None):
-    """Parseia todos os IFCs do file_map e salva JSONs deduplicados em geo_dir."""
-    file_map = config.get('file_map', {})
-    ifc_dir = config.get('ifc_dir', 'input/')
-    geo_dir = geo_dir or GEO_DIR
-    os.makedirs(geo_dir, exist_ok=True)
-
-    parsed = []
-    for ifc_name, slug in file_map.items():
-        ifc_path = None
-        for candidate in [
-            os.path.join(ifc_dir, ifc_name),
-            os.path.join(ifc_dir, ifc_name.lower()),
-        ]:
-            if os.path.exists(candidate):
-                ifc_path = candidate
-                break
-
-        if not ifc_path:
-            # Fuzzy: prefixo de 20 chars
-            prefix = ifc_name[:20].lower()
-            for fname in os.listdir(ifc_dir):
-                if fname.lower()[:20] == prefix:
-                    ifc_path = os.path.join(ifc_dir, fname)
-                    break
-
-        if not ifc_path:
-            print(f'  AVISO: {ifc_name} não encontrado em {ifc_dir}')
-            continue
-
-        out_path = os.path.join(geo_dir, f'{slug}.json')
-        print(f'  Parseando: {ifc_name} → {slug}.json')
-        try:
-            raw = parse_ifc_file(ifc_path)
-            n_raw = len(raw['pos']) // 3
-            result, orig, dedup_n, pct = dedup(raw)
-            with open(out_path, 'w') as f:
-                json.dump(result, f, separators=(',', ':'))
-            size_kb = os.path.getsize(out_path) / 1024
-            print(f'    {orig} → {dedup_n} vértices ({pct:.0f}% redução), {size_kb:.0f}KB')
-            parsed.append(slug)
-        except Exception as e:
-            print(f'  ERRO ao parsear {ifc_name}: {e}')
-
-    return parsed
 
 
 # ─── Build do preview HTML ────────────────────────────────────────────────────
@@ -1130,95 +872,16 @@ def _common_prefix(nomes):
     return ' '.join(comum)
 
 
-def scan_input(input_dir):
-    """
-    Detecta arquivos e modo de mapeamento IFC → produto.
-
-    Três modos:
-    - 'flat'     : IFCs direto em input_dir — cada .ifc = um produto (Dancor)
-    - 'subdir'   : subdirs imediatos com IFCs — cada subdir = um produto
-    - 'recursive': IFCs em qualquer nível — cada .ifc = um produto (Amanco)
-
-    Retorna (ifc_entries, mode, aq_paths)
-      ifc_entries: lista de (display_name, suggested_slug)
-        - modo flat/subdir: display_name é o basename
-        - modo recursive: display_name é o caminho relativo a partir de input_dir
-      aq_paths: lista de caminhos absolutos para .aq (busca recursiva)
-    """
-    try:
-        entries = os.listdir(input_dir)
-    except FileNotFoundError:
-        return [], 'flat', []
-
-    # .aq: busca recursiva para pegar bibliotecas em subdirs (ex: Amanco)
+def find_aq_paths(input_dir):
+    """Caminhos absolutos de todos os .aq em input_dir (busca recursiva, ordem estável).
+    Pasta inexistente → lista vazia."""
     aq_paths = []
     for root, dirs, files in os.walk(input_dir):
         dirs.sort()
         for f in sorted(files):
             if f.lower().endswith('.aq'):
                 aq_paths.append(os.path.join(root, f))
-
-    ifc_flat = sorted(f for f in entries if f.lower().endswith('.ifc'))
-
-    # Detecta subdirs imediatos que contêm IFCs
-    subdir_counts = {}
-    for d in sorted(entries):
-        dpath = os.path.join(input_dir, d)
-        if os.path.isdir(dpath):
-            n = sum(1 for f in os.listdir(dpath) if f.lower().endswith('.ifc'))
-            if n > 0:
-                subdir_counts[d] = n
-
-    if ifc_flat:
-        entries_out = [
-            (f, slugify(os.path.splitext(f)[0])[:40])
-            for f in ifc_flat
-        ]
-        return entries_out, 'flat', aq_paths
-    elif subdir_counts and all(n == 1 for n in subdir_counts.values()):
-        # subdir mode: cada subdir tem exatamente 1 IFC → subdir = nome do produto
-        entries_out = [
-            (f'{d}/{next(f for f in os.listdir(os.path.join(input_dir, d)) if f.lower().endswith(".ifc"))}',
-             slugify(d))
-            for d in subdir_counts
-        ]
-        return entries_out, 'flat', aq_paths
-    else:
-        # Busca recursiva: cada IFC é um produto; display_name = path relativo
-        all_ifcs = []
-        for root, dirs, files in os.walk(input_dir):
-            dirs.sort()
-            rel_root = os.path.relpath(root, input_dir)
-            for f in sorted(files):
-                if f.lower().endswith('.ifc'):
-                    rel_path = os.path.join(rel_root, f) if rel_root != '.' else f
-                    all_ifcs.append(rel_path)
-
-        # Calcular prefixo comum de diretório para stripping nos slugs
-        def common_dir_prefix(paths):
-            if not paths:
-                return ''
-            parts_list = [p.replace(os.sep, '/').split('/')[:-1] for p in paths]
-            common = parts_list[0]
-            for parts in parts_list[1:]:
-                common = [c for c, p in zip(common, parts) if c == p]
-            return '/'.join(common) + '/' if common else ''
-
-        import hashlib
-        prefix = common_dir_prefix(all_ifcs)
-        seen_slugs = {}
-        entries_out = []
-        for rel_path in all_ifcs:
-            slug_base = rel_path.replace(os.sep, '/').replace(prefix, '', 1)
-            slug_base = os.path.splitext(slug_base)[0].replace('/', '-')
-            slug = slugify(slug_base)[:55]
-            # garantir unicidade: sufixo de 4 chars do hash do path
-            h = hashlib.md5(rel_path.encode()).hexdigest()[:4]
-            if slug in seen_slugs and seen_slugs[slug] != rel_path:
-                slug = slug[:50] + '-' + h
-            seen_slugs[slug] = rel_path
-            entries_out.append((rel_path, slug))
-        return entries_out, 'recursive', aq_paths
+    return aq_paths
 
 
 def infer_titulo(grupos):
@@ -1240,31 +903,9 @@ def infer_titulo(grupos):
     return title if len(title) > 3 else ''
 
 
-def match_slug_to_aq(slug, grupos):
-    """Tenta encontrar um NOME_GP do .aq que corresponda ao slug."""
-    slug_norm = slugify(slug)
-    best = None
-    best_score = 0
-    for g in grupos:
-        g_norm = slugify(g)
-        # Score: tamanho do prefixo comum
-        score = 0
-        for a, b in zip(slug_norm, g_norm):
-            if a == b:
-                score += 1
-            else:
-                break
-        if score > best_score and score >= 3:
-            best_score = score
-            best = g
-    return best
-
-
-def interactive_config(input_dir, existing=None, com_ifc=False):
+def interactive_config(input_dir, existing=None):
     """
-    Configura o catálogo interativamente.
-    com_ifc: quando False (padrão), a geometria vem do .aq e os IFCs são
-             ignorados — não há file_map a montar.
+    Configura o catálogo interativamente. A geometria e os dados vêm do .aq.
     existing: dict com valores do config.json atual (usados como defaults).
     """
     ec = existing or {}
@@ -1277,36 +918,21 @@ def interactive_config(input_dir, existing=None, com_ifc=False):
     print()
 
     # ── Scan do input_dir ────────────────────────────────────────
-    ifc_entries, mode, aq_paths = scan_input(input_dir)
-    if not com_ifc:
-        ifc_entries = []          # geometria vem do .aq; IFCs ignorados
-
-    n_ifc = len(ifc_entries)
-    n_aq  = len(aq_paths)
+    aq_paths = find_aq_paths(input_dir)
+    n_aq = len(aq_paths)
 
     if not aq_paths:
         print(f'  ERRO: nenhuma biblioteca .aq encontrada em {input_dir}')
         print('  Copie o arquivo .aq do fabricante para a pasta input/ e rode de novo.')
         sys.exit(1)
 
-    if com_ifc:
-        mode_labels = {'flat': 'arquivos individuais', 'subdir': 'subdirs de categoria',
-                       'recursive': 'busca recursiva'}
-        print(f'  Modo --ifc: {n_ifc} produto(s) como '
-              f'{mode_labels.get(mode, mode)}, {n_aq} biblioteca(s) .aq')
-        if not ifc_entries:
-            print('  AVISO: nenhum IFC encontrado — usando output/geo/ existente')
-    else:
-        print(f'  {n_aq} biblioteca(s) .aq — geometria e dados vêm do próprio .aq')
+    print(f'  {n_aq} biblioteca(s) .aq — geometria e dados vêm do próprio .aq')
     print()
 
     # ── Arquivo .aq ──────────────────────────────────────────────
     aq_file = None
     hints   = {}
-    if not aq_paths:
-        print('  Nenhuma biblioteca .aq — catálogo sem dados hidráulicos do AltoQi.')
-        print()
-    elif len(aq_paths) == 1:
+    if len(aq_paths) == 1:
         aq_file = aq_paths[0]
         print(f'  Lendo biblioteca: {os.path.basename(aq_file)}...')
         hints = peek_aq(aq_file)
@@ -1344,10 +970,7 @@ def interactive_config(input_dir, existing=None, com_ifc=False):
     if aq_stale:
         print('  AVISO: biblioteca .aq diferente do config.json anterior — reiniciando sugestões.\n')
 
-    # No modo padrão o tamanho do catálogo vem do .aq, não da contagem de IFCs
-    n_products = n_ifc if com_ifc else (hints.get('n_pecas') or 0)
-    if not n_products:
-        n_products = len(ec.get('file_map', {}))
+    n_products = hints.get('n_pecas') or 0
 
     _auto_layout = (
         'series-rows' if hints.get('has_curves') else
@@ -1387,29 +1010,6 @@ def interactive_config(input_dir, existing=None, com_ifc=False):
         default=sug_layout,
     )
 
-    # ── Mapeamento produto → slug ────────────────────────────────
-    file_map = {}
-    existing_fm = {} if aq_stale else ec.get('file_map', {})
-
-    if ifc_entries and n_ifc > 50:
-        # Muitos produtos: aceitar slugs automáticos sem prompt por item
-        print(f'\n  {n_ifc} produto(s) detectados — aceitando slugs automáticos\n')
-        for display, sug_slug_prod in ifc_entries:
-            file_map[display] = existing_fm.get(display, '') or sug_slug_prod
-    elif ifc_entries:
-        print(f'\n  Mapeamento de {n_ifc} produto(s) para slug:')
-        print('  (Enter para aceitar; o slug vira o nome do arquivo geo e da URL)\n')
-        for display, sug_slug_prod in ifc_entries:
-            existing_slug = existing_fm.get(display, '')
-            if not existing_slug and hints.get('grupos'):
-                matched_gp = match_slug_to_aq(sug_slug_prod, hints['grupos'])
-                if matched_gp:
-                    sug_slug_prod = slugify(matched_gp)[:40]
-            default_slug = existing_slug or sug_slug_prod
-            prod_slug = ask(display, default=default_slug)
-            if prod_slug:
-                file_map[display] = prod_slug
-
     # ── Monta e salva config ─────────────────────────────────────
     config = {
         'slug':              slug,
@@ -1417,9 +1017,6 @@ def interactive_config(input_dir, existing=None, com_ifc=False):
         'fabricante':        fabricante,
         'descricao':         descricao,
         'layout':            layout,
-        'ifc_dir':           input_dir,
-        'file_map':          file_map,
-        'products_override': ec.get('products_override', []),
     }
     if aq_file:
         config['aq_file'] = aq_file
@@ -1458,25 +1055,14 @@ def find_existing_zip(out_dir, slug):
     return os.path.join(out_dir, hits[-1]) if hits else None
 
 
-def auto_config(aq_path, input_dir, com_ifc=False):
-    """
-    Config inferido sem perguntar nada — usado no modo --all.
-
-    Com --ifc, o file_map é montado a partir da pasta do próprio .aq (e não do
-    input inteiro), para não misturar IFCs de bibliotecas diferentes.
-    """
+def auto_config(aq_path):
+    """Config inferido do .aq sem perguntar nada — usado no modo --all."""
     hints = peek_aq(aq_path)
     titulo = hints['titulo']
     fabricante = hints['fabricante']
     n = hints.get('n_pecas') or 0
     layout = ('series-rows' if hints.get('has_curves')
               else ('catalog-grid' if n > 6 else 'series-rows'))
-
-    aq_dir = os.path.dirname(os.path.abspath(aq_path))
-    file_map = {}
-    if com_ifc:
-        ifc_entries, _, _ = scan_input(aq_dir)
-        file_map = {display: slug for display, slug in ifc_entries}
 
     return {
         'slug': slugify(titulo or fabricante or 'catalogo'),
@@ -1485,9 +1071,6 @@ def auto_config(aq_path, input_dir, com_ifc=False):
         'descricao': '',
         'layout': layout,
         'aq_file': aq_path,
-        'ifc_dir': aq_dir if com_ifc else input_dir,
-        'file_map': file_map,
-        'products_override': [],
     }, hints
 
 
@@ -1498,25 +1081,10 @@ def run_build(config, aq_path, geo_dir, zip_dir, args):
     """
     os.makedirs(geo_dir, exist_ok=True)
 
-    if args.ifc:
-        if not args.skip_ifc:
-            print('  Parseando IFCs...')
-            geo_files = run_ifc_parse(config, geo_dir)
-            print(f'    {len(geo_files)} geometrias geradas')
-        else:
-            geo_files = [f[:-5] for f in os.listdir(geo_dir) if f.endswith('.json')] \
-                        if os.path.isdir(geo_dir) else []
-        print('  Lendo biblioteca .aq...')
-        aq_data = extract_aq(aq_path)
-        product_map = build_product_map(aq_data)
-        print(f'    {len(product_map)} grupos, '
-              f'{sum(len(g["pecas"]) for g in product_map.values())} peças')
-        catalog = build_catalog(config, product_map, set(geo_files))
-    else:
-        print('  Extraindo geometria do .aq...')
-        catalog, n_geo, diag = build_catalog_from_aq(config, aq_path, geo_dir)
-        print(f'    {n_geo} geometrias extraídas')
-        resumo_diag(diag)
+    print('  Extraindo geometria do .aq...')
+    catalog, n_geo, diag = build_catalog_from_aq(config, aq_path, geo_dir)
+    print(f'    {n_geo} geometrias extraídas')
+    resumo_diag(diag)
 
     print(f'    {len(catalog["produtos"])} produtos, layout: {catalog["layout"]}')
     if not catalog['produtos']:
@@ -1566,7 +1134,7 @@ def run_build(config, aq_path, geo_dir, zip_dir, args):
 
 def run_all(input_dir, args):
     """Processa todos os .aq do input, espelhando a estrutura de pastas na saída."""
-    _, _, aq_paths = scan_input(input_dir)
+    aq_paths = find_aq_paths(input_dir)
     if not aq_paths:
         print(f'Nenhuma biblioteca .aq encontrada em {input_dir}')
         sys.exit(1)
@@ -1581,7 +1149,7 @@ def run_all(input_dir, args):
         print(f'[{i}/{len(aq_paths)}] {os.path.join(rel_dir, nome) if rel_dir else nome}')
 
         try:
-            config, hints = auto_config(aq_path, input_dir, com_ifc=args.ifc)
+            config, hints = auto_config(aq_path)
         except Exception as e:
             print(f'    ERRO ao ler metadados: {e}\n')
             falhas.append((aq_path, str(e)))
@@ -1645,18 +1213,15 @@ def run_all(input_dir, args):
 def build_parser():
     parser = argparse.ArgumentParser(
         description='bilds-bim-3d — gera catálogo BIM 3D a partir de bibliotecas .aq',
-        epilog='Por padrão lê só o .aq. Use --ifc para também parsear os IFCs da pasta.')
+        epilog='Geometria e dados vêm todos do .aq (o modo --ifc foi removido em 2026-09-05, I6).')
     parser.add_argument('--config',       default='config.json', help='Arquivo de configuração')
-    parser.add_argument('--input-dir',    default='input',       help='Pasta com o(s) .aq (e IFCs, se --ifc)')
+    parser.add_argument('--input-dir',    default='input',       help='Pasta com o(s) .aq')
     parser.add_argument('--all', '-a',    action='store_true',
                         help='Processa TODOS os .aq de input/ e subpastas, sem perguntar. '
                              'Cada ZIP sai em output/ espelhando a pasta de origem. '
                              'Bibliotecas que já têm ZIP são puladas.')
     parser.add_argument('--force',        action='store_true',
                         help='Com --all: refaz também as bibliotecas que já têm ZIP')
-    parser.add_argument('--ifc',          action='store_true',
-                        help='Também lê os IFCs da pasta (modo antigo). '
-                             'Sem esta flag, a geometria vem toda do .aq.')
     parser.add_argument('--skip-preview', action='store_true',   help='Pula geração do preview HTML')
     parser.add_argument('--skip-thumbs',  action='store_true',
                         help='Nem tenta renderizar miniaturas (a página volta a gerá-las no browser)')
@@ -1664,7 +1229,6 @@ def build_parser():
                         help='Tenta renderizar; se falhar (sem Node/Playwright/Chromium, ou '
                              'geometria que não renderiza), avisa e segue em vez de falhar')
     parser.add_argument('--skip-zip',     action='store_true',   help='Pula geração do ZIP')
-    parser.add_argument('--skip-ifc',     action='store_true',   help=argparse.SUPPRESS)
     parser.add_argument('--layout',       choices=['series-rows', 'catalog-grid'], default=None,
                         help='Força layout (com --all: sufixo -grid ou -series no slug; '
                              'reutiliza geometria já extraída)')
@@ -1693,10 +1257,9 @@ def main():
         except (json.JSONDecodeError, OSError):
             existing = None
 
-    config = interactive_config(input_dir, existing, com_ifc=args.ifc)
+    config = interactive_config(input_dir, existing)
 
-    modo = 'aq + IFC' if args.ifc else 'somente .aq'
-    print(f'\n=== bilds-bim-3d: {config["titulo"]} ({modo}) ===\n')
+    print(f'\n=== bilds-bim-3d: {config["titulo"]} ===\n')
 
     aq_path = os.path.join(ROOT, config.get('aq_file', ''))
     if not os.path.exists(aq_path):

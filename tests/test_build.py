@@ -22,7 +22,7 @@ from oq3d_sintetico import com_raizes_declaradas, com_versao_malha, triangulo
 
 
 def _config_akato(aq):
-    config, _ = build.auto_config(aq, os.path.join(build.ROOT, 'input'))
+    config, _ = build.auto_config(aq)
     return config
 
 
@@ -37,6 +37,18 @@ def test_auto_config_akato(akato_aq):
     config = _config_akato(akato_aq)
     assert (config['fabricante'], config['titulo'], config['slug'], config['layout']) == \
         ('Akato', 'PVC Construção Civil', 'pvc-construcao-civil', 'catalog-grid')
+    # I6 (S7.10): sem ifc_dir/file_map/products_override — o config só descreve o .aq
+    assert set(config) == {'slug', 'titulo', 'fabricante', 'descricao', 'layout', 'aq_file'}
+
+
+def test_modo_ifc_removido(capsys):
+    # I6 (S7.10): a CLI recusa --ifc e o módulo não tem mais o caminho IFC
+    with pytest.raises(SystemExit) as e:
+        build.build_parser().parse_args(['--ifc'])
+    assert e.value.code == 2 and 'unrecognized arguments: --ifc' in capsys.readouterr().err
+    for nome in ('run_ifc_parse', 'find_aq_product', 'build_catalog', 'scan_input', 'match_slug_to_aq'):
+        assert not hasattr(build, nome), nome
+    assert build.find_aq_paths('/caminho/que/nao/existe') == []
 
 
 def test_build_catalog_from_aq_akato(saida, akato_aq):

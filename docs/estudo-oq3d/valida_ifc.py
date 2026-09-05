@@ -39,7 +39,96 @@ import numpy as np
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'scripts'))
 import oq3d
 import read_aq
-from build import find_aq_product
+from build import slugify
+
+# find_aq_product e tokenize vieram de scripts/build.py em 2026-09-05 (I6): o modo --ifc do
+# build foi removido e este estudo é o único lugar que ainda cruza IFC → .aq por nome.
+def tokenize(s):
+    """Tokens alfanuméricos em minúsculas extraídos de qualquer string."""
+    return set(re.findall(r'[a-z0-9]+', s.lower()))
+
+
+def find_aq_product(slug, product_map, ifc_path_hint=None):
+    """
+    Associa um IFC a um grupo/peça no product_map do .aq.
+
+    Se ifc_path_hint for fornecido (caminho relativo do IFC, ex:
+    'Curvas/Curva 45 curta SN/100mm.ifc'), usa todos os componentes do
+    caminho como tokens de busca — útil quando a hierarquia de pastas
+    encode informação do produto ausente no slug isolado.
+
+    Estratégia:
+    1. Fuzzy por cobertura: score = fração dos tokens do GRUPO_PECA
+       cobertos pelos tokens do caminho completo.
+       Prioriza grupo com cobertura máxima e mais tokens (mais específico).
+       Dentro do grupo, seleciona a PECA com maior sobreposição com
+       os tokens do nome do arquivo (sem extensão).
+       Tenta primeiro cobertura 100%, relaxa para 75% se nada encontrado.
+    2. Fallback por prefixo/número para IFCs flat sem hierarquia de pastas.
+
+    Retorna (nome_gp, peca_dict) ou None.
+    """
+    if ifc_path_hint:
+        # Tokens de todos os componentes do caminho (sem extensão do arquivo)
+        path_no_ext = re.sub(r'\.[a-zA-Z0-9]+$', '', ifc_path_hint.replace('\\', '/'))
+        query_tokens = tokenize(path_no_ext.replace('/', ' '))
+        # Leaf: nome do arquivo sem extensão — usado para escolher PECA no grupo
+        leaf_no_ext = path_no_ext.split('/')[-1]
+        leaf_tokens = tokenize(leaf_no_ext)
+    else:
+        query_tokens = tokenize(slug)
+        leaf_tokens = query_tokens
+
+    # Passo 1: fuzzy por cobertura — tenta 100%, depois relaxa para 75%
+    for min_score in (1.0, 0.75):
+        best_score = -1.0
+        best_spec = 0
+        best_match = None
+
+        for nome_gp, group in product_map.items():
+            pecas = group.get('pecas', [])
+            if not pecas:
+                continue
+            gp_tokens = tokenize(nome_gp)
+            if not gp_tokens:
+                continue
+            covered = len(query_tokens & gp_tokens)
+            gp_score = covered / len(gp_tokens)
+            if gp_score < min_score:
+                continue
+            # Preferir o grupo mais específico (maior número de tokens cobertos)
+            if gp_score > best_score or (gp_score == best_score and len(gp_tokens) > best_spec):
+                # Dentro do grupo: PECA com maior sobreposição com o nome do arquivo
+                peca_best = pecas[0]
+                peca_best_score = -1.0
+                for peca in pecas:
+                    p_toks = tokenize(peca.get('nome', ''))
+                    p_score = len(leaf_tokens & p_toks) / max(len(p_toks), 1)
+                    if p_score > peca_best_score:
+                        peca_best_score = p_score
+                        peca_best = peca
+                best_score = gp_score
+                best_spec = len(gp_tokens)
+                best_match = (nome_gp, peca_best)
+
+        if best_match:
+            return best_match
+
+    # Passo 2: fallback por prefixo/número (IFCs flat sem hierarquia)
+    slug_norm = slugify(slug)
+    nums_slug = re.findall(r'\d+', slug_norm)
+    for nome_gp, group in product_map.items():
+        gp_norm = slugify(nome_gp)
+        nums_gp = re.findall(r'\d+', gp_norm)
+        prefix_match = (gp_norm.startswith(slug_norm[:12]) or slug_norm.startswith(gp_norm[:12])
+                        or gp_norm in slug_norm)
+        num_match = (bool(nums_gp) and nums_slug[:len(nums_gp)] == nums_gp)
+        if prefix_match or num_match:
+            pecas = group['pecas']
+            if pecas:
+                return nome_gp, pecas[0]
+    return None
+
 
 try:
     import ifcopenshell

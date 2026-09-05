@@ -5,6 +5,6 @@
 #   (PEP 668: o Ubuntu exige a flag; ou use um venv)
 #
 -r requirements.txt
-ifcopenshell==0.8.5      # build.py --ifc com IFC B-rep (IFCADVANCEDBREP); scripts/ifc_to_geo.py para IFC grande
+ifcopenshell==0.8.5      # scripts/ifc_to_geo.py (IFC B-rep e IFC grande na POC); round-trip do exportador IFC do editor
 cadquery-ocp==7.9.3.1.1  # OpenCASCADE: scripts/step_to_geo.py (tesselar .stp); ~165 MB
 pypdf==6.14.2            # eng-reversa/tools/pdf_coords.py (catálogo comercial em PDF → células)
