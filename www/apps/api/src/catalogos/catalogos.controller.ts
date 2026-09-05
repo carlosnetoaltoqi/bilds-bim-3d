@@ -13,6 +13,7 @@ import { Model } from 'mongoose';
 import { Company, CompanyDocument } from '../companies/companies.schema';
 import { BimCatalog, BimCatalogDocument } from '../bim-catalogs/bim-catalogs.schema';
 import { BimProduct, BimProductDocument } from '../bim-products/bim-products.schema';
+import { PatchCatalogoDto } from './patch-catalogo.dto';
 
 @Controller('catalogos')
 export class CatalogosController {
@@ -77,26 +78,15 @@ export class CatalogosController {
   @Patch(':catalogId')
   async patch(
     @Param('catalogId') catalogId: string,
-    @Body() body: { title?: string; manufacturer?: string; layout?: string },
+    @Body() body: PatchCatalogoDto, // tipos e limites no DTO, aplicados pelo ValidationPipe (I16)
   ) {
     const catalog = await this.catalogModel.findById(catalogId).lean().exec();
     if (!catalog) throw new NotFoundException('catálogo não encontrado');
 
     const set: Record<string, string> = {};
-    if (body.title !== undefined) {
-      if (typeof body.title !== 'string' || !body.title.trim()) throw new BadRequestException('"title" não pode ser vazio');
-      set.title = body.title.trim();
-    }
-    if (body.manufacturer !== undefined) {
-      if (typeof body.manufacturer !== 'string' || !body.manufacturer.trim()) throw new BadRequestException('"manufacturer" não pode ser vazio');
-      set.manufacturer = body.manufacturer.trim();
-    }
-    if (body.layout !== undefined) {
-      if (body.layout !== 'series-rows' && body.layout !== 'catalog-grid') {
-        throw new BadRequestException('"layout" deve ser "series-rows" ou "catalog-grid"');
-      }
-      set.layout = body.layout;
-    }
+    if (body.title !== undefined) set.title = body.title;
+    if (body.manufacturer !== undefined) set.manufacturer = body.manufacturer;
+    if (body.layout !== undefined) set.layout = body.layout;
     if (Object.keys(set).length === 0) throw new BadRequestException('nenhum campo editável no corpo');
 
     const atualizado = await this.catalogModel.findByIdAndUpdate(catalogId, { $set: set }, { new: true }).lean().exec();

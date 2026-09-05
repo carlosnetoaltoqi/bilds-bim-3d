@@ -9,6 +9,7 @@ import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 import { storagePath, storagePathDefinido } from './common/storage-path';
+import { criarValidationPipe } from './common/validation';
 
 // A geometria editada volta pelo PUT /geometrias/:id como JSON. Uma peça grande
 // (Maxbar) passa de 10 MB; o limite padrão do express é 100 KB.
@@ -26,6 +27,8 @@ async function bootstrap() {
   });
   app.useBodyParser('json', { limit: JSON_BODY_LIMIT });
   app.useBodyParser('urlencoded', { extended: true, limit: JSON_BODY_LIMIT });
+  // Corpos com DTO são validados e limpos aqui (I16); ver common/validation.ts
+  app.useGlobalPipes(criarValidationPipe());
 
   // HTTP request logger
   app.use((req: any, res: any, next: any) => {

@@ -10,12 +10,13 @@ import {
 import * as jwt from 'jsonwebtoken';
 import { AuthGuard } from './auth.guard';
 import { Request } from 'express';
+import { LoginDto } from './login.dto';
 
 @Controller('auth')
 export class AuthController {
   @Post('login')
-  login(@Body() body: { email: string; password: string }) {
-    const { email, password } = body ?? {};
+  login(@Body() body: LoginDto) {
+    const { email, password } = body;
     const seedUser = process.env.SEED_USER;
     const seedPassword = process.env.SEED_PASSWORD;
     const jwtSecret = process.env.JWT_SECRET;

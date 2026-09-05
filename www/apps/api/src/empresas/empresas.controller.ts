@@ -10,7 +10,6 @@ import {
   UploadedFile,
   NotFoundException,
   ConflictException,
-  BadRequestException,
   Res,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -22,6 +21,7 @@ import { Request, Response } from 'express';
 import { AuthGuard } from '../auth/auth.guard';
 import { Company, CompanyDocument } from '../companies/companies.schema';
 import { storagePath } from '../common/storage-path';
+import { CriarEmpresaDto } from './criar-empresa.dto';
 
 @Controller()
 export class EmpresasController {
@@ -39,12 +39,9 @@ export class EmpresasController {
   async create(
     @Req() req: Request,
     @UploadedFile() logo: Express.Multer.File | undefined,
-    @Body() body: { name: string; customUrl: string },
+    @Body() body: CriarEmpresaDto, // obrigatoriedade e tamanho no DTO (I16)
   ) {
-    if (!body.name?.trim()) throw new BadRequestException('campo "name" obrigatório');
-    if (!body.customUrl?.trim()) throw new BadRequestException('campo "customUrl" obrigatório');
-
-    const slug = body.customUrl.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-');
+    const slug = body.customUrl.toLowerCase().replace(/[^a-z0-9-]/g, '-');
     const existing = await this.companyModel.findOne({ customUrl: slug }).lean().exec();
     if (existing) throw new ConflictException(`URL "${slug}" já está em uso`);
 
@@ -62,7 +59,7 @@ export class EmpresasController {
 
     const company = await this.companyModel.create({
       _id: companyId,
-      name: body.name.trim(),
+      name: body.name,
       customUrl: slug,
       ownerId,
       logoKey,

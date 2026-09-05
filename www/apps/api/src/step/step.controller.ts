@@ -20,6 +20,8 @@ import * as crypto from 'node:crypto';
 import * as path from 'node:path';
 import { AqInfo, AqParte, StepService } from './step.service';
 import { GeoValidationError, validateGeoBuffers } from '../common/geo-buffers';
+import { normalizarSpecs } from '../common/validation';
+import { ExportarAqDto, ImportarCadDto } from './cad.dto';
 
 /**
  * POST /cad/tesselar   — .stp/.step/.ifc → { pos, col, idx, partes, … }  (para "adicionar parte" no editor)
@@ -39,11 +41,8 @@ const storage = diskStorage({
   filename: (_req, file, cb) => cb(null, `cad-${crypto.randomUUID()}${(path.extname(file.originalname ?? '') || '.stp').toLowerCase()}`),
 });
 
-function deflexaoDe(body: Record<string, string> | undefined): number {
-  const v = Number(body?.deflexao ?? 0.2);
-  if (!Number.isFinite(v) || v <= 0 || v > 10) throw new BadRequestException('"deflexao" deve ser um número em mm entre 0 e 10');
-  return v;
-}
+/** `deflexao` já validada pelo DTO (0 < mm ≤ 10); o padrão é 0,2 mm. */
+const deflexaoDe = (body: ImportarCadDto | undefined): number => body?.deflexao ?? 0.2;
 
 @Controller()
 export class StepController {
@@ -51,7 +50,7 @@ export class StepController {
 
   @Post(['cad/tesselar', 'step/tesselar'])
   @UseInterceptors(FileInterceptor('file', { storage, limits: { fileSize: MAX_STEP_BYTES } }))
-  async tesselar(@UploadedFile() file: Express.Multer.File, @Body() body: Record<string, string>) {
+  async tesselar(@UploadedFile() file: Express.Multer.File, @Body() body: ImportarCadDto) {
     if (!file) throw new BadRequestException('campo "file" (.stp/.step/.ifc) obrigatório');
     try {
       return await this.step.tesselar(file.path, deflexaoDe(body), file.originalname);
@@ -65,7 +64,7 @@ export class StepController {
   @UseInterceptors(FileInterceptor('file', { storage, limits: { fileSize: MAX_STEP_BYTES } }))
   async importar(
     @UploadedFile() file: Express.Multer.File,
-    @Body() body: Record<string, string>,
+    @Body() body: ImportarCadDto,
     @Query('sync') sync: string | undefined,
     @Res({ passthrough: true }) res: Response,
   ) {
@@ -104,11 +103,11 @@ export class StepController {
 
   @Post('exportar/aq')
   async exportarAq(
-    @Body() body: { info?: AqInfo; partes?: AqParte[]; pos?: number[]; col?: number[]; idx?: number[] },
+    @Body() body: ExportarAqDto, // forma e limites no DTO (I16); os números dos arrays, abaixo
     @Res() res: Response,
   ) {
-    const info = body?.info ?? {};
-    const partes = Array.isArray(body?.partes) ? body.partes : [];
+    const info: AqInfo = { ...(body.info ?? {}), specs: body.info?.specs ? normalizarSpecs(body.info.specs) : undefined };
+    const partes: AqParte[] = (body.partes ?? []).map((p) => ({ nome: p.nome, pos: p.pos, col: p.col ?? null, idx: p.idx }));
     let geo;
     if (!partes.length) {
       try {
