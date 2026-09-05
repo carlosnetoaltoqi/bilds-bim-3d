@@ -63,7 +63,7 @@ www/
 | `GET /importacoes/:importId` | `{status, note, error, productCount, catalogId, catalogoUrl?, editorUrl?, thumbCount…}` |
 | `GET /importacoes?empresa=<customUrl>` | últimas importações da empresa |
 | `POST /miniaturas/regerar` `{productId}` | 202; renderiza a miniatura do produto e grava `thumbKey`/`thumbAtualizadaEm`/`thumbErro` |
-| `POST /cad/tesselar` (multipart) | síncrono: `{pos,col,idx,partes,…}` para "adicionar parte" no editor |
+| `POST /cad/tesselar` (multipart) | síncrono: `{pos,col,idx,partes,…}` — sem consumidor no web desde 2026-09-05 (STEP/IFC entram como produto) |
 | `POST /exportar/aq` (JSON) | síncrono: download do `.aq` gerado pelo `geo_to_aq.py` |
 | `GET /health` | 200/503 pela conexão do Mongoose |
 
@@ -84,9 +84,9 @@ posição na fila, o progresso do Python e o resumo das miniaturas.
 
 | Página | O quê |
 |---|---|
-| `/` | empresas e catálogos com links **ver** / **editar** / **importar** |
+| `/` | empresas e catálogos com links **ver** / **editar** / **importar**; menu **Importar biblioteca .aq** · **Importar peça STEP / IFC** · **Criar empresa** |
 | `/empresa/criar` | cria empresa (nome, customUrl, logo) |
-| `/importar` | sobe `.aq`/`.zip`/`.stp`/`.ifc` e acompanha o status (uma página para os dois tipos) |
+| `/importar[?tipo=aq\|cad]` | sobe `.aq`/`.zip`/`.stp`/`.ifc` e acompanha o status (uma página para os dois tipos; `tipo` restringe) |
 | `/:empresa/:catalogo` | página pública (cards com miniatura, modal com 3D) — cabeçalho e modal com chamada para edição |
 | `/:empresa/:catalogo/editar` · `/editar/:produtoId` | edição do catálogo e do produto (info + 3D + exportar IFC/.aq) |
 

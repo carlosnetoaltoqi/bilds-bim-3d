@@ -222,29 +222,6 @@ export function ProductEditor(props: Props) {
     }
   }
 
-  /** Converte um STEP ou IFC no servidor e acrescenta as partes ao modelo atual. */
-  async function importStep(file: File) {
-    if (!hist) return
-    setSaving(true)
-    setMsg({ tipo: 'info', texto: `convertendo ${file.name}…` })
-    try {
-      const fd = new FormData()
-      fd.append('file', file)
-      const r = await fetch(`${INGESTAO_URL}/cad/tesselar`, { method: 'POST', body: fd })
-      const data = await r.json().catch(() => ({}))
-      if (!r.ok) throw new Error(data?.message ? String(data.message) : `API ${r.status}`)
-      const novas = segment(data as GeoData).map((p) => ({ ...p, nome: `${file.name.replace(/\.(stp|step|ifc)$/i, '')} · ${p.nome}` }))
-      update([...hist.present.parts, ...novas], `importar ${file.name}`)
-      setSelected(novas.map((p) => p.id))
-      setMsg({ tipo: 'ok', texto: `${file.name}: ${novas.length} parte(s), ${(data.idx?.length ?? 0) / 3} triângulos, ${(data.bbox_mm ?? []).map((v: number) => v.toFixed(1)).join(' × ')} mm.` })
-    } catch (e: any) {
-      setMsg({ tipo: 'erro', texto: `${file.name}: ${e.message ?? String(e)}` })
-      throw e
-    } finally {
-      setSaving(false)
-    }
-  }
-
   async function saveAndExportIfc(opts: { incluirBocais: boolean }) {
     if (!hist) return
     if (dirty) {
@@ -368,7 +345,6 @@ export function ProductEditor(props: Props) {
         </select>
         <span className="flex-1" />
         {dirty && <span className="text-[11px] px-2 py-0.5 rounded bg-amber-400 text-amber-950 font-semibold">geometria não salva</span>}
-        <a href="/importar-step" className="text-[12px] text-blue-200 hover:text-white">importar STEP / IFC</a>
         <a href={publicUrl} target="_blank" rel="noopener noreferrer" className="text-[12px] text-blue-200 hover:text-white">ver catálogo ↗</a>
       </header>
 
@@ -421,7 +397,6 @@ export function ProductEditor(props: Props) {
                 onView={(view) => setViewRequest((v) => ({ n: v.n + 1, view }))}
                 history={{ canUndo: hist.past.length > 0, canRedo: hist.future.length > 0, undo, redo, lastLabel: hist.present.label }}
                 geoState={{ dirty, saving, msg, geoEditadoEm: produto.geoEditadoEm, save: () => { void save() }, restore, download, reload, exportIfc, saveAndExportIfc: (o) => { void saveAndExportIfc(o) }, exportAq: (o) => { void exportAq(o) } }}
-                onImportStep={importStep}
               />
             )}
             {tab === 'informacoes' && (

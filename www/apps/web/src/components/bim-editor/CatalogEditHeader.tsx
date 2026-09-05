@@ -17,7 +17,7 @@ export function CatalogEditHeader({ catalog: inicial, publicUrl }: { catalog: Po
           <p className="text-[12px] text-blue-200">
             layout <code>{catalog.layout}</code> · {catalog.productCount} produtos ·{' '}
             <a href={publicUrl} target="_blank" rel="noopener noreferrer" className="underline hover:text-white">ver página pública ↗</a>
-            {' · '}<a href="/importar" className="underline hover:text-white">importar biblioteca ou peça CAD</a>
+            {' · '}<a href="/" className="underline hover:text-white">início</a>
           </p>
         </div>
         <div className="bg-white text-gray-900 rounded-lg p-4 w-full max-w-[420px]">

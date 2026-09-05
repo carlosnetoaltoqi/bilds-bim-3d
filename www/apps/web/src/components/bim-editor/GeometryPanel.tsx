@@ -77,8 +77,6 @@ export interface GeometryPanelProps {
     /** gera um .aq (AltoQi) com as partes visíveis, via API + eng-reversa, e baixa */
     exportAq: (opts: { incluirBocais: boolean }) => void
   }
-  /** converte um .stp/.step/.ifc no servidor e acrescenta as partes ao modelo */
-  onImportStep: (file: File) => Promise<void>
 }
 
 const TOOLS: Array<{ id: Tool; label: string; tecla: string }> = [
@@ -211,11 +209,9 @@ export function GeometryPanel(p: GeometryPanelProps) {
     const escala = unidade === 'mm' ? 0.001 : unidade === 'cm' ? 0.01 : 1
     const ext = file.name.toLowerCase().split('.').pop()
     if (ext === 'stp' || ext === 'step' || ext === 'ifc') {
-      try {
-        await p.onImportStep(file)
-      } catch (e: any) {
-        alert(`Falha ao converter o ${ext.toUpperCase()}: ${e.message ?? e}`)
-      }
+      // STEP/IFC não entram mais pelo editor (2026-09-05): a conversão é do serviço de ingestão e
+      // a peça vira um produto pela página inicial → "Importar peça STEP / IFC"
+      alert('STEP e IFC entram pela página inicial (Importar peça STEP / IFC), como um produto novo. Aqui só STL, OBJ e JSON.')
       return
     }
     const novas: Part[] = []
@@ -236,7 +232,7 @@ export function GeometryPanel(p: GeometryPanelProps) {
         const geo = { pos: (data.pos as number[]).map((v) => v * escala), col: data.col ?? [], idx: data.idx }
         for (const x of segment(geo)) novas.push({ ...x, nome: `${file.name} · ${x.nome}` })
       } else {
-        throw new Error('formato não suportado — use STP/STEP, IFC, STL, OBJ ou JSON { pos, col, idx }')
+        throw new Error('formato não suportado — use STL, OBJ ou JSON { pos, col, idx }')
       }
     } catch (e: any) {
       alert(`Falha ao importar: ${e.message ?? e}`)
@@ -393,14 +389,14 @@ export function GeometryPanel(p: GeometryPanelProps) {
         </div>
         <button type="button" className={`${btnSmall} mt-2`} onClick={adicionarPrimitiva}>+ adicionar primitiva</button>
         <div className="flex items-center gap-2 mt-3">
-          <input ref={fileRef} type="file" accept=".stp,.step,.ifc,.stl,.obj,.json" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void importarArquivo(f); e.target.value = '' }} />
-          <button type="button" className={btnSmall} onClick={() => fileRef.current?.click()}>importar STEP / IFC / STL / OBJ / JSON…</button>
+          <input ref={fileRef} type="file" accept=".stl,.obj,.json" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void importarArquivo(f); e.target.value = '' }} />
+          <button type="button" className={btnSmall} onClick={() => fileRef.current?.click()}>importar STL / OBJ / JSON…</button>
           <span className="text-[11px] text-gray-500">unidade do arquivo</span>
           <select value={unidade} onChange={(e) => setUnidade(e.target.value as typeof unidade)} className={inputCls + ' !w-auto'}>
             <option value="mm">mm</option><option value="cm">cm</option><option value="m">m</option>
           </select>
         </div>
-        <p className="text-[11px] text-gray-400 mt-1">STEP e IFC são convertidos no servidor (OpenCASCADE / parse_ifc.py) e já chegam na unidade certa — o seletor vale para STL/OBJ/JSON.</p>
+        <p className="text-[11px] text-gray-400 mt-1">Malhas locais, na unidade escolhida. Peça STEP/IFC entra como produto pela página inicial (menu &quot;Importar peça STEP / IFC&quot;).</p>
       </Section>
 
       {/* ── salvar ── */}

@@ -222,8 +222,8 @@ pnpm dev:web                        # :3000  (outro terminal)
 
 No editor: selecionar partes do modelo (o JSON plano é re-segmentado em componentes
 conexos), mover/girar/escalar com gizmo ou campos em cm, recolorir, espelhar, fundir,
-excluir, adicionar cilindro/tubo/caixa, STL/OBJ ou uma peça STEP/IFC tesselada pelo serviço,
-corte em Y, fantasma do original. **Salvar** grava de volta o `{pos, col, idx}` que o viewer
+excluir, adicionar cilindro/tubo/caixa ou STL/OBJ, corte em Y, fantasma do original (peça STEP/IFC
+entra como produto pelo menu da página inicial, não pelo editor). **Salvar** grava de volta o `{pos, col, idx}` que o viewer
 público lê (copy-on-write quando a geometria é compartilhada entre produtos) e o serviço regera a
 miniatura. **Exportar IFC** baixa um IFC4 do que está na tela, lido de volta pelo `parse_ifc.py`
 com os mesmos triângulos; **Exportar .aq** gera uma biblioteca AltoQi com a peça (`geo_to_aq.py`,

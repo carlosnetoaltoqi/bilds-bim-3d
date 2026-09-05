@@ -31,10 +31,11 @@ export default async function HomePage() {
         <p className="text-[12px] text-gray-500 mb-1">bilds BIM 3D · POC</p>
         <div className="flex items-baseline justify-between gap-4 flex-wrap mb-6">
           <h1 className="text-2xl font-bold" style={{ fontFamily: 'Fira Sans, Inter, system-ui, sans-serif' }}>Empresas e catálogos</h1>
-          <div className="flex gap-2">
-            <a href="/importar" className="px-3 py-1.5 rounded bg-[#1e40af] text-white text-[12px] font-semibold">Importar biblioteca .aq ou peça CAD</a>
+          <nav aria-label="menu" className="flex gap-2 flex-wrap">
+            <a href="/importar?tipo=aq" className="px-3 py-1.5 rounded bg-[#1e40af] text-white text-[12px] font-semibold">Importar biblioteca .aq</a>
+            <a href="/importar?tipo=cad" className="px-3 py-1.5 rounded bg-[#1e40af] text-white text-[12px] font-semibold">Importar peça STEP / IFC</a>
             <a href="/empresa/criar" className="px-3 py-1.5 rounded border border-gray-300 text-[12px] font-semibold text-gray-700">Criar empresa</a>
-          </div>
+          </nav>
         </div>
 
         {erro && <p className="text-[13px] text-red-700 bg-red-50 border border-red-200 rounded p-3">{erro}</p>}

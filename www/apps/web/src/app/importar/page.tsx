@@ -4,8 +4,9 @@
  * /importar — sobe uma biblioteca `.aq`/`.zip` ou uma peça CAD `.stp`/`.step`/`.ifc` para o
  * serviço de ingestão (`POST /importacoes`, :4100) e acompanha o status até publicar.
  * Uma página para os dois tipos (E4): o tipo sai da extensão; os campos de peça CAD só
- * aparecem quando o arquivo é CAD. Sem login (A7). A empresa vem de `?empresa=` (link
- * "importar para esta empresa" na home) ou do seletor.
+ * aparecem quando o arquivo é CAD. `?tipo=aq` ou `?tipo=cad` (menu da página inicial) restringe
+ * o tipo aceito. Sem login (A7). A empresa vem de `?empresa=` (link "importar para esta
+ * empresa" na home) ou do seletor.
  *
  * XHR em vez de fetch só para ter progresso real de upload — Maxbar tem 618 MB.
  */
@@ -53,6 +54,9 @@ function ImportarPageInner() {
   const params = useSearchParams()
   const [empresas, setEmpresas] = useState<Empresa[]>([])
   const [empresa, setEmpresa] = useState(params.get('empresa') ?? '')
+  const tipo = params.get('tipo') === 'aq' || params.get('tipo') === 'cad' ? (params.get('tipo') as 'aq' | 'cad') : null
+  const extOk = tipo === 'aq' ? /\.(aq|zip)$/i : tipo === 'cad' ? EXT_CAD : EXT_OK
+  const accept = tipo === 'aq' ? '.aq,.zip,.AQ,.ZIP' : tipo === 'cad' ? '.stp,.step,.ifc,.STP,.STEP,.IFC' : '.aq,.zip,.stp,.step,.ifc,.AQ,.ZIP,.STP,.STEP,.IFC'
   const [file, setFile] = useState<File | null>(null)
   const [fabricante, setFabricante] = useState('')
   const [catalogo, setCatalogo] = useState('')
@@ -108,7 +112,7 @@ function ImportarPageInner() {
   function enviar(e: FormEvent) {
     e.preventDefault()
     if (!file) return
-    if (!EXT_OK.test(file.name)) { setErro('envie .aq, .zip, .stp, .step ou .ifc'); return }
+    if (!extOk.test(file.name)) { setErro(tipo === 'aq' ? 'envie .aq ou .zip' : tipo === 'cad' ? 'envie .stp, .step ou .ifc' : 'envie .aq, .zip, .stp, .step ou .ifc'); return }
     setEnviando(true); setErro(null); setAtual(null); setPct(0)
     const fd = new FormData()
     fd.append('file', file)
@@ -146,12 +150,14 @@ function ImportarPageInner() {
     <main className="min-h-screen bg-gray-50 text-gray-900 py-12 px-6" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
       <div className="max-w-[720px] mx-auto">
         <p className="text-[12px] text-gray-500 mb-1"><a href="/" className="hover:underline">← empresas e catálogos</a></p>
-        <h1 className="text-2xl font-bold mb-1" style={{ fontFamily: 'Fira Sans, Inter, system-ui, sans-serif' }}>Importar biblioteca ou peça</h1>
+        <h1 className="text-2xl font-bold mb-1" style={{ fontFamily: 'Fira Sans, Inter, system-ui, sans-serif' }}>
+          {tipo === 'aq' ? 'Importar biblioteca .aq' : tipo === 'cad' ? 'Importar peça STEP / IFC' : 'Importar biblioteca ou peça'}
+        </h1>
         <p className="text-[13px] text-gray-600 mb-6">
-          Uma biblioteca <code>.aq</code> (ou <code>.zip</code> com o SQLite dentro) vira um catálogo inteiro: o pipeline lê
-          peças, propriedades e a geometria OQ3D, grava uma geometria por simbologia e renderiza as miniaturas no Chromium.
-          Uma peça <code>.stp</code>/<code>.step</code> (OpenCASCADE) ou <code>.ifc</code> entra como um produto num catálogo
-          &quot;Peças STEP/IFC&quot; da empresa.
+          {tipo !== 'cad' && <>Uma biblioteca <code>.aq</code> (ou <code>.zip</code> com o SQLite dentro) vira um catálogo inteiro: o pipeline lê
+          peças, propriedades e a geometria OQ3D, grava uma geometria por simbologia e renderiza as miniaturas no Chromium. </>}
+          {tipo !== 'aq' && <>Uma peça <code>.stp</code>/<code>.step</code> (OpenCASCADE) ou <code>.ifc</code> entra como um produto num catálogo
+          &quot;Peças STEP/IFC&quot; da empresa, e dali abre no editor 3D.</>}
         </p>
 
         <form onSubmit={enviar} className="bg-white border border-gray-200 rounded-lg p-5 flex flex-col gap-4 text-[13px]">
@@ -163,8 +169,8 @@ function ImportarPageInner() {
             </select>
           </label>
           <label className="flex flex-col gap-1">
-            <span className="text-[12px] text-gray-600 font-medium">Arquivo .aq / .zip / .stp / .step / .ifc</span>
-            <input type="file" accept=".aq,.zip,.stp,.step,.ifc,.AQ,.ZIP,.STP,.STEP,.IFC" required disabled={enviando || emAndamento}
+            <span className="text-[12px] text-gray-600 font-medium">Arquivo {tipo === 'aq' ? '.aq / .zip' : tipo === 'cad' ? '.stp / .step / .ifc' : '.aq / .zip / .stp / .step / .ifc'}</span>
+            <input type="file" accept={accept} required disabled={enviando || emAndamento}
               onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="text-[13px]" />
           </label>
           {file && (
