@@ -18,6 +18,7 @@ import * as os from 'node:os';
 import * as fs from 'node:fs';
 import { GeometriasController } from '../../www/apps/api/src/geometrias/geometrias.controller';
 import { ImportacoesService } from '../../www/apps/api/src/importacoes/importacoes.service';
+import { ProdutosController } from '../../www/apps/api/src/produtos/produtos.controller';
 
 // ── falsos ───────────────────────────────────────────────────────────────────
 function modeloFalso(docs: Record<string, any>) {
@@ -92,6 +93,22 @@ async function main() {
       fs.rmSync(storage, { recursive: true, force: true });
       saida.regerar_real_geo_inexistente = { resumo, updates: produtos.updates, importUpdates: imports.updates };
     }
+  }
+
+  // ── 3. GET /produtos/:id devolve o que regerarMiniatura gravou (S7.13) ──────────────
+  {
+    const quando = new Date('2026-09-05T17:09:44.859Z');
+    const produtos = modeloFalso({
+      ok: { _id: 'ok', catalogId: 'c', importId: 'imp1', id: 'x', nome: 'X', geoKey: 'geo/imp1/x.json', thumbKey: 'thumbs/imp1/ok.webp', thumbAtualizadaEm: quando, thumbErro: null },
+      falhou: { _id: 'falhou', catalogId: 'c', importId: 'imp1', id: 'y', nome: 'Y', geoKey: 'geo/imp1/y.json', thumbErro: 'EACCES: permission denied' },
+    });
+    const ctrl = new ProdutosController(produtos as any, {} as any);
+    const ok: any = await ctrl.get('ok');
+    const falhou: any = await ctrl.get('falhou');
+    saida.get_produto_expoe_miniatura = {
+      ok: { thumbAtualizadaEm: ok.thumbAtualizadaEm, thumbErro: ok.thumbErro, thumbUrl: ok.thumbUrl },
+      falhou: { thumbAtualizadaEm: falhou.thumbAtualizadaEm, thumbErro: falhou.thumbErro, thumbUrl: falhou.thumbUrl },
+    };
   }
 
   process.stdout.write(JSON.stringify(saida));

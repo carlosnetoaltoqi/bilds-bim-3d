@@ -5,7 +5,9 @@ apontando para a imagem do import — o catálogo mostrava a peça antiga. Agora
 restaurar disparam `ImportacoesService.regerarMiniatura`, que reaproveita o thumb-worker e
 registra `thumbAtualizadaEm` ou `thumbErro` no produto. O harness
 `tests/paridade/geometrias_thumb.cts` instancia controller e service sem Nest nem Mongo (ts-node
-de `www/apps/api`) e, no último cenário, dispara o thumb-worker real com um geoKey inexistente.
+de `www/apps/api`) e, no segundo cenário, dispara o thumb-worker real com um geoKey inexistente.
+O terceiro (S7.13) garante que `GET /produtos/:id` devolve `thumbAtualizadaEm`/`thumbErro` — o
+Mongo tinha o valor e o DTO o omitia, então a edição parecia não regerar a miniatura.
 Marcador `paridade`; pula sem Node ou sem `ts-node` em `www/apps/api/node_modules`.
 """
 import json
@@ -54,3 +56,9 @@ def test_regerar_miniatura_registra_a_falha_no_produto(cenarios):
     assert 'thumbAtualizadaEm' not in update[1]
     # nada é escrito no documento do import — a regeneração é do produto
     assert r['importUpdates'] == []
+
+
+def test_get_produto_expoe_o_resultado_da_regeneracao(cenarios):
+    r = cenarios['get_produto_expoe_miniatura']
+    assert r['ok'] == {'thumbAtualizadaEm': '2026-09-05T17:09:44.859Z', 'thumbErro': None, 'thumbUrl': '/thumbs/ok'}
+    assert r['falhou'] == {'thumbAtualizadaEm': None, 'thumbErro': 'EACCES: permission denied', 'thumbUrl': None}

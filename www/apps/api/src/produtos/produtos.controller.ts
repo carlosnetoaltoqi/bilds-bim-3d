@@ -17,7 +17,8 @@ import { PatchProdutoDto } from './patch-produto.dto';
 /**
  * Leitura e edição das informações de um produto (POC de edição — sem auth).
  *
- * GET   /produtos/:id   — documento completo, com `infoOriginal` quando já editado
+ * GET   /produtos/:id   — documento completo, com `infoOriginal` quando já editado e
+ *                         `thumbAtualizadaEm`/`thumbErro` da última regeneração da miniatura (I14)
  * PATCH /produtos/:id   — atualiza nome, serie, specs, curva, potencia, conexoes
  *
  * Só os campos presentes no corpo são alterados. Na primeira edição o controller
@@ -101,6 +102,9 @@ export class ProdutosController {
       thumbUrl: p.thumbKey ? `/thumbs/${p._id}` : null,
       editadoEm: p.editadoEm ?? null,
       geoEditadoEm: p.geoEditadoEm ?? null,
+      // I14 grava os dois no produto; até a S7.13 o DTO não os devolvia e a edição parecia não regerar a miniatura
+      thumbAtualizadaEm: p.thumbAtualizadaEm ?? null,
+      thumbErro: p.thumbErro ?? null,
       infoOriginal: p.infoOriginal ?? null,
       createdAt: p.createdAt,
     };
