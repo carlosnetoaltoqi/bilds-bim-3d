@@ -38,7 +38,7 @@ código foram reproduzidos uma segunda vez antes de fechar este documento.
 | I3 ✅ | `OQ3DAvisoParse` não chega ao operador — **corrigido 2026-09-03** (S7.6: coletado por simbologia, `resumo_diag`) | geração |
 | I4 | `scripts/geo_to_aq.py` depende de `eng-reversa/tools/` (estudo) | geração |
 | I5 ✅ | `requirements.txt` incoerente; OCP/ifcopenshell/pypdf fora de qualquer requirements — **corrigido 2026-09-04** (S7.8: `requirements.txt` só jinja2+numpy; `requirements-dev.txt`; `requirements-cad.txt` pinado) | ambiente |
-| I6 | Modo `--ifc` do build é código morto (~450 linhas) com `config.example.json` obsoleto | geração |
+| I6 ✅ | Modo `--ifc` do build é código morto (~450 linhas) com `config.example.json` obsoleto — **removido 2026-09-05** (S7.10, decisão do usuário: `build.py` 1.727 → 1.290 linhas; `config.example.json` refeito com as 6 chaves reais; `find_aq_product` movido para `docs/estudo-oq3d/valida_ifc.py`; `test_modo_ifc_removido`) | geração |
 | I7 ✅ | Fallback sem Jinja2 gera HTML quebrado — **corrigido 2026-09-04** (S7.7: `build_preview` lança `RuntimeError` sem Jinja2 ou sem template; `run_build` não ignora mais o retorno) | geração |
 | I8 ✅ | `oq3d_roundtrip.py` pula o caso real (caminho errado) e reporta sucesso — **corrigido 2026-09-04** (S7.7: caminho certo em `PADRAO_AQ`; `.aq` ausente é FALHA/exit 1, `--sem-real` pula de propósito; 4 testes) | testes |
 | I9 ✅ | Não há suíte de testes do pipeline; `validar_aq.py` é específico da Akato — **suíte criada 2026-09-03** (S7.6: `tests/`, 43 testes, paridade py ↔ ts); a parte do `validar_aq.py` segue em aberto como L-item | testes |
@@ -168,7 +168,7 @@ código foram reproduzidos uma segunda vez antes de fechar este documento.
   `eng-reversa/tools/pdf_coords.py`) em nenhum requirements; `pillow` e `shapely`
   instalados sem uso declarado. Tudo em `~/.local` com `--break-system-packages`, sem venv.
   Separar `requirements.txt` (jinja2, numpy) de `requirements-cad.txt` (pins).
-- **I6.** Modo `--ifc` (~450 linhas em `build.py`) sem fixture: `config.example.json`
+- **I6.** ✅ (S7.10, 2026-09-05 — o usuário decidiu **remover**; `scan_input` virou `find_aq_paths`, só `.aq`) Modo `--ifc` (~450 linhas em `build.py`) sem fixture: `config.example.json`
   cita `input/pecas_dancor.aq` e `CAM-W10.IFC` inexistentes; `input/README.md` está
   dentro de pasta gitignored; `scan_input:1078` devolve `'flat'` onde a doc diz `'subdir'`;
   `parse_ifc.py:9` cita `parse_one()` que não existe. Mover para `scripts/legacy/` com IFC
@@ -353,6 +353,5 @@ código foram reproduzidos uma segunda vez antes de fechar este documento.
    `--www`, `--cad`; tabela "como conferir"; `tests/test_bootstrap.py`); seção "Pré-requisitos" no
    CLAUDE.md aponta para ele. O Atlas fica na seção da POC em `www/README.md`.
 6. **Decisões que são do usuário:** ~~C6~~ (decidido e feito na S7.5), C7 (estratégia de
-   deploy do preview), I10 (auth na POC ou aceitar só localhost), I6 (matar ou arquivar o
-   modo `--ifc`), I4 (promover o writer de `.aq` para `scripts/`).
+   deploy do preview), I10 (auth na POC ou aceitar só localhost), ~~I6~~ (removido, S7.10), I4 (promover o writer de `.aq` para `scripts/`).
 7. **Limpeza** (L1–L14) conforme cada área for tocada, nunca em commit separado gigante.

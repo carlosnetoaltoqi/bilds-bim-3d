@@ -35,21 +35,13 @@ python3 scripts/build.py --all        # todas as bibliotecas, sem perguntar
 
 Forma, cor e dados saem todos do `.aq`. É o caminho normal: mais rápido (85× a 421×), um único arquivo de entrada, e sem o matching por nome que os IFCs exigem.
 
-### `--ifc` — quando a geometria vem dos arquivos IFC
+### Peça que existe só como IFC
 
-```bash
-python3 scripts/build.py --ifc
-python3 scripts/build.py --all --ifc
-```
-
-Use **apenas** quando:
-
-- **Há peças em IFC que não estão no banco.** Foi o caso da bomba 89-62 TJM da Dancor: existe como `.IFC` na pasta, mas não tem registro no `.aq`. Sem `--ifc` ela não entra no catálogo.
-- **Você quer conferir uma fonte contra a outra**, por exemplo ao validar uma biblioteca nova.
-
-Fora isso, não use. O modo `--ifc` é mais lento, depende do `ifcopenshell` para IFCs B-rep, e precisa casar nome de arquivo com nome de peça — heurística que erra em catálogos grandes.
-
-Com `--ifc`, os IFCs precisam estar **na mesma pasta do `.aq`** correspondente.
+O modo `--ifc` — geometria lida dos arquivos `.IFC` da pasta, com matching por nome de arquivo —
+foi **removido em 2026-09-05** (I6 da auditoria): ~440 linhas sem fixture nem teste, que só
+serviam a dois casos raros. Se uma peça existe como IFC mas não está cadastrada no `.aq`, o build
+não a inclui; o caminho é cadastrá-la na biblioteca ou importar o IFC pela POC
+(`scripts/ifc_to_geo.py`). `scripts/parse_ifc.py` continua no repositório para esse conversor.
 
 ## Como a saída é organizada
 
@@ -79,7 +71,6 @@ ZIPs, geometria e catálogos soltos são gitignored — sempre regeráveis a par
 ```bash
 python3 scripts/build.py --all              # todas as bibliotecas de input/
 python3 scripts/build.py --all --force      # refaz também as que já têm ZIP
-python3 scripts/build.py --ifc              # geometria dos IFCs (ver acima)
 python3 scripts/build.py --input-dir PASTA  # varre outra pasta
 python3 scripts/build.py --skip-preview     # só catalog.json e ZIP
 python3 scripts/build.py --skip-zip         # só preview
@@ -155,8 +146,8 @@ está na máquina. Detalhes em `CLAUDE.md`, seção "Testes".
 - testes: `pip install -r requirements-dev.txt`
 
 `ifcopenshell`, `cadquery-ocp` e `pypdf` são opcionais e estão pinados em `requirements-cad.txt`:
-modo `--ifc` com IFCs B-rep (`IFCADVANCEDBREP`), STEP no editor e extração de PDF. O modo
-padrão não usa nenhum deles. O repositório é **pnpm só** — não use `npm install` (gera um
+IFC B-rep (`IFCADVANCEDBREP`) e IFC grande no conversor da POC (`scripts/ifc_to_geo.py`), STEP
+no editor e extração de PDF. O pipeline estático não usa nenhum deles. O repositório é **pnpm só** — não use `npm install` (gera um
 `package-lock.json` que não é versionado).
 
 ### Miniaturas (opcional, mas recomendado)
@@ -212,7 +203,7 @@ Peças sem geometria no banco são puladas, e o build informa quantas. Normalmen
 
 Se em vez disso aparecer `AVISO: N simbologia(s) descartada(s)` ou `AVISO: N simbologia(s) com aviso de parse`, **não é tubo**: a peça tem geometria no banco e o parser não conseguiu lê-la (blob nulo, sem assinatura OQ3D, truncado, sem malha, ou com layout que o `oq3d.py` não conhece). O aviso traz o id e o nome da simbologia. Foi assim que se descobriu, em 2026-09-03, que 56 peças da Maxbar estavam sem 3D por usarem uma versão de malha que o parser rejeitava.
 
-Se faltar uma peça que deveria ter forma, verifique se ela existe só como IFC: nesse caso use `--ifc`.
+Se faltar uma peça que deveria ter forma e ela só existe como IFC, não no `.aq`, o build não a inclui — o modo `--ifc` foi removido em 2026-09-05 (ver "Peça que existe só como IFC").
 
 ## POC de edição (em `www/`, local)
 

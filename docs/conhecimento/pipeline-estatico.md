@@ -22,23 +22,15 @@
 7. Subir output/<origem>/<slug>-AAAAMMDDHHMM.zip no dashboard.bilds.com → BIM 3D
 ```
 
-### Os dois modos
+### Um só modo
 
-| Modo | Comando | Geometria vem de |
-|---|---|---|
-| **Padrão** | `build.py` / `build.py --all` | do próprio `.aq` (OQ3D) |
-| **Compatibilidade** | `build.py --ifc` | dos arquivos `.IFC` da pasta |
-
-**Quando usar `--ifc`** — só nestes dois casos:
-
-1. **Há peças em IFC ausentes do banco.** Caso real: a bomba 89-62 TJM da Dancor
-   tem `.IFC` na pasta mas não existe no `.aq`, nem como `PECA`. Sem `--ifc` ela
-   fica de fora. É o mesmo cenário que o `products_override` cobre.
-2. **Conferir uma fonte contra a outra**, ao validar uma biblioteca nova.
-
-Fora isso não use: é mais lento, exige `ifcopenshell` para IFCs B-rep e depende
-do matching por nome, que erra em catálogos grandes (ver `find_aq_product`).
-Com `--ifc`, os IFCs precisam estar **na mesma pasta do `.aq`** correspondente.
+A geometria vem sempre do próprio `.aq` (OQ3D). O modo de compatibilidade `build.py --ifc`
+— geometria dos `.IFC` da pasta, `file_map` e matching por nome (`find_aq_product`) — foi
+**removido em 2026-09-05** (I6 da auditoria, decisão do usuário): ~440 linhas sem fixture nem
+teste, para dois casos que nunca mais ocorreram (peça só em IFC, como a bomba 89-62 TJM da
+Dancor; conferir uma fonte contra a outra). O matcher sobrevive em
+`docs/estudo-oq3d/valida_ifc.py`, que é o estudo que o usa. Peça que existe só como IFC entra
+pela POC (`scripts/ifc_to_geo.py`) ou é cadastrada no `.aq`.
 
 ### Modo lote (`--all`)
 
@@ -71,40 +63,24 @@ interrompe o lote: é registrada e o build segue para a próxima.
 > bibliotecas testadas**: não confie nela.
 
 Quando o `.aq` detectado difere do `aq_file` do `config.json` (`aq_stale`),
-fabricante, título e file_map são resetados — nunca herdam do catálogo anterior.
+fabricante e título são resetados — nunca herdam do catálogo anterior.
 
 ## config.json — schema completo
 
 ```json
 {
-  "slug":        "bombas-incendio",
+  "slug":        "bombas-de-combate-a-incendio",
   "titulo":      "Bombas de Combate a Incêndio",
   "fabricante":  "Dancor",
   "descricao":   "Linha CAM-W e TJM para sistemas de combate a incêndio.",
   "layout":      "series-rows",
-  "aq_file":     "input/pecas_dancor.aq",
-  "ifc_dir":     "input/",
-  "file_map": {
-    "CAM-W10.IFC": "cam-w10",
-    "CAM-W14.IFC": "cam-w14"
-  },
-  "products_override": [
-    {
-      "id": "89-62",
-      "nome": "CAM 89-62 TJM 50CV",
-      "serie": "TJM",
-      "geo": "cam-89-62-tjm",
-      "potencia": 50,
-      "conexoes": "2½\" × 2½\"",
-      "specs": { "Tensão": "Trifásico 220/380V", "Rotação": "3.500 rpm · 60Hz" },
-      "curva": null
-    }
-  ]
+  "aq_file":     "input/Dancor/pecas_dancor_bombas_incendio_2026_04.1.aq"
 }
 ```
 
-`products_override`: produtos presentes nos IFCs mas ausentes no .aq.
-`file_map`: mapeamento nome-exato-do-arquivo.IFC → slug-de-saída.
+Seis chaves, todas inferíveis do `.aq` e da pasta (`config.example.json` é este exemplo). As
+chaves `ifc_dir`, `file_map` e `products_override` saíram com o modo `--ifc` (I6, 2026-09-05);
+um `config.json` antigo que ainda as tenha é ignorado nesses campos.
 
 ## catalog.json — schema de saída
 
@@ -326,34 +302,12 @@ vértices, 52 k triângulos):
 ganho. No lote de 13 produtos da Dancor: **24,5 s → 6,2 s**. É a diferença entre estourar
 e cumprir o orçamento de tempo do import.
 
-## Conhecimento crítico: build.py — matching IFC → .aq
+## Matching IFC → .aq — histórico
 
-### find_aq_product — como o match funciona
-
-```python
-find_aq_product(slug, product_map, ifc_path_hint=None)
-```
-
-Quando o `file_map` usa caminhos relativos como chave (ex: `"Cap/PVC Esgoto SN/100mm.ifc"`),
-o `ifc_path_hint` é passado automaticamente por `build_catalog()`. O algoritmo extrai tokens
-de **todos** os componentes do caminho (pasta + filename) e calcula cobertura contra o GRUPO_PECA:
-
-```
-caminho: "Cap/PVC Esgoto SN/100mm.ifc"
-tokens query: {cap, pvc, esgoto, sn, 100mm}
-
-GRUPO_PECA "Cap" → tokens {cap} → cobertura 1/1 = 100% ✓
-→ dentro do grupo: PECA com maior sobreposição com leaf "100mm"
-→ nome final: "Cap 100mm" (gp + peca quando grupo não está no nome da peça)
-```
-
-Tenta cobertura ≥ 100%, relaxa para ≥ 75% se não encontrar. Se ainda falhar,
-cai no fallback por prefixo/número (compatível com IFCs flat como Dancor).
-
-**Para maximizar o match rate em catálogos hierárquicos:** a chave do `file_map`
-deve ser o caminho relativo completo a partir do `ifc_dir`, não só o filename.
-Para catálogos com > 50 produtos, o `interactive_config()` gera isso automaticamente
-via modo `'recursive'` do `scan_input()`.
+`find_aq_product` (cobertura de tokens do caminho do IFC contra `GRUPO_PECA`, fallback por
+prefixo/número) saiu do `build.py` em 2026-09-05 com o modo `--ifc` (I6). A implementação e a
+explicação vivem em `docs/estudo-oq3d/valida_ifc.py`, o único consumidor que restou; a skill
+`leitor-biblioteca-aq` mantém o resumo do algoritmo como histórico.
 
 ## Integração com bilds.com — em produção desde 2026-08-28 (PR #1244)
 

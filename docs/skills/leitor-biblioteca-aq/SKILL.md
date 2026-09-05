@@ -1,7 +1,7 @@
 ---
 name: leitor-biblioteca-aq
 description: Lê E ESCREVE arquivos de biblioteca BIM do AltoQi Builder (.aq) — SQLite com geometria 3D embutida. Extrai peças, dados hidráulicos, curvas de bomba, propriedades, miniaturas e a malha 3D completa (formato OQ3D), dispensando os IFCs; e gera um .aq do zero, com o schema, os enums, o encoding cp1252 e o binário OQ3D corretos.
-version: 2.8.0
+version: 2.8.1
 author: Bilds / carlosnetoaltoqi
 ---
 
@@ -971,10 +971,10 @@ if __name__ == '__main__':
 
 ## build_product_map — estrutura para cruzar com IFCs
 
-> **Só necessário no modo de compatibilidade** (`build.py --ifc`). No caminho padrão a geometria vem do próprio `.aq` e o vínculo é a chave estrangeira `PECA_SIMBOLOGIA_3D` — sem matching por nome.
+> **Histórico.** Servia ao modo de compatibilidade `build.py --ifc`, **removido em 2026-09-05** (I6). A geometria vem do próprio `.aq` e o vínculo é a chave estrangeira `PECA_SIMBOLOGIA_3D` — sem matching por nome. `build_product_map` continua em `read_aq.py` (útil para qualquer cruzamento por nome); o matcher `find_aq_product` mora agora em `docs/estudo-oq3d/valida_ifc.py`.
 
 `build_product_map(aq_data)` organiza os dados extraídos em um mapa indexado por nome de grupo,
-pronto para o `build_catalog()` do pipeline cruzar com os slugs dos IFCs:
+pronto para cruzar com nomes vindos de fora (era o `build_catalog()` do modo `--ifc`):
 
 ```python
 def build_product_map(aq_data):
@@ -1030,7 +1030,7 @@ def build_product_map(aq_data):
 
 ### Como o find_aq_product cruza IFC → .aq
 
-`find_aq_product(slug, product_map, ifc_path_hint=None)` em `build.py`:
+`find_aq_product(slug, product_map, ifc_path_hint=None)` — hoje em `docs/estudo-oq3d/valida_ifc.py` (saiu do `build.py` em 2026-09-05, I6):
 
 - **Sem** `ifc_path_hint`: usa tokens do slug para match (IFCs flat, ex: Dancor)
 - **Com** `ifc_path_hint` (caminho relativo do IFC, ex: `"Cap/PVC Esgoto SN/100mm.ifc"`):
@@ -1137,6 +1137,8 @@ precisão nativa do AltoQi é o centímetro.
 ---
 
 ## Histórico
+
+**2.8.1** — `build_product_map`/`find_aq_product` marcados como históricos: o modo `--ifc` do `build.py` foi removido em 2026-09-05 (I6); o matcher vive em `docs/estudo-oq3d/valida_ifc.py`.
 
 **2.8.0** — Malha OQ3D **versão 3** (Maxbar, 31 simbologias, 56 peças): mesmo layout da
 2, aceita em `MESH_VERSOES`. Corrige a explicação das 54 divergências de raízes: 31 eram

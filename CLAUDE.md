@@ -35,7 +35,7 @@ agente e skills fora do repo são auxiliares. **Toda sessão termina assim:**
 | Fluxo, `config.json`, `catalog.json`, layouts, conteúdo do ZIP, miniaturas, matching IFC → `.aq`, integração bilds.com | `docs/conhecimento/pipeline-estatico.md` |
 | Formato binário **OQ3D** (cabeçalho, classes, instâncias, unidades, escrever) | `docs/conhecimento/oq3d.md` + docstring de `scripts/oq3d.py` + skill `leitor-biblioteca-aq` |
 | Schema do `.aq`, **cp1252**, sentinelas, `DIAMETRO_PECA` é código, escrever `.aq` | `docs/conhecimento/read-aq.md` + skill `leitor-biblioteca-aq` |
-| IFC4 → geometria (só modo `--ifc` e conversor CAD) | `docs/conhecimento/parse-ifc.md` + skill `leitor-ifc` |
+| IFC4 → geometria (conversor da POC `ifc_to_geo.py`, round-trip do exportador do editor) | `docs/conhecimento/parse-ifc.md` + skill `leitor-ifc` |
 | STEP → malha (OpenCASCADE), armadilhas de segfault | skill `docs/skills/leitor-step/` + `scripts/step_to_geo.py` |
 | Templates HTML, Three.js self-hosted, escape, design tokens | `docs/conhecimento/templates-html.md` + skill `pagina-biblioteca` |
 | **Sintoma → causa** (tabela de diagnóstico, ~70 linhas) | `docs/conhecimento/diagnostico.md` |
@@ -79,12 +79,13 @@ C8, C9, C10, I22, I23, I24, I25) e passo 5 (ambiente: I5, I18, I19, `bootstrap.s
 C6 (histórico reescrito — **todo SHA anterior a 2026-09-03 mudou**), I21. **S7.9 (2026-09-05):** I26 —
 a conferência do exportador IFC no `testes-editor.sh` acusava fronteira de arredondamento (buckets a
 10 µm) e saía 0 com FALHA; agora pareia vértices a ≤ 2 µm nos dois sentidos, sai 1, autoteste
-`ROUNDTRIP_SABOTAR_IFC`. Suíte: **58 testes**, `python3 -m pytest` ≈ 45 s; CI verde em `main`.
+`ROUNDTRIP_SABOTAR_IFC`. **S7.10 (2026-09-05):** I6 decidido — modo `--ifc` **removido** (`build.py`
+1.727 → 1.290 linhas; `config.json` só com `slug/titulo/fabricante/descricao/layout/aq_file`).
+Suíte: **59 testes**, `python3 -m pytest` ≈ 50 s.
 
-**Próxima sessão:** ver `docs/sessoes/S7.9-i26-conferencia-ifc-pareia-a-2um.md`, seção 7 (a lista é a
-da S7.8 §7, intacta). Em resumo: os itens de `www/`
+**Próxima sessão:** ver `docs/sessoes/S7.10-i6-remocao-do-modo-ifc.md`, seção 7. Em resumo: os itens de `www/`
 (I11, I12, I14–I17), a limpeza L1–L14 conforme cada área for tocada, e as **decisões que só o
-usuário toma**: C7 (deploy do preview), I10 (auth na POC), I6 (modo `--ifc`: matar ou arquivar),
+usuário toma**: C7 (deploy do preview), I10 (auth na POC),
 I4 (promover o writer de `.aq`), LICENSE, se vale um `--strict`.
 
 **Estado da base da POC:** em `www/README.md`, "Estado da base e do storage" — única versão.
@@ -101,8 +102,8 @@ do AltoQi Builder. Produz um **preview HTML** (`output/preview/`) e um **ZIP par
 **A decisão central: a geometria vem do `.aq`, não do IFC.** O BLOB `SIMBOLOGIA_3D.SIMBOLOGIA_3D`
 guarda a malha completa, com cor, no formato proprietário OQ3D — o mesmo sólido que o AltoQi
 exporta como IFC. Resultado: 85× a 421× mais rápido, um arquivo de entrada, vínculo peça →
-geometria por chave estrangeira (zero matching por nome). O modo `--ifc` sobrevive só para os
-dois casos em que o IFC tem peça que o banco não tem, ou para conferir uma fonte contra a outra.
+geometria por chave estrangeira (zero matching por nome). O modo `--ifc` (geometria dos IFCs da
+pasta, matching por nome) foi **removido em 2026-09-05** (I6); `parse_ifc.py` fica para a POC.
 
 **Linhas de trabalho:** (1) pipeline estático — a linha madura, em produção; (2) engenharia
 reversa da **escrita** de `.aq` (`eng-reversa/`, 2026-09-02; o `.aq` gerado abre no AltoQi
@@ -143,7 +144,7 @@ bilds-bim-3d/
 │   ├── build.py                 ← entry point: .aq → catalog.json → preview → thumbs → ZIP
 │   ├── oq3d.py · read_aq.py     ← OQ3D binário → malha; .aq → dados/metadados/simbologias   ★ caminho padrão
 │   ├── dedup.py                 ← deduplicação de vértices (~79%)
-│   ├── parse_ifc.py             ← IFC4 → geometria (modo --ifc e ifc_to_geo.py)
+│   ├── parse_ifc.py             ← IFC4 → geometria (ifc_to_geo.py da POC e round-trip do exportador)
 │   ├── step_to_geo.py · ifc_to_geo.py · geo_to_aq.py   ← conversores da POC de edição (STEP/IFC → malha; malha → .aq)
 │   ├── thumbs.mjs               ← miniaturas no Chromium (Playwright); templates/thumbs/harness.html
 │   ├── bootstrap.sh · setup_vendor.sh · link_skills.sh
@@ -184,7 +185,7 @@ esperadas estão **nos arquivos**, não em texto: `.python-version`, `.nvmrc`, `
 | `node_modules/playwright` + Chromium + libs `libnss3 libnspr4 libasound2t64` | miniaturas (o build **falha** sem) | `ls node_modules/playwright; ldconfig -p \| grep libnss3` |
 | `requirements-dev.txt` (pytest) | `tests/` | `python3 -m pytest -q` |
 | `www/` com `pnpm install` e `www/.env` | POC | `bash scripts/bootstrap.sh --www --check` |
-| `requirements-cad.txt` (ifcopenshell, cadquery-ocp, pypdf) | `--ifc` B-rep, STEP, IFC grande, PDF | `python3 -c 'import OCP, ifcopenshell'` |
+| `requirements-cad.txt` (ifcopenshell, cadquery-ocp, pypdf) | IFC B-rep e IFC grande (`ifc_to_geo.py`), STEP, PDF | `python3 -c 'import OCP, ifcopenshell'` |
 
 **Armadilhas de ambiente que já custaram tempo:**
 - **Dois Node na máquina.** O do apt (`/usr/bin/node`, v18) e o do nvm; o nvm só entra no PATH
@@ -202,7 +203,7 @@ esperadas estão **nos arquivos**, não em texto: `.python-version`, `.nvmrc`, `
 ## Testes — `tests/`
 
 ```bash
-python3 -m pytest                                   # 58 testes, ≈ 45 s (abre o Chromium uma vez)
+python3 -m pytest                                   # 59 testes, ≈ 50 s (abre o Chromium uma vez)
 python3 -m pytest -m "not thumbs"                   # sem Chromium — é o que o CI roda
 python3 -m pytest -m "not thumbs and not paridade"  # só Python, sem Node
 ```
@@ -211,7 +212,7 @@ python3 -m pytest -m "not thumbs and not paridade"  # só Python, sem Node
 |---|---|
 | `test_oq3d.py` | contrato do parser: truncado → `OQ3DError`; layout desconhecido → pulado + aviso; versões 2 e 3 iguais; raízes do cabeçalho; Akato 262/262; Maxbar versão 3 |
 | `test_read_aq.py` | `open_aq` não cria arquivo, read-only, rejeita lixo; contagens da Akato; cp1252 sem `\x80–\x9f`/U+FFFD |
-| `test_build.py` | `auto_config`; `build_catalog_from_aq` + `diag` em Akato corrompida; render dos dois layouts com `1" x 1" <script>`; sem Jinja2/template → `RuntimeError`; `thumbCount`; `ThumbsError` sem Node, `--allow-no-thumbs`, `--skip-thumbs`, `run_all` exit 1; uma miniatura real |
+| `test_build.py` | `auto_config` (só chaves do `.aq`; `--ifc` recusado — I6); `build_catalog_from_aq` + `diag` em Akato corrompida; render dos dois layouts com `1" x 1" <script>`; sem Jinja2/template → `RuntimeError`; `thumbCount`; `ThumbsError` sem Node, `--allow-no-thumbs`, `--skip-thumbs`, `run_all` exit 1; uma miniatura real |
 | `test_oq3d_roundtrip.py` | `eng-reversa/tools/oq3d_roundtrip.py` como processo: caminho padrão da Amanco, seis casos, `.aq` ausente → exit 1, `--sem-real` |
 | `test_editor_roundtrips.py` | `www/tools/testes-editor.sh`: round-trip do `mesh-model` por agrupamento a 2 µm; IFC exportado → `parse_ifc.py` com todo vértice pareado a ≤ 2 µm nos dois sentidos; `ROUNDTRIP_SABOTAR=1` e `ROUNDTRIP_SABOTAR_IFC=1` têm de falhar |
 | `test_paridade_ts.py` | Python ↔ TypeScript (`www/tools`): blobs sintéticos e a Akato inteira, campo a campo e SHA-1; curvas Q-H da Dancor |

@@ -23,9 +23,8 @@
 | Chip de filtro não filtra e o console só erra ao clicar ("Invalid or unexpected token") | Nome de série com `"` (Komeco `1" x 1"`, Maxbar `"T" Horizontal`) em `data-filter`/`onclick` sem escape — **corrigido em S7.4**: `autoescape=True` e handler lê `this.dataset.filter`. Se voltar, alguém desligou o autoescape |
 | `build.py` falhou mas o shell viu exit 0 | Até S7.4 `run_all` e `main` nunca chamavam `sys.exit(1)`. Hoje: catálogo sem produto e qualquer falha no `--all` saem com 1 e "gerados" conta builds, não ZIPs |
 | Texto com lixo (`5U \x96 19\x94`) | Texto lido como `latin-1` ou UTF-8 — o `.aq` é **cp1252** (ver "Encoding é cp1252, não latin-1") |
-| Taxa de match IFC → .aq baixa | `file_map` usa só filename — chave deve ser o caminho relativo completo (`Cap/PVC SN/100mm.ifc`) para enriquecer tokens da busca fuzzy |
+| Peça existe como `.IFC` na pasta mas não sai no catálogo | Desde 2026-09-05 (I6) o build lê só o `.aq`: a peça precisa estar cadastrada nele, ou entra pela POC (`ifc_to_geo.py`). As linhas antigas sobre `file_map`/`scan_input` saíram com o modo `--ifc` |
 | Nome do produto é só dimensão ("100mm") | Esperado para catálogos flat no .aq — build.py prefixa com GRUPO_PECA automaticamente |
-| ZIP 0KB + "X não encontrado em input/" | scan_input escolheu modo subdir com múltiplos IFCs — fix: modo subdir só ativa quando cada subdir tem exatamente 1 IFC; caso contrário cai em recursive |
 | Fabricante/título stale do catálogo anterior | aq_stale não estava resetando titulo/slug — fix em commit 5e38b65; deletar config.json corrompido se necessário |
 | `Fabricante []` sem sugestão | BIBLIOTECA vazia no .aq e pasta avô é genérica — peek_aq tenta pasta avô, depois filename |
 | Título sugerido ruim (ex: `"Esgoto Sn Sr"`) | Pasta pai do .aq é genérica (`input/`, `.`) — organizar como `input/Fabricante/Nome da Linha/pecas.aq` |
