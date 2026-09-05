@@ -15,7 +15,10 @@ import * as dotenv from 'dotenv';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as crypto from 'crypto';
-import { MongoClient, Db } from 'mongodb';
+// driver do próprio mongoose (I12) — o pacote `mongodb` separado saiu de apps/api
+import mongoose from 'mongoose';
+const { MongoClient } = mongoose.mongo;
+type Db = InstanceType<typeof mongoose.mongo.Db>;
 import { DiskGeometryStore } from '../apps/api/src/geometry-store/disk-geometry-store';
 
 dotenv.config({ path: path.resolve(__dirname, '../.env') });

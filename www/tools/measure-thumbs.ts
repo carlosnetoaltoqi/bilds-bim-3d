@@ -18,7 +18,9 @@ import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
 import { existsSync, createReadStream } from 'node:fs';
 import { createServer } from 'node:http';
-import { MongoClient } from 'mongodb';
+// driver do próprio mongoose (I12) — o pacote `mongodb` separado saiu de apps/api
+import mongoose from 'mongoose';
+const { MongoClient } = mongoose.mongo;
 // A Abordagem B (rasterizador software) virou histórico em 2026-08-30 e mudou de
 // arquivo; o caminho de produção hoje é o Playwright, que é a própria Abordagem A.
 import { renderThumbSw, RasterBuffers, THUMB_W, THUMB_H } from './thumb-rasterizer-sw';

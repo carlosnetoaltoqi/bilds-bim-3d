@@ -14,7 +14,9 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as dotenv from 'dotenv';
-import { MongoClient, ObjectId } from 'mongodb';
+// driver do próprio mongoose (I12) — o pacote `mongodb` separado saiu de apps/api
+import mongoose from 'mongoose';
+const { MongoClient } = mongoose.mongo;
 import { renderThumbTs, closeThumbRenderer } from './thumb-rasterizer';
 
 // Carrega .env do diretório www/

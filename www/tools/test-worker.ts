@@ -12,7 +12,9 @@ import * as crypto from 'crypto';
 import * as http from 'http';
 import { spawn } from 'child_process';
 import * as dotenv from 'dotenv';
-import { MongoClient } from 'mongodb';
+// driver do próprio mongoose (I12) — o pacote `mongodb` separado saiu de apps/api
+import mongoose from 'mongoose';
+const { MongoClient } = mongoose.mongo;
 
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
