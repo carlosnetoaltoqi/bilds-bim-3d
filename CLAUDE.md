@@ -45,7 +45,7 @@ agente e skills fora do repo são auxiliares. **Toda sessão termina assim:**
 | Planos históricos | `docs/plano-produto-dinamico.md`, `docs/plano-integracao-bilds.md`, `docs/plans/` — **históricos**, não guiam nada |
 | O que a bilds.com recebe deste pipeline (lado consumidor) | `docs/saida-bilds-com/pipeline-bim-dinamico-na-bilds-com.md` |
 | Como a geometria do `.aq` foi descoberta e validada | `docs/estudo-oq3d/` |
-| **Escrever** `.aq`/OQ3D do zero; catálogo a partir de PDF | `eng-reversa/README.md` |
+| **Escrever** `.aq`/OQ3D do zero | `www/apps/ingestao/pipeline/{aq_writer,oq3d_writer}.py` (I4, 2026-09-05) + `docs/conhecimento/read-aq.md`; catálogo a partir de PDF (Akato) em `eng-reversa/README.md` |
 | Vocabulário (OQ3D, Import, Parte, Bake, sentinela, código de diâmetro…) | `CONCEPTS.md` |
 | **Pendências de sistema e ordem de ataque** (C1–C10, I1–I32, L1–L14) | `docs/auditoria-2026-09-03-pendencias.md`; o que fica/sai a caminho do repo limpo em `docs/inventario-2026-09-05-fica-ou-sai.md` |
 | **Registro de cada sessão**, índice cronológico | `docs/sessoes/README.md` |
@@ -107,9 +107,13 @@ plano e pendências: `docs/arquitetura-www-servico-de-ingestao.md` (§4). O inve
 (`docs/inventario-2026-09-05-fica-ou-sai.md`) foi escrito antes e está anotado. `scripts/build.py` continua
 gerando o ZIP da bilds.com, agora importando o pipeline de `www/apps/ingestao/pipeline/`.
 
+**S7.15 (2026-09-05):** I32 (`MongoProntoGuard` em `@bim/dominio`, 503 na hora com o Mongo fora), C7 (preview
+só local; `vercel.json` removido — o projeto na Vercel ainda existe) e I4 (`aq_writer.py`, `oq3d_writer.py` e
+`schema-aq-607.sql` promovidos para o pipeline; `gerar_aq.py` da Akato herda de `EscritorAq`). Suíte **107**.
+
 **Próxima sessão:** ver `docs/sessoes/S7.14-www-servico-de-ingestao.md`, seção 7 — build do `dist/` com o
-`@bim/dominio`, e2e reexecutados, aceitação automatizada, I32/Nest 11; depois o isolamento do serviço.
-Decisões antigas ainda em aberto: C7 (preview na Vercel), I4 (promover o writer de `.aq`), LICENSE.
+`@bim/dominio`, e2e reexecutados, aceitação automatizada, Nest 11; depois o isolamento do serviço.
+Decisão antiga ainda em aberto: LICENSE (C7, I4 e I32 foram fechados em 2026-09-05, S7.15).
 
 **Estado da base:** em `www/README.md`, "Estado da base e do storage" — única versão.
 A raiz está **sem `config.json`** (o build interativo recria).
@@ -146,7 +150,6 @@ miniaturas) mora em `www/apps/ingestao/pipeline/` e o `build.py` da linha (1) o 
 4. python3 scripts/build.py --all       # um ZIP por .aq, sem perguntas (build.py sem --all pergunta)
 5. python3 -m http.server 8080 --directory output/preview      # preview local
 6. subir output/<origem>/<slug>-<ts>.zip no dashboard.bilds.com → BIM 3D
-7. (opcional) vercel --prod --yes, da raiz  — publica o preview; push NÃO publica (integração git desligada)
 ```
 
 Fabricante, título, slug e layout são inferidos do `.aq` e da pasta (cascata em
@@ -164,7 +167,7 @@ bilds-bim-3d/
 ├── .nvmrc (24) · .python-version (3.12) · package.json (packageManager pnpm@11, playwright para as miniaturas)
 ├── requirements.txt (jinja2, numpy) · requirements-dev.txt (pytest) · requirements-cad.txt (ifcopenshell, OCP, pypdf)
 ├── .github/workflows/ci.yml     ← pytest -m "not thumbs" + py_compile; pnpm -r build em www/
-├── config.example.json · vercel.json (serve output/preview, cleanUrls)
+├── config.example.json
 ├── scripts/
 │   ├── build.py                 ← pipeline estático: .aq → catalog.json → preview → thumbs → ZIP (consome www/apps/ingestao/pipeline)
 │   ├── bootstrap.sh · setup_vendor.sh · link_skills.sh
@@ -179,7 +182,8 @@ bilds-bim-3d/
 ├── eng-reversa/                 ← escrever .aq/OQ3D, formas paramétricas, PDF → catálogo (README próprio)
 ├── www/                         ← em reestruturação (docs/arquitetura-www-servico-de-ingestao.md) — README próprio
 │   ├── apps/ingestao/pipeline/  ← ★ O PIPELINE PYTHON: read_aq.py, oq3d.py, dedup.py, catalogo.py, inferencia.py, miniaturas.py,
-│   │                               catalogo_de_aq.py (CLI), step_to_geo.py, ifc_to_geo.py, parse_ifc.py, geo_to_aq.py, thumbs.mjs + harness.html
+│   │                               catalogo_de_aq.py (CLI), step_to_geo.py, ifc_to_geo.py, parse_ifc.py, geo_to_aq.py, aq_writer.py,
+│   │                               oq3d_writer.py, schema-aq-607.sql, thumbs.mjs + harness.html
 │   ├── apps/api (Nest :4000) · apps/web (Next :3000) · tools/ (testes do editor)
 ├── input/                       ← .aq do usuário — gitignored
 └── output/                      ← gerado; só preview/index.html (landing feita à mão) é versionado
@@ -226,7 +230,7 @@ esperadas estão **nos arquivos**, não em texto: `.python-version`, `.nvmrc`, `
 ## Testes — `tests/`
 
 ```bash
-python3 -m pytest                                   # 102 testes, ≈ 60 s (abre o Chromium duas vezes)
+python3 -m pytest                                   # 107 testes, ≈ 60 s (abre o Chromium duas vezes)
 python3 -m pytest -m "not thumbs"                   # sem Chromium — é o que o CI roda
 python3 -m pytest -m "not thumbs and not paridade"  # só Python, sem Node
 ```
@@ -236,6 +240,7 @@ python3 -m pytest -m "not thumbs and not paridade"  # só Python, sem Node
 | `test_oq3d.py` | contrato do parser: truncado → `OQ3DError`; layout desconhecido → pulado + aviso; versões 2 e 3 iguais; raízes do cabeçalho; Akato 262/262; Maxbar versão 3 |
 | `test_read_aq.py` | `open_aq` não cria arquivo, read-only, rejeita lixo; contagens da Akato; cp1252 sem `\x80–\x9f`/U+FFFD |
 | `test_build.py` | `auto_config` (só chaves do `.aq`; `--ifc` recusado — I6); `build_catalog_from_aq` + `diag` em Akato corrompida; render dos dois layouts com `1" x 1" <script>`; sem Jinja2/template → `RuntimeError`; `thumbCount`; `ThumbsError` sem Node, `--allow-no-thumbs`, `--skip-thumbs`, `run_all` exit 1; uma miniatura real |
+| `test_geo_to_aq.py` | I4: o pipeline não importa nada de fora do próprio diretório; `geo_to_aq.py` gera um `.aq` de uma malha que `read_aq.py` e `oq3d.py` leem de volta (nome com acento em cp1252, specs, um triângulo, cores) |
 | `test_oq3d_roundtrip.py` | `eng-reversa/tools/oq3d_roundtrip.py` como processo: caminho padrão da Amanco, seis casos, `.aq` ausente → exit 1, `--sem-real` |
 | `test_editor_roundtrips.py` | `www/tools/testes-editor.sh`: round-trip do `mesh-model` por agrupamento a 2 µm; IFC exportado → `parse_ifc.py` com todo vértice pareado a ≤ 2 µm nos dois sentidos; `ROUNDTRIP_SABOTAR=1` e `ROUNDTRIP_SABOTAR_IFC=1` têm de falhar |
 | `test_processo.py` | E3: `executar()` do serviço — saída ≠ 0 com o stderr, sinal, timeout, ocioso, comando inexistente, stdin do filho aberto enquanto o pai vive; `vigiar_stdin` sai com 2 no EOF e continua com o stdin aberto; `thumbs.mjs` com `sairComStdin` para sem renderizar (marcador `thumbs`) |
@@ -243,6 +248,7 @@ python3 -m pytest -m "not thumbs and not paridade"  # só Python, sem Node
 | `test_geometrias_thumb.py` | I14/A5/A6: geometria exclusiva → `.orig.json` e miniatura pedida ao serviço no `PUT` e no `restaurar`; geometria compartilhada → copy-on-write (`geo/<importId>/<productId>.json`, `geoKeyCompartilhada`, irmão intacto, restaurar desfaz); serviço fora → `thumbErro` no produto e `miniatura: 'nao-solicitada'`; `GET /produtos/:id` devolve `thumbAtualizadaEm`/`thumbErro` (I31) |
 | `test_www_validacao.py` | I16: 37 corpos pelo mesmo `ValidationPipe` (agora em `@bim/dominio`) contra cada DTO da API e do serviço (`ImportarDto`, `ExportarAqDto`, `PatchProdutoDto`…) — aceitos saem normalizados, rejeitados dão 400; campo fora do DTO é 400 |
 | `test_www_importacao.py` | I11 (no serviço de ingestão): `Fila` (FIFO, posição informada, rejeição repassada, concorrência 2, `IMPORTACOES_CONCORRENCIA` inválida derruba); recuperação no boot marca `falhou` todo não terminal, limpa produtos/`geo/`, apaga só `bim-*.aq|.zip`/`cad-*` do tmp |
+| `test_www_mongo_guard.py` | I32: `MongoProntoGuard` — conectado passa; `readyState` 0/2/3 → 503 na hora com o estado e o ponteiro para `/health`; `/health` passa desconectado; registrado como `APP_GUARD` nos dois apps |
 | `test_www_deps.py` | I12/E3: lê `pnpm-lock.yaml` — peers satisfeitas nos importers `apps/api` e `apps/ingestao`; os três importers (com `packages/dominio`) resolvem as MESMAS versões de Nest/Mongoose/class-validator; `@bim/dominio` só nos dois apps; sem pacote `mongodb`; health pela conexão; nenhum parser `.aq`/OQ3D em TypeScript (A2) |
 | `test_bootstrap.py` | `bootstrap.sh --check` imprime a tabela e acusa Node ausente com exit 1 |
 
@@ -273,10 +279,8 @@ Push com arquivo em `.github/workflows/` exige o escopo `workflow` no token do `
   `/home/foltz/backups/` (só nesta máquina).
 - **Gitignored e regerável:** `input/`, `output/**` exceto `preview/index.html`, `templates/vendor/`,
   `www/storage/`, `.env`, `config.json`, `output/.pytest-tmp/`. `*.aq` é `binary` no `.gitattributes`.
-- **Deploy do preview** (`bilds-bim-3d.vercel.app`, projeto `bilds/bilds-bim-3d` — nunca criar outro):
-  só pelo CLI, **da raiz**, `vercel --prod --yes`, depois de um build local. A integração git da
-  Vercel está **desligada** desde 2026-09-02 (o push sobrescrevia o deploy com só a landing).
-  Nunca passar `output/preview` como argumento posicional. Estratégia definitiva = C7, em aberto.
+- **Preview é só local** (C7, decidido em 2026-09-05): `vercel.json`/`.vercelignore` saíram; o projeto
+  `bilds/bilds-bim-3d` na Vercel pode ser apagado. A bilds.com consome o ZIP, não o preview.
 - **Preview local:** `python3 -m http.server 8080 --directory output/preview`.
 
 ---

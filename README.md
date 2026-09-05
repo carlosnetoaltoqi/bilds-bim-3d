@@ -96,22 +96,13 @@ Sem `--all`, o build pergunta fabricante, título, descrição e layout — com 
 
 Escolhido automaticamente: `series-rows` se a biblioteca tem curvas Q-H, `catalog-grid` acima de 6 peças. Ajustável na pergunta do modo interativo ou no `config.json`.
 
-## Publicar o preview
+## Preview
 
-`output/preview/` é **gitignored** (só a landing `index.html` é versionada) e a integração
-git da Vercel está **desligada** desde 2026-09-02 — push não publica nada. O único fluxo
-que funciona é o CLI, sempre da raiz do repositório, depois de um build local:
-
-```bash
-python3 scripts/build.py --all        # gera output/preview/ nesta máquina
-vercel --prod --yes                   # sobe output/preview/ (vercel.json) para bilds-bim-3d.vercel.app
-```
-
-Índice em `bilds-bim-3d.vercel.app`, cada catálogo em `bilds-bim-3d.vercel.app/<slug>`.
-**Nunca** passe `output/preview` como argumento do `vercel` — isso ignora o
-`.vercel/project.json` e cria um projeto novo. A estratégia definitiva (build na Vercel,
-storage externo ou preview só local) é uma decisão em aberto — item C7 de
-`docs/auditoria-2026-09-03-pendencias.md`.
+O preview é **só local** (decisão C7, 2026-09-05): `python3 -m http.server 8080 --directory output/preview`
+depois do build. Ninguém consome o preview publicado — a bilds.com consome o ZIP —, e o deploy na
+Vercel era irreproduzível (servia o `output/preview` desta máquina, 2 GB gitignored, com a integração
+git desligada). `vercel.json` e `.vercelignore` saíram do repositório; o projeto `bilds/bilds-bim-3d`
+na Vercel pode ser apagado.
 
 ## Ferramentas auxiliares
 

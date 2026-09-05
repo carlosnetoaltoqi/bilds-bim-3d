@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { MongooseModule } from '@nestjs/mongoose';
-import { GeometryStoreModule } from '@bim/dominio';
+import { GeometryStoreModule, MongoProntoGuard } from '@bim/dominio';
 import { HealthController } from './health/health.controller';
 import { ImportacoesModule } from './importacoes/importacoes.module';
 import { CadModule } from './cad/cad.module';
@@ -18,5 +19,7 @@ import { MiniaturasModule } from './miniaturas/miniaturas.module';
     MiniaturasModule,
   ],
   controllers: [HealthController],
+  // I32: Mongo fora → 503 na hora em toda rota (menos /health), em vez de 500 após 30 s
+  providers: [{ provide: APP_GUARD, useClass: MongoProntoGuard }],
 })
 export class AppModule {}

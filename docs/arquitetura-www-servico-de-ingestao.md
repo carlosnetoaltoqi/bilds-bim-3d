@@ -17,7 +17,7 @@
 | A6 | A miniatura é do produto (`thumbs/<importId>/<productId>.webp`) mas produtos que compartilham geometria compartilham o render: o serviço renderiza por geometria e grava a chave em cada produto. Regeneração após edição é pedida pela API ao serviço (`POST /miniaturas/regerar`). | Uma renderização por geometria; a API não tem Chromium nem Python. |
 | A7 | **Sem auth**: login, JWT, `AuthGuard`, `SEED_USER`, middleware do Next e as rotas-proxy `/api/*` do web saem. O web fala direto com a API e com o serviço (CORS). | POC enquanto viver aqui. Empresa = agrupador de catálogos, escolhida por `customUrl` no import. |
 | A8 | Todo catálogo publicado tem, na página pública, chamada para a edição (cabeçalho → `/editar`; modal do produto → `/editar/:produtoId`). Já existia; fica e é validado. | Pedido do usuário. |
-| A9 | O gerador de `.aq` (`eng-reversa/`) **não é tocado** nesta fase. O editor continua exportando IFC (`ifc-export.ts`, no browser) e `.aq` (`geo_to_aq.py`, pelo serviço). | Escopo. |
+| A9 | O gerador de catálogo da Akato (`eng-reversa/`) não é tocado. O editor continua exportando IFC (`ifc-export.ts`, no browser) e `.aq` (`geo_to_aq.py`, pelo serviço). **Adendo (I4, S7.15):** a parte genérica do escritor de `.aq` (`aq_writer.py`, `oq3d_writer.py`, `schema-aq-607.sql`) foi promovida para o pipeline; o `gerar_aq.py` da Akato herda dela. | Escopo; o serviço tem de ser autocontido. |
 | A10 | Filhos (Python e `thumbs.mjs`) **morrem quando o pai morre**: recebem `stdin` em pipe e saem ao ver EOF. | Substitui o `disconnect` do IPC (I29) sem `fork`. |
 
 ## 2. Topologia
@@ -124,7 +124,8 @@ Regras de execução: um commit por item; cada etapa termina com `pnpm -r build`
 - `tools/e2e/e2e-editor.mjs` e `e2e-cad-import.mjs` apontam para os serviços novos mas não foram reexecutados.
 - Teste automatizado de aceitação (subir serviço + API com Mongo local, importar Dancor, editar) — hoje é roteiro manual na sessão.
 - `GET /importacoes` faz três consultas por item; `www/README.md` "Estado da base" precisa ser atualizado a cada carga.
-- I32 (Mongo fora → 500 após 30 s), Nest 11 (multer novo), `IngestaoClient` com timeout de 10 s no `PUT` (se o serviço travar, o PUT demora 10 s).
+- ~~I32~~ (fechado na S7.15: `MongoProntoGuard` → 503 na hora), Nest 11 (multer novo), `IngestaoClient` com timeout de 10 s no `PUT` (se o serviço travar, o PUT demora 10 s).
+- ~~C7~~ fechado na S7.15: preview só local, `vercel.json` removido. ~~I4~~ fechado na S7.15: pipeline autocontido.
 - O inventário `docs/inventario-2026-09-05-fica-ou-sai.md` foi escrito ANTES desta arquitetura: as decisões D1–D3 dele foram superadas pela direção do usuário (o repo limpo é o `www/` de três apps + pipeline); o resto (arquivo/sai) continua válido.
 
 ## 5. O que fica fora (por enquanto)

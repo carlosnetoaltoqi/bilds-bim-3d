@@ -29,14 +29,14 @@ código foram reproduzidos uma segunda vez antes de fechar este documento.
 | **C4** ✅ | Build da API (`tsc -p`) quebrado por erro de tipo em `tools/aq-reader.ts:203` — **corrigido 2026-09-03** | www |
 | **C5** ✅ | Branch `poc-edicao` (12 commits, ~6.300 linhas) existe só nesta máquina — **corrigido 2026-09-03** (S7.5, push após a reescrita) | repo |
 | **C6** ✅ | 398 MB de geometria morta (`output/preview/**`) no histórico git e no GitHub — **corrigido 2026-09-03** (S7.5, `git filter-repo` + force-push) | repo |
-| **C7** | Deploy da Vercel é irreproduzível: serve o `output/preview` local desta máquina | infra |
+| **C7** ✅ | Deploy da Vercel é irreproduzível: serve o `output/preview` local desta máquina — **decidido 2026-09-05** (S7.15: preview só local; `vercel.json`/`.vercelignore` removidos; projeto na Vercel a apagar) | infra |
 | **C8** ✅ | Diagnóstico do CLAUDE.md manda usar `latin-1`; o correto é cp1252 — **corrigido 2026-09-03** | docs |
 | **C9** ✅ | README ensina fluxo de publicação que não publica nada — **corrigido 2026-09-04** (S7.8: seção "Publicar o preview" descreve o CLI e o gitignore; C7 continua em aberto) | docs |
 | **C10** ✅ | Estado da base aparece em três versões contraditórias no CLAUDE.md — **corrigido 2026-09-04** (S7.8: uma versão só, em `www/README.md`; o CLAUDE.md aponta) | docs |
 | I1 ✅ | Miniaturas degradam em silêncio no build (ZIP sem `thumbs/`, exit 0) — **corrigido 2026-09-03** (S7.6: `ThumbsError`, `--allow-no-thumbs`, `thumbCount`) | geração |
 | I2 ✅ | Geometria inválida/vazia contabilizada como "tubos/kits"; `_read_mesh` muda — **corrigido 2026-09-03** (S7.6: `diag` por categoria; `_read_mesh` lança em truncado; **bônus: malha versão 3 da Maxbar, 56 peças recuperadas**) | geração |
 | I3 ✅ | `OQ3DAvisoParse` não chega ao operador — **corrigido 2026-09-03** (S7.6: coletado por simbologia, `resumo_diag`) | geração |
-| I4 | `www/apps/ingestao/pipeline/geo_to_aq.py` depende de `eng-reversa/tools/` (estudo) | geração |
+| I4 ✅ | `geo_to_aq.py` depende de `eng-reversa/tools/` (estudo) — **corrigido 2026-09-05** (S7.15: `oq3d_writer.py`, `aq_writer.py` (parte genérica do `gerar_aq.py`) e `schema-aq-607.sql` promovidos para `www/apps/ingestao/pipeline/`; o `gerar_aq.py` da Akato importa de lá) | geração |
 | I5 ✅ | `requirements.txt` incoerente; OCP/ifcopenshell/pypdf fora de qualquer requirements — **corrigido 2026-09-04** (S7.8: `requirements.txt` só jinja2+numpy; `requirements-dev.txt`; `requirements-cad.txt` pinado) | ambiente |
 | I6 ✅ | Modo `--ifc` do build é código morto (~450 linhas) com `config.example.json` obsoleto — **removido 2026-09-05** (S7.10, decisão do usuário: `build.py` 1.727 → 1.290 linhas; `config.example.json` refeito com as 6 chaves reais; `find_aq_product` movido para `docs/estudo-oq3d/valida_ifc.py`; `test_modo_ifc_removido`) | geração |
 | I7 ✅ | Fallback sem Jinja2 gera HTML quebrado — **corrigido 2026-09-04** (S7.7: `build_preview` lança `RuntimeError` sem Jinja2 ou sem template; `run_build` não ignora mais o retorno) | geração |
@@ -64,7 +64,7 @@ código foram reproduzidos uma segunda vez antes de fechar este documento.
 | I29 ✅ | parse-worker/thumb-worker sobreviviam à morte da API (`kill -9`) e o órfão gravou 228 JSONs em `geo/` — **corrigido 2026-09-05** (S7.13: saem com 2 no `disconnect`; cenário real em `worker_ipc.mts`) | www |
 | I30 ✅ | Nome do arquivo enviado decodificado como latin1 (`gÃ¡s.aq`) pelo multer 2.0.2 que o Nest 10 embute; `defParamCharset` não existe nessa versão — **corrigido 2026-09-05** (S7.13: `common/upload.ts`, guarda em `test_www_config.py`) | www |
 | I31 ✅ | `GET /produtos/:id` omitia `thumbAtualizadaEm`/`thumbErro` que o I14 grava — o teste do I14 usava modelos falsos e nunca leu pela API — **corrigido 2026-09-05** (S7.13) | www |
-| I32 | Com o Mongo fora, rotas que consultam a base esperam os 30 s do driver e respondem 500; só `/health` dá 503 na hora — guard global (`readyState ≠ 1` → 503) ou `bufferCommands: false`? Visto na S7.13 | www |
+| I32 ✅ | Com o Mongo fora, rotas que consultam a base esperam os 30 s do driver e respondem 500 — **corrigido 2026-09-05** (S7.15: `MongoProntoGuard` em `@bim/dominio`, `APP_GUARD` nos dois apps: `readyState ≠ 1` → 503 na hora, `/health` fora) | www |
 | L1–L14 | Limpeza (duplicações, código legado, `any`, funções gigantes, etc.) | todas |
 
 ---

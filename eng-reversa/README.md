@@ -165,7 +165,7 @@ isso que a validação é contra o leitor do projeto, não contra o AltoQi.
 | `dados/akato-celulas.json` | 1.925 células do PDF com x, y, corpo da fonte e ordem de desenho |
 | `dados/akato-catalogo.json` | 87 famílias, 269 produtos, tabela de conversão |
 | `dados/akato-pdf-texto.txt` | O `extract_text()` linear, guardado para comparação — é o que **não** funciona |
-| `dados/schema-aq-607.sql` | DDL completo de um `.aq`: 77 tabelas e 84 índices |
+| ~~`dados/schema-aq-607.sql`~~ | DDL completo de um `.aq` (77 tabelas, 84 índices) — **promovido** em 2026-09-05 (I4) para `www/apps/ingestao/pipeline/schema-aq-607.sql`, junto com `oq3d_writer.py` e a parte genérica do `gerar_aq.py` (`aq_writer.py`); o `gerar_aq.py` daqui herda de lá |
 
 ---
 

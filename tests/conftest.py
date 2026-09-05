@@ -13,7 +13,7 @@ Fixtures reais: os `.aq` de `input/` (gitignored, 15 bibliotecas nesta máquina)
 Testes que precisam de um deles usam `akato_aq` (7 MB, gerado pelo próprio
 projeto na S6/S7, 262 peças com 262 geometrias, sem tubos/kits) e pulam com
 motivo claro se o arquivo não existir. Os testes de formato usam blobs OQ3D
-sintéticos escritos por `eng-reversa/tools/oq3d_writer.py`, então rodam em
+sintéticos escritos por `www/apps/ingestao/pipeline/oq3d_writer.py`, então rodam em
 qualquer máquina.
 
 Saída: `output/.pytest-tmp/<aleatório>/` (apagado ao fim), dentro da raiz para

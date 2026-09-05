@@ -5,9 +5,10 @@
  * edição de geometria (common/ingestao-client.ts).
  */
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { MongooseModule } from '@nestjs/mongoose';
 import { HealthController } from './health/health.controller';
-import { GeometryStoreModule } from '@bim/dominio';
+import { GeometryStoreModule, MongoProntoGuard } from '@bim/dominio';
 import { GeometriasModule } from './geometrias/geometrias.module';
 import { CatalogosModule } from './catalogos/catalogos.module';
 import { ThumbsModule } from './thumbs/thumbs.module';
@@ -38,5 +39,7 @@ import { BimImport, BimImportSchema } from '@bim/dominio';
     ]),
   ],
   controllers: [HealthController],
+  // I32: Mongo fora → 503 na hora em toda rota (menos /health), em vez de 500 após 30 s
+  providers: [{ provide: APP_GUARD, useClass: MongoProntoGuard }],
 })
 export class AppModule {}

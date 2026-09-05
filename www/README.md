@@ -126,7 +126,7 @@ serviços com Mongo: o teste de aceitação da S7.14 (import Dancor e Amanco, ed
 | `apps/ingestao/src/importacoes/` | `importacoes.service.ts` (o fluxo acima, CAD e regeneração de miniatura), controller, `importar.dto.ts`, `fila.ts`, `recuperacao.service.ts` |
 | `apps/ingestao/src/pipeline/` | `processo.ts` (spawn com timeout, ociosidade, stdin em pipe, `ProcessoError`) e `pipeline.service.ts` — a ÚNICA fronteira com Python/Node |
 | `apps/ingestao/src/{cad,miniaturas,health}/` | `POST /cad/tesselar`, `POST /exportar/aq`, `POST /miniaturas/regerar`, `GET /health` |
-| `apps/ingestao/pipeline/` | **o pipeline Python** + `thumbs.mjs`/`harness.html` (README próprio); o `scripts/build.py` da raiz importa daqui |
+| `apps/ingestao/pipeline/` | **o pipeline Python** + `thumbs.mjs`/`harness.html` + escritor de `.aq`/OQ3D (README próprio; autocontido desde I4); o `scripts/build.py` da raiz importa daqui |
 | `apps/api/src/{empresas,catalogos,produtos,geometrias,thumbs,health}/` | um módulo Nest por assunto; `common/ingestao-client.ts` fala com o serviço |
 | `apps/web/src/app/` | `page.tsx` (home), `importar/`, `[empresa]/[catalogo]/…`, `empresa/criar/` |
 | `apps/web/src/components/bim-catalog/` | viewer público: cards, modal, `bim-viewer-engine.ts` (`buildScene` — a mesma cena do `harness.html`) |
@@ -175,7 +175,7 @@ quatro coleções e `storage/bim/{geo,thumbs}`.
   e não o emite. Só o modo dev (`ts-node`) funciona. Resolver quando o serviço for isolado
   (compilar o `dominio` para `dist` com `main` próprio, ou `paths` + bundler).
 - **Sem visibilidade de catálogo**: publicado = público na hora. Requisito da bilds.com, não daqui.
-- **Mongo fora**: rotas com banco esperam 30 s e dão 500; só `/health` diz 503 na hora (I32).
+- **Mongo fora**: `MongoProntoGuard` (`@bim/dominio`, `APP_GUARD` nos dois apps) responde **503 na hora** em toda rota menos `/health` enquanto a conexão não está pronta (I32, S7.15).
 - **Nest 10**: o multer embutido decodifica o nome do arquivo em latin1 (`upload.ts` corrige); subir
   para o Nest 11 traria o multer novo.
 - `tools/e2e/*.mjs` foram apontados para o serviço mas **não foram reexecutados** na S7.14.

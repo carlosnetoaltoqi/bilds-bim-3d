@@ -9,8 +9,8 @@ personalizadas que vierem junto.
 AltoQi — um STEP tesselado pelo `step_to_geo.py`, ou uma peça editada no editor
 3D da POC (`www/apps/web/src/components/bim-editor/`). Reaproveita, sem
 modificar, o que a engenharia reversa da Akato deixou pronto em
-`eng-reversa/tools/`: o schema 607 completo (`dados/schema-aq-607.sql`), o
-escritor OQ3D (`oq3d_writer.py`) e o `Gerador` do `gerar_aq.py`, que grava
+este diretório: o schema 607 completo (`schema-aq-607.sql`), o
+escritor OQ3D (`oq3d_writer.py`) e o `Gerador` do `aq_writer.py`, que grava
 texto em cp1252 via `CAST(? AS TEXT)` — a armadilha que corrompe nomes em
 silêncio se for esquecida.
 
@@ -50,16 +50,12 @@ import sqlite3
 import sys
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
-# raiz do repositório: www/apps/ingestao/pipeline → quatro níveis acima. Enquanto o gerador de
-# `.aq` viver em eng-reversa/ (fora do serviço), este é o único módulo do pipeline que sai daqui.
-RAIZ = os.path.abspath(os.path.join(AQUI, '..', '..', '..', '..'))
-ENG = os.path.join(RAIZ, 'eng-reversa', 'tools')
-sys.path.insert(0, ENG)
+sys.path.insert(0, AQUI)
 
-import gerar_aq       # noqa: E402  Gerador (cp1252), criar_schema, constantes do AltoQi
+import aq_writer      # noqa: E402  schema 607, constantes do AltoQi, escritor cp1252 (I4: promovido do eng-reversa)
 import oq3d_writer    # noqa: E402  o escritor OQ3D
 
-SCHEMA_SQL = os.path.join(RAIZ, 'eng-reversa', 'dados', 'schema-aq-607.sql')
+SCHEMA_SQL = aq_writer.SCHEMA_SQL
 M_TO_CM = 100.0
 COR_PADRAO = (0.533, 0.588, 0.667)
 
@@ -133,34 +129,34 @@ def gerar(entrada, saida, info):
     if not malhas:
         raise SystemExit('nenhuma malha para gravar')
 
-    con = gerar_aq.criar_schema(saida, SCHEMA_SQL)
-    g = gerar_aq.Gerador(con, {})
+    con = aq_writer.criar_schema(saida, SCHEMA_SQL)
+    g = aq_writer.EscritorAq(con)
     g.versao()
 
     # -- cadastro da peça ------------------------------------------------
     id_classe = g.novo('CLASSE_PECA')
     g.ins('CLASSE_PECA', ID_CLASSE_PECA=id_classe, NOME_CP=f'{fabricante} - {linha}',
           INDICACAO_CP='', CODIGO_ELLO=0, ATIVO=1)
-    ifc, tipo_ent, ifc2x3 = gerar_aq.IFC_CONEXAO
+    ifc, tipo_ent, ifc2x3 = aq_writer.IFC_CONEXAO
     id_grupo = g.novo('GRUPO_PECA')
     g.ins('GRUPO_PECA', ID_GRUPO_PECA=id_grupo, NOME_GP=linha, TIPO_SECAO_GP=0,
-          RUGOSIDADE_GP=gerar_aq.RUGOSIDADE_PVC, RUGOSIDADE_EQUIVALENTE=gerar_aq.RUGOSIDADE_EQUIV_PVC,
-          TIPO_FWH=gerar_aq.TIPO_FWH_PVC, COEFICIENTE_MANNING=gerar_aq.MANNING_PVC,
-          TIPO_MATERIAL=0, PROJETO_APLICACAO=gerar_aq.APLICACAO_AGUA_FRIA, ELEMENTO_APLICACAO=0,
-          TIPO_CONFIGURACAO_GP=gerar_aq.SENT_INT, REPRESENTACAO_GP=0, ID_CLASSE_PECA=id_classe,
-          CODIGO_ELLO=0, ATIVO=1, ENTIDADE_IFC=ifc, SUBTIPO_IFC=gerar_aq.SUB_LUVA,
-          TIPO_ENTIDADE_IFC=tipo_ent, ENTIDADE_IFC_2X3=ifc2x3, SUBTIPO_IFC_2X3=gerar_aq.SUB_LUVA,
+          RUGOSIDADE_GP=aq_writer.RUGOSIDADE_PVC, RUGOSIDADE_EQUIVALENTE=aq_writer.RUGOSIDADE_EQUIV_PVC,
+          TIPO_FWH=aq_writer.TIPO_FWH_PVC, COEFICIENTE_MANNING=aq_writer.MANNING_PVC,
+          TIPO_MATERIAL=0, PROJETO_APLICACAO=aq_writer.APLICACAO_AGUA_FRIA, ELEMENTO_APLICACAO=0,
+          TIPO_CONFIGURACAO_GP=aq_writer.SENT_INT, REPRESENTACAO_GP=0, ID_CLASSE_PECA=id_classe,
+          CODIGO_ELLO=0, ATIVO=1, ENTIDADE_IFC=ifc, SUBTIPO_IFC=aq_writer.SUB_LUVA,
+          TIPO_ENTIDADE_IFC=tipo_ent, ENTIDADE_IFC_2X3=ifc2x3, SUBTIPO_IFC_2X3=aq_writer.SUB_LUVA,
           TIPO_ENTIDADE_IFC_2X3=tipo_ent)
     id_peca = g.novo('PECA')
     g.ins('PECA', ID_PECA=id_peca, NOME_PECA=nome, BIBLIOTECA=fabricante, SIMBOLO_SELECIONADO=1,
           DESCRICAO_DADOS=descricao, POSICIONAR_SIMBOLOGIA=0, POSICAO_DADOS=0, POSICIONA_CAMPOS=1,
-          DESENHA_SIMBOLOGIA=2, DIAMETRO_PECA=gerar_aq.SENT_REAL, INDICACAO_PLANTA=nome,
+          DESENHA_SIMBOLOGIA=2, DIAMETRO_PECA=aq_writer.SENT_REAL, INDICACAO_PLANTA=nome,
           INDICACAO_DETALHE=nome, COMPRIMENTO_PECA=0, ID_GRUPO_PECA=id_grupo,
-          TIPO_APLICACAO_PECA=gerar_aq.APL_CONEXAO, CODIGO_ELLO=0, ATIVO=1,
+          TIPO_APLICACAO_PECA=aq_writer.APL_CONEXAO, CODIGO_ELLO=0, ATIVO=1,
           POSICIONAR_SIMBOLOGIA_3D=0, FORMATO_PECA=-1, OPCAO_RENDERIZACAO_PLANIFICADA=0,
           INCLUIR_REPRESENTACAO3D_PARAMETRICA=0, CONEXAO_VOLUMETRICA=0, INDICE_SIMBOLO3D_SELECIONADO=-1)
     g.ins('DADOS_HIDRAULICOS', ID_DADOS_HIDRAULICOS=g.novo('DADOS_HIDRAULICOS'),
-          TIPO_CURVA=gerar_aq.TIPO_CURVA_CONEXAO, ID_PECA=id_peca)
+          TIPO_CURVA=aq_writer.TIPO_CURVA_CONEXAO, ID_PECA=id_peca)
 
     # -- insumo de orçamento: é em ITEM.CODIGO_ITEM que o AltoQi guarda o código
     #    comercial (o 14808 da Amanco, o 21011 da Akato) ------------------------
@@ -169,12 +165,12 @@ def gerar(entrada, saida, info):
     g.ins('CLASSE_ITEM', ID_CLASSE_ITEM=id_ci, NOME_CI=f'{fabricante} - {linha}', CODIGO_ELLO=0, ATIVO=1)
     id_gi = g.novo('GRUPO_ITEM')
     g.ins('GRUPO_ITEM', ID_GRUPO_ITEM=id_gi, ID_CLASSE_ITEM=id_ci, NOME_GI=linha,
-          UNIDADE_GI=gerar_aq.UNIDADE_PECA, CODIGO_ELLO=0, ATIVO=1)
+          UNIDADE_GI=aq_writer.UNIDADE_PECA, CODIGO_ELLO=0, ATIVO=1)
     id_item = g.novo('ITEM')
     g.ins('ITEM', ID_ITEM=id_item, ID_GRUPO_ITEM=id_gi, NOME_ITEM=descricao, CODIGO_ELLO=0, ATIVO=1,
           FABRICANTE=fabricante, TABELA_REFERENCIA=origem, CATEGORIA='Insumo', CODIGO_ITEM=codigo, OBSERVACAO='')
     g.ins('ITEM_ASSOCIADO', ID_ITEM_ASSOCIADO=g.novo('ITEM_ASSOCIADO'), QUANTIDADE_IA=1.0,
-          MEDICAO_PECA=gerar_aq.MEDICAO_CONEXAO, ID_PECA=id_peca, ID_ITEM=id_item)
+          MEDICAO_PECA=aq_writer.MEDICAO_CONEXAO, ID_PECA=id_peca, ID_ITEM=id_item)
 
     # -- geometria: OQ3D, uma raiz por malha ------------------------------
     id_cs = g.novo('CLASSE_SIMBOLOGIA_3D')
