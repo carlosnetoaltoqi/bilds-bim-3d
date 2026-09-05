@@ -38,6 +38,8 @@ SENT_REAL = -1.7976931348623157e+308     # -DBL_MAX
 #   64, 76 elétrico  (Maxbar, barramento blindado)
 APLICACAO_ESGOTO = 8
 APLICACAO_AGUA_FRIA = 12
+APLICACAO_INCENDIO = 22
+APLICACAO_GAS = 36
 
 # Hazen-Williams C e Manning do PVC, como a Amanco grava para PVC.
 RUGOSIDADE_PVC = 135.0
@@ -50,6 +52,7 @@ TIPO_FWH_PVC = 1
 # da Dancor (607), correlacionando `GRUPO_PECA.NOME_GP` com os códigos.
 IFC_CONEXAO = (2071, 4099, 2088)      # IfcPipeFitting
 IFC_TUBO = (2072, 4096, 2086)         # IfcPipeSegment
+IFC_BOMBA = (2075, 4118, 2093)        # bomba (Dancor, SUBTIPO_IFC = 5)
 IFC_APARELHO = (2076, 4122, 2092)     # aparelho sanitário
 IFC_VALVULA = (2084, 4103, 2091)      # válvula
 IFC_TERMINAL = (2085, 4123, 2092)     # ralo, caixa sifonada
@@ -58,11 +61,13 @@ IFC_TERMINAL = (2085, 4123, 2092)     # ralo, caixa sifonada
 #   0 curva/joelho   1 luva      3 cap      4 tê/junção     6 redução
 SUB_CURVA, SUB_LUVA, SUB_CAP, SUB_TE, SUB_REDUCAO = 0, 1, 3, 4, 6
 SUB_TUBO = 3                          # único observado em IfcPipeSegment
+SUB_BOMBA = 5                         # único observado em 2075 (Dancor)
 
 # TIPO_APLICACAO_PECA, da Amanco:
 #   1 tubo   2 conexão   8 aparelho sanitário   9 caixa sifonada/ralo com
 #   grelha   10 ralo   55 ramal de ventilação        (6 = bomba, na Dancor)
 APL_TUBO, APL_CONEXAO, APL_APARELHO, APL_CAIXA, APL_RALO = 1, 2, 8, 9, 10
+APL_BOMBA = 6
 
 # DADOS_HIDRAULICOS.TIPO_CURVA — 2 em todas as conexões da Amanco.
 TIPO_CURVA_CONEXAO = 2
@@ -87,6 +92,65 @@ MEDICAO_TUBO, MEDICAO_CONEXAO = 1, 2
 # aparecem em nenhuma das 12 bibliotecas. Ficam fora: uma peça sem código de
 # diâmetro usa a sentinela, exatamente como as conexões da Amanco.
 CODIGO_DIAMETRO = {40: 8, 50: 9, 60: 10, 75: 11, 100: 12, 150: 14, 200: 15}
+
+
+def _sem_acento(texto):
+    import unicodedata
+    nfd = unicodedata.normalize('NFD', texto or '')
+    return ''.join(c for c in nfd if unicodedata.category(c) != 'Mn').upper()
+
+
+# Classificação de um grupo de peças pelo nome — (ENTIDADE_IFC…, SUBTIPO_IFC, TIPO_APLICACAO_PECA).
+# É o vocabulário de um catálogo hidráulico em PVC; a primeira regra que casa (palavra
+# inteira) vence, e sem regra a peça entra como conexão genérica (luva), que é o caso mais
+# comum e o mais inofensivo. Nasceu da tabela `REGRAS_TIPO` do `eng-reversa/tools/gerar_aq.py`
+# (Akato) e foi AJUSTADA contra os 192 grupos com 3D da Amanco (2026-09-05): reproduz 189 deles
+# ("Junção … com Joelho" é tê, não curva; caixa sifonada é 2085/1/9; terminal de ventilação é
+# 2079; ralo pluvial é 2085/0/10; adaptador é luva; sifão é cap). Os 3 restantes são
+# inconsistências da própria Amanco ('Caixa Sifonada' e 'Chuveiro Residencial' com códigos
+# diferentes dos irmãos). Serve a quem escreve um
+# `.aq` a partir de um catálogo que não guardou esses códigos (o `catalogo_to_aq.py`).
+IFC_TERMINAL_VENT = (2079, 4121, 2092)   # terminal de ventilação (Amanco)
+REGRAS_GRUPO = (
+    (('TUBO',),                              IFC_TUBO,          SUB_TUBO,    APL_TUBO),
+    (('BOMBA', 'PRESSURIZADOR', 'MOTOBOMBA'), IFC_BOMBA,         SUB_BOMBA,   APL_BOMBA),
+    (('CAIXA SIFONADA',),                    IFC_TERMINAL,      SUB_LUVA,    APL_CAIXA),
+    (('GRELHA',),                            IFC_APARELHO,      SUB_CAP,     APL_APARELHO),
+    (('RALO', 'RALOS'),                      IFC_TERMINAL,      SUB_CURVA,   APL_RALO),
+    (('MAQUINA',),                           IFC_APARELHO,      10,          APL_APARELHO),
+    (('CHUVEIRO',),                          IFC_APARELHO,      SUB_CAP,     APL_APARELHO),
+    (('PIA', 'LAVATORIO', 'TANQUE', 'VASO', 'KIT'), IFC_APARELHO, SUB_TE,   APL_APARELHO),
+    (('SIFAO',),                             IFC_CONEXAO,       SUB_CAP,     APL_CONEXAO),
+    (('TERMINAL DE VENTILACAO',),            IFC_TERMINAL_VENT, SUB_LUVA,    APL_CONEXAO),
+    (('VALVULA', 'REGISTRO', 'TORNEIRA', 'BOIA'), IFC_VALVULA,  22,          APL_CONEXAO),
+    (('JUNCAO', 'TE'),                       IFC_CONEXAO,       SUB_TE,      APL_CONEXAO),
+    (('CURVA', 'JOELHO', 'TRANSPOSICAO'),    IFC_CONEXAO,       SUB_CURVA,   APL_CONEXAO),
+    (('CAP', 'PLUG', 'ESPUDE', 'TAMPAO'),    IFC_CONEXAO,       SUB_CAP,     APL_CONEXAO),
+    (('REDUCAO', 'BUCHA'),                   IFC_CONEXAO,       SUB_REDUCAO, APL_CONEXAO),
+    (('LUVA', 'UNIAO', 'NIPEL', 'ANEL', 'ENGATE', 'ADAPTADOR'), IFC_CONEXAO, SUB_LUVA, APL_CONEXAO),
+)
+
+
+def classificar_grupo(nome):
+    """(entidade_ifc, subtipo_ifc, tipo_aplicacao_peca) para o nome de um grupo/série."""
+    import re
+    alvo = _sem_acento(nome)
+    for chaves, ifc, sub, apl in REGRAS_GRUPO:
+        if any(re.search(rf'\b{re.escape(k)}\b', alvo) for k in chaves):
+            return ifc, sub, apl
+    return IFC_CONEXAO, SUB_LUVA, APL_CONEXAO
+
+
+def aplicacao_de(*textos):
+    """`PROJETO_APLICACAO` inferido do título/linha: esgoto 8, incêndio 22, gás 36, senão água fria 12."""
+    alvo = ' '.join(_sem_acento(t) for t in textos if t)
+    if 'ESGOTO' in alvo or 'PLUVIAL' in alvo:
+        return APLICACAO_ESGOTO
+    if 'INCENDIO' in alvo or 'SPRINKLER' in alvo or 'HIDRANTE' in alvo:
+        return APLICACAO_INCENDIO
+    if 'GAS' in alvo.split() or 'GLP' in alvo:
+        return APLICACAO_GAS
+    return APLICACAO_AGUA_FRIA
 
 
 def criar_schema(destino, schema_sql=SCHEMA_SQL, modelo=None):
