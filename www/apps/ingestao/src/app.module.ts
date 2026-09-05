@@ -6,6 +6,7 @@ import { HealthController } from './health/health.controller';
 import { ImportacoesModule } from './importacoes/importacoes.module';
 import { CadModule } from './cad/cad.module';
 import { MiniaturasModule } from './miniaturas/miniaturas.module';
+import { ExportacaoModule } from './exportacao/exportacao.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { MiniaturasModule } from './miniaturas/miniaturas.module';
     ImportacoesModule,
     CadModule,
     MiniaturasModule,
+    ExportacaoModule,
   ],
   controllers: [HealthController],
   // I32: Mongo fora → 503 na hora em toda rota (menos /health), em vez de 500 após 30 s

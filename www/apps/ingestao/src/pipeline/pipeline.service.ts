@@ -15,6 +15,7 @@ import { executar, ProcessoError } from './processo';
  *   catalogoDeAq   python3 pipeline/catalogo_de_aq.py   .aq|.zip → geo/<importId>/*.json + catálogo em JSON
  *   tesselar       python3 pipeline/step_to_geo.py | ifc_to_geo.py   CAD → {pos,col,idx,partes,…}
  *   gerarAq        python3 pipeline/geo_to_aq.py       partes do editor → .aq
+ *   catalogoParaAq python3 pipeline/catalogo_to_aq.py  catálogo salvo (produtos + geometria do storage) → .aq
  *   miniaturas     node    pipeline/thumbs.mjs         geometrias → WebP por geometria (Chromium)
  *
  * `PIPELINE_DIR` aponta para a pasta quando o serviço roda fora do repositório; por padrão é
@@ -86,6 +87,17 @@ export interface AqInfo {
 }
 
 export interface AqParte { nome: string; pos: number[]; col: number[] | null; idx: number[] }
+
+/** Entrada do `catalogo_to_aq.py` — o que o serviço monta a partir do Mongo (ver docstring do script). */
+export interface ManifestoCatalogoAq {
+  catalogo: { fabricante: string; titulo: string; slug: string; descricao?: string; origem?: string };
+  geo_dir: string;
+  produtos: Array<{
+    id: string; nome: string; serie: string; conexoes: string;
+    specs: Record<string, string>; curva: number[][] | null; potencia: number | null;
+    codigo?: string; geo: string;
+  }>;
+}
 
 export interface ResumoMiniaturas {
   total: number;
@@ -169,6 +181,33 @@ export class PipelineService {
       const resumo = JSON.parse(linhaJson);
       this.logger.log(`.aq gerado — ${resumo.peca}: ${resumo.malhas} malha(s), ${resumo.triangulos} triângulos, ${(resumo.bytes / 1024).toFixed(0)} KB`);
       return { path: outAq, resumo };
+    } finally {
+      await fsp.unlink(inJson).catch(() => {});
+    }
+  }
+
+  /**
+   * Catálogo salvo → `.aq` temporário com todas as peças (quem chama serve e apaga). O Python
+   * imprime o progresso no stderr (uma linha a cada 50 geometrias) e o resumo em JSON na última
+   * linha do stdout; qualquer erro (geometria ausente, caractere fora do cp1252, FK órfã) sai
+   * com 1 e vira `ProcessoError` com o stderr — nada é engolido.
+   */
+  async catalogoParaAq(manifesto: ManifestoCatalogoAq, onProgresso?: (linha: string) => void): Promise<{ path: string; resumo: Record<string, any> }> {
+    const id = crypto.randomUUID();
+    const inJson = path.join(os.tmpdir(), `aq-catalogo-in-${id}.json`);
+    const outAq = path.join(os.tmpdir(), `aq-catalogo-out-${id}.aq`);
+    await fsp.writeFile(inJson, JSON.stringify(manifesto));
+    try {
+      const { stdout } = await executar(PYTHON, [this.script('catalogo_to_aq.py'), inJson, outAq], {
+        nome: 'catalogo_to_aq.py', cwd: this.dir, timeoutMs: TIMEOUT_MS, ociosoMs: OCIOSO_PYTHON_MS,
+        onStderr: (l) => { if (l.trim()) onProgresso?.(l.trim()); },
+      });
+      const linhaJson = stdout.trim().split('\n').reverse().find((l) => l.startsWith('{'));
+      if (!linhaJson) throw new Error('catalogo_to_aq.py terminou sem o resumo em JSON');
+      return { path: outAq, resumo: JSON.parse(linhaJson) };
+    } catch (e) {
+      await fsp.unlink(outAq).catch(() => {});
+      throw e;
     } finally {
       await fsp.unlink(inJson).catch(() => {});
     }
