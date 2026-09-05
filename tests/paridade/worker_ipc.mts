@@ -171,4 +171,38 @@ saida.descreve_com_falhas = descreveResumo({ total: 4, geradas: 2, falhas: [{ pr
   }
 }
 
+// ── workers REAIS: pai fecha o canal IPC → o filho sai sozinho, e rápido (S7.13) ───────
+// Com a API morta por SIGKILL o parse-worker seguia parseando 617 MB e gravando 228 JSONs em
+// geo/<importId>/ (visto no teste de aceitação); agora os dois workers escutam 'disconnect'.
+{
+  const tsNode = path.join(API, 'node_modules', 'ts-node')
+  if (!existsSync(tsNode)) {
+    saida.real_workers_saem_no_disconnect = { skip: 'sem ts-node em www/apps/api/node_modules' }
+  } else {
+    const resultado: Record<string, unknown> = {}
+    for (const nome of ['parse-worker', 'thumb-worker']) {
+      const child = fork(path.join(API, 'src', 'importacoes', `${nome}.ts`), [], {
+        cwd: API,
+        execArgv: ['--require', 'ts-node/register/transpile-only'],
+        env: { ...process.env, STORAGE_PATH: mkdtempSync(path.join(tmpdir(), 'worker-ipc-')) },
+        silent: true,
+      })
+      let stderr = ''
+      child.stderr!.on('data', (d) => { stderr += d })
+      child.stdout!.on('data', () => {})
+      await new Promise((r) => child.once('spawn', r))
+      await tick(1500) // deixa o ts-node compilar o módulo e registrar os handlers
+      const t0 = Date.now()
+      child.disconnect()
+      const codigo = await Promise.race([
+        new Promise<number | null>((res) => child.once('exit', (c) => res(c))),
+        tick(15_000).then(() => 'timeout' as const),
+      ])
+      if (codigo === 'timeout') child.kill('SIGKILL')
+      resultado[nome] = { exitCode: codigo, ms: Date.now() - t0, stderr: stderr.slice(-300) }
+    }
+    saida.real_workers_saem_no_disconnect = resultado
+  }
+}
+
 process.stdout.write(JSON.stringify(saida))

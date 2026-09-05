@@ -109,3 +109,15 @@ def test_thumb_worker_real_reporta_geo_inexistente_e_termina(cenarios):
     assert falha['productId'] == 'inexistente' and 'ENOENT' in falha['message']
     assert r['ganchoFalhas'] and r['ganchoFalhas'][0].startswith('inexistente: ')
     assert r['exitCode'] == 0, r['stderr']
+
+
+def test_workers_reais_saem_sozinhos_quando_o_pai_fecha_o_ipc(cenarios):
+    """S7.13: a API morta por SIGKILL deixava o parse-worker terminando 617 MB e gravando em geo/."""
+    r = cenarios['real_workers_saem_no_disconnect']
+    if 'skip' in r:
+        pytest.skip(r['skip'])
+    for nome in ('parse-worker', 'thumb-worker'):
+        w = r[nome]
+        assert w['exitCode'] == 2, (nome, w)
+        assert w['ms'] < 5000, (nome, w)                     # não espera timeout nenhum
+        assert 'fechou o canal IPC' in w['stderr'], (nome, w)

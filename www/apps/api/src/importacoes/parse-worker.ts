@@ -236,6 +236,14 @@ async function run(input: WorkerInput): Promise<WorkerResult> {
   };
 }
 
+// Pai morto (SIGKILL na API, por exemplo) fecha o canal IPC: sair já, em vez de terminar um
+// parse de minutos e gravar centenas de JSONs em geo/<importId>/ que ninguém vai registrar
+// (S7.13 — o RecuperacaoService limpa no boot, mas não pode competir com um órfão gravando).
+process.on('disconnect', () => {
+  console.error('parse-worker: o processo pai fechou o canal IPC — saindo (2)');
+  process.exit(2);
+});
+
 process.on('message', (msg: WorkerInput) => {
   run(msg)
     .then((result) => {

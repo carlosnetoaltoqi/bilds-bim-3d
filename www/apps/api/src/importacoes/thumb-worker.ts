@@ -39,6 +39,13 @@ export type ThumbWorkerMessage =
   | { type: 'done'; count: number }
   | { type: 'error'; productId: string; message: string };
 
+// Pai morto fecha o canal IPC: fechar o Chromium e sair, em vez de seguir renderizando
+// miniaturas que ninguém vai registrar no produto (S7.13).
+process.on('disconnect', () => {
+  console.error('thumb-worker: o processo pai fechou o canal IPC — fechando o Chromium e saindo (2)');
+  closeThumbRenderer().catch(() => {}).finally(() => process.exit(2));
+});
+
 process.on('message', async (msg: ThumbWorkerInput) => {
   const { products, storagePath, importId } = msg;
   let count = 0;
