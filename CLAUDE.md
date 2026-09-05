@@ -81,12 +81,15 @@ a conferência do exportador IFC no `testes-editor.sh` acusava fronteira de arre
 10 µm) e saía 0 com FALHA; agora pareia vértices a ≤ 2 µm nos dois sentidos, sai 1, autoteste
 `ROUNDTRIP_SABOTAR_IFC`. **S7.10 (2026-09-05):** I6 decidido — modo `--ifc` **removido** (`build.py`
 1.727 → 1.290 linhas; `config.json` só com `slug/titulo/fabricante/descricao/layout/aq_file`).
-Suíte: **59 testes**, `python3 -m pytest` ≈ 50 s.
+**S7.11 (2026-09-05):** três itens de `www/` — I15 (morte de processo filho não é mais engolida:
+`importacoes/worker-ipc.ts`, resumo das miniaturas no import, JSON órfão do STEP limpo), I17 (host,
+`PORT` e `STORAGE_PATH` resolvidos em um lugar cada, com guarda de regressão) e I14 (`PUT`/`restaurar`
+de geometria regeram a miniatura). Suíte: **76 testes**, `python3 -m pytest` ≈ 55 s.
 
-**Próxima sessão:** ver `docs/sessoes/S7.10-i6-remocao-do-modo-ifc.md`, seção 7. Em resumo: os itens de `www/`
-(I11, I12, I14–I17), a limpeza L1–L14 conforme cada área for tocada, e as **decisões que só o
-usuário toma**: C7 (deploy do preview), I10 (auth na POC),
-I4 (promover o writer de `.aq`), LICENSE, se vale um `--strict`.
+**Próxima sessão:** ver `docs/sessoes/S7.11-i15-i17-i14-www.md`, seção 7. Em resumo: os itens de `www/`
+que restam (I11 fila/recuperação da importação, I12 Nest × Mongoose, I16 `ValidationPipe`), a limpeza
+L1–L14 conforme cada área for tocada, e as **decisões que só o usuário toma**: C7 (deploy do preview),
+I10 (auth na POC), I4 (promover o writer de `.aq`), LICENSE, se vale um `--strict`.
 
 **Estado da base da POC:** em `www/README.md`, "Estado da base e do storage" — única versão.
 A raiz está **sem `config.json`** (o build interativo recria).
@@ -149,7 +152,7 @@ bilds-bim-3d/
 │   ├── thumbs.mjs               ← miniaturas no Chromium (Playwright); templates/thumbs/harness.html
 │   ├── bootstrap.sh · setup_vendor.sh · link_skills.sh
 ├── templates/layouts/{series-rows,catalog-grid}.html · templates/thumbs/harness.html · templates/vendor/ (Three.js, baixado)
-├── tests/                       ← pytest; conftest põe scripts/ e eng-reversa/tools/ no path; paridade py ↔ ts via Node
+├── tests/                       ← pytest; conftest põe scripts/ e eng-reversa/tools/ no path; paridade/ tem os harnesses Node (.mjs/.mts/.cts)
 ├── docs/
 │   ├── conhecimento/            ← pipeline-estatico, oq3d, read-aq, parse-ifc, templates-html, diagnostico
 │   ├── sessoes/                 ← um registro por sessão + README.md (índice) + TEMPLATE.md
@@ -203,7 +206,7 @@ esperadas estão **nos arquivos**, não em texto: `.python-version`, `.nvmrc`, `
 ## Testes — `tests/`
 
 ```bash
-python3 -m pytest                                   # 59 testes, ≈ 50 s (abre o Chromium uma vez)
+python3 -m pytest                                   # 76 testes, ≈ 55 s (abre o Chromium uma vez)
 python3 -m pytest -m "not thumbs"                   # sem Chromium — é o que o CI roda
 python3 -m pytest -m "not thumbs and not paridade"  # só Python, sem Node
 ```
@@ -216,10 +219,13 @@ python3 -m pytest -m "not thumbs and not paridade"  # só Python, sem Node
 | `test_oq3d_roundtrip.py` | `eng-reversa/tools/oq3d_roundtrip.py` como processo: caminho padrão da Amanco, seis casos, `.aq` ausente → exit 1, `--sem-real` |
 | `test_editor_roundtrips.py` | `www/tools/testes-editor.sh`: round-trip do `mesh-model` por agrupamento a 2 µm; IFC exportado → `parse_ifc.py` com todo vértice pareado a ≤ 2 µm nos dois sentidos; `ROUNDTRIP_SABOTAR=1` e `ROUNDTRIP_SABOTAR_IFC=1` têm de falhar |
 | `test_paridade_ts.py` | Python ↔ TypeScript (`www/tools`): blobs sintéticos e a Akato inteira, campo a campo e SHA-1; curvas Q-H da Dancor |
+| `test_worker_ipc.py` | `www/apps/api/src/importacoes/worker-ipc.ts` (I15): filho falso morrendo de cada jeito (exit 0 sem mensagem, exit ≠ 0, sinal, timeout, ocioso, `error`), cada `type:'error'` contado, gancho que rejeita vira falha; thumb-worker real com geoKey inexistente |
+| `test_www_config.py` | I17: só `lib/api.ts` conhece `localhost:4000`; só `common/storage-path.ts` lê `STORAGE_PATH`; `main.ts` escuta `PORT`; o resolvedor roda no Node |
+| `test_geometrias_thumb.py` | I14: `PUT`/`restaurar` chamam `regerarMiniatura(productId, importId, geoKey)`; falha do thumb-worker vira `thumbErro` no produto (controller e service sem Nest/Mongo, via ts-node) |
 | `test_bootstrap.py` | `bootstrap.sh --check` imprime a tabela e acusa Node ausente com exit 1 |
 
 Fixtures reais são os `.aq` de `input/` e o `www/storage/` — gitignored, então esses testes
-**pulam com motivo** onde não existem (no CI: 32 passam, 20+ pulam). Saída em
+**pulam com motivo** onde não existem (no CI: ~50 passam, 20+ pulam). Saída em
 `output/.pytest-tmp/` — tem de ficar **dentro da raiz** porque `thumbs.mjs` serve a geometria
 por HTTP relativo à raiz. `pytest.ini` restringe a coleta a `tests/` (o `.venv` do worker tem
 os testes do numpy dentro). **Regra:** comportamento novo entra aqui no mesmo commit.

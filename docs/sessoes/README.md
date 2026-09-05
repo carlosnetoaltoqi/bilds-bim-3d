@@ -53,6 +53,7 @@ Convenção: `S<plano>.<n>-<slug>.md` para sessões numeradas; `AAAA-MM-DD-<slug
 | 2026-09-04 | S7.8 | `S7.8-passo-4-e-5-documentacao-e-ambiente.md` | S7.8: passo 4 (documentação passa a limpo, CLAUDE.md vira mapa) e passo 5 (ambiente declarado) |
 | 2026-09-05 | S7.9 | `S7.9-i26-conferencia-ifc-pareia-a-2um.md` | S7.9: I26 — conferência do exportador IFC pareia vértices a ≤ 2 µm e sai 1 em FALHA (suíte 58) |
 | 2026-09-05 | S7.10 | `S7.10-i6-remocao-do-modo-ifc.md` | S7.10: I6 — modo `--ifc` removido do build (1.727 → 1.290 linhas; suíte 59) |
+| 2026-09-05 | S7.11 | `S7.11-i15-i17-i14-www.md` | S7.11: I15 (processo filho não engolido), I17 (host/porta/storage num lugar só), I14 (miniatura regerada ao editar) — suíte 76 |
 
 Registro mais recente primeiro é o que o `CLAUDE.md` aponta em "Fase atual". Para saber onde a próxima sessão
 começa, leia a seção 7 do último registro.

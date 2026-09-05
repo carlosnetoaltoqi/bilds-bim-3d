@@ -46,16 +46,16 @@ código foram reproduzidos uma segunda vez antes de fechar este documento.
 | I11 | Importação assíncrona sem fila nem recuperação após restart | www |
 | I12 | `@nestjs/mongoose@12` sobre Nest 10 (peer violada); dois drivers Mongo | www |
 | I13 ✅ | `testes-editor.sh` falha sempre (métrica de round-trip errada), não sinaliza nada — **corrigido 2026-09-04** (S7.7: agrupamento por grade a ≤ 2 µm com union-find, triângulos por grupo e sentido; 22 geometrias do storage passam; `ROUNDTRIP_SABOTAR` prova que a métrica falha; `tests/test_editor_roundtrips.py`) | testes |
-| I14 | Miniatura desatualizada após editar geometria | www |
-| I15 | Erros de processo filho engolidos (`type:'error'` do thumb-worker; promise presa) | www |
+| I14 ✅ | Miniatura desatualizada após editar geometria — **corrigido 2026-09-05** (S7.11: `PUT`/`restaurar` disparam `regerarMiniatura`; `thumbAtualizadaEm`/`thumbErro` no produto) | www |
+| I15 ✅ | Erros de processo filho engolidos (`type:'error'` do thumb-worker; promise presa) — **corrigido 2026-09-05** (S7.11: `worker-ipc.ts`; exit sem resultado é erro; resumo das miniaturas no import; JSON órfão do STEP limpo) | www |
 | I16 | Validação de entrada 100% manual, sem `ValidationPipe` | www |
-| I17 | `http://localhost:4000` hardcoded em 3 páginas; porta fixa; dois defaults de `STORAGE_PATH` | www |
+| I17 ✅ | `http://localhost:4000` hardcoded em 3 páginas; porta fixa; dois defaults de `STORAGE_PATH` — **corrigido 2026-09-05** (S7.11: só `lib/api.ts` conhece o host; `PORT`; `common/storage-path.ts`; guarda em `tests/test_www_config.py`) | www |
 | I18 ✅ | npm + pnpm na raiz, dois lockfiles versionados — **corrigido 2026-09-04** (S7.8: `package-lock.json` removido, pnpm só) | repo |
 | I19 ✅ | Zero pins de versão (Node/pnpm/Python) — **corrigido 2026-09-04** (S7.8: `.nvmrc` 24, `.python-version` 3.12, `packageManager`/`engines` nos dois `package.json`; CI lê deles). A heurística `_find_node` do `build.py` fica, porque o nvm não entra no PATH de subprocess | repo |
 | I20 ◐ | Sem CI, LICENSE, `.editorconfig`, `.gitattributes` — **CI mínimo, `.editorconfig` e `.gitattributes` em 2026-09-04** (S7.7: `.github/workflows/ci.yml`, jobs `pipeline-estatico` e `www`); **LICENSE é decisão do usuário** | repo |
 | I21 ✅ | `.git` com 6.867 objetos soltos, nunca `gc` — **resolvido 2026-09-03** pelo repack do filter-repo (1,3 MB em pack) | repo |
 | I22 ✅ | CLAUDE.md com 2.797 linhas, 41% histórico, 7 notas "versões antigas diziam" — **reescrito 2026-09-04** (S7.8: mapa de 254 linhas; conhecimento em `docs/conhecimento/`, POC em `www/README.md`, histórico em `docs/sessoes/` com índice) | docs |
-| I23 ✅ | Onze afirmações do CLAUDE.md/README quebradas ou desatualizadas — **corrigidas 2026-09-04** (S7.8, no texto movido; a de `NEXT_PUBLIC_API_URL` ficou anotada porque o código I17 continua em aberto) | docs |
+| I23 ✅ | Onze afirmações do CLAUDE.md/README quebradas ou desatualizadas — **corrigidas 2026-09-04** (S7.8, no texto movido; a de `NEXT_PUBLIC_API_URL` fechou com o I17 na S7.11) | docs |
 | I24 ◐ | Skills e CLAUDE.md com conhecimento só de um lado; regra "mesmo commit" nunca cumprida — **regra reescrita 2026-09-04** (S7.8: bump da skill no commit `docs:` de fechamento, como sempre foi a prática); a convergência de conteúdo skill ↔ `docs/conhecimento/` fica para quando cada área for tocada | docs |
 | I25 ✅ | `docs/plano-produto-dinamico.md` não marcado histórico; §11 incompleto; §13 com tabela quebrada — **corrigido 2026-09-04** (S7.8; CONCEPTS.md ganhou os 13 termos que faltavam) | docs |
 | I26 ✅ | Conferência do exportador IFC no `testes-editor.sh` comparava buckets a 10 µm com limite de 2% e imprimia `[FALHA]` saindo 0 — **corrigido 2026-09-05** (S7.9: par a ≤ 2 µm nos dois sentidos, exit 1, `ROUNDTRIP_SABOTAR_IFC`; achado porque a 20cv da Dancor virou a primeira geometria do storage) | testes |
@@ -219,19 +219,26 @@ código foram reproduzidos uma segunda vez antes de fechar este documento.
 - **I12.** `@nestjs/mongoose@12.0.0` exige Nest ^11||^12; instalado `10.4.22`. `mongodb@6`
   só em `health.controller.ts:2`; `mongoose@9.9.4` traz `mongodb ~7.5`. Health via
   `@InjectConnection()`; alinhar Nest.
-- **I14.** `geometrias.controller.ts:72-108` não chama `spawnThumbWorker`. Confirmado: 4CV
-  (`fa9806df`) com `geoEditadoEm` e thumb do import.
-- **I15.** `importacoes.service.ts:306-320` ignora `type:'error'` do thumb-worker;
-  `:270-275` só rejeita em exit ≠ 0 (exit 0 sem mensagem prende a promise até o timeout de
-  5 min); `step.service.ts:258,271,287` pode deixar JSON órfão se falhar entre `store.put`
-  e `productModel.create`.
+- **I14.** ✅ (S7.11, 2026-09-05) `geometrias.controller.ts` não chamava o thumb-worker no `PUT`. Confirmado: 4CV
+  (`fa9806df`) com `geoEditadoEm` e thumb do import. Agora `PUT` e `restaurar` disparam
+  `ImportacoesService.regerarMiniatura` (mesma chave, bytes novos; ETag por tamanho+mtime revalida) e o
+  produto recebe `thumbAtualizadaEm` ou `thumbErro`. Teste: `tests/test_geometrias_thumb.py`.
+- **I15.** ✅ (S7.11, 2026-09-05) `importacoes.service.ts` ignorava `type:'error'` do thumb-worker e só
+  rejeitava em exit ≠ 0 (exit 0 sem mensagem prendia a promise até o timeout de 5 min); `step.service.ts`
+  podia deixar JSON órfão se falhasse entre `store.put` e `productModel.create`. Agora
+  `importacoes/worker-ipc.ts` concentra a espera pelos filhos (exit antes do resultado é erro, mesmo 0;
+  timeout/ocioso mata com SIGKILL); `gerarMiniaturas` grava `thumbCount`/`thumbFailed`/`thumbError` e
+  uma linha no `note` do import; `limparImport` remove `geo/<importId>/` sempre que a publicação falha.
+  Teste: `tests/test_worker_ipc.py` (11 cenários, inclusive o thumb-worker real).
 - **I16.** Zero `ValidationPipe`/`class-validator`. `produtos.controller.ts:76` transforma
   objeto em `"[object Object]"`; `curva` e `partes` sem limite; `info.specs` livre ao
   Python.
-- **I17.** `http://localhost:4000` fixo em `app/[empresa]/[catalogo]/page.tsx:5`,
-  `app/empresa/importar/page.tsx:115`, `app/empresa/page.tsx:66` (ignora `lib/api.ts`);
-  `main.ts:42` `listen(4000)` sem `PORT`; `STORAGE_PATH` com defaults distintos em
-  `disk-geometry-store.ts:9` e `empresas.controller.ts:34`.
+- **I17.** ✅ (S7.11, 2026-09-05) `http://localhost:4000` fixo em três páginas (ignoravam `lib/api.ts`);
+  `main.ts` `listen(4000)` sem `PORT`; `STORAGE_PATH` com defaults distintos em `disk-geometry-store.ts`
+  e `empresas.controller.ts`. Agora `lib/api.ts` é a única origem do host (páginas e os sete route
+  handlers importam `API_URL`; no servidor `API_URL` > `NEXT_PUBLIC_API_URL`), `PORT` no env, e
+  `common/storage-path.ts` é a única leitura de `STORAGE_PATH` (o boot loga a raiz). Guarda de regressão:
+  `tests/test_www_config.py`.
 - **Divergências rota × `www/README.md`:** falta `GET /auth/me` (com guard); `GET /logos/:id`
   marcado Bearer mas público (`empresas.controller.ts:96`); `storage/bim/geometrias/`
   vazio e não documentado.

@@ -29,12 +29,12 @@ ver "A API não sobe e o Mongoose culpa o whitelist", abaixo.
 |---|---|---|
 | `POST /auth/login` | — | JWT do usuário semente (não consulta o banco) |
 | `POST /empresas`, `GET /empresas/minha`, `GET /logos/:id` | Bearer | empresa do usuário |
-| `POST /importacoes`, `GET /importacoes/ultima`, `GET /importacoes/:id` | Bearer | import de `.aq` (worker em processo filho) |
+| `POST /importacoes`, `GET /importacoes/ultima`, `GET /importacoes/:id` | Bearer | import de `.aq` (worker em processo filho); o documento traz `thumbCount`/`thumbFailed`/`thumbError` e o `note` ganha `miniaturas: N/M geradas…` ao fim do lote (I15) |
 | `GET /catalogos/:empresa/:slug` | — | catálogo público `{ catalog, products }` |
 | `PATCH /catalogos/:catalogId` | — | título, fabricante, layout (POC de edição) |
 | `GET /produtos/:id`, `PATCH /produtos/:id` | — | informações do produto; `infoOriginal` na 1ª edição |
 | `GET /geometrias/:id` | — | `{pos,col,idx}` com ETag por tamanho+mtime |
-| `PUT /geometrias/:id`, `GET …/original`, `POST …/restaurar` | — | geometria editada; original preservado em `<id>.orig.json` |
+| `PUT /geometrias/:id`, `GET …/original`, `POST …/restaurar` | — | geometria editada; original preservado em `<id>.orig.json`; ambos regeram a miniatura em segundo plano (I14) — `thumbAtualizadaEm`/`thumbErro` no produto |
 | `GET /thumbs/:id` | — | miniatura WebP |
 | `POST /cad/importar` (`?sync=1`), `GET /cad/importacoes/:id` | — | STEP/IFC → produto, assíncrono com status |
 | `POST /cad/tesselar` | — | STEP/IFC → geometria, para "adicionar parte" no editor |
@@ -197,7 +197,7 @@ middleware). Roda local. Registro completo em `docs/sessoes/S7.1-poc-edicao.md`.
 
 | Camada | O quê |
 |---|---|
-| API | `PUT /geometrias/:id` (valida `{pos,col,idx}` e grava via GeometryStore, preservando o original em `<id>.orig.json`), `GET /geometrias/:id/original`, `POST /geometrias/:id/restaurar`, `GET|PATCH /produtos/:id`, `PATCH /catalogos/:id`. Body JSON até 300 MB (`JSON_BODY_LIMIT`). |
+| API | `PUT /geometrias/:id` (valida `{pos,col,idx}`, grava via GeometryStore preservando o original em `<id>.orig.json` e dispara `regerarMiniatura` — I14), `GET /geometrias/:id/original`, `POST /geometrias/:id/restaurar` (idem), `GET|PATCH /produtos/:id`, `PATCH /catalogos/:id`. Body JSON até 300 MB (`JSON_BODY_LIMIT`). |
 | Web | `/:empresa/:catalogo/editar` (lista + catálogo) e `/:empresa/:catalogo/editar/:produtoId` (editor). Links "editar" no modal e no hero. |
 | Modelo | `www/apps/web/src/components/bim-editor/mesh-model.ts` — puro, sem React. |
 
@@ -335,8 +335,9 @@ com desvio real de 1,37 µm, e o heredoc imprimia `[FALHA]` sem sair 1. Os dois 
 troca a fixture (foi assim que o I26 apareceu).
 
 **Pendências desta linha:**
-- **Miniatura fica desatualizada depois de editar geometria** — o `thumbKey` continua
-  apontando para a imagem do import. Regenerar com o `thumb-worker.ts` no `PUT`.
+- ~~Miniatura fica desatualizada depois de editar geometria~~ — feito na S7.11 (I14, 2026-09-05):
+  `PUT` e `restaurar` chamam `ImportacoesService.regerarMiniatura`, que reaproveita o thumb-worker
+  (um Chromium por chamada, alguns segundos) e grava `thumbAtualizadaEm` ou `thumbErro` no produto.
 - ~~Voltar ao `.aq`~~ — feito na S7.2 (`scripts/geo_to_aq.py`, botão **Exportar .aq**).
   Falta fechar o ciclo: `.aq` exportado → `build.py` e → import pela POC.
 - Montagem STEP com várias peças e cores por face só foi testada sinteticamente.
