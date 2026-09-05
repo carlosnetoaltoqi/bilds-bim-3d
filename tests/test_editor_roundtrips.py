@@ -6,6 +6,11 @@ malhas idênticas, então o script saía 1 e não sinalizava nada. Passou a agru
 vértices por grade a ≤ 2 µm (union-find, original + bake juntos) e compara os
 triângulos por grupo, com o sentido.
 
+S7.9 (2026-09-05): a conferência do exportador IFC tinha a mesma armadilha — conjuntos
+de coordenadas arredondadas a 10 µm com limite de 2% — e o script imprimia `[FALHA]`
+sem sair 1. Passou a parear cada vértice a ≤ 2 µm nos dois sentidos e a sair 1;
+`ROUNDTRIP_SABOTAR_IFC` prova que a conferência acusa.
+
 Precisa de Node ≥ 22.6, `www/apps/web/node_modules` (three) e ao menos uma
 geometria em `www/storage/bim/geo/` (gitignored) — pula com motivo se faltar.
 """
@@ -47,6 +52,8 @@ def test_round_trip_da_primeira_geometria_passa():
     assert codigo == 0, out
     assert '[ok  ] todo vértice original tem par no bake' in out
     assert '[ok  ] todo triângulo original existe no bake com o mesmo sentido' in out
+    assert '[ok  ] todo vértice esperado tem par no IFC lido a ≤ 2 µm' in out
+    assert '[ok  ] todo vértice do IFC lido tem par no esperado a ≤ 2 µm' in out
     assert 'FALHA' not in out
 
 
@@ -61,3 +68,12 @@ def test_metrica_acusa_bake_sabotado():
 def test_geometria_do_storage_tem_o_formato_do_viewer():
     g = json.loads(_primeira_geometria().read_text())
     assert set(g) >= {'pos', 'idx'} and len(g['pos']) % 3 == 0 and len(g['idx']) % 3 == 0
+
+
+def test_metrica_ifc_acusa_esperado_sabotado():
+    # ROUNDTRIP_SABOTAR_IFC move um vértice do bake esperado 1 mm DEPOIS de exportar o IFC:
+    # a conferência em Python tem de acusar e o script tem de sair 1 (até S7.9 saía 0 com FALHA).
+    codigo, out = _roda(_primeira_geometria(), ROUNDTRIP_SABOTAR_IFC='1')
+    assert codigo != 0
+    assert '[FALHA] todo vértice esperado tem par no IFC lido' in out
+    assert '[ok  ] todo triângulo original existe no bake com o mesmo sentido' in out  # o mesh-model continua ok

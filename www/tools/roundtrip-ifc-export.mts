@@ -5,7 +5,7 @@
  * Pega um JSON de geometria real, segmenta, EDITA (gira+desloca uma parte — vira
  * IFCLOCALPLACEMENT; escala outra — vira vértices assados; acrescenta um tubo), exporta
  * o IFC e grava o `bake()` esperado. O `testes-editor.sh` roda depois a conferência em
- * Python: mesma contagem de triângulos, conjunto de pontos a 10 µm, cores, psets,
+ * Python: mesma contagem de triângulos, todo vértice com par a ≤ 2 µm (nos dois sentidos), cores, psets,
  * `ifcopenshell.validate`.
  *
  * Rode pelo `www/tools/testes-editor.sh`.
@@ -29,6 +29,12 @@ const r = exportIfc(parts, {
   specs: { 'Tensão': 'Trifásico - 220/380V', 'Sucção x Recalque': '2.1/2" x 2.1/2"' }, potencia: 2, conexoes: null, produtoId: 'x',
 })
 writeFileSync(outIfc, r.ifc)
-writeFileSync(outEsperado, JSON.stringify(bake(parts)))
+const esperado = bake(parts)
+if (process.env.ROUNDTRIP_SABOTAR_IFC) {
+  // autoteste da conferência em Python (testes-editor.sh / tests/test_editor_roundtrips.py):
+  // um vértice do esperado 1 mm fora, DEPOIS de exportar o IFC, tem de virar FALHA e exit 1
+  esperado.pos[0] += 1e-3
+}
+writeFileSync(outEsperado, JSON.stringify(esperado))
 console.log(`ifc: ${r.partes} partes, ${r.triangulos} △, ${r.vertices} v, ${(r.bytes / 1024).toFixed(0)} KB → ${outIfc}`)
 console.log('formatação STEP:', [real(1), real(0.000001), real(-0.0000001), real(1234.5678901)].join(' '), '|', str("Incêndio 'x'"), '|', ifcGuid('00000000-0000-0000-0000-000000000000'))
