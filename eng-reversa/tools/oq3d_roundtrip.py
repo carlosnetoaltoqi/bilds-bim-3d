@@ -2,7 +2,7 @@
 """
 oq3d_roundtrip.py — prova que o `oq3d_writer.py` grava OQ3D que se lê de volta.
 
-Escreve blobs com o escritor e lê com o `scripts/oq3d.py` DO PRÓPRIO PROJETO,
+Escreve blobs com o escritor e lê com o `www/apps/ingestao/pipeline/oq3d.py` DO PRÓPRIO PROJETO,
 importado sem modificação, comparando vértice a vértice, triângulo a triângulo e
 cor a cor. É a única aferição possível aqui: não há AltoQi Builder nesta
 máquina, então o que se pode garantir é que o blob é consistente com o leitor
@@ -34,7 +34,7 @@ import sys
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
 RAIZ = os.path.dirname(os.path.dirname(AQUI))
-sys.path.insert(0, os.path.join(RAIZ, 'scripts'))   # o oq3d.py do projeto
+sys.path.insert(0, os.path.join(RAIZ, 'www', 'apps', 'ingestao', 'pipeline'))   # o oq3d.py do projeto
 sys.path.insert(0, AQUI)
 
 import oq3d                      # noqa: E402  leitor do projeto, intocado

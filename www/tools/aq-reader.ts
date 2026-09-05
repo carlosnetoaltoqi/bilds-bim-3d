@@ -1,5 +1,5 @@
 /**
- * aq-reader.ts — Port TypeScript de scripts/read_aq.py (S2.2)
+ * aq-reader.ts — Port TypeScript de www/apps/ingestao/pipeline/read_aq.py (S2.2)
  *
  * Abre um .aq do AltoQi Builder (SQLite direto ou ZIP contendo SQLite)
  * e extrai dados de produto e geometria.

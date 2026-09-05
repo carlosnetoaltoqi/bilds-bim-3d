@@ -39,8 +39,8 @@ da Amanco). A origem fica gravada numa propriedade personalizada "Geometria
 3D", como o `eng-reversa` faz com a forma representativa.
 
 Uso:
-    python3 scripts/geo_to_aq.py entrada.json saida.aq
-    python3 scripts/geo_to_aq.py entrada.json saida.aq --fabricante Dancor --linha "Bombas" --nome "2831A09"
+    python3 www/apps/ingestao/pipeline/geo_to_aq.py entrada.json saida.aq
+    python3 www/apps/ingestao/pipeline/geo_to_aq.py entrada.json saida.aq --fabricante Dancor --linha "Bombas" --nome "2831A09"
     (os argumentos de linha de comando sobrepõem `info` do JSON)
 """
 import argparse
@@ -50,7 +50,9 @@ import sqlite3
 import sys
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
-RAIZ = os.path.dirname(AQUI)
+# raiz do repositório: www/apps/ingestao/pipeline → quatro níveis acima. Enquanto o gerador de
+# `.aq` viver em eng-reversa/ (fora do serviço), este é o único módulo do pipeline que sai daqui.
+RAIZ = os.path.abspath(os.path.join(AQUI, '..', '..', '..', '..'))
 ENG = os.path.join(RAIZ, 'eng-reversa', 'tools')
 sys.path.insert(0, ENG)
 

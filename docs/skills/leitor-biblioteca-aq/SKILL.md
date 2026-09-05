@@ -544,7 +544,7 @@ json.dump(data, f, separators=(',', ':'))   # sem os separadores default: +12%
 
 ### Implementação de referência
 
-`scripts/oq3d.py` no projeto **bilds-bim-3d**. API:
+`www/apps/ingestao/pipeline/oq3d.py` no projeto **bilds-bim-3d**. API:
 
 ```python
 import oq3d
@@ -699,7 +699,7 @@ Três coisas que só aparecem escrevendo:
 
 ---
 
-### Um `.aq` mínimo a partir de qualquer malha — `scripts/geo_to_aq.py`
+### Um `.aq` mínimo a partir de qualquer malha — `www/apps/ingestao/pipeline/geo_to_aq.py`
 
 Quando a geometria não nasceu no AltoQi (um STEP tesselado, uma peça editada num viewer),
 o `.aq` de uma peça só precisa de: `VERSAO_BANCO_CADASTRO`; `CLASSE_PECA` → `GRUPO_PECA`
@@ -709,7 +709,7 @@ o `.aq` de uma peça só precisa de: `VERSAO_BANCO_CADASTRO`; `CLASSE_PECA` → 
 `GRUPO_ITEM` → `ITEM` (com `CODIGO_ITEM`) → `ITEM_ASSOCIADO`. Schema completo do
 `eng-reversa/dados/schema-aq-607.sql`, texto em cp1252 via `CAST(? AS TEXT)`.
 
-Regras que o `bilds-bim-3d/scripts/geo_to_aq.py` segue e que valem para qualquer gerador:
+Regras que o `bilds-bim-3d/www/apps/ingestao/pipeline/geo_to_aq.py` segue e que valem para qualquer gerador:
 
 - **Uma raiz OQ3D por malha de cor uniforme.** O OQ3D só tem cor por malha
   (`TCoatingColor`); uma malha do viewer com várias cores tem de ser dividida por cor antes
@@ -832,7 +832,7 @@ cur.execute("""
 ### Extrair geometria 3D e miniaturas
 
 ```python
-import oq3d   # scripts/oq3d.py do projeto bilds-bim-3d
+import oq3d   # www/apps/ingestao/pipeline/oq3d.py do projeto bilds-bim-3d
 
 # Nunca use SELECT * aqui: traria o WIREFRAME (centenas de MB).
 cur.execute("""
@@ -1160,7 +1160,7 @@ explícito o que ainda não foi visto no Builder (render OQ3D, lançamento em re
 lê esta skill: a tabela de armadilhas descreve o sintoma, não garante que o código ao lado
 já o evite.
 
-**2.5.0** — Nova subseção "Um `.aq` mínimo a partir de qualquer malha": a lista de tabelas que uma peça só exige, uma raiz OQ3D por malha de cor uniforme (dividir por cor antes de escrever), a conversão de unidades do viewer, o enquadramento inofensivo (conexão, sem código de diâmetro), a origem gravada em propriedade, e a armadilha do título vindo da pasta. Vem do `scripts/geo_to_aq.py` do `bilds-bim-3d`, verificado com um STEP tesselado relido pelo `read_aq.py`/`oq3d.py`.
+**2.5.0** — Nova subseção "Um `.aq` mínimo a partir de qualquer malha": a lista de tabelas que uma peça só exige, uma raiz OQ3D por malha de cor uniforme (dividir por cor antes de escrever), a conversão de unidades do viewer, o enquadramento inofensivo (conexão, sem código de diâmetro), a origem gravada em propriedade, e a armadilha do título vindo da pasta. Vem do `www/apps/ingestao/pipeline/geo_to_aq.py` do `bilds-bim-3d`, verificado com um STEP tesselado relido pelo `read_aq.py`/`oq3d.py`.
 
 **2.4.0** — Três aprendizados de quem **edita** a geometria depois de extraída (POC de
 edição, `bilds-bim-3d` branch `poc-edicao`): a estrutura de partes perdida no

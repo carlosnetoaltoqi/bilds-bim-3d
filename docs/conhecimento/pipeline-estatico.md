@@ -30,7 +30,7 @@ A geometria vem sempre do próprio `.aq` (OQ3D). O modo de compatibilidade `buil
 teste, para dois casos que nunca mais ocorreram (peça só em IFC, como a bomba 89-62 TJM da
 Dancor; conferir uma fonte contra a outra). O matcher sobrevive em
 `docs/estudo-oq3d/valida_ifc.py`, que é o estudo que o usa. Peça que existe só como IFC entra
-pela POC (`scripts/ifc_to_geo.py`) ou é cadastrada no `.aq`.
+pela POC (`www/apps/ingestao/pipeline/ifc_to_geo.py`) ou é cadastrada no `.aq`.
 
 ### Modo lote (`--all`)
 
@@ -199,9 +199,9 @@ No desktop são ~12 cards na primeira viewport: **40 MB** na Dancor.
 ### Como funciona
 
 ```
-build.py  →  build_thumbs()  →  node scripts/thumbs.mjs <config.json>
+build.py  →  build_thumbs()  →  node www/apps/ingestao/pipeline/thumbs.mjs <config.json>
                                     ├── sobe servidor estático sobre ROOT
-                                    ├── abre templates/thumbs/harness.html no Chromium
+                                    ├── abre www/apps/ingestao/pipeline/harness.html no Chromium
                                     └── window.renderThumb(url) por geometria → .webp
 ```
 
@@ -213,7 +213,7 @@ imagem que a página produziria.
 
 | Consumidor | Função do harness | Origem dos dados |
 |---|---|---|
-| `scripts/thumbs.mjs` (pipeline estático) | `window.renderThumb(url, …)` | `fetch` do JSON servido |
+| `www/apps/ingestao/pipeline/thumbs.mjs` (pipeline estático) | `window.renderThumb(url, …)` | `fetch` do JSON servido |
 | `www/tools/thumb-rasterizer.ts` (POC / API) | `window.renderThumbFromData(data, …)` | objeto já em memória |
 
 `renderThumb` é um wrapper: faz o `fetch` e delega para `renderThumbFromData`, que é a

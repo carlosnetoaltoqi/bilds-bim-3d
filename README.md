@@ -41,7 +41,7 @@ O modo `--ifc` — geometria lida dos arquivos `.IFC` da pasta, com matching por
 foi **removido em 2026-09-05** (I6 da auditoria): ~440 linhas sem fixture nem teste, que só
 serviam a dois casos raros. Se uma peça existe como IFC mas não está cadastrada no `.aq`, o build
 não a inclui; o caminho é cadastrá-la na biblioteca ou importar o IFC pela POC
-(`scripts/ifc_to_geo.py`). `scripts/parse_ifc.py` continua no repositório para esse conversor.
+(`www/apps/ingestao/pipeline/ifc_to_geo.py`). `www/apps/ingestao/pipeline/parse_ifc.py` continua no repositório para esse conversor.
 
 ## Como a saída é organizada
 
@@ -117,9 +117,15 @@ storage externo ou preview só local) é uma decisão em aberto — item C7 de
 
 ```bash
 # Inspecionar uma biblioteca sem gerar nada
-python3 scripts/read_aq.py caminho/para/pecas.aq --meta
+python3 www/apps/ingestao/pipeline/read_aq.py caminho/para/pecas.aq --meta
 # → fabricante, linhas, nº de peças, nº de geometrias, curvas Q-H, versão do schema
+
+# O pipeline sem o ZIP/preview: geometria + catálogo em JSON (+ miniaturas) — é o que o serviço de ingestão roda
+python3 www/apps/ingestao/pipeline/catalogo_de_aq.py caminho/para/pecas.aq --geo-dir /tmp/geo --saida /tmp/cat.json --thumbs-dir /tmp/thumbs
 ```
+
+O código que lê o `.aq` e gera catálogo, geometria e miniaturas mora em `www/apps/ingestao/pipeline/`
+(README lá); `scripts/build.py` só faz o que é do preview e do ZIP.
 
 ## Testes
 
@@ -146,7 +152,7 @@ está na máquina. Detalhes em `CLAUDE.md`, seção "Testes".
 - testes: `pip install -r requirements-dev.txt`
 
 `ifcopenshell`, `cadquery-ocp` e `pypdf` são opcionais e estão pinados em `requirements-cad.txt`:
-IFC B-rep (`IFCADVANCEDBREP`) e IFC grande no conversor da POC (`scripts/ifc_to_geo.py`), STEP
+IFC B-rep (`IFCADVANCEDBREP`) e IFC grande no conversor da POC (`www/apps/ingestao/pipeline/ifc_to_geo.py`), STEP
 no editor e extração de PDF. O pipeline estático não usa nenhum deles. O repositório é **pnpm só** — não use `npm install` (gera um
 `package-lock.json` que não é versionado).
 
@@ -225,7 +231,7 @@ excluir, adicionar cilindro/tubo/caixa ou STL/OBJ, corte em Y, fantasma do origi
 **Salvar** grava de volta o `{pos, col, idx}` que o viewer público lê, preservando o
 original para "restaurar". **Exportar IFC** baixa um IFC4 do que está na tela (uma
 `IFCBUILDINGELEMENTPROXY` por parte, cores por face, informações do produto em
-`IFCPROPERTYSET`), lido de volta pelo `scripts/parse_ifc.py` com os mesmos triângulos. A aba **Informações** edita nome, série, specs, curva Q-H,
+`IFCPROPERTYSET`), lido de volta pelo `www/apps/ingestao/pipeline/parse_ifc.py` com os mesmos triângulos. A aba **Informações** edita nome, série, specs, curva Q-H,
 potência e conexões no banco, com "voltar" por campo. Detalhes em
 `docs/sessoes/S7.1-poc-edicao.md`.
 
@@ -236,8 +242,8 @@ editor como produto de um catálogo e sai como IFC4 ou `.aq`:
 
 ```bash
 pip install --user --break-system-packages cadquery-ocp   # OpenCASCADE em Python, uma vez
-python3 scripts/step_to_geo.py input/STEP/2831A09.stp --info   # inspeciona: unidade, sólidos, bbox
-python3 scripts/ifc_to_geo.py peca.ifc --info                   # idem para IFC (parse_ifc.py + dedup)
+python3 www/apps/ingestao/pipeline/step_to_geo.py input/STEP/2831A09.stp --info   # inspeciona: unidade, sólidos, bbox
+python3 www/apps/ingestao/pipeline/ifc_to_geo.py peca.ifc --info                   # idem para IFC (parse_ifc.py + dedup)
 # com a API e o web de pé: http://localhost:3000/importar-step   (aceita .stp, .step e .ifc)
 ```
 
@@ -245,7 +251,7 @@ O STEP é B-rep paramétrico (não tem triângulos); a API tessela com OpenCASCA
 pelo `parse_ifc.py` do projeto quando é pequeno e pelo `ifcopenshell` quando é grande (um
 Revit de 124 MB leva ~4 min e 3,6 GB de RAM). A importação é assíncrona: a página mostra
 as etapas e o progresso do conversor. Nos dois casos a API cria o produto e a miniatura. No editor, **Exportar .aq** gera uma biblioteca AltoQi com a peça
-(`scripts/geo_to_aq.py`, sobre o escritor OQ3D do `eng-reversa/`), lida de volta pelo
+(`www/apps/ingestao/pipeline/geo_to_aq.py`, sobre o escritor OQ3D do `eng-reversa/`), lida de volta pelo
 `read_aq.py` do projeto. Detalhes em `docs/sessoes/S7.2-step-e-aq.md`.
 
 ## Documentação

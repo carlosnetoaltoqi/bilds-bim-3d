@@ -1,5 +1,5 @@
 /**
- * oq3d-parser.ts — Port TypeScript de scripts/oq3d.py (S2.2)
+ * oq3d-parser.ts — Port TypeScript de www/apps/ingestao/pipeline/oq3d.py (S2.2)
  *
  * Lê o formato binário OQ3D ("OQ3D 3D Objects File"), a geometria 3D
  * embutida no BLOB SIMBOLOGIA_3D.SIMBOLOGIA_3D do AltoQi Builder.
@@ -13,7 +13,7 @@
  * Unidades de entrada: centímetros, Z-up (AltoQi/IFC nativo).
  * Saída: metros, Y-up (Three.js), arrays flat prontos para BufferGeometry.
  *
- * DUAS ARMADILHAS DO FORMATO, ambas já corrigidas aqui e em scripts/oq3d.py:
+ * DUAS ARMADILHAS DO FORMATO, ambas já corrigidas aqui e em www/apps/ingestao/pipeline/oq3d.py:
  *
  * 1. A rotação de TCoordinateTransformation3D é COLUMN-major. Lida como
  *    row-major, sai transposta e desloca toda instância rotacionada.
@@ -104,7 +104,7 @@ function classAt(buf: Buffer, p: number): { name: string; payloadOffset: number 
  *
  * Versões 2 e 3 têm layout idêntico; a 3 aparece na Maxbar (31 de 135
  * simbologias) e até 2026-09-03 era rejeitada aqui e no oq3d.py — a peça
- * saía sem geometria. Espelha MESH_VERSOES do scripts/oq3d.py.
+ * saía sem geometria. Espelha MESH_VERSOES do www/apps/ingestao/pipeline/oq3d.py.
  */
 const MESH_VERSOES = new Set([2, 3]);
 

@@ -2,7 +2,7 @@
   "name": "bilds-bim-3d-thumbs",
   "private": true,
   "type": "module",
-  "description": "Dependência isolada do passo de miniaturas (scripts/thumbs.mjs). O resto do pipeline é Python.",
+  "description": "Playwright para as miniaturas (www/apps/ingestao/pipeline/thumbs.mjs). O resto do pipeline é Python.",
   "scripts": {
     "postinstall": "playwright install chromium"
   },

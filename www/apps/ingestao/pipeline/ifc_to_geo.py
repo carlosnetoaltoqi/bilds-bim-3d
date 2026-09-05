@@ -38,8 +38,8 @@ O caminho rápido também é o fallback quando o `parse_ifc` não acha geometria
 mostrar que o modelo é pesado para o editor no browser.
 
 Uso:
-    python3 scripts/ifc_to_geo.py peca.ifc saida.json [--forcar-rapido] [--max-triangulos 2000000]
-    python3 scripts/ifc_to_geo.py peca.ifc --info
+    python3 www/apps/ingestao/pipeline/ifc_to_geo.py peca.ifc saida.json [--forcar-rapido] [--max-triangulos 2000000]
+    python3 www/apps/ingestao/pipeline/ifc_to_geo.py peca.ifc --info
 """
 import argparse
 import json

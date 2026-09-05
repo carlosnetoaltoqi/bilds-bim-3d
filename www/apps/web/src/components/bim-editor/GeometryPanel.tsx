@@ -438,7 +438,7 @@ export function GeometryPanel(p: GeometryPanelProps) {
           uma <code>IFCBUILDINGELEMENTPROXY</code> por parte visível, malha <code>IFCTRIANGULATEDFACESET</code> em metros, Z para cima,
           cor por face em <code>IFCINDEXEDCOLOURMAP</code>, e as informações do produto em <code>IFCPROPERTYSET</code>. Transformação
           rígida vira <code>IFCLOCALPLACEMENT</code>; escala é aplicada nos vértices. Bocais ficam de fora por padrão — são marcadores do AltoQi.
-          <br />O <code>.aq</code> é gerado no servidor pelo <code>scripts/geo_to_aq.py</code>: uma biblioteca AltoQi com esta peça, uma malha OQ3D por parte
+          <br />O <code>.aq</code> é gerado no servidor pelo <code>www/apps/ingestao/pipeline/geo_to_aq.py</code>: uma biblioteca AltoQi com esta peça, uma malha OQ3D por parte
           (centímetros, Z para cima), as specs como propriedades personalizadas e o insumo com o código. Lido de volta pelo <code>read_aq.py</code> do projeto.
         </p>
       </Section>

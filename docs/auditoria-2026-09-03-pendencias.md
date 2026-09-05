@@ -36,7 +36,7 @@ código foram reproduzidos uma segunda vez antes de fechar este documento.
 | I1 ✅ | Miniaturas degradam em silêncio no build (ZIP sem `thumbs/`, exit 0) — **corrigido 2026-09-03** (S7.6: `ThumbsError`, `--allow-no-thumbs`, `thumbCount`) | geração |
 | I2 ✅ | Geometria inválida/vazia contabilizada como "tubos/kits"; `_read_mesh` muda — **corrigido 2026-09-03** (S7.6: `diag` por categoria; `_read_mesh` lança em truncado; **bônus: malha versão 3 da Maxbar, 56 peças recuperadas**) | geração |
 | I3 ✅ | `OQ3DAvisoParse` não chega ao operador — **corrigido 2026-09-03** (S7.6: coletado por simbologia, `resumo_diag`) | geração |
-| I4 | `scripts/geo_to_aq.py` depende de `eng-reversa/tools/` (estudo) | geração |
+| I4 | `www/apps/ingestao/pipeline/geo_to_aq.py` depende de `eng-reversa/tools/` (estudo) | geração |
 | I5 ✅ | `requirements.txt` incoerente; OCP/ifcopenshell/pypdf fora de qualquer requirements — **corrigido 2026-09-04** (S7.8: `requirements.txt` só jinja2+numpy; `requirements-dev.txt`; `requirements-cad.txt` pinado) | ambiente |
 | I6 ✅ | Modo `--ifc` do build é código morto (~450 linhas) com `config.example.json` obsoleto — **removido 2026-09-05** (S7.10, decisão do usuário: `build.py` 1.727 → 1.290 linhas; `config.example.json` refeito com as 6 chaves reais; `find_aq_product` movido para `docs/estudo-oq3d/valida_ifc.py`; `test_modo_ifc_removido`) | geração |
 | I7 ✅ | Fallback sem Jinja2 gera HTML quebrado — **corrigido 2026-09-04** (S7.7: `build_preview` lança `RuntimeError` sem Jinja2 ou sem template; `run_build` não ignora mais o retorno) | geração |
@@ -89,7 +89,7 @@ código foram reproduzidos uma segunda vez antes de fechar este documento.
   contendo `"` e `'`.
 
 ### C2. `open_aq` cria um `.aq` vazio e mascara "arquivo não existe"
-- `scripts/read_aq.py:54` (`sqlite3.connect` cria o arquivo), `:59` (`except: pass`),
+- `www/apps/ingestao/pipeline/read_aq.py:54` (`sqlite3.connect` cria o arquivo), `:59` (`except: pass`),
   `:69` (mensagem "não é SQLite nem ZIP"). `peek_metadata` (`:278-281`) engole tudo e
   devolve fabricante vazio.
 - Reproduzido: `open_aq('nao_existe.aq')` → `ValueError` e um arquivo de 0 bytes criado.
@@ -165,7 +165,7 @@ código foram reproduzidos uma segunda vez antes de fechar este documento.
 - **I3.** ✅ (S7.6) `oq3d.py:263-269` usa `warnings.warn`; o filtro padrão mostra só a 1ª por local e
   `build.py` não agrega. `catch_warnings(record=True)` por simbologia e linha no resumo.
   *Feito exatamente assim (`resumo_diag`).*
-- **I4.** `scripts/geo_to_aq.py:54-60` importa `gerar_aq`, `oq3d_writer` e lê
+- **I4.** `www/apps/ingestao/pipeline/geo_to_aq.py:54-60` importa `gerar_aq`, `oq3d_writer` e lê
   `eng-reversa/dados/schema-aq-607.sql`; é chamado pela API (`step.service.ts:23-24`).
   Promover para `scripts/aq_writer.py` + `scripts/schema-aq-607.sql`; `eng-reversa`
   importa de `scripts/`.

@@ -40,11 +40,11 @@ python3 -c "from OCP.STEPControl import STEPControl_Reader; print('OK')"
 STEP. Sem `--break-system-packages` o pip do Ubuntu recusa (PEP 668) — o pacote vai para
 `~/.local`, não toca o Python do sistema.
 
-Script de referência: `scripts/step_to_geo.py` do repositório `bilds-bim-3d`.
+Script de referência: `www/apps/ingestao/pipeline/step_to_geo.py` do repositório `bilds-bim-3d`.
 
 ```bash
-python3 scripts/step_to_geo.py peca.stp saida.json [--deflexao 0.2] [--angulo 0.35]
-python3 scripts/step_to_geo.py peca.stp --info
+python3 www/apps/ingestao/pipeline/step_to_geo.py peca.stp saida.json [--deflexao 0.2] [--angulo 0.35]
+python3 www/apps/ingestao/pipeline/step_to_geo.py peca.stp --info
 ```
 
 ## A receita, e cada armadilha dela
@@ -114,7 +114,7 @@ while ex.More():
 ```
 
 Emita **expandido** (3 vértices por triângulo) e deduplique no fim com a quantização
-float32 do pipeline (`scripts/dedup.py`): a chave inclui a cor, então faces de cores
+float32 do pipeline (`www/apps/ingestao/pipeline/dedup.py`): a chave inclui a cor, então faces de cores
 diferentes não se soldam — e é isso que permite ao editor re-segmentar por componentes.
 
 ## Saída
@@ -122,7 +122,7 @@ diferentes não se soldam — e é isso que permite ao editor re-segmentar por c
 O mesmo contrato das outras skills — `{ pos, col, idx }`, metros, Y-up — mais metadados
 que valem a pena guardar: `partes` (nome e cor por sólido), `unidade`, `bbox_mm`, `fonte`,
 `deflexao_mm`. No `bilds-bim-3d` esse JSON entra no editor 3D (`POST /step/importar`),
-sai como IFC4 (`ifc-export.ts`, skill `leitor-ifc`) ou como `.aq` (`scripts/geo_to_aq.py`,
+sai como IFC4 (`ifc-export.ts`, skill `leitor-ifc`) ou como `.aq` (`www/apps/ingestao/pipeline/geo_to_aq.py`,
 skill `leitor-biblioteca-aq`).
 
 ## Como conferir

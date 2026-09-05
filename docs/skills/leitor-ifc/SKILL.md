@@ -33,7 +33,7 @@ Use a skill **`leitor-biblioteca-aq`** nesse caso. O IFC continua sendo a fonte 
 
 ## O parser
 
-O script de referência está em `scripts/parse_ifc.py` neste repositório. Ele aceita argumentos de linha de comando:
+O script de referência está em `www/apps/ingestao/pipeline/parse_ifc.py` neste repositório. Ele aceita argumentos de linha de comando:
 
 ```bash
 python3 parse_ifc.py <diretório_entrada> <diretório_saída>
@@ -43,7 +43,7 @@ Processa todos os `.IFC` ou `.ifc` do diretório de entrada que tenham entrada n
 
 **Exemplo:**
 ```bash
-python3 scripts/parse_ifc.py ~/Downloads/ifcs ~/meu-projeto/data
+python3 www/apps/ingestao/pipeline/parse_ifc.py ~/Downloads/ifcs ~/meu-projeto/data
 ```
 
 ---
@@ -575,7 +575,7 @@ const io = new IntersectionObserver(entries => {
 
 ## FILE_MAP — como configurar
 
-No topo de `scripts/parse_ifc.py`, edite o dicionário `FILE_MAP`:
+No topo de `www/apps/ingestao/pipeline/parse_ifc.py`, edite o dicionário `FILE_MAP`:
 
 ```python
 FILE_MAP = {
@@ -678,7 +678,7 @@ vértice 1 mm fora tem de acusar): uma métrica que só imprime "FALHA" não pro
 
 `parse_ifc.parse_ifc_file(caminho)` é importável e devolve `{pos, col}` (expandido, quando
 há `IFCINDEXEDCOLOURMAP`) ou `{pos, col, idx}`. Para servir de **entrada** de um viewer ou
-editor (feito em `bilds-bim-3d/scripts/ifc_to_geo.py`), faltam três coisas que o parser
+editor (feito em `bilds-bim-3d/www/apps/ingestao/pipeline/ifc_to_geo.py`), faltam três coisas que o parser
 não faz de propósito:
 
 1. **Deduplicar** com a quantização float32 (`dedup.py`) — obrigatório antes de gravar.

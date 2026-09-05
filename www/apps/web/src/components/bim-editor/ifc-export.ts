@@ -1,7 +1,7 @@
 /**
  * ifc-export.ts — escreve o modelo editado como IFC4 (STEP / ISO-10303-21).
  *
- * É o caminho inverso do `scripts/parse_ifc.py` e da skill `leitor-ifc`, e segue
+ * É o caminho inverso do `www/apps/ingestao/pipeline/parse_ifc.py` e da skill `leitor-ifc`, e segue
  * a estrutura que o exportador do AltoQi produz para a Dancor — a que aquele parser
  * já sabe ler:
  *

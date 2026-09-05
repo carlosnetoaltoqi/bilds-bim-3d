@@ -1,6 +1,6 @@
 """
-Suíte de testes do pipeline estático (scripts/) — criada em 2026-09-03 (I9 da
-auditoria). Antes dela não havia nenhum teste; a "geração acusa erro" era
+Suíte de testes do pipeline (www/apps/ingestao/pipeline/ e scripts/build.py) e da
+POC www/ — criada em 2026-09-03 (I9 da auditoria). Antes dela não havia nenhum teste; a "geração acusa erro" era
 verificada rodando o build inteiro à mão.
 
 Como rodar, na raiz do repositório:
@@ -16,9 +16,9 @@ motivo claro se o arquivo não existir. Os testes de formato usam blobs OQ3D
 sintéticos escritos por `eng-reversa/tools/oq3d_writer.py`, então rodam em
 qualquer máquina.
 
-Saída: `output/.pytest-tmp/<aleatório>/` (apagado ao fim). Precisa ficar DENTRO
-da raiz porque o `scripts/thumbs.mjs` serve a geometria por HTTP relativo à
-raiz do projeto e recusa caminhos fora dela.
+Saída: `output/.pytest-tmp/<aleatório>/` (apagado ao fim), dentro da raiz para
+ficar coberta pelo .gitignore (desde a E2 o `thumbs.mjs` monta a pasta de geometria
+por caminho absoluto, então a raiz não é mais uma exigência técnica).
 """
 import os
 import shutil
@@ -29,7 +29,9 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
+PIPELINE = ROOT / 'www' / 'apps' / 'ingestao' / 'pipeline'   # read_aq, oq3d, dedup, catalogo… (E2, 2026-09-05)
 sys.path.insert(0, str(ROOT / 'scripts'))
+sys.path.insert(0, str(PIPELINE))
 sys.path.insert(0, str(ROOT / 'eng-reversa' / 'tools'))
 
 AKATO_AQ = ROOT / 'input' / 'Akato' / 'PVC Construção Civil' / 'pecas_akato_construcao_civil.aq'
@@ -86,10 +88,9 @@ def args_build(*flags):
 
 
 def node_para_ts():
-    """Caminho de um Node capaz de rodar os .ts de www/tools direto, ou None.
+    """Caminho de um Node capaz de rodar os .ts/.mts dos harnesses direto, ou None.
 
-    Node >= 22.6 remove tipos sem flag (>= 23.6 sem aviso) e traz node:sqlite;
-    o aq-reader.ts precisa dos dois. Nesta máquina há v24 via nvm.
+    Node >= 22.6 remove tipos sem flag (>= 23.6 sem aviso). Nesta máquina há v24 via nvm.
     """
     import build
     node = build._find_node()

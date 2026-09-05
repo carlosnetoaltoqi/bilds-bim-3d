@@ -3,7 +3,7 @@
 gerar_aq.py — gera uma biblioteca `.aq` do AltoQi Builder a partir do catálogo
 da Akato extraído do PDF.
 
-É o caminho inverso do `scripts/read_aq.py` do projeto: em vez de ler um `.aq`
+É o caminho inverso do `www/apps/ingestao/pipeline/read_aq.py` do projeto: em vez de ler um `.aq`
 de fabricante, escreve um.
 
 O QUE ENTRA NO ARQUIVO
@@ -420,7 +420,7 @@ class Gerador:
         `\\xea` é `ê` em cp1252 e não é UTF-8 válido. O `typeof()` continua
         `'text'`: o SQLite não valida a codificação do que se manda gravar.
 
-        O `scripts/read_aq.py` do projeto lê com `text_factory` cp1252. Então
+        O `www/apps/ingestao/pipeline/read_aq.py` do projeto lê com `text_factory` cp1252. Então
         gravar em UTF-8, que é o padrão do módulo `sqlite3`, produz mojibake na
         leitura — `'Tubo De Pvc Soldável 6M'` virou `'Tubo De Pvc SoldÃ¡vel
         6M'`, e o erro não levanta exceção em lugar nenhum: aparece no nome do

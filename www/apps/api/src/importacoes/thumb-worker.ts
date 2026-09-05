@@ -7,7 +7,7 @@
  *
  * Para cada produto:
  *   1. Lê o geo JSON de storagePath/geoKey
- *   2. Renderiza WebP com Playwright + templates/thumbs/harness.html — o mesmo
+ *   2. Renderiza WebP com Playwright + www/apps/ingestao/pipeline/harness.html — o mesmo
  *      Three.js, buildScene() e câmera do viewer 3D (ver thumb-rasterizer.ts).
  *      Antes era o rasterizador software; divergia visivelmente do viewer.
  *   3. Salva em storagePath/thumbs/{importId}/{productId}.webp

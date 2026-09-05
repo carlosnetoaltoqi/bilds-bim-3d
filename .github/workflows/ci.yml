@@ -1,11 +1,11 @@
 # CI mínimo (I20 da auditoria, 2026-09-04). Dois jobs independentes:
 #
-#   pipeline-estatico — py_compile de scripts/ e a suíte tests/ sem o marcador
+#   pipeline-estatico — py_compile de scripts/, www/apps/ingestao/pipeline/ e eng-reversa/tools/,
+#     e a suíte tests/ sem o marcador
 #     `thumbs` (o Chromium do Playwright exige libs de sistema; fica para depois).
 #     Os `.aq` de input/ são gitignored, então os testes que dependem deles PULAM
 #     aqui com motivo — o que roda são os blobs OQ3D sintéticos, o contrato do
-#     parser, o render dos templates e a paridade Python ↔ TypeScript em blobs
-#     sintéticos (Node 24 roda os .ts de www/tools direto, sem transpilar).
+#     parser, o render dos templates e os harnesses Node de www/ (Node 24 roda .ts direto).
 #   www — `pnpm install --frozen-lockfile` + `pnpm -r build` (API com tsc, web com
 #     next build). Não sobe Mongo nem roda a POC; só prova que compila.
 #   Versões: Node em .nvmrc, pnpm em packageManager (package.json), Python em .python-version.
@@ -43,8 +43,8 @@ jobs:
       - name: Dependências Python (requirements.txt + requirements-dev.txt)
         run: python -m pip install --upgrade pip && python -m pip install -r requirements-dev.txt
 
-      - name: py_compile de scripts/ e eng-reversa/tools/
-        run: python -m py_compile scripts/*.py eng-reversa/tools/*.py
+      - name: py_compile de scripts/, www/apps/ingestao/pipeline/ e eng-reversa/tools/
+        run: python -m py_compile scripts/*.py www/apps/ingestao/pipeline/*.py eng-reversa/tools/*.py
 
       - name: pytest (sem Chromium; fixtures de input/ pulam com motivo)
         run: python -m pytest -m "not thumbs" -rs

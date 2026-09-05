@@ -408,7 +408,7 @@ function f32bits(v: number): number {
 
 /**
  * Deduplicação de vértices com quantização float32 — o MESMO algoritmo do
- * parse-worker.ts (e do scripts/dedup.py). A chave inclui a cor, então vértices
+ * parse-worker.ts (e do www/apps/ingestao/pipeline/dedup.py). A chave inclui a cor, então vértices
  * de cores diferentes não se fundem — e é isso que permite re-segmentar depois.
  */
 export function dedup(g: { pos: number[]; col: number[]; idx: number[] }): { pos: number[]; col: number[]; idx: number[] } {

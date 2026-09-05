@@ -282,8 +282,8 @@ luzes: AmbientLight(0xffffff, 0.7)
      + DirectionalLight(0xC8D8F0, 0.35) em (-2, 1, -1)
 ```
 
-No pipeline isso vive em `templates/thumbs/harness.html`, dirigido por
-`scripts/thumbs.mjs`.
+No pipeline isso vive em `www/apps/ingestao/pipeline/harness.html`, dirigido por
+`www/apps/ingestao/pipeline/thumbs.mjs`.
 
 ### Opcional por design
 

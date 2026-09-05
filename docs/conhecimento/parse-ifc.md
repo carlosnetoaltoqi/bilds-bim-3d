@@ -1,4 +1,4 @@
-# IFC4 → geometria (`scripts/parse_ifc.py`)
+# IFC4 → geometria (`www/apps/ingestao/pipeline/parse_ifc.py`)
 
 > Movido do `CLAUDE.md` em 2026-09-04 (S7.8, item I22 da auditoria). O conteúdo é o que estava lá,
 > com as afirmações desatualizadas de I23 corrigidas no lugar; onde diz "este arquivo", "acima" ou
@@ -6,7 +6,7 @@
 > a partir de agora: o `CLAUDE.md` só aponta para este arquivo.
 
 > O `build.py` não usa este parser desde 2026-09-05 (I6: o modo `--ifc` foi removido). Quem o usa
-> é `scripts/ifc_to_geo.py` (importar IFC na POC) e o round-trip do exportador do editor
+> é `www/apps/ingestao/pipeline/ifc_to_geo.py` (importar IFC na POC) e o round-trip do exportador do editor
 > (`www/tools/testes-editor.sh`). Os cinco bugs abaixo, todos de parsing de texto STEP, valem
 > para qualquer consumidor.
 

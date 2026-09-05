@@ -19,7 +19,7 @@ Validado em nove bibliotecas, seis versões de schema (552–607) e três domín
 | `massval.py` | validação em massa `.aq` × IFC — bounding box e contagem peça a peça (usa o nome antigo `oq3dtree`) |
 | `valida_ifc.py` | confere o parser contra o IFC peça a peça: **conjunto de pontos** em biblioteca tessellated, forma em B-rep |
 
-O parser que saiu do estudo virou `scripts/oq3d.py`, em produção. O que está aqui é ferramenta de investigação, mantida para reproduzir a análise e conferir o parser contra os IFCs.
+O parser que saiu do estudo virou `www/apps/ingestao/pipeline/oq3d.py`, em produção. O que está aqui é ferramenta de investigação, mantida para reproduzir a análise e conferir o parser contra os IFCs.
 
 ## Reproduzir
 

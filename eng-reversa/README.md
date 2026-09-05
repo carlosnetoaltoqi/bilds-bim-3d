@@ -4,8 +4,8 @@ Estudo de engenharia reversa do formato de biblioteca BIM do AltoQi Builder
 (`.aq`) **no sentido da escrita**, e a sua materialização: uma biblioteca
 `.aq` gerada a partir do `input/Akato/AKATO-CATALOGO-CONSTRUCAO-CIVIL.pdf`.
 
-O projeto bilds-bim-3d sabe **ler** `.aq` — o `scripts/read_aq.py` e o
-`scripts/oq3d.py` estão validados em 12 bibliotecas de fabricante e 6 versões
+O projeto bilds-bim-3d sabe **ler** `.aq` — o `www/apps/ingestao/pipeline/read_aq.py` e o
+`www/apps/ingestao/pipeline/oq3d.py` estão validados em 12 bibliotecas de fabricante e 6 versões
 de schema. Este estudo fecha o outro lado: o que é preciso saber para
 **escrever** um `.aq` que aquele mesmo leitor, e o AltoQi, aceitem.
 
@@ -18,8 +18,8 @@ de schema. Este estudo fecha o outro lado: o que é preciso saber para
 >   `DIAMETRO_PECA`, sentinelas, 9 linhas de diagnóstico e a entrada de sessão;
 > - `docs/skills/leitor-biblioteca-aq/` **2.3.0** e `pagina-biblioteca/` **1.5.0**;
 > - `CONCEPTS.md` — Código de diâmetro, Sentinela, Forma representativa;
-> - `scripts/read_aq.py` — `diametro_cm` → `diametro_codigo` e sentinela → `None`;
-> - `scripts/oq3d.py` — `n_raizes_declarado()` e o aviso `OQ3DAvisoParse`;
+> - `www/apps/ingestao/pipeline/read_aq.py` — `diametro_cm` → `diametro_codigo` e sentinela → `None`;
+> - `www/apps/ingestao/pipeline/oq3d.py` — `n_raizes_declarado()` e o aviso `OQ3DAvisoParse`;
 > - `scripts/build.py` — `saida`/`output` em `_GENERIC_DIRS`.
 >
 > O que este diretório continua não fazendo: escrever fora de si. A única exceção é o
@@ -95,11 +95,11 @@ Todas são independentes e somente-leitura sobre as bibliotecas de `input/`.
 | `tools/pdf_akato.py` | Remonta as tabelas do catálogo a partir das células |
 | `tools/aq_referencia.py` | Levanta de um `.aq` real os valores de enum que um gerador precisa |
 | `tools/oq3d_anatomy.py` | Dissecação byte a byte de um blob OQ3D |
-| `tools/oq3d_writer.py` | **Escreve** OQ3D, e gera cilindro e tubo paramétricos. Também usado por `scripts/geo_to_aq.py` (exportação `.aq` do editor 3D) |
-| `tools/oq3d_roundtrip.py` | Prova o escritor contra o `scripts/oq3d.py` do projeto. O caso 6 reescreve um blob real da Amanco (`input/Amanco/…aq`, sid 169); sem o `.aq` é **FALHA**, não "pulado" — `--sem-real` pula de propósito (I8, 2026-09-04) |
+| `tools/oq3d_writer.py` | **Escreve** OQ3D, e gera cilindro e tubo paramétricos. Também usado por `www/apps/ingestao/pipeline/geo_to_aq.py` (exportação `.aq` do editor 3D) |
+| `tools/oq3d_roundtrip.py` | Prova o escritor contra o `www/apps/ingestao/pipeline/oq3d.py` do projeto. O caso 6 reescreve um blob real da Amanco (`input/Amanco/…aq`, sid 169); sem o `.aq` é **FALHA**, não "pulado" — `--sem-real` pula de propósito (I8, 2026-09-04) |
 | `tools/formas.py` | **Geometria paramétrica representativa**, 23 formas |
 | `tools/formas_teste.py` | Gera as 262 formas e checa escala, proporção e estanqueidade |
-| `tools/gerar_aq.py` | Gera o `.aq` a partir do catálogo extraído. **`scripts/geo_to_aq.py` importa daqui** `criar_schema`, `Gerador` (cp1252) e as constantes do AltoQi — não mover nem renomear sem ajustar |
+| `tools/gerar_aq.py` | Gera o `.aq` a partir do catálogo extraído. **`www/apps/ingestao/pipeline/geo_to_aq.py` importa daqui** `criar_schema`, `Gerador` (cp1252) e as constantes do AltoQi — não mover nem renomear sem ajustar |
 | `tools/validar_aq.py` | Valida o `.aq` gerado com o `read_aq.py` do projeto |
 | `tools/pipeline_ponta_a_ponta.py` | Roda o `build.py` do projeto sobre o `.aq` gerado |
 | `tools/olhar_preview.mjs` | Abre a página no Playwright e fotografa as peças — a checagem que pega erro de posição relativa |

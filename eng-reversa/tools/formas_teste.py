@@ -26,7 +26,7 @@ from collections import defaultdict
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
 RAIZ = os.path.dirname(os.path.dirname(AQUI))
-sys.path.insert(0, os.path.join(RAIZ, 'scripts'))
+sys.path.insert(0, os.path.join(RAIZ, 'www', 'apps', 'ingestao', 'pipeline'))
 sys.path.insert(0, AQUI)
 
 import oq3d                          # noqa: E402  leitor do projeto

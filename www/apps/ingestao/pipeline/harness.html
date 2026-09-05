@@ -1,12 +1,8 @@
 <!doctype html>
 <!--
-  harness.html — página de render usada SÓ pelos geradores de miniatura.
-  Não vai para o ZIP nem para o preview.
-
-  Dois consumidores hoje:
-
-    scripts/thumbs.mjs            (pipeline estático)  → window.renderThumb(url, …)
-    www/tools/thumb-rasterizer.ts (POC dinâmico/API)   → window.renderThumbFromData(data, …)
+  harness.html — página de render usada SÓ pelo gerador de miniaturas (thumbs.mjs,
+  neste diretório). Não vai para o ZIP nem para o preview. O thumbs.mjs a serve em
+  /harness.html, com o Three.js em /vendor/three.module.js e a geometria em /geo/*.
 
   Existe para que a miniatura pré-gerada seja a MESMA imagem que a página produz
   em runtime. O `buildScene()` e a câmera abaixo são cópia literal de:
@@ -14,7 +10,7 @@
     templates/layouts/catalog-grid.html   (buildScene / renderThumbnailId)
     templates/layouts/series-rows.html    (idem)
     bilds.com apps/web/src/components/b-bim-3d/bim-viewer-engine.ts
-    www/apps/web/src/components/bim-catalog/bim-viewer-engine.ts   (POC)
+    www/apps/web/src/components/bim-catalog/bim-viewer-engine.ts   (web deste repositório)
 
   Ao mexer no material, nas luzes ou na câmera de qualquer um desses, mexa aqui
   junto — senão a miniatura pré-gerada passa a divergir do fallback dinâmico e o
@@ -28,7 +24,7 @@
 <meta charset="utf-8" />
 <title>BIM thumb harness</title>
 <script type="importmap">
-  { "imports": { "three": "/templates/vendor/three.module.js" } }
+  { "imports": { "three": "/vendor/three.module.js" } }
 </script>
 <canvas id="c"></canvas>
 <script type="module">
@@ -105,7 +101,7 @@
     return url
   }
 
-  /** Busca o JSON de geometria e renderiza. Usado pelo pipeline estático. */
+  /** Busca o JSON de geometria e renderiza. É o que o thumbs.mjs chama. */
   window.renderThumb = async function (geoUrl, W, H, mime, quality) {
     const res = await fetch(geoUrl)
     if (!res.ok) throw new Error(`fetch ${geoUrl}: ${res.status}`)

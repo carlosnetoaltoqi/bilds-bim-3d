@@ -1,0 +1,6 @@
+# Pipeline Python do serviço de ingestão (www/apps/ingestao/pipeline).
+# Obrigatório para ler .aq e gerar catálogo + geometria:
+numpy>=1.26
+# Opcionais, só para os conversores CAD (step_to_geo.py, ifc_to_geo.py) — versões em
+# ../../../../requirements-cad.txt (cadquery-ocp, ifcopenshell).
+# As miniaturas precisam de Node >= 20 + playwright (pnpm install na raiz) e do Chromium.

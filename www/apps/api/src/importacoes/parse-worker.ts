@@ -25,7 +25,7 @@ function f32bits(v: number): number {
 }
 
 /**
- * Deduplicação de vértices com quantização float32 — equivalente ao scripts/dedup.py.
+ * Deduplicação de vértices com quantização float32 — equivalente ao www/apps/ingestao/pipeline/dedup.py.
  * Redução típica: ~79% menos vértices, arquivo 3–5× menor.
  * Usa a mesma precisão do Float32BufferAttribute do Three.js como chave de lookup.
  */

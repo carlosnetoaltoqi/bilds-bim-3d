@@ -6,7 +6,7 @@ Redução típica: 80% menos vértices, arquivo 3–5× menor antes do gzip.
 Para 14 modelos Dancor: ~80MB expandido → ~25MB indexado → ~4.5MB gzip total.
 
 Uso:
-  python3 scripts/dedup.py <input.json> [output.json]
+  python3 www/apps/ingestao/pipeline/dedup.py <input.json> [output.json]
   Se output não especificado, sobrescreve o input.
 """
 import json
@@ -70,7 +70,7 @@ def dedup(data):
 
 def main():
     if len(sys.argv) < 2:
-        print('Uso: python3 scripts/dedup.py <input.json> [output.json]')
+        print('Uso: python3 www/apps/ingestao/pipeline/dedup.py <input.json> [output.json]')
         sys.exit(1)
 
     in_path = sys.argv[1]

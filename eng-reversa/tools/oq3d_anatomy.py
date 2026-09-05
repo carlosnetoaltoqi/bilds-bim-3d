@@ -2,7 +2,7 @@
 """
 oq3d_anatomy.py — dissecação byte a byte de um blob OQ3D.
 
-O `scripts/oq3d.py` do projeto é um leitor TOLERANTE: ele varre à procura de
+O `www/apps/ingestao/pipeline/oq3d.py` do projeto é um leitor TOLERANTE: ele varre à procura de
 0x5B/0x5D e consome por inteiro apenas os três blocos de tamanho conhecido
 (malha, cor, transform). Tudo o que fica entre um bloco e o próximo marcador é
 ignorado — e é exatamente esse resto que um ESCRITOR precisa reproduzir.

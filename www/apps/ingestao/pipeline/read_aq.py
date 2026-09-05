@@ -15,7 +15,7 @@ Lidos como latin-1 eles viram caracteres de controle e chegam quebrados na
 página do catálogo. Ver `_decode_texto`.
 
 Uso:
-  python3 scripts/read_aq.py <arquivo.aq> <saida.json>
+  python3 www/apps/ingestao/pipeline/read_aq.py <arquivo.aq> <saida.json>
 """
 import sys
 import json

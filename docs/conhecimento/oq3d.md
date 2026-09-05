@@ -1,4 +1,4 @@
-# OQ3D — a geometria dentro do `.aq` (`scripts/oq3d.py`)
+# OQ3D — a geometria dentro do `.aq` (`www/apps/ingestao/pipeline/oq3d.py`)
 
 > Movido do `CLAUDE.md` em 2026-09-04 (S7.8, item I22 da auditoria). O conteúdo é o que estava lá,
 > com as afirmações desatualizadas de I23 corrigidas no lugar; onde diz "este arquivo", "acima" ou

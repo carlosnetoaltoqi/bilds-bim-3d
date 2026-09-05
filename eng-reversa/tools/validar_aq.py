@@ -3,7 +3,7 @@
 validar_aq.py — valida um `.aq` gerado usando o LEITOR DO PRÓPRIO PROJETO.
 
 A prova de que a engenharia reversa fechou não é o arquivo abrir no SQLite: é
-o `scripts/read_aq.py` e o `scripts/oq3d.py` do bilds-bim-3d — escritos para
+o `www/apps/ingestao/pipeline/read_aq.py` e o `www/apps/ingestao/pipeline/oq3d.py` do bilds-bim-3d — escritos para
 ler bibliotecas do AltoQi, validados em 12 bibliotecas e 6 versões de schema —
 lerem o arquivo gerado sem saber que ele não veio do AltoQi.
 
@@ -32,7 +32,7 @@ import sys
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
 RAIZ = os.path.dirname(os.path.dirname(AQUI))
-sys.path.insert(0, os.path.join(RAIZ, 'scripts'))
+sys.path.insert(0, os.path.join(RAIZ, 'www', 'apps', 'ingestao', 'pipeline'))
 
 import oq3d        # noqa: E402   leitor do projeto, intocado
 import read_aq     # noqa: E402   leitor do projeto, intocado

@@ -1,4 +1,4 @@
-# O `.aq` do AltoQi Builder — schema, encoding, sentinelas (`scripts/read_aq.py`)
+# O `.aq` do AltoQi Builder — schema, encoding, sentinelas (`www/apps/ingestao/pipeline/read_aq.py`)
 
 > Movido do `CLAUDE.md` em 2026-09-04 (S7.8, item I22 da auditoria). O conteúdo é o que estava lá,
 > com as afirmações desatualizadas de I23 corrigidas no lugar; onde diz "este arquivo", "acima" ou

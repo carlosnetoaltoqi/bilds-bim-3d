@@ -66,7 +66,7 @@ node tools/e2e/e2e-cad-import.mjs ../input/STEP/2831A09.stp   # importar CAD e a
 pnpm smoke:geo · pnpm thumb:measure · pnpm thumb:regen        # ferramentas da POC dinâmica (tools/)
 ```
 
-O Playwright vem do `pnpm install` da **raiz** do repositório (o mesmo do `scripts/thumbs.mjs`).
+O Playwright vem do `pnpm install` da **raiz** do repositório (o mesmo do `www/apps/ingestao/pipeline/thumbs.mjs`).
 
 ## Onde está o quê
 
@@ -181,7 +181,7 @@ Registro da validação original em `docs/sessoes/S5.2-encerramento-poc.md`.
    reimportada em 2026-09-03 para a POC de edição; os 16 `.aq` estão em `input/`.
 
    **Miniaturas (S4.4, 2026-08-30) — resolvidas.** O rasterizador software foi substituído
-   por Playwright + `templates/thumbs/harness.html` no `thumb-worker.ts`: a miniatura sai do
+   por Playwright + `www/apps/ingestao/pipeline/harness.html` no `thumb-worker.ts`: a miniatura sai do
    **mesmo Three.js, mesmo `buildScene()` e mesma câmera** do viewer. Medido, contra o render
    do viewer: **47 dB de PSNR** (o piso da compressão WebP q=0,85) contra **27 dB** do
    rasterizador software. 13 produtos Dancor em **~6,3 s**. Ver
@@ -265,13 +265,13 @@ com par a ≤ 2 µm nos dois sentidos (desvio máximo **1,26 µm** — o "14 µm
 
 **STEP → editor, e editor → `.aq`** (S7.2, `docs/sessoes/S7.2-step-e-aq.md`). Um `.stp`
 é ISO 10303-21 como o IFC, mas B-rep paramétrico: não há triângulo no arquivo, a malha
-nasce na tesselação. `scripts/step_to_geo.py` faz isso com OpenCASCADE (`pip install --user
+nasce na tesselação. `www/apps/ingestao/pipeline/step_to_geo.py` faz isso com OpenCASCADE (`pip install --user
 --break-system-packages cadquery-ocp`, 165 MB em `~/.local`): nomes e cores via XCAF, cor
 por face, sentido invertido nas faces `REVERSED`, `×0,001` (o OCC entrega mm) e `(x, z, −y)`,
 dedup do pipeline. `POST /step/importar` (e a página `/importar-step`) tessela e cria um
 produto no catálogo `pecas-step` — daí o editor abre a peça como qualquer outra;
 `POST /step/tesselar` acrescenta um STEP como partes de um produto existente. No sentido
-inverso, `scripts/geo_to_aq.py` embala as partes do editor num `.aq` mínimo — schema 607,
+inverso, `www/apps/ingestao/pipeline/geo_to_aq.py` embala as partes do editor num `.aq` mínimo — schema 607,
 `Gerador` cp1252 e `oq3d_writer` do `eng-reversa`, uma raiz OQ3D por parte, `PECA` +
 `SIMBOLOGIA_3D` + propriedades + `ITEM` com o código — servido por `POST /exportar/aq`
 (botão **Exportar .aq**). Verificado na 2831A09 (Inventor, 152 × 107 × 152 mm): 7.506
@@ -281,7 +281,7 @@ traceback**: documento XCAF liberado enquanto os rótulos ainda são usados, e
 `ex.Current()` guardado após o `Next()` — ver a skill `leitor-step`.
 
 **IFC também entra pela mesma porta** (`POST /cad/importar`, `/cad/tesselar`, página
-`/importar-step`; `/step/*` seguem como aliases): `scripts/ifc_to_geo.py` embrulha o
+`/importar-step`; `/step/*` seguem como aliases): `www/apps/ingestao/pipeline/ifc_to_geo.py` embrulha o
 `parse_ifc.py` do projeto (placements, instâncias, cores por face, B-rep via `ifcopenshell`)
 com o `dedup.py` e os metadados do contrato — `partes` (nomes dos `IfcProduct`), `unidade`,
 `bbox_mm`. O parser não converte unidade, e o CATIA declara MILLIMETRE escrevendo metros:
@@ -324,7 +324,7 @@ node www/tools/e2e/e2e-editor.mjs --validar     # browser (Playwright + SwiftSha
 node www/tools/e2e/e2e-cad-import.mjs input/STEP/2831A09.stp   # importar CAD assíncrono, status, editor
 ```
 
-O Playwright é o da raiz (`pnpm install`, o mesmo do `scripts/thumbs.mjs`); os testes `.mts`
+O Playwright é o da raiz (`pnpm install`, o mesmo do `www/apps/ingestao/pipeline/thumbs.mjs`); os testes `.mts`
 rodam com `node --experimental-strip-types` (Node ≥ 22.6) sobre uma cópia dos módulos do
 web com a extensão `.ts` nos imports — ver o cabeçalho do `testes-editor.sh`.
 
@@ -349,7 +349,7 @@ troca a fixture (foi assim que o I26 apareceu).
 - ~~Miniatura fica desatualizada depois de editar geometria~~ — feito na S7.11 (I14, 2026-09-05):
   `PUT` e `restaurar` chamam `ImportacoesService.regerarMiniatura`, que reaproveita o thumb-worker
   (um Chromium por chamada, alguns segundos) e grava `thumbAtualizadaEm` ou `thumbErro` no produto.
-- ~~Voltar ao `.aq`~~ — feito na S7.2 (`scripts/geo_to_aq.py`, botão **Exportar .aq**).
+- ~~Voltar ao `.aq`~~ — feito na S7.2 (`www/apps/ingestao/pipeline/geo_to_aq.py`, botão **Exportar .aq**).
   Falta fechar o ciclo: `.aq` exportado → `build.py` e → import pela POC.
 - Montagem STEP com várias peças e cores por face só foi testada sinteticamente.
 - Gizmo com várias partes selecionadas gira cada uma em torno do pivô da principal.

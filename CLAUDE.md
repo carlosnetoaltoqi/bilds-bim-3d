@@ -33,10 +33,10 @@ agente e skills fora do repo são auxiliares. **Toda sessão termina assim:**
 | Usar o pipeline: modos, opções, saída, requisitos, uma peça que não apareceu | `README.md` |
 | Preparar/conferir a máquina | `bash scripts/bootstrap.sh --check` e a seção "Pré-requisitos" abaixo |
 | Fluxo, `config.json`, `catalog.json`, layouts, conteúdo do ZIP, miniaturas, matching IFC → `.aq`, integração bilds.com | `docs/conhecimento/pipeline-estatico.md` |
-| Formato binário **OQ3D** (cabeçalho, classes, instâncias, unidades, escrever) | `docs/conhecimento/oq3d.md` + docstring de `scripts/oq3d.py` + skill `leitor-biblioteca-aq` |
+| Formato binário **OQ3D** (cabeçalho, classes, instâncias, unidades, escrever) | `docs/conhecimento/oq3d.md` + docstring de `www/apps/ingestao/pipeline/oq3d.py` + skill `leitor-biblioteca-aq` |
 | Schema do `.aq`, **cp1252**, sentinelas, `DIAMETRO_PECA` é código, escrever `.aq` | `docs/conhecimento/read-aq.md` + skill `leitor-biblioteca-aq` |
 | IFC4 → geometria (conversor da POC `ifc_to_geo.py`, round-trip do exportador do editor) | `docs/conhecimento/parse-ifc.md` + skill `leitor-ifc` |
-| STEP → malha (OpenCASCADE), armadilhas de segfault | skill `docs/skills/leitor-step/` + `scripts/step_to_geo.py` |
+| STEP → malha (OpenCASCADE), armadilhas de segfault | skill `docs/skills/leitor-step/` + `www/apps/ingestao/pipeline/step_to_geo.py` |
 | Templates HTML, Three.js self-hosted, escape, design tokens | `docs/conhecimento/templates-html.md` + skill `pagina-biblioteca` |
 | **Sintoma → causa** (tabela de diagnóstico, ~70 linhas) | `docs/conhecimento/diagnostico.md` |
 | Contrato do ZIP consumido pela bilds.com | `docs/bilds-bim-3d-zip-spec.md` |
@@ -152,15 +152,10 @@ bilds-bim-3d/
 ├── .github/workflows/ci.yml     ← pytest -m "not thumbs" + py_compile; pnpm -r build em www/
 ├── config.example.json · vercel.json (serve output/preview, cleanUrls)
 ├── scripts/
-│   ├── build.py                 ← entry point: .aq → catalog.json → preview → thumbs → ZIP
-│   ├── oq3d.py · read_aq.py     ← OQ3D binário → malha; .aq → dados/metadados/simbologias   ★ caminho padrão
-│   ├── dedup.py                 ← deduplicação de vértices (~79%)
-│   ├── parse_ifc.py             ← IFC4 → geometria (ifc_to_geo.py da POC e round-trip do exportador)
-│   ├── step_to_geo.py · ifc_to_geo.py · geo_to_aq.py   ← conversores da POC de edição (STEP/IFC → malha; malha → .aq)
-│   ├── thumbs.mjs               ← miniaturas no Chromium (Playwright); templates/thumbs/harness.html
+│   ├── build.py                 ← pipeline estático: .aq → catalog.json → preview → thumbs → ZIP (consome www/apps/ingestao/pipeline)
 │   ├── bootstrap.sh · setup_vendor.sh · link_skills.sh
-├── templates/layouts/{series-rows,catalog-grid}.html · templates/thumbs/harness.html · templates/vendor/ (Three.js, baixado)
-├── tests/                       ← pytest; conftest põe scripts/ e eng-reversa/tools/ no path; paridade/ tem os harnesses Node (.mjs/.mts/.cts)
+├── templates/layouts/{series-rows,catalog-grid}.html · templates/vendor/ (Three.js, baixado)
+├── tests/                       ← pytest; conftest põe scripts/, www/apps/ingestao/pipeline/ e eng-reversa/tools/ no path; paridade/ tem os harnesses Node
 ├── docs/
 │   ├── conhecimento/            ← pipeline-estatico, oq3d, read-aq, parse-ifc, templates-html, diagnostico
 │   ├── sessoes/                 ← um registro por sessão + README.md (índice) + TEMPLATE.md
@@ -168,7 +163,10 @@ bilds-bim-3d/
 │   ├── auditoria-2026-09-03-pendencias.md · bilds-bim-3d-zip-spec.md · estudo-oq3d/ · solutions/ · saida-bilds-com/
 │   └── plano-*.md, plans/       ← históricos
 ├── eng-reversa/                 ← escrever .aq/OQ3D, formas paramétricas, PDF → catálogo (README próprio)
-├── www/                         ← POC dinâmica + edição: apps/api (Nest :4000), apps/web (Next :3000), tools/ (port TS, testes) — README próprio
+├── www/                         ← em reestruturação (docs/arquitetura-www-servico-de-ingestao.md) — README próprio
+│   ├── apps/ingestao/pipeline/  ← ★ O PIPELINE PYTHON: read_aq.py, oq3d.py, dedup.py, catalogo.py, inferencia.py, miniaturas.py,
+│   │                               catalogo_de_aq.py (CLI), step_to_geo.py, ifc_to_geo.py, parse_ifc.py, geo_to_aq.py, thumbs.mjs + harness.html
+│   ├── apps/api (Nest :4000) · apps/web (Next :3000) · tools/ (testes do editor)
 ├── input/                       ← .aq do usuário — gitignored
 └── output/                      ← gerado; só preview/index.html (landing feita à mão) é versionado
     ├── <origem>/<slug>-<ts>.zip · <origem>/<slug>-catalog.json · geo/… · thumbs/…

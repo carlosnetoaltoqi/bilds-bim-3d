@@ -10,8 +10,9 @@ MODO PADRÃO (só o .aq)
   é o mesmo sólido que o AltoQi exporta como IFC. O vínculo peça → geometria
   vem da chave estrangeira PECA_SIMBOLOGIA_3D, então não existe file_map nem
   matching por nome de arquivo. (O modo --ifc, que lia os IFCs da pasta e casava
-  nomes, foi removido em 2026-09-05 — I6; scripts/parse_ifc.py continua para o
-  conversor da POC, scripts/ifc_to_geo.py.)
+  nomes, foi removido em 2026-09-05 — I6.) Desde a E2 (2026-09-05) a leitura do .aq,
+  o catálogo e as miniaturas vêm de www/apps/ingestao/pipeline/ — este arquivo só
+  faz o que é do preview e do ZIP.
 
 MODO LOTE (--all)
   python3 scripts/build.py --all
@@ -49,19 +50,21 @@ import argparse
 import datetime
 import json
 import os
-import re
 import shutil
-import subprocess
 import sys
-import unicodedata
-import warnings
 import zipfile
 
-# Adiciona scripts/ ao path para importar os módulos irmãos
-sys.path.insert(0, os.path.dirname(__file__))
+# O pipeline (leitura do .aq, catálogo, miniaturas) mora no serviço de ingestão —
+# www/apps/ingestao/pipeline — desde 2026-09-05 (E2 de docs/arquitetura-www-servico-de-ingestao.md).
+# Este build é um consumidor dele: só o que é do ZIP/preview fica aqui.
+PIPELINE_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                            'www', 'apps', 'ingestao', 'pipeline')
+sys.path.insert(0, PIPELINE_DIR)
 
-from dedup import dedup
-from read_aq import extract as extract_aq
+from catalogo import build_catalog_from_aq, resumo_diag, slugify, tokenize          # noqa: E402,F401
+from inferencia import auto_config, find_aq_paths, infer_titulo, peek_aq            # noqa: E402,F401
+from miniaturas import (THUMB_EXT, THUMB_H, THUMB_MIME, THUMB_QUALITY, THUMB_W,    # noqa: E402,F401
+                        ThumbsError, _find_node, _node_versao, build_thumbs)
 
 try:
     from jinja2 import Environment, FileSystemLoader, StrictUndefined
@@ -77,257 +80,9 @@ GEO_DIR = os.path.join(OUTPUT_DIR, 'geo')
 THUMBS_DIR = os.path.join(OUTPUT_DIR, 'thumbs')
 
 # Miniaturas: 2× o card de 224×162 do bilds.com, para ficar nítido em DPR 2.
-THUMB_W, THUMB_H = 448, 324
-THUMB_MIME, THUMB_EXT, THUMB_QUALITY = 'image/webp', 'webp', 0.85
 
 
 # ─── Nomes e slugs ───────────────────────────────────────────────────────────
-
-def slugify(s):
-    s = unicodedata.normalize('NFD', s)
-    s = ''.join(c for c in s if unicodedata.category(c) != 'Mn')
-    return re.sub(r'[^a-z0-9]+', '-', s.lower()).strip('-')
-
-
-def tokenize(s):
-    """Tokens alfanuméricos em minúsculas extraídos de qualquer string."""
-    return set(re.findall(r'[a-z0-9]+', s.lower()))
-
-
-# ─── Catálogo a partir do .aq (caminho padrão) ───────────────────────────────
-
-def _potencia_de(nome_gp, peca):
-    """Potência em CV a partir do nome do grupo ou dos dados da peça."""
-    m = re.search(r'(\d+(?:[.,]\d+)?)\s*CV', nome_gp or '', re.IGNORECASE)
-    if m:
-        return float(m.group(1).replace(',', '.'))
-    return peca.get('potencia_cv')
-
-
-def build_catalog_from_aq(config, aq_path, geo_dir):
-    """
-    Gera catalog.json e os JSONs de geometria direto do .aq — sem IFC.
-
-    O vínculo peça → geometria vem de PECA_SIMBOLOGIA_3D (chave estrangeira),
-    então não há file_map nem matching por nome. Peças sem simbologia 3D são
-    puladas: na prática são tubos (cilindro paramétrico gerado pelo AltoQi) e
-    kits de aparelho sanitário, que não têm forma fixa.
-
-    Retorna (catalog, n_geometrias, diag). `diag` separa o que antes era um único
-    número "peças sem 3D (tubos/kits)":
-
-      pecas_sem_simbologia   peça sem linha em PECA_SIMBOLOGIA_3D — tubo ou kit,
-                             comportamento esperado (ver CLAUDE.md);
-      pecas_sim_descartada   peça cuja simbologia existe mas foi descartada por um
-                             dos motivos abaixo — ISSO é defeito de dado ou de parser;
-      sim_sem_blob           SIMBOLOGIA_3D com BLOB nulo/vazio;
-      sim_nao_oq3d           blob sem a assinatura OQ3D;
-      sim_ilegivel           [(id, nome, erro)] — `OQ3DError` (truncado/corrompido);
-      sim_vazia              [(id, nome)] — parse ok, mas nenhuma malha;
-      avisos                 [(id, nome, mensagem)] — `OQ3DAvisoParse` coletados
-                             durante o parse (hierarquia suspeita, bloco pulado).
-
-    Use `resumo_diag()` para imprimir. Nada aqui é engolido: o operador vê cada
-    categoria, e a suíte em tests/ cobre todas.
-    """
-    from read_aq import extract as extract_aq, extract_simbologias
-    import oq3d
-
-    aq_data = extract_aq(aq_path)
-    simbologias, sim_por_peca = extract_simbologias(aq_path)
-
-    grupos_by_id = {g['ID_GRUPO_PECA']: g for g in aq_data['grupos']}
-
-    props_by_peca = {}
-    for p in aq_data['propriedades']:
-        props_by_peca.setdefault(p['ID_PECA'], {})[p['propriedade']] = p['VALOR']
-
-    curvas_by_peca = {}
-    for pt in aq_data['curvas']:
-        curvas_by_peca.setdefault(pt['ID_PECA'], []).append([
-            round(pt['vazao'], 3), round(pt['altura'], 3),
-            round(pt['potencia_ponto'] or 0, 3), round(pt['rendimento'] or 0, 1),
-        ])
-
-    os.makedirs(geo_dir, exist_ok=True)
-
-    # Uma geometria por simbologia; várias peças podem compartilhá-la.
-    # O nome da simbologia costuma ser só a dimensão ("100MM"), que se repete
-    # entre grupos — por isso o grupo entra no slug quando há colisão.
-    geo_por_sim = {}
-    usados = set()
-    diag = {
-        'pecas_sem_simbologia': 0, 'pecas_sim_descartada': 0,
-        'sim_sem_blob': 0, 'sim_nao_oq3d': 0,
-        'sim_ilegivel': [], 'sim_vazia': [], 'avisos': [],
-    }
-    for sid in sorted(simbologias):
-        sim = simbologias[sid]
-        blob = sim['blob']
-        if not blob:
-            diag['sim_sem_blob'] += 1
-            continue
-        if not oq3d.is_oq3d(blob):
-            diag['sim_nao_oq3d'] += 1
-            continue
-        # `warnings.warn` sozinho não chega ao operador: o filtro padrão mostra só
-        # a primeira ocorrência por linha de código e o texto vai para o stderr
-        # sem dizer de qual simbologia é. Coleta-se por simbologia e imprime-se
-        # no resumo (resumo_diag).
-        with warnings.catch_warnings(record=True) as capturados:
-            warnings.simplefilter('always', oq3d.OQ3DAvisoParse)
-            try:
-                data = oq3d.to_buffers(blob)
-            except oq3d.OQ3DError as e:
-                diag['sim_ilegivel'].append((sid, sim['nome'], str(e)))
-                continue
-        for w in capturados:
-            if issubclass(w.category, oq3d.OQ3DAvisoParse):
-                diag['avisos'].append((sid, sim['nome'], str(w.message)))
-        if not data['pos']:
-            diag['sim_vazia'].append((sid, sim['nome']))
-            continue
-
-        name = slugify(sim['nome'])[:60]
-        if not name or name in usados:
-            name = slugify(f"{sim['grupo']} {sim['nome']}")[:60]
-        if not name:
-            name = f'sim-{sid}'
-        base = name
-        n = 2
-        while name in usados:
-            name = f'{base}-{n}'
-            n += 1
-        usados.add(name)
-
-        # Mesma deduplicação do caminho IFC: o OQ3D indexa dentro de cada malha,
-        # mas as malhas de uma peça repetem vértices entre si (~79% de redução).
-        data, _, _, _ = dedup(data)
-        with open(os.path.join(geo_dir, name + '.json'), 'w', encoding='utf-8') as f:
-            json.dump(data, f, separators=(',', ':'))
-        geo_por_sim[sid] = name
-
-    # O nome da peça só recebe o prefixo do grupo quando sozinho é ambíguo —
-    # e a decisão é POR GRUPO, para todas as peças dele saírem no mesmo padrão.
-    # "100mm" se repete entre Cap/Luva/Joelho e "3CV T 220/380V" entre as séries
-    # CAM: ambos precisam do grupo. Já "Interruptor inteligente 1 tecla - EWS
-    # 1001 BR" é único, e prefixar com a categoria ("Pontos de comando") só
-    # poluiria o nome exibido.
-    grupos_por_nome = {}
-    for p in aq_data['pecas']:
-        n = (p['NOME_PECA'] or '').strip().lower()
-        grupos_por_nome.setdefault(n, set()).add(p['ID_GRUPO_PECA'])
-
-    grupo_precisa_prefixo = set()
-    for p in aq_data['pecas']:
-        n = (p['NOME_PECA'] or '').strip()
-        if len(n) < 4 or len(grupos_por_nome.get(n.lower(), ())) > 1:
-            grupo_precisa_prefixo.add(p['ID_GRUPO_PECA'])
-
-    produtos = []
-    series_set = set()
-    ids_usados = set()
-
-    for p in aq_data['pecas']:
-        pid = p['ID_PECA']
-        sid = sim_por_peca.get(pid)
-        if sid is None or sid not in simbologias:
-            diag['pecas_sem_simbologia'] += 1      # tubo/kit: esperado
-            continue
-        geo = geo_por_sim.get(sid)
-        if not geo:
-            diag['pecas_sim_descartada'] += 1     # simbologia existe e falhou
-            continue
-
-        nome_gp = grupos_by_id.get(p['ID_GRUPO_PECA'], {}).get('NOME_GP', '')
-        nome_peca = (p['NOME_PECA'] or '').strip()
-        if (nome_gp and p['ID_GRUPO_PECA'] in grupo_precisa_prefixo
-                and nome_gp.lower() not in nome_peca.lower()):
-            nome_peca = f'{nome_gp} {nome_peca}'.strip()
-        if not nome_peca:
-            nome_peca = nome_gp or f'Peça {pid}'
-
-        pid_slug = slugify(nome_peca) or f'peca-{pid}'
-        base_slug = pid_slug
-        n = 2
-        while pid_slug in ids_usados:
-            pid_slug = f'{base_slug}-{n}'
-            n += 1
-        ids_usados.add(pid_slug)
-
-        serie = nome_gp or 'Outros'
-        produtos.append({
-            'id': pid_slug,
-            'nome': nome_peca,
-            'serie': serie,
-            'geo': f'{geo}.json',
-            'potencia': _potencia_de(nome_gp, p),
-            'conexoes': p.get('DESCRICAO_DADOS') or '',
-            'specs': props_by_peca.get(pid, {}),
-            'curva': curvas_by_peca.get(pid),
-        })
-        series_set.add(serie)
-
-    catalog = {
-        'slug': config['slug'],
-        'titulo': config['titulo'],
-        'fabricante': config['fabricante'],
-        'descricao': config.get('descricao', ''),
-        'layout': config.get('layout', 'catalog-grid'),
-        'filtros': sorted(s for s in series_set if s),
-        'produtos': produtos,
-    }
-    return catalog, len(geo_por_sim), diag
-
-
-def resumo_diag(diag, indent='    ', max_itens=5):
-    """
-    Imprime o diagnóstico de build_catalog_from_aq e devolve True se houve algo
-    além de tubos/kits — simbologia descartada ou aviso de parse.
-
-    Tubos/kits são informativos. O resto sai como AVISO com id e nome da
-    simbologia, para que o operador saiba QUAL geometria olhar.
-    """
-    if diag['pecas_sem_simbologia']:
-        print(f"{indent}{diag['pecas_sem_simbologia']} peça(s) sem simbologia 3D "
-              f"(tubos/kits) puladas — esperado")
-
-    descartadas = (diag['sim_sem_blob'] + diag['sim_nao_oq3d']
-                   + len(diag['sim_ilegivel']) + len(diag['sim_vazia']))
-    problema = False
-    if descartadas:
-        problema = True
-        motivos = []
-        if diag['sim_sem_blob']:
-            motivos.append(f"{diag['sim_sem_blob']} sem blob")
-        if diag['sim_nao_oq3d']:
-            motivos.append(f"{diag['sim_nao_oq3d']} sem assinatura OQ3D")
-        if diag['sim_ilegivel']:
-            motivos.append(f"{len(diag['sim_ilegivel'])} ilegível(is)")
-        if diag['sim_vazia']:
-            motivos.append(f"{len(diag['sim_vazia'])} sem malha")
-        print(f"{indent}AVISO: {descartadas} simbologia(s) descartada(s) — "
-              f"{', '.join(motivos)}; {diag['pecas_sim_descartada']} peça(s) "
-              f"ficaram sem 3D por isso")
-        for sid, nome, erro in diag['sim_ilegivel'][:max_itens]:
-            print(f'{indent}    sim {sid} {nome!r}: {erro[:90]}')
-        for sid, nome in diag['sim_vazia'][:max_itens]:
-            print(f'{indent}    sim {sid} {nome!r}: parse sem nenhuma malha')
-
-    if diag['avisos']:
-        problema = True
-        por_sim = {}
-        for sid, nome, msg in diag['avisos']:
-            por_sim.setdefault((sid, nome), []).append(msg)
-        print(f"{indent}AVISO: {len(por_sim)} simbologia(s) com aviso de parse "
-              f"(geometria incompleta ou hierarquia suspeita)")
-        for (sid, nome), msgs in list(por_sim.items())[:max_itens]:
-            extra = f' (+{len(msgs) - 1})' if len(msgs) > 1 else ''
-            print(f'{indent}    sim {sid} {nome!r}: {msgs[0][:90]}{extra}')
-        if len(por_sim) > max_itens:
-            print(f'{indent}    … e {len(por_sim) - max_itens} outra(s)')
-    return problema
-
 
 # ─── Build do preview HTML ────────────────────────────────────────────────────
 
@@ -465,156 +220,6 @@ def update_catalog_registry(catalog):
 
 # ─── Miniaturas pré-renderizadas ──────────────────────────────────────────────
 
-NODE_MINIMO = 20  # exigência do Playwright
-
-
-def _node_versao(exe):
-    """Major do Node em `exe`, ou None se não executar."""
-    try:
-        out = subprocess.run([exe, '--version'], capture_output=True,
-                             text=True, timeout=10)
-    except (OSError, subprocess.SubprocessError):
-        return None
-    m = re.match(r'v(\d+)\.', out.stdout.strip())
-    return int(m.group(1)) if m else None
-
-
-def _find_node():
-    """
-    Node com major >= NODE_MINIMO, ou None.
-
-    Existe porque é comum a máquina ter dois Node: o do apt em /usr/bin (velho)
-    e um do nvm (novo). O nvm só entra no PATH de shell interativo — um
-    subprocess do Python normalmente pega o do apt. Sem esta busca, quem roda o
-    build fora de um shell com nvm carregado recebe "Playwright requires
-    Node.js 20 or higher" sem pista de que existe um Node bom instalado.
-
-    Ordem: $BILDS_NODE > `node` do PATH > maior versão em ~/.nvm.
-    """
-    forcado = os.environ.get('BILDS_NODE')
-    if forcado:
-        return forcado if (_node_versao(forcado) or 0) >= NODE_MINIMO else None
-
-    if (_node_versao('node') or 0) >= NODE_MINIMO:
-        return 'node'
-
-    nvm = os.path.expanduser('~/.nvm/versions/node')
-    candidatos = []
-    if os.path.isdir(nvm):
-        for v in os.listdir(nvm):
-            exe = os.path.join(nvm, v, 'bin', 'node')
-            major = _node_versao(exe) if os.path.exists(exe) else None
-            if major and major >= NODE_MINIMO:
-                candidatos.append((major, exe))
-    return max(candidatos)[1] if candidatos else None
-
-
-class ThumbsError(RuntimeError):
-    """O passo de miniaturas não conseguiu gerar tudo o que o catálogo pede."""
-
-
-def build_thumbs(catalog, geo_dir, thumbs_dir):
-    """
-    Pré-renderiza uma miniatura por geometria e anota `thumb` nos produtos.
-
-    Por que existe: sem isso o browser do visitante baixa o JSON de geometria de
-    cada card visível (324 KB a 3,5 MB cada, servidos sem compressão) e roda um
-    render WebGL só para desenhar o thumbnail. Medido em produção na página da
-    Dancor: o elemento LCP É essa miniatura, com 7.230 ms de render delay, e as
-    geometrias respondem por 57% do peso da página.
-
-    O render roda no Chromium via scripts/thumbs.mjs, com o mesmo Three.js e a
-    mesma câmera dos layouts — a imagem pré-gerada é a que a página produziria.
-
-    Uma miniatura por GEOMETRIA, não por produto: 856 produtos da Amanco
-    compartilham 448 geometrias.
-
-    NÃO degrada em silêncio (desde 2026-09-03): sem Node >= 20, sem Playwright,
-    sem browser, com timeout ou com qualquer geometria que falhou no render, lança
-    `ThumbsError` — depois de anotar `thumb` nas que deram certo. Quem decide se
-    o build segue é o `run_build`, com `--allow-no-thumbs`; sem a flag, o build
-    falha, porque um ZIP sem `thumbs/` é o cenário que custa 39,9 s de LCP no
-    bilds.com e antes saía com exit 0.
-
-    Retorna a quantidade de miniaturas geradas.
-    """
-    geos = []
-    for produto in catalog['produtos']:
-        g = produto.get('geo')
-        if g and g not in geos and os.path.exists(os.path.join(geo_dir, g)):
-            geos.append(g)
-    if not geos:
-        return 0
-
-    os.makedirs(thumbs_dir, exist_ok=True)
-    cfg = {
-        'root': ROOT,
-        'geoDir': os.path.abspath(geo_dir),
-        'outDir': os.path.abspath(thumbs_dir),
-        'geos': geos,
-        'width': THUMB_W, 'height': THUMB_H,
-        'mime': THUMB_MIME, 'quality': THUMB_QUALITY, 'ext': THUMB_EXT,
-    }
-    cfg_path = os.path.join(thumbs_dir, '.thumbs-config.json')
-    with open(cfg_path, 'w', encoding='utf-8') as f:
-        json.dump(cfg, f)
-
-    node = _find_node()
-    if not node:
-        os.remove(cfg_path)
-        atual = _node_versao('node')
-        raise ThumbsError(
-            f'Playwright exige Node >= {NODE_MINIMO}'
-            + (f', e o do PATH é v{atual}' if atual else ', e não há node no PATH')
-            + '. Use `nvm use 20` (ou superior), ou aponte BILDS_NODE para um '
-              'executável compatível.')
-
-    driver = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'thumbs.mjs')
-    try:
-        proc = subprocess.run([node, driver, cfg_path],
-                              capture_output=True, text=True, timeout=1800)
-    except FileNotFoundError:
-        raise ThumbsError(f'executável node não encontrado: {node}')
-    except subprocess.TimeoutExpired:
-        raise ThumbsError('render de miniaturas excedeu 30 min')
-    finally:
-        if os.path.exists(cfg_path):
-            os.remove(cfg_path)
-
-    if proc.returncode == 1:
-        # thumbs.mjs sai com 1 quando não consegue nem começar: playwright
-        # ausente, Chromium não instalado, libs de sistema faltando.
-        raise ThumbsError(proc.stderr.strip()[:300] or 'thumbs.mjs falhou sem mensagem')
-
-    ok, erros = {}, []
-    for linha in proc.stdout.splitlines():
-        try:
-            r = json.loads(linha)
-        except json.JSONDecodeError:
-            continue
-        if 'error' in r:
-            erros.append((r['geo'], r['error']))
-        else:
-            ok[r['geo']] = r['bytes']
-
-    for produto in catalog['produtos']:
-        stem = os.path.splitext(produto.get('geo', ''))[0]
-        if stem in ok:
-            produto['thumb'] = f'{stem}.{THUMB_EXT}'
-
-    if ok:
-        media = sum(ok.values()) / len(ok) / 1024
-        print(f'    {len(ok)} miniaturas ({media:.0f} KB em média)')
-
-    if erros:
-        detalhe = '; '.join(f'{g}: {e[:70]}' for g, e in erros[:3])
-        raise ThumbsError(f'{len(erros)} de {len(geos)} miniatura(s) falharam — {detalhe}')
-    if not ok:
-        raise ThumbsError(f'nenhuma das {len(geos)} miniaturas foi gerada '
-                          f'(exit {proc.returncode}: {proc.stderr.strip()[:200]})')
-    return len(ok)
-
-
 # ─── Empacotamento ZIP ────────────────────────────────────────────────────────
 
 def build_zip(catalog, out_dir=None, geo_dir=None, thumbs_dir=None):
@@ -716,191 +321,6 @@ def ask_choice(prompt, choices, default=None):
         print(f'  Digite um número entre 1 e {len(choices)}.')
 
 
-
-
-_AQ_NOISE = {'pecas', 'peca', 'biblioteca', 'lib', 'catalogo', 'catalog',
-             'bim', 'ifc', 'altoqi', 'arquivo', 'dados', 'base'}
-
-
-# Palavras que ficam em minúscula no meio de um título
-_MINUSCULAS = {'de', 'da', 'do', 'das', 'dos', 'e', 'em', 'com', 'para', 'a', 'o'}
-
-
-def _tokens_from_aq_filename(aq_path):
-    """
-    Tokens significativos do nome do arquivo .aq, com o case original preservado.
-
-    O case importa: 'CFTV' e 'PPCI' são siglas e devem continuar em caixa alta;
-    'EquipamentoDeRede' é CamelCase e precisa ser separado em palavras.
-    """
-    stem = os.path.splitext(os.path.basename(aq_path))[0]
-    stem = re.sub(r'\.\d+$', '', stem)                         # remove ".1" final
-    brutos = re.split(r'[_\-\s]+', stem)
-
-    tokens = []
-    for t in brutos:
-        if not t or t.lower() in _AQ_NOISE or re.match(r'^\d{2,4}$', t):
-            continue                                           # ruído, ano ou versão
-        # CamelCase → palavras, sem quebrar siglas ('EquipamentoDeRede', não 'CFTV')
-        if not t.isupper():
-            t = re.sub(r'(?<=[a-z0-9])(?=[A-Z])', ' ', t)
-        tokens.extend(p for p in t.split() if p)
-    return tokens
-
-
-def _format_titulo(tokens):
-    """
-    Junta tokens num título legível: siglas em caixa alta, preposições em
-    minúscula, o resto capitalizado.
-
-      ['CFTV']                            → 'CFTV'
-      ['Equipamento','De','Rede','Rack']  → 'Equipamento de Rede Rack'
-      ['PPCI','incendio']                 → 'PPCI Incendio'
-    """
-    saida = []
-    for i, t in enumerate(tokens):
-        if t.isupper() and len(t) > 1:
-            saida.append(t)                                    # sigla: preserva
-        elif i > 0 and t.lower() in _MINUSCULAS:
-            saida.append(t.lower())
-        else:
-            saida.append(t[:1].upper() + t[1:] if t.islower() else t.capitalize())
-    return ' '.join(saida)
-
-
-# Pastas cujo nome não descreve o catálogo — não servem de título. As de saída
-# entraram em 2026-09-02: um .aq em `eng-reversa/saida/` publicava com o título
-# "Saida", e a validação não acusava, porque "Saida" de fato é diferente do
-# fabricante.
-_GENERIC_DIRS = {'input', 'biblioteca', 'bibliotecas', 'bim', 'ifc', 'aq',
-                 'downloads', 'arquivos', 'temp', 'tmp', '.', '',
-                 'saida', 'output', 'out', 'dist', 'build'}
-
-
-def peek_aq(aq_path):
-    """
-    Lê o .aq para extrair fabricante, título e pistas de layout.
-
-    Fabricante e título NUNCA podem sair em branco ou em forma de slug: são o
-    cabeçalho da página publicada. A cascata abaixo sempre produz algo legível.
-
-    Fabricante, em ordem de confiança:
-      1. Prefixo de CLASSE_SIMBOLOGIA_3D.NOME_CLASSE ("AMANCO - PVC Esgoto SN")
-      2. PECA.BIBLIOTECA (quase sempre vazia na prática)
-      3. Pasta avô, quando descritiva
-      4. Pasta pai, quando bate com o primeiro token do nome do arquivo
-      5. Primeiro token do nome do arquivo
-
-    Título, em ordem:
-      1. Pasta pai, quando descritiva e diferente do fabricante
-         (input/Amanco/PVC Esgoto SN, SR e Silentium/pecas.aq)
-      2. Tokens do nome do arquivo, menos o fabricante — exceto quando o
-         único token restante é um bloco todo-minúsculo > 10 chars (palavra
-         composta sem separador, ex: 'barramentoblindado'); nesse caso pula.
-      3. Prefixo comum das linhas do banco (CLASSE_SIMBOLOGIA_3D.NOME_CLASSE)
-      4. Último recurso: o próprio fabricante
-    """
-    from read_aq import peek_metadata
-
-    meta = peek_metadata(aq_path)
-    hints = {
-        'fabricante': meta['fabricante'],
-        'titulo': '',
-        'grupos': meta['grupos'],
-        'has_curves': meta['has_curves'],
-        'linhas': meta['linhas'],
-        'n_pecas': meta['n_pecas'],
-        'n_simbologias': meta['n_simbologias'],
-        'schema': meta['schema'],
-    }
-
-    parent_dir = os.path.basename(os.path.dirname(os.path.abspath(aq_path)))
-    grandpa_dir = os.path.basename(
-        os.path.dirname(os.path.dirname(os.path.abspath(aq_path))))
-    fn_tokens = _tokens_from_aq_filename(aq_path)
-
-    def _is_generic(d):
-        return d.lower() in _GENERIC_DIRS
-
-    # ── Fabricante ────────────────────────────────────────────────────────
-    if not hints['fabricante'] and not _is_generic(grandpa_dir):
-        hints['fabricante'] = grandpa_dir
-    if not hints['fabricante'] and fn_tokens:
-        # A pasta pai é o fabricante quando repete o primeiro token do arquivo
-        # (input/Intelbras/pecas_Intelbras_....aq)
-        if not _is_generic(parent_dir) and slugify(parent_dir) == slugify(fn_tokens[0]):
-            hints['fabricante'] = parent_dir
-        else:
-            hints['fabricante'] = _format_titulo([fn_tokens[0]])
-
-    fab_slug = slugify(hints['fabricante']) if hints['fabricante'] else ''
-
-    # ── Título ────────────────────────────────────────────────────────────
-    if not _is_generic(parent_dir) and slugify(parent_dir) != fab_slug:
-        hints['titulo'] = parent_dir
-
-    if not hints['titulo'] and fn_tokens:
-        fab_tokens = set(tokenize(hints['fabricante'])) if hints['fabricante'] else set()
-        rest = [t for t in fn_tokens if t.lower() not in fab_tokens]
-        # Token único todo-minúsculo longo é palavra composta sem separador no
-        # filename (ex: 'barramentoblindado'). O CamelCase split não ajuda aqui;
-        # deixa o título vazio para cair no passo seguinte (linhas do banco).
-        if rest and not (len(rest) == 1 and rest[0].islower() and len(rest[0]) > 10):
-            hints['titulo'] = _format_titulo(rest)
-
-    if not hints['titulo'] and hints['linhas']:
-        hints['titulo'] = _common_prefix(hints['linhas']) or hints['linhas'][0]
-
-    if not hints['titulo']:
-        hints['titulo'] = hints['fabricante'] or 'Catálogo BIM'
-
-    return hints
-
-
-def _common_prefix(nomes):
-    """Prefixo comum, por palavra: ['PVC Esgoto SN','PVC Esgoto SR'] → 'PVC Esgoto'."""
-    if not nomes:
-        return ''
-    partes = [n.split() for n in nomes]
-    comum = []
-    for i in range(min(len(p) for p in partes)):
-        w = partes[0][i]
-        if all(p[i].lower() == w.lower() for p in partes):
-            comum.append(w)
-        else:
-            break
-    return ' '.join(comum)
-
-
-def find_aq_paths(input_dir):
-    """Caminhos absolutos de todos os .aq em input_dir (busca recursiva, ordem estável).
-    Pasta inexistente → lista vazia."""
-    aq_paths = []
-    for root, dirs, files in os.walk(input_dir):
-        dirs.sort()
-        for f in sorted(files):
-            if f.lower().endswith('.aq'):
-                aq_paths.append(os.path.join(root, f))
-    return aq_paths
-
-
-def infer_titulo(grupos):
-    """Extrai o prefixo comum entre todos os nomes de grupo como título do catálogo.
-    Dancor: ['Bombas de Combate a Incêndio CAM-W10', 'Bombas de Combate a Incêndio CAM-W14', ...]
-             → 'Bombas de Combate a Incêndio'
-    Catálogos heterogêneos: prefixo curto → retorna ''
-    """
-    if not grupos:
-        return ''
-    if len(grupos) == 1:
-        parts = grupos[0].split()
-        return ' '.join(parts[:-1]) if len(parts) > 1 else grupos[0]
-    words_list = [g.split() for g in grupos]
-    common = words_list[0]
-    for words in words_list[1:]:
-        common = [c for c, w in zip(common, words) if c.lower() == w.lower()]
-    title = ' '.join(common).strip()
-    return title if len(title) > 3 else ''
 
 
 def interactive_config(input_dir, existing=None):
@@ -1055,25 +475,6 @@ def find_existing_zip(out_dir, slug):
     return os.path.join(out_dir, hits[-1]) if hits else None
 
 
-def auto_config(aq_path):
-    """Config inferido do .aq sem perguntar nada — usado no modo --all."""
-    hints = peek_aq(aq_path)
-    titulo = hints['titulo']
-    fabricante = hints['fabricante']
-    n = hints.get('n_pecas') or 0
-    layout = ('series-rows' if hints.get('has_curves')
-              else ('catalog-grid' if n > 6 else 'series-rows'))
-
-    return {
-        'slug': slugify(titulo or fabricante or 'catalogo'),
-        'titulo': titulo,
-        'fabricante': fabricante,
-        'descricao': '',
-        'layout': layout,
-        'aq_file': aq_path,
-    }, hints
-
-
 def run_build(config, aq_path, geo_dir, zip_dir, args):
     """
     Executa o build de um catálogo: geometria → catalog.json → preview → ZIP.
@@ -1100,7 +501,8 @@ def run_build(config, aq_path, geo_dir, zip_dir, args):
     else:
         print('  Renderizando miniaturas...')
         try:
-            build_thumbs(catalog, geo_dir, thumbs_dir)
+            build_thumbs(catalog, geo_dir, thumbs_dir, vendor_dir=os.path.join(TEMPLATES_DIR, 'vendor'),
+                         progresso=lambda m: print(f'    {m}'))
         except ThumbsError as e:
             if not args.allow_no_thumbs:
                 print(f'  ERRO: miniaturas — {e}')

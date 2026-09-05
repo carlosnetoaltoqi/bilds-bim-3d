@@ -5,8 +5,8 @@
  * flat shading e uma aproximação de iluminação e por isso divergia visivelmente do
  * que o usuário vê no viewer. Aqui a miniatura é produzida pelo MESMO Three.js,
  * com o MESMO `buildScene()` e a MESMA câmera do viewer — via
- * `templates/thumbs/harness.html`, o mesmo harness do pipeline estático
- * (`scripts/thumbs.mjs`).
+ * `www/apps/ingestao/pipeline/harness.html`, o mesmo harness do pipeline estático
+ * (`www/apps/ingestao/pipeline/thumbs.mjs`).
  *
  * Arquitetura (docs/solutions/architecture-patterns/thumb-qualidade-identica-ao-viewer.md):
  *
@@ -14,7 +14,7 @@
  *     └─ getSession()                     ← singleton por processo
  *          ├─ servidor HTTP efêmero sobre a raiz do repo (porta 0)
  *          ├─ chromium.launch({ args: SWIFTSHADER_ARGS })
- *          └─ page.goto('http://127.0.0.1:<porta>/templates/thumbs/harness.html')
+ *          └─ page.goto('http://127.0.0.1:<porta>/www/apps/ingestao/pipeline/harness.html')
  *     └─ page.evaluate(d => window.renderThumbFromData(d, …), geoData)
  *     └─ data URL WebP → Buffer
  *
@@ -60,7 +60,7 @@ const SWIFTSHADER_ARGS = [
 
 /** www/tools/ → bilds-bim-3d/ — o harness e o Three.js vendorizado saem daqui. */
 const REPO_ROOT = path.resolve(__dirname, '../..');
-const HARNESS_PATH = '/templates/thumbs/harness.html';
+const HARNESS_PATH = '/www/apps/ingestao/pipeline/harness.html';
 
 /** Módulos ES são rejeitados pelo Chromium com qualquer outro Content-Type. */
 const MIMES: Record<string, string> = {

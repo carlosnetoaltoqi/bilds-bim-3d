@@ -21,8 +21,8 @@ import { FILA_IMPORTACOES, Fila } from '../common/fila';
  * Os dois conversores são scripts Python do próprio projeto, chamados como
  * processo filho:
  *
- *   scripts/step_to_geo.py   .stp → { pos, col, idx } (m, Y-up)   — OpenCASCADE (OCP)
- *   scripts/geo_to_aq.py     { partes | pos,col,idx } → .aq       — eng-reversa (OQ3D + schema 607)
+ *   pipeline/step_to_geo.py   .stp → { pos, col, idx } (m, Y-up)   — OpenCASCADE (OCP)
+ *   pipeline/geo_to_aq.py     { partes | pos,col,idx } → .aq       — eng-reversa (OQ3D + schema 607)
  *
  * Python em processo filho e não no handler: o OpenCASCADE bloqueia o event loop
  * e é código nativo — o mesmo motivo do `parse-worker.ts`. A raiz do repositório é
@@ -30,7 +30,8 @@ import { FILA_IMPORTACOES, Fila } from '../common/fila';
  */
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..', '..', '..', '..');
-const SCRIPTS = path.join(REPO_ROOT, 'scripts');
+// os conversores moram no pipeline do serviço de ingestão desde 2026-09-05 (E2)
+const SCRIPTS = path.join(REPO_ROOT, 'www', 'apps', 'ingestao', 'pipeline');
 const PYTHON = process.env.PYTHON ?? 'python3';
 const TIMEOUT_MS = 30 * 60 * 1000;   // um Revit de 130 MB leva minutos no ifcopenshell
 

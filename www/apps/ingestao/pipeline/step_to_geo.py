@@ -44,8 +44,8 @@ a das malhas do AltoQi (a peça 2831A09 de 152 mm sai com ~7.500 triângulos;
 0,05 mm dobra para ~20.000).
 
 Uso:
-    python3 scripts/step_to_geo.py peca.stp saida.json [--deflexao 0.2] [--angulo 0.35]
-    python3 scripts/step_to_geo.py peca.stp --info      # só inspeciona, não grava
+    python3 www/apps/ingestao/pipeline/step_to_geo.py peca.stp saida.json [--deflexao 0.2] [--angulo 0.35]
+    python3 www/apps/ingestao/pipeline/step_to_geo.py peca.stp --info      # só inspeciona, não grava
 """
 import argparse
 import json

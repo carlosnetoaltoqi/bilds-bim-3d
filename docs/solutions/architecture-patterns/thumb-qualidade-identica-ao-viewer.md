@@ -28,7 +28,7 @@ para o produto.
 
 ## 2. A solução correta: Playwright + harness.html no thumb-worker
 
-O pipeline estático (`scripts/thumbs.mjs`) já resolve isso: abre `templates/thumbs/harness.html`
+O pipeline estático (`www/apps/ingestao/pipeline/thumbs.mjs`) já resolve isso: abre `www/apps/ingestao/pipeline/harness.html`
 no Chromium via Playwright, renderiza com o mesmo Three.js do viewer e captura a imagem.
 O resultado é bit-a-bit idêntico ao que o usuário vê na aplicação.
 
@@ -50,7 +50,7 @@ processo worker), drasticamente reduzindo o overhead de inicialização.
 
 ### 2.2 Mudanças necessárias
 
-**`templates/thumbs/harness.html`** — adicionar função que recebe dados em memória:
+**`www/apps/ingestao/pipeline/harness.html`** — adicionar função que recebe dados em memória:
 ```javascript
 // Já existe: window.renderThumb(id) — busca geo da API
 // Adicionar:
@@ -82,7 +82,7 @@ const SWIFTSHADER_ARGS = [
 ];
 ```
 
-Essas flags já estão em `scripts/thumbs.mjs` e são validadas em WSL.
+Essas flags já estão em `www/apps/ingestao/pipeline/thumbs.mjs` e são validadas em WSL.
 
 ### 2.4 Considerações de performance
 
@@ -111,8 +111,8 @@ A mesma armadilha se aplica aqui. Usar `apt-get install -y libnss3 libnspr4 liba
 em vez de `playwright install-deps` com sudo.
 
 **Path do harness.html:** o worker roda em `apps/api/` mas o harness está em
-`templates/thumbs/harness.html`. O caminho absoluto deve ser resolvido a partir da raiz
-do mono-repo, não do CWD da API. Usar `path.resolve(__dirname, '../../../../templates/thumbs/harness.html')`.
+`www/apps/ingestao/pipeline/harness.html`. O caminho absoluto deve ser resolvido a partir da raiz
+do mono-repo, não do CWD da API. Usar `path.resolve(__dirname, '../../../../www/apps/ingestao/pipeline/harness.html')`.
 
 ---
 

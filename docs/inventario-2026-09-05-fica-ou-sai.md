@@ -37,12 +37,12 @@ fica aqui como arquivo.
 
 | # | Viabilidade provada | Código que a materializa | Prova / registro | Situação |
 |---|---|---|---|---|
-| V1 | **A geometria sai do `.aq`** (formato OQ3D decodificado; IFC dispensável) | `scripts/oq3d.py`, `scripts/read_aq.py`, `scripts/dedup.py` | `docs/estudo-oq3d/`, `docs/conhecimento/{oq3d,read-aq}.md`, `tests/test_oq3d.py`, `test_read_aq.py` | em produção |
-| V2 | **Pipeline estático `.aq` → ZIP + preview com miniaturas** | `scripts/build.py`, `scripts/thumbs.mjs`, `templates/` | `docs/conhecimento/pipeline-estatico.md`, `docs/bilds-bim-3d-zip-spec.md`, `tests/test_build.py` | em produção na bilds.com desde 2026-08-28 (PR #1244) |
+| V1 | **A geometria sai do `.aq`** (formato OQ3D decodificado; IFC dispensável) | `www/apps/ingestao/pipeline/oq3d.py`, `www/apps/ingestao/pipeline/read_aq.py`, `www/apps/ingestao/pipeline/dedup.py` | `docs/estudo-oq3d/`, `docs/conhecimento/{oq3d,read-aq}.md`, `tests/test_oq3d.py`, `test_read_aq.py` | em produção |
+| V2 | **Pipeline estático `.aq` → ZIP + preview com miniaturas** | `scripts/build.py`, `www/apps/ingestao/pipeline/thumbs.mjs`, `templates/` | `docs/conhecimento/pipeline-estatico.md`, `docs/bilds-bim-3d-zip-spec.md`, `tests/test_build.py` | em produção na bilds.com desde 2026-08-28 (PR #1244) |
 | V3 | **Escrever `.aq`/OQ3D** que o AltoQi Builder abre | `eng-reversa/tools/{oq3d_writer,gerar_aq,validar_aq,formas}.py` | `eng-reversa/estudo/01,02,06`, `oq3d_roundtrip.py`, `tests/test_oq3d_roundtrip.py`, screenshot do Builder | provado, ainda em pasta de estudo (I4) |
 | V4 | **CAD (STEP/IFC) → malha → `.aq`** | `scripts/{step_to_geo,ifc_to_geo,geo_to_aq,parse_ifc}.py` | skill `leitor-step`, `docs/conhecimento/parse-ifc.md`, `test_editor_roundtrips.py` | provado (S7.2) |
 | V5 | **Leitor `.aq`/OQ3D em TypeScript, idêntico ao Python** | `www/tools/{aq-reader,oq3d-parser}.ts` | `tests/test_paridade_ts.py` (campo a campo, SHA-1) | provado; a bilds.com planeja portar (`saida-bilds-com` §4.2–4.3) |
-| V6 | **Miniatura no servidor idêntica ao viewer** (Playwright + harness) | `www/tools/thumb-rasterizer.ts`, `templates/thumbs/harness.html` | `docs/solutions/…/thumb-qualidade-identica-ao-viewer.md` (47 dB PSNR) | provado; a bilds.com planeja portar (§ 892) |
+| V6 | **Miniatura no servidor idêntica ao viewer** (Playwright + harness) | `www/tools/thumb-rasterizer.ts`, `www/apps/ingestao/pipeline/harness.html` | `docs/solutions/…/thumb-qualidade-identica-ao-viewer.md` (47 dB PSNR) | provado; a bilds.com planeja portar (§ 892) |
 | V7 | **Catálogo dinâmico** (NestJS + Next + Mongo) | `www/apps/api`, `www/apps/web/components/bim-catalog` | `docs/solutions/…/poc-catalogo-bim-dinamico-aprendizados.md` | **encerrada em 2026-08-31**; conclusão: a bilds.com reconstrói, não herda o código |
 | V8 | **Editor 3D no browser** (mesh-model, exportar IFC4, importar STEP) | `www/apps/web/components/bim-editor`, `www/apps/api/src/{step,geometrias,produtos}` | `docs/sessoes/S7.1`, `S7.2`, `testes-editor.sh` | provado (S7.1–S7.2); destino não decidido |
 | V9 | **PDF comercial → catálogo → `.aq`** (Akato) | `eng-reversa/tools/{pdf_coords,pdf_akato}.py`, `dados/akato-*` | `eng-reversa/estudo/03,04` | provado uma vez, específico da Akato; conclusão do estudo: PDF não traz cota de forma |
@@ -130,7 +130,7 @@ cena Three.js está copiada nos três; extrair `templates/shared/viewer.js`) e L
 | Item | Linhas | Veredito | Por quê |
 |---|---|---|---|
 | `tools/aq-reader.ts`, `tools/oq3d-parser.ts` | 717 | **Fica** (como biblioteca, sem Nest) | V5; a bilds.com vai portar (`saida-bilds-com` §4.2–4.3); `test_paridade_ts.py` garante paridade com o Python |
-| `tools/thumb-rasterizer.ts` | 241 | **Fica** (biblioteca) | V6; usa `templates/thumbs/harness.html` |
+| `tools/thumb-rasterizer.ts` | 241 | **Fica** (biblioteca) | V6; usa `www/apps/ingestao/pipeline/harness.html` |
 | `tools/{roundtrip-mesh-model,roundtrip-ifc-export}.mts`, `testes-editor.sh`, `e2e/*.mjs` | 418 | **D3** | provas do editor (V8) |
 | `tools/{test-worker,test-port-s2-2,thumb-rasterizer-sw,ingest-library,measure-thumbs,smoke-geometry-store,regen-thumbs}.ts` | 1.696 | **Sai** (L4) | spikes S1.2–S4.3 e o rasterizador software aposentado; `thumb-rasterizer-sw.ts` já se declara HISTÓRICO; nenhum é importado pela API |
 | `workers/aq-parser/` (Flask) | 188 | **Sai** (L4) | substituído pelo `parse-worker.ts`; só `test-worker.ts` (que sai) o usa |
@@ -155,12 +155,12 @@ cena Three.js está copiada nos três; extrair `templates/shared/viewer.js`) e L
 
 ```
 geo_to_aq.py ──► eng-reversa/tools/gerar_aq.py, oq3d_writer.py        (I4: promover, senão V4 não fecha)
-step.service.ts (www/api) ──► scripts/step_to_geo.py, geo_to_aq.py     (D3: o editor depende dos conversores; os conversores não dependem do editor)
+step.service.ts (www/api) ──► www/apps/ingestao/pipeline/step_to_geo.py, geo_to_aq.py     (D3: o editor depende dos conversores; os conversores não dependem do editor)
 parse-worker.ts (www/api) ──► www/tools/aq-reader.ts, oq3d-parser.ts   (o port TS é biblioteca; a API é um consumidor)
-thumb-worker.ts (www/api) ──► www/tools/thumb-rasterizer.ts ──► templates/thumbs/harness.html
-scripts/thumbs.mjs ──► templates/thumbs/harness.html                   (mesmo harness: pipeline e POC)
+thumb-worker.ts (www/api) ──► www/tools/thumb-rasterizer.ts ──► www/apps/ingestao/pipeline/harness.html
+www/apps/ingestao/pipeline/thumbs.mjs ──► www/apps/ingestao/pipeline/harness.html                   (mesmo harness: pipeline e POC)
 tests/test_paridade_ts.py ──► tests/paridade/dump_ts.mjs ──► www/tools/{aq-reader,oq3d-parser}.ts
-tests/test_editor_roundtrips.py ──► www/tools/testes-editor.sh ──► mesh-model.ts, ifc-export.ts, scripts/parse_ifc.py
+tests/test_editor_roundtrips.py ──► www/tools/testes-editor.sh ──► mesh-model.ts, ifc-export.ts, www/apps/ingestao/pipeline/parse_ifc.py
 8 de 13 tests/test_*.py ──► www/                                       (6 são só da infra da API — D2)
 bim-editor ──► bim-catalog/{bim-viewer-engine,types}.ts               (o editor arrasta 2 arquivos do viewer público)
 docs/skills ◄── ~/.claude/skills (symlinks)                            (D4)

@@ -1,6 +1,6 @@
 /**
  * roundtrip-ifc-export.mts — prova o exportador IFC4 (ifc-export.ts) contra o
- * parser IFC do próprio projeto (scripts/parse_ifc.py) e, se instalado, o ifcopenshell.
+ * parser IFC do próprio projeto (www/apps/ingestao/pipeline/parse_ifc.py) e, se instalado, o ifcopenshell.
  *
  * Pega um JSON de geometria real, segmenta, EDITA (gira+desloca uma parte — vira
  * IFCLOCALPLACEMENT; escala outra — vira vértices assados; acrescenta um tubo), exporta
