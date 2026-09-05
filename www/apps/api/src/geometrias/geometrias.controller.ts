@@ -14,9 +14,10 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { BimProduct, BimProductDocument } from '../bim-products/bim-products.schema';
 import { AssetStat, IGeometryStore } from '../geometry-store/geometry-store.interface';
+import { ImportacoesService } from '../importacoes/importacoes.service';
 import { ASSET_CACHE_CONTROL, assetEtag, ifNoneMatchSatisfied } from '../common/asset-cache';
 import {
   GeoValidationError,
@@ -35,6 +36,9 @@ import {
  *
  * A primeira escrita copia o arquivo vivo para `<id>.orig.json` no mesmo prefixo
  * do import, para que "restaurar" nunca dependa do .aq de origem.
+ *
+ * PUT e restaurar disparam a regeneração da miniatura em segundo plano (I14,
+ * 2026-09-05) — até então o `thumbKey` seguia apontando para a imagem do import.
  */
 @Controller('geometrias')
 export class GeometriasController {
@@ -43,6 +47,7 @@ export class GeometriasController {
   constructor(
     @InjectModel(BimProduct.name) private readonly productModel: Model<BimProductDocument>,
     @Inject('GEOMETRY_STORE') private readonly store: IGeometryStore,
+    private readonly importacoes: ImportacoesService,
   ) {}
 
   @Get(':productId')
@@ -104,7 +109,8 @@ export class GeometriasController {
     this.logger.log(
       `geometria gravada — ${product.geoKey} — ${stats.vertices} vértices, ${stats.triangulos} triângulos, ${(blob.length / 1024).toFixed(0)} KB${backupFeito ? ' (original preservado)' : ''}`,
     );
-    return { ok: true, geoKey: product.geoKey, geoEditadoEm: agora, backupFeito, ...stats, bytes: blob.length };
+    void this.importacoes.regerarMiniatura(productId, product.importId, product.geoKey);
+    return { ok: true, geoKey: product.geoKey, geoEditadoEm: agora, backupFeito, miniatura: 'regerando', ...stats, bytes: blob.length };
   }
 
   @Post(':productId/restaurar')
@@ -118,10 +124,11 @@ export class GeometriasController {
     }
     const orig = await this.store.get(origKey);
     await this.store.put(product.geoKey, orig);
-    await this.store.delete(origKey).catch(() => {});
+    await this.store.delete(origKey).catch((e: any) => this.logger.warn(`não removeu ${origKey} — ${e?.message ?? e}`));
     await this.productModel.findByIdAndUpdate(productId, { geoEditadoEm: null }).exec();
     this.logger.log(`geometria restaurada — ${product.geoKey}`);
-    return { ok: true, restaurado: true, geoKey: product.geoKey };
+    void this.importacoes.regerarMiniatura(productId, product.importId, product.geoKey);
+    return { ok: true, restaurado: true, geoKey: product.geoKey, miniatura: 'regerando' };
   }
 
   // ── helpers ──────────────────────────────────────────────────────────────

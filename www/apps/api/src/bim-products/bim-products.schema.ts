@@ -58,6 +58,14 @@ export class BimProduct {
   @Prop({ type: Date })
   geoEditadoEm: Date | null;
 
+  /** Miniatura regerada depois de editar/restaurar a geometria (I14) — null = ainda a do import */
+  @Prop({ type: Date })
+  thumbAtualizadaEm: Date | null;
+
+  /** Por que a última regeneração da miniatura falhou; null quando deu certo */
+  @Prop({ type: String })
+  thumbErro: string | null;
+
   /** Snapshot dos campos editáveis como vieram do .aq, gravado na 1ª edição */
   @Prop({ type: MongooseSchema.Types.Mixed })
   infoOriginal: Record<string, unknown> | null;

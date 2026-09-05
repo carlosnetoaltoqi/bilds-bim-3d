@@ -295,6 +295,35 @@ export class ImportacoesService {
   }
 
   /**
+   * Regera a miniatura de UM produto depois que a geometria mudou (PUT/restaurar —
+   * I14). Mesma chave `thumbs/<importId>/<productId>.webp`, bytes novos: o ETag por
+   * tamanho+mtime (`asset-cache.ts`) faz o browser revalidar. Registra no produto
+   * `thumbAtualizadaEm` ou `thumbErro`; nunca rejeita.
+   */
+  async regerarMiniatura(productId: string, importId: string, geoKey: string): Promise<ResumoMiniaturas | null> {
+    const tag = `[${productId.slice(0, 8)}]`;
+    let resumo: ResumoMiniaturas | null = null;
+    let erro: string | null = null;
+    try {
+      resumo = await this.spawnThumbWorker(importId, [{ productId, geoKey }]);
+      if (resumo.falhas.length) erro = resumo.falhas[0].message;
+    } catch (err: any) {
+      erro = err?.message ?? String(err);
+      resumo = err?.resumo ?? null;
+    }
+    if (erro) this.logger.error(`${tag} miniatura NÃO regerada após edição — ${erro}`);
+    else this.logger.log(`${tag} miniatura regerada após edição`);
+    try {
+      await this.productModel.findByIdAndUpdate(productId, erro
+        ? { thumbErro: erro }
+        : { thumbAtualizadaEm: new Date(), thumbErro: null }).exec();
+    } catch (e: any) {
+      this.logger.error(`${tag} não registrou o resultado da miniatura no produto — ${e?.message ?? e}`);
+    }
+    return resumo;
+  }
+
+  /**
    * Fork do thumb-worker. Resolve com o resumo (geradas + cada falha por produto);
    * rejeita se o filho sair antes do `done`, se ficar ocioso ou se o processo falhar.
    * Use `gerarMiniaturas` a menos que queira tratar a rejeição você mesmo.

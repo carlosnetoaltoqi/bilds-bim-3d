@@ -261,14 +261,14 @@ export function ProductEditor(props: Props) {
     try {
       const geo = bake(hist.present.parts)
       if (!geo.idx.length) throw new Error('nada visível para salvar — mostre ao menos uma parte')
-      const r = await apiJson<{ vertices: number; triangulos: number; bytes: number; geoEditadoEm: string; backupFeito: boolean }>(
+      const r = await apiJson<{ vertices: number; triangulos: number; bytes: number; geoEditadoEm: string; backupFeito: boolean; miniatura?: string }>(
         `/geometrias/${produto._id}`, { method: 'PUT', body: JSON.stringify(geo) },
       )
       savedRef.current = hist.present.parts
       invalidateGeo(geoUrl)
       setProduto((p) => ({ ...p, geoEditadoEm: r.geoEditadoEm }))
       setHist((h) => h) // força re-render do dirty
-      setMsg({ tipo: 'ok', texto: `Gravado: ${r.vertices.toLocaleString('pt-BR')} vértices, ${r.triangulos.toLocaleString('pt-BR')} triângulos, ${(r.bytes / 1024).toFixed(0)} KB${r.backupFeito ? ' — original preservado' : ''}.` })
+      setMsg({ tipo: 'ok', texto: `Gravado: ${r.vertices.toLocaleString('pt-BR')} vértices, ${r.triangulos.toLocaleString('pt-BR')} triângulos, ${(r.bytes / 1024).toFixed(0)} KB${r.backupFeito ? ' — original preservado' : ''}${r.miniatura ? ' — miniatura em regeneração' : ''}.` })
       return true
     } catch (e: any) {
       setMsg({ tipo: 'erro', texto: e.message ?? String(e) })
