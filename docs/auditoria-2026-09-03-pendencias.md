@@ -59,6 +59,12 @@ código foram reproduzidos uma segunda vez antes de fechar este documento.
 | I24 ◐ | Skills e CLAUDE.md com conhecimento só de um lado; regra "mesmo commit" nunca cumprida — **regra reescrita 2026-09-04** (S7.8: bump da skill no commit `docs:` de fechamento, como sempre foi a prática); a convergência de conteúdo skill ↔ `docs/conhecimento/` fica para quando cada área for tocada | docs |
 | I25 ✅ | `docs/plano-produto-dinamico.md` não marcado histórico; §11 incompleto; §13 com tabela quebrada — **corrigido 2026-09-04** (S7.8; CONCEPTS.md ganhou os 13 termos que faltavam) | docs |
 | I26 ✅ | Conferência do exportador IFC no `testes-editor.sh` comparava buckets a 10 µm com limite de 2% e imprimia `[FALHA]` saindo 0 — **corrigido 2026-09-05** (S7.9: par a ≤ 2 µm nos dois sentidos, exit 1, `ROUNDTRIP_SABOTAR_IFC`; achado porque a 20cv da Dancor virou a primeira geometria do storage) | testes |
+| I27 ✅ | Fila liberava a vaga em `publicado`: dois uploads = dois Chromiums ao mesmo tempo, o oposto do que `common/fila.ts` promete — **corrigido 2026-09-05** (S7.13: `.aq` e CAD aguardam as miniaturas dentro da vaga; harness `importacoes_processo.cts`) | www |
+| I28 ✅ | Nota `na fila — N à frente` ficava no import publicado (e a página a mostra) — **corrigido 2026-09-05** (S7.13: `parseando` apaga a nota) | www |
+| I29 ✅ | parse-worker/thumb-worker sobreviviam à morte da API (`kill -9`) e o órfão gravou 228 JSONs em `geo/` — **corrigido 2026-09-05** (S7.13: saem com 2 no `disconnect`; cenário real em `worker_ipc.mts`) | www |
+| I30 ✅ | Nome do arquivo enviado decodificado como latin1 (`gÃ¡s.aq`) pelo multer 2.0.2 que o Nest 10 embute; `defParamCharset` não existe nessa versão — **corrigido 2026-09-05** (S7.13: `common/upload.ts`, guarda em `test_www_config.py`) | www |
+| I31 ✅ | `GET /produtos/:id` omitia `thumbAtualizadaEm`/`thumbErro` que o I14 grava — o teste do I14 usava modelos falsos e nunca leu pela API — **corrigido 2026-09-05** (S7.13) | www |
+| I32 | Com o Mongo fora, rotas que consultam a base esperam os 30 s do driver e respondem 500; só `/health` dá 503 na hora — guard global (`readyState ≠ 1` → 503) ou `bufferCommands: false`? Visto na S7.13 | www |
 | L1–L14 | Limpeza (duplicações, código legado, `any`, funções gigantes, etc.) | todas |
 
 ---
@@ -372,3 +378,6 @@ código foram reproduzidos uma segunda vez antes de fechar este documento.
 6. **Decisões que são do usuário:** ~~C6~~ (decidido e feito na S7.5), C7 (estratégia de
    deploy do preview), I10 (auth na POC ou aceitar só localhost), ~~I6~~ (removido, S7.10), I4 (promover o writer de `.aq` para `scripts/`).
 7. **Limpeza** (L1–L14) conforme cada área for tocada, nunca em commit separado gigante.
+8. ✅ **Teste de aceitação com a API de pé** (S7.13, 2026-09-05): os cenários de S7.11 §7 e S7.12 §7
+   confirmaram fila, recuperação no boot, `PATCH` inválido, `/health` 503 e miniatura regerada — e
+   acharam I27–I31 (corrigidos, um commit cada, com teste) e I32 (decisão).

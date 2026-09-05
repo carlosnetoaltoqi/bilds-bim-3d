@@ -29,17 +29,17 @@ ver "A API não sobe e o Mongoose culpa o whitelist", abaixo.
 |---|---|---|
 | `POST /auth/login` | — | JWT do usuário semente (não consulta o banco) |
 | `POST /empresas`, `GET /empresas/minha`, `GET /logos/:id` | Bearer | empresa do usuário |
-| `POST /importacoes`, `GET /importacoes/ultima`, `GET /importacoes/:id` | Bearer | import de `.aq` (worker em processo filho); o documento traz `thumbCount`/`thumbFailed`/`thumbError` e o `note` ganha `miniaturas: N/M geradas…` ao fim do lote (I15); uma importação por vez, as outras esperam em `recebido` com `na fila — N à frente` (I11) |
+| `POST /importacoes`, `GET /importacoes/ultima`, `GET /importacoes/:id` | Bearer | import de `.aq` (worker em processo filho); o documento traz `thumbCount`/`thumbFailed`/`thumbError` e o `note` ganha `miniaturas: N/M geradas…` ao fim do lote (I15); uma importação por vez, as outras esperam em `recebido` com `na fila — N à frente` (I11) — a vaga só libera **depois das miniaturas** do import da frente e a nota `na fila` é apagada quando ele começa (S7.13); `fileName` em UTF-8 (`common/upload.ts`, S7.13) |
 | `GET /catalogos/:empresa/:slug` | — | catálogo público `{ catalog, products }` |
 | `PATCH /catalogos/:catalogId` | — | título, fabricante, layout (POC de edição); corpo validado por `PatchCatalogoDto` (I16) |
-| `GET /produtos/:id`, `PATCH /produtos/:id` | — | informações do produto; `infoOriginal` na 1ª edição; corpo validado por `PatchProdutoDto` — campo fora do DTO é 400, `specs` só texto/número/booleano, `curva` ≤ 1000 pontos (I16) |
+| `GET /produtos/:id`, `PATCH /produtos/:id` | — | informações do produto; `infoOriginal` na 1ª edição; `thumbAtualizadaEm`/`thumbErro` da última regeneração da miniatura (I14 — expostos desde a S7.13); corpo validado por `PatchProdutoDto` — campo fora do DTO é 400, `specs` só texto/número/booleano, `curva` ≤ 1000 pontos (I16) |
 | `GET /geometrias/:id` | — | `{pos,col,idx}` com ETag por tamanho+mtime |
 | `PUT /geometrias/:id`, `GET …/original`, `POST …/restaurar` | — | geometria editada; original preservado em `<id>.orig.json`; ambos regeram a miniatura em segundo plano (I14) — `thumbAtualizadaEm`/`thumbErro` no produto |
 | `GET /thumbs/:id` | — | miniatura WebP |
 | `POST /cad/importar` (`?sync=1`), `GET /cad/importacoes/:id` | — | STEP/IFC → produto, assíncrono com status; campos do formulário em `ImportarCadDto` (`deflexao` 0 < mm ≤ 10); mesma fila dos `.aq` (I11) |
 | `POST /cad/tesselar` | — | STEP/IFC → geometria, para "adicionar parte" no editor |
 | `POST /exportar/aq` | — | partes do editor → `.aq` (download) |
-| `GET /health` | — | `{ status, mongo, conexao, banco }` pela conexão do Mongoose da API; **503** com o `readyState` quando desconectada (I12) |
+| `GET /health` | — | `{ status, mongo, conexao, banco }` pela conexão do Mongoose da API; **503** com o `readyState` quando desconectada (I12). Só ele responde na hora: uma rota que consulta a base com o Mongo fora espera os 30 s do driver e sai **500** (I32, S7.13) |
 
 `/step/importar` e `/step/tesselar` são aliases de `/cad/*`.
 
@@ -74,7 +74,7 @@ O Playwright vem do `pnpm install` da **raiz** do repositório (o mesmo do `scri
 
 ---
 
-## Estado da base e do storage — única versão válida (2026-09-03)
+## Estado da base e do storage — única versão válida (2026-09-05)
 
 > Movido do `CLAUDE.md` em 2026-09-04 (S7.8, item I22 da auditoria). O conteúdo é o que estava lá,
 > com as afirmações desatualizadas de I23 corrigidas no lugar; onde diz "este arquivo", "acima" ou
@@ -83,16 +83,19 @@ O Playwright vem do `pnpm install` da **raiz** do repositório (o mesmo do `scri
 
 **A POC de catálogo dinâmico está encerrada** (2026-08-31). Em 2026-09-02 banco e storage
 foram esvaziados de propósito. **Em 2026-09-03 a POC de edição recarregou a Dancor**
-para servir de base à POC de edição (ver "POC de edição", abaixo):
+para servir de base à POC de edição (ver "POC de edição", abaixo); em 2026-09-04 entrou a Akato
+(262 peças) e em 2026-09-05 o teste de aceitação da S7.13 acrescentou Komeco, Intelbras e Amanco
+(a tabela anterior, "3 catálogos / 18 produtos", já estava defasada antes disso — refeita a partir
+do Mongo em 2026-09-05):
 
 | O quê | Estado atual |
 |---|---|
 | `companies` | **1** — `poc-edicao` (customUrl), sem logo |
-| `bim_catalogs` | **3** — `bomba-de-combate-a-incencio` (13 produtos, `series-rows`), `pecas-step` (1, de `input/STEP/2831A09.stp`) e `pecas-ifc` (4: a 2CV editada reimportada do IFC ×2, a peça STEP via IFC, e o `Projeto4.ifc` do Revit com 760 mil triângulos) |
-| `bim_imports` | **6** — Dancor, STEP e quatro IFC, todos `publicado` |
-| `bim_products` | **18**, todos com `geoKey` e `thumbKey` |
-| `www/storage/bim/geo/<importId>/` | um diretório por import; o do Projeto4 tem um JSON de 31 MB (o `.orig.json` só aparece depois de editar geometria) |
-| Editor | `http://localhost:3000/poc-edicao/<slug>/editar` para os três catálogos |
+| `bim_catalogs` | **7** — `bomba-de-combate-a-incencio` (Dancor, 13, `series-rows`), `pecas-step` (5, de `input/STEP/2831A09.stp`), `pecas-ifc` (5: a 2CV editada reimportada do IFC, a peça STEP via IFC, o `Projeto4.ifc` do Revit com 760 mil triângulos…), `pvc-agua-fria-soldavel` (Akato, 262), `komeco` (aquecimento a gás, 12), `dispositivos-smart` (Intelbras, 32), `pvc-esgoto-silentium` (Amanco, 856) — os três últimos do teste de aceitação da S7.13 |
+| `bim_imports` | **21** — 20 `publicado` (vários repetidos: reimportar substitui o catálogo de mesmo slug) e 1 `falhou` — a Maxbar morta de propósito na S7.13, com `error: "a API foi reiniciada durante a importação…"` |
+| `bim_products` | **1.185**, todos com `geoKey` e `thumbKey` |
+| `www/storage/bim/geo/<importId>/` | um diretório por import — 21, seis vazios (imports substituídos), 478 MB; o do Projeto4 tem um JSON de 31 MB (o `.orig.json` só aparece depois de editar geometria). `thumbs/`: 8,7 MB |
+| Editor | `http://localhost:3000/poc-edicao/<slug>/editar` para os sete catálogos |
 | Importar STEP ou IFC | `http://localhost:3000/importar-step` (STEP precisa do `OCP` em Python — ver abaixo) |
 
 Para voltar ao vazio: `deleteMany({})` nas quatro coleções e apagar `www/storage/bim/*/*`
@@ -367,6 +370,10 @@ python3 -c "import json;g=json.load(open('www/storage/bim/geo/<importId>/2cv-t-2
 
 ### Pendência conhecida
 
+- **Com o Mongo fora, toda rota que consulta a base espera os 30 s do `serverSelectionTimeoutMS`
+  e responde 500** — só `GET /health` sabe dizer 503 na hora (visto na S7.13 derrubando um proxy
+  na frente do Atlas). Decidir (I32): guard global que devolve 503 quando `connection.readyState ≠ 1`,
+  ou `bufferCommands: false` no `MongooseModule` para o erro sair imediato.
 - **Deploy do preview na Vercel está sem catálogos** — `output/preview/` passou a ser
   gitignored (511 MB de geometria não entram no histórico), e a Vercel constrói a partir
   do git. Hoje ela serve só a landing. Decidir a estratégia: rodar o `build.py` na
