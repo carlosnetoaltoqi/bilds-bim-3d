@@ -62,6 +62,7 @@ www/
 | `POST /importacoes` (multipart `file`, campos `empresa?`, `fabricante?`, `catalogo?`, `nome?`, `deflexao?`) | 202 `{importId, status:'recebido', statusUrl}`. Tipo pela extensão: `.aq`/`.zip` → biblioteca; `.stp`/`.step`/`.ifc` → peça CAD |
 | `GET /importacoes/:importId` | `{status, note, error, productCount, catalogId, catalogoUrl?, editorUrl?, thumbCount…}` |
 | `GET /importacoes?empresa=<customUrl>` | últimas importações da empresa |
+| `DELETE /importacoes/:importId` | apaga importação terminada (produtos, storage, documento; 409 em andamento) |
 | `POST /miniaturas/regerar` `{productId}` | 202; renderiza a miniatura do produto e grava `thumbKey`/`thumbAtualizadaEm`/`thumbErro` |
 | `POST /cad/tesselar` (multipart) | síncrono: `{pos,col,idx,partes,…}` — usado pela página `/cad` do web |
 | `POST /exportar/aq` (JSON) | síncrono: download do `.aq` gerado pelo `geo_to_aq.py` |
@@ -79,6 +80,7 @@ posição na fila, o progresso do Python e o resumo das miniaturas.
 | `GET /produtos/:id` · `PATCH /produtos/:id` | informações do produto |
 | `GET /geometrias/:id` · `GET …/original` · `PUT /geometrias/:id` · `POST …/restaurar` | geometria (ETag/304); PUT faz copy-on-write (A5) e pede a miniatura ao serviço (A6) |
 | `GET /thumbs/:id` | miniatura (ETag/304) |
+| `DELETE /empresas/:customUrl` · `DELETE /catalogos/:id` · `DELETE /produtos/:id` | apagar em cascata (`dominio/remocao.ts`); geometria/miniatura compartilhadas só saem com o último produto |
 
 **Web** (`:3000`)
 

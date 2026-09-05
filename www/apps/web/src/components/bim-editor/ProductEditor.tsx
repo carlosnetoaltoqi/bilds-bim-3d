@@ -23,6 +23,7 @@ import { GeometryPanel, type EditorUi } from './GeometryPanel'
 import { CatalogForm, InfoForm, type ProdutoDto } from './InfoForm'
 import { bake, bakeMatrix, segment, type Part } from './mesh-model'
 import { exportIfc as buildIfc } from './ifc-export'
+import { BotaoApagar } from '../BotaoApagar'
 
 interface Snapshot { parts: Part[]; label: string }
 interface History { past: Snapshot[]; present: Snapshot; future: Snapshot[] }
@@ -346,6 +347,9 @@ export function ProductEditor(props: Props) {
         <span className="flex-1" />
         {dirty && <span className="text-[11px] px-2 py-0.5 rounded bg-amber-400 text-amber-950 font-semibold">geometria não salva</span>}
         <a href={publicUrl} target="_blank" rel="noopener noreferrer" className="text-[12px] text-blue-200 hover:text-white">ver catálogo ↗</a>
+        <BotaoApagar rota={`/produtos/${produto._id}`} rotulo="apagar peça" depois={`${publicUrl}/editar`}
+          className="px-2 py-1 rounded border border-red-300/60 text-[12px] text-red-200 hover:bg-red-500/20"
+          confirmacao={`Apagar a peça "${produto.nome}"? A geometria e a miniatura só saem se nenhuma outra peça as compartilha. Não tem volta.`} />
       </header>
 
       <div className="flex flex-1 min-h-0">

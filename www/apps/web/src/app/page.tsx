@@ -1,4 +1,5 @@
 import { API_URL } from '@/lib/api'
+import { BotaoApagar } from '@/components/BotaoApagar'
 
 /**
  * / — empresas cadastradas e seus catálogos, com as chamadas para ver, editar e
@@ -53,6 +54,8 @@ export default async function HomePage() {
                 <p className="text-[11px] text-gray-500">/{e.customUrl} · {e.catalogos.length} catálogo(s)</p>
               </div>
               <a href={`/importar?empresa=${encodeURIComponent(e.customUrl)}`} className="text-[12px] text-[#1e40af] hover:underline">importar para esta empresa →</a>
+              <BotaoApagar rota={`/empresas/${encodeURIComponent(e.customUrl)}`} rotulo="apagar empresa"
+                confirmacao={`Apagar a empresa "${e.name}" com ${e.catalogos.length} catálogo(s), todos os produtos, importações, geometria e miniaturas? Não tem volta.`} />
             </header>
             {e.catalogos.length === 0 ? (
               <p className="px-5 py-3 text-[12px] text-gray-500">sem catálogos</p>
@@ -66,6 +69,7 @@ export default async function HomePage() {
                     </div>
                     <a href={`/${e.customUrl}/${c.slug}`} className="px-3 py-1.5 rounded border border-gray-300 text-[12px] font-semibold text-gray-700">ver</a>
                     <a href={`/${e.customUrl}/${c.slug}/editar`} className="px-3 py-1.5 rounded bg-[#1e40af] text-white text-[12px] font-semibold">editar</a>
+                    <BotaoApagar rota={`/catalogos/${c.id}`} confirmacao={`Apagar o catálogo "${c.title}" com ${c.productCount} produto(s), geometria, miniaturas e as importações dele? Não tem volta.`} />
                   </li>
                 ))}
               </ul>

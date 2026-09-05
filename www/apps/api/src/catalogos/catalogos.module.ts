@@ -1,9 +1,7 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { CatalogosController } from './catalogos.controller';
-import { Company, CompanySchema } from '@bim/dominio';
-import { BimCatalog, BimCatalogSchema } from '@bim/dominio';
-import { BimProduct, BimProductSchema } from '@bim/dominio';
+import { BimCatalog, BimCatalogSchema, BimImport, BimImportSchema, BimProduct, BimProductSchema, Company, CompanySchema, GeometryStoreModule } from '@bim/dominio';
 
 @Module({
   imports: [
@@ -11,7 +9,9 @@ import { BimProduct, BimProductSchema } from '@bim/dominio';
       { name: Company.name, schema: CompanySchema },
       { name: BimCatalog.name, schema: BimCatalogSchema },
       { name: BimProduct.name, schema: BimProductSchema },
+      { name: BimImport.name, schema: BimImportSchema },
     ]),
+    GeometryStoreModule, // apagar em cascata limpa geometria e miniaturas (remocao.ts)
   ],
   controllers: [CatalogosController],
 })

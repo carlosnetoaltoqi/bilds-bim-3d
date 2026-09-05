@@ -109,7 +109,9 @@ gerando o ZIP da bilds.com, agora importando o pipeline de `www/apps/ingestao/pi
 
 **S7.15 (2026-09-05):** I32 (`MongoProntoGuard` em `@bim/dominio`, 503 na hora com o Mongo fora), C7 (preview
 só local; `vercel.json` removido — o projeto na Vercel ainda existe) e I4 (`aq_writer.py`, `oq3d_writer.py` e
-`schema-aq-607.sql` promovidos para o pipeline; `gerar_aq.py` da Akato herda de `EscritorAq`). Suíte **107**.
+`schema-aq-607.sql` promovidos para o pipeline; `gerar_aq.py` da Akato herda de `EscritorAq`). Depois, a pedido:
+STEP/IFC saem do editor (menu na home: importar `.aq`, importar peça CAD, **converter peça CAD** em `/cad`, criar
+empresa) e **apagar em cada nível** (empresa, catálogo, peça, importação — `dominio/remocao.ts`). Suíte **115**.
 
 **Próxima sessão:** ver `docs/sessoes/S7.14-www-servico-de-ingestao.md`, seção 7 — build do `dist/` com o
 `@bim/dominio`, e2e reexecutados, aceitação automatizada, Nest 11; depois o isolamento do serviço.
@@ -230,7 +232,7 @@ esperadas estão **nos arquivos**, não em texto: `.python-version`, `.nvmrc`, `
 ## Testes — `tests/`
 
 ```bash
-python3 -m pytest                                   # 107 testes, ≈ 60 s (abre o Chromium duas vezes)
+python3 -m pytest                                   # 115 testes, ≈ 60 s (abre o Chromium duas vezes)
 python3 -m pytest -m "not thumbs"                   # sem Chromium — é o que o CI roda
 python3 -m pytest -m "not thumbs and not paridade"  # só Python, sem Node
 ```
@@ -248,6 +250,7 @@ python3 -m pytest -m "not thumbs and not paridade"  # só Python, sem Node
 | `test_geometrias_thumb.py` | I14/A5/A6: geometria exclusiva → `.orig.json` e miniatura pedida ao serviço no `PUT` e no `restaurar`; geometria compartilhada → copy-on-write (`geo/<importId>/<productId>.json`, `geoKeyCompartilhada`, irmão intacto, restaurar desfaz); serviço fora → `thumbErro` no produto e `miniatura: 'nao-solicitada'`; `GET /produtos/:id` devolve `thumbAtualizadaEm`/`thumbErro` (I31) |
 | `test_www_validacao.py` | I16: 37 corpos pelo mesmo `ValidationPipe` (agora em `@bim/dominio`) contra cada DTO da API e do serviço (`ImportarDto`, `ExportarAqDto`, `PatchProdutoDto`…) — aceitos saem normalizados, rejeitados dão 400; campo fora do DTO é 400 |
 | `test_www_importacao.py` | I11 (no serviço de ingestão): `Fila` (FIFO, posição informada, rejeição repassada, concorrência 2, `IMPORTACOES_CONCORRENCIA` inválida derruba); recuperação no boot marca `falhou` todo não terminal, limpa produtos/`geo/`, apaga só `bim-*.aq|.zip`/`cad-*` do tmp |
+| `test_www_remocao.py` | apagar em cascata (`dominio/remocao.ts`): produto que compartilha geometria deixa a geometria; exclusivo leva geometria, `.orig` e miniatura; copy-on-write leva só a cópia; catálogo leva produtos, storage e imports; importação terminada e recontagem; em andamento → recusada; empresa leva tudo; inexistentes → `NaoEncontrado` |
 | `test_www_mongo_guard.py` | I32: `MongoProntoGuard` — conectado passa; `readyState` 0/2/3 → 503 na hora com o estado e o ponteiro para `/health`; `/health` passa desconectado; registrado como `APP_GUARD` nos dois apps |
 | `test_www_deps.py` | I12/E3: lê `pnpm-lock.yaml` — peers satisfeitas nos importers `apps/api` e `apps/ingestao`; os três importers (com `packages/dominio`) resolvem as MESMAS versões de Nest/Mongoose/class-validator; `@bim/dominio` só nos dois apps; sem pacote `mongodb`; health pela conexão; nenhum parser `.aq`/OQ3D em TypeScript (A2) |
 | `test_bootstrap.py` | `bootstrap.sh --check` imprime a tabela e acusa Node ausente com exit 1 |

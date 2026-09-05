@@ -2,16 +2,20 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
+  Inject,
+  Logger,
   NotFoundException,
   Param,
   Patch,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { BimProduct, BimProductDocument } from '@bim/dominio';
-import { BimCatalog, BimCatalogDocument } from '@bim/dominio';
-import { normalizarCurva, normalizarSpecs } from '@bim/dominio';
+import {
+  BimCatalog, BimCatalogDocument, BimImport, BimImportDocument, BimProduct, BimProductDocument,
+  Company, CompanyDocument, IGeometryStore, NaoEncontrado, apagarProduto, normalizarCurva, normalizarSpecs,
+} from '@bim/dominio';
 import { PatchProdutoDto } from './patch-produto.dto';
 
 /**
@@ -20,6 +24,7 @@ import { PatchProdutoDto } from './patch-produto.dto';
  * GET   /produtos/:id   — documento completo, com `infoOriginal` quando já editado e
  *                         `thumbAtualizadaEm`/`thumbErro` da última regeneração da miniatura (I14)
  * PATCH /produtos/:id   — atualiza nome, serie, specs, curva, potencia, conexoes
+ * DELETE /produtos/:id  — apaga o produto; a geometria e a miniatura só se nenhum outro produto as usa
  *
  * Só os campos presentes no corpo são alterados. Na primeira edição o controller
  * guarda `infoOriginal` com os valores vindos do .aq, para poder comparar e voltar.
@@ -37,7 +42,28 @@ export class ProdutosController {
   constructor(
     @InjectModel(BimProduct.name) private readonly productModel: Model<BimProductDocument>,
     @InjectModel(BimCatalog.name) private readonly catalogModel: Model<BimCatalogDocument>,
+    @InjectModel(BimImport.name) private readonly importModel: Model<BimImportDocument>,
+    @InjectModel(Company.name) private readonly companyModel: Model<CompanyDocument>,
+    @Inject('GEOMETRY_STORE') private readonly store: IGeometryStore,
   ) {}
+
+  private readonly logger = new Logger(ProdutosController.name);
+
+  @Delete(':id')
+  async apagar(@Param('id') id: string) {
+    try {
+      const r = await apagarProduto(
+        { companies: this.companyModel as any, catalogs: this.catalogModel as any, products: this.productModel as any, imports: this.importModel as any },
+        this.store, id,
+      );
+      this.logger.log(`produto ${id} apagado — ${r.arquivos.length} arquivo(s)${r.avisos.length ? ` (${r.avisos.length} avisos)` : ''}`);
+      for (const a of r.avisos) this.logger.warn(a);
+      return { ok: true, productId: id, ...r };
+    } catch (e) {
+      if (e instanceof NaoEncontrado) throw new NotFoundException(e.message);
+      throw e;
+    }
+  }
 
   @Get(':id')
   async get(@Param('id') id: string) {

@@ -18,6 +18,7 @@ export * from './asset-cache';
 export * from './validation';
 export * from './upload';
 export * from './mongo-pronto.guard';
+export * from './remocao';
 export * from './geometry-store/geometry-store.interface';
 export * from './geometry-store/disk-geometry-store';
 export * from './geometry-store/geometry-store.module';

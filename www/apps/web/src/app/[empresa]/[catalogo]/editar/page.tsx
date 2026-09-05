@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import { API_URL } from '@/lib/api'
 import type { PocCatalog, PocProduct } from '@/components/bim-catalog/types'
 import { CatalogEditHeader } from '@/components/bim-editor/CatalogEditHeader'
+import { BotaoApagar } from '@/components/BotaoApagar'
 
 /**
  * /:empresa/:catalogo/editar — lista dos produtos do catálogo com link para o
@@ -61,6 +62,7 @@ export default async function EditarCatalogoPage({ params }: PageProps) {
                     </div>
                   </div>
                   <a href={`${base}/editar/${p._id}`} className="px-3 py-1.5 rounded bg-[#1e40af] text-white text-[12px] font-semibold">Editar</a>
+                  <BotaoApagar rota={`/produtos/${p._id}`} confirmacao={`Apagar a peça "${p.nome}"? A geometria e a miniatura só saem se nenhuma outra peça as compartilha.`} />
                 </li>
               ))}
             </ul>

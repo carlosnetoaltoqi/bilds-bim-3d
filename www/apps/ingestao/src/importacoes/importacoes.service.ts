@@ -6,7 +6,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import {
   BimCatalog, BimCatalogDocument, BimImport, BimImportDocument, BimProduct, BimProductDocument,
-  Company, CompanyDocument, IGeometryStore, ImportStatus, ImportTipo, storagePath,
+  Company, CompanyDocument, IGeometryStore, ImportStatus, ImportTipo, apagarImportacao, storagePath,
 } from '@bim/dominio';
 import { FILA_IMPORTACOES, FILA_MINIATURAS, Fila } from './fila';
 import { ImportarDto } from './importar.dto';
@@ -437,6 +437,19 @@ export class ImportacoesService {
     } catch (e: any) {
       this.logger.error(`${tag} não registrou o resultado da miniatura no produto — ${e?.message ?? e}`);
     }
+  }
+
+  // ── apagar ───────────────────────────────────────────────────────────────
+
+  /** Apaga uma importação terminada: produtos, `geo/`, `thumbs/`, documento; reconta o catálogo (remocao.ts). */
+  async apagar(importId: string) {
+    const r = await apagarImportacao(
+      { companies: this.companyModel as any, catalogs: this.catalogModel as any, products: this.productModel as any, imports: this.importModel as any },
+      this.store, importId,
+    );
+    this.logger.log(`[${importId.slice(0, 8)}] importação apagada — ${r.produtos} produtos${r.avisos.length ? ` (${r.avisos.length} avisos)` : ''}`);
+    for (const a of r.avisos) this.logger.warn(a);
+    return { ok: true, importId, ...r };
   }
 
   // ── consulta ─────────────────────────────────────────────────────────────

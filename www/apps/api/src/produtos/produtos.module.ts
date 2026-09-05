@@ -1,15 +1,17 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { BimProduct, BimProductSchema } from '@bim/dominio';
-import { BimCatalog, BimCatalogSchema } from '@bim/dominio';
+import { BimCatalog, BimCatalogSchema, BimImport, BimImportSchema, BimProduct, BimProductSchema, Company, CompanySchema, GeometryStoreModule } from '@bim/dominio';
 import { ProdutosController } from './produtos.controller';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
-      { name: BimProduct.name, schema: BimProductSchema },
+      { name: Company.name, schema: CompanySchema },
       { name: BimCatalog.name, schema: BimCatalogSchema },
+      { name: BimProduct.name, schema: BimProductSchema },
+      { name: BimImport.name, schema: BimImportSchema },
     ]),
+    GeometryStoreModule, // apagar em cascata limpa geometria e miniaturas (remocao.ts)
   ],
   controllers: [ProdutosController],
 })

@@ -41,6 +41,7 @@ Atlas — ver "A API não sobe e o Mongoose culpa o whitelist", no fim.
 | `POST /importacoes` | multipart `file` + campos opcionais `empresa` (customUrl; vazio = a primeira), e para peça CAD `fabricante`, `catalogo`, `nome`, `deflexao` (mm, só STEP). Tipo pela extensão. → **202** `{importId, tipo, status:'recebido', statusUrl}` |
 | `GET /importacoes/:importId` | `{status, tipo, note, error, productCount, thumbCount, thumbFailed, thumbError, diag, catalogSlug, catalogTitle, empresa, catalogoUrl, editorUrl, segundos…}`; CAD publicado traz `produtoId`, `nome`, `thumbUrl` e o `editorUrl` do produto |
 | `GET /importacoes?empresa=&limite=` | últimas importações (padrão 20, máx. 100) |
+| `DELETE /importacoes/:importId` | apaga uma importação **terminada**: produtos dela, `geo/<importId>`, `thumbs/<importId>`, documento; o catálogo fica, recontado. **409** se ainda está em `recebido`/`parseando`/`gravando` |
 | `POST /miniaturas/regerar` `{productId}` | 202 `{productId, naFrente}` — renderiza a miniatura do produto e grava `thumbKey`/`thumbAtualizadaEm` ou `thumbErro`. Quem chama é a API depois de editar geometria |
 | `POST /cad/tesselar` | multipart `.stp/.step/.ifc` (+ `deflexao`) → `{pos, col, idx, partes, unidade, bbox_mm, …}` síncrono — consumido pela página `/cad` do web (a conversão saiu do editor em 2026-09-05) |
 | `POST /exportar/aq` | JSON `{info, partes[] \| pos,col,idx}` → download do `.aq` (`geo_to_aq.py`); resumo no header `X-Aq-Resumo` |
@@ -62,6 +63,7 @@ No boot, imports não terminais viram `falhou` (`a API foi reiniciada durante a 
 | Rota | O quê |
 |---|---|
 | `GET /empresas` · `POST /empresas` (multipart `name`, `customUrl`, `logo?`) · `GET /empresas/:customUrl` · `GET /empresas/:customUrl/catalogos` · `GET /logos/:companyId` | empresas e seus catálogos |
+| `DELETE /empresas/:customUrl` · `DELETE /catalogos/:id` · `DELETE /produtos/:id` | **apagar em cascata** (`packages/dominio/src/remocao.ts`): empresa leva catálogos, produtos, imports, storage e logo; catálogo leva produtos, `geo/`+`thumbs/` dos imports que o alimentaram e os imports; produto leva a geometria e a miniatura **só se nenhum outro produto as compartilha** (mais a cópia copy-on-write e o `.orig.json`), e reconta o catálogo. Resposta: `{ok, produtos, catalogos, imports, arquivos[], avisos[]}` |
 | `GET /catalogos/:empresa/:slug[?serie=]` · `PATCH /catalogos/:id` | página pública (produtos com `geoUrl`/`thumbUrl`) e edição de título/fabricante/layout |
 | `GET /produtos/:id` · `PATCH /produtos/:id` | informações do produto (nome, série, specs, curva, potência, conexões); `infoOriginal` na primeira edição; `thumbAtualizadaEm`/`thumbErro` |
 | `GET /geometrias/:id` · `GET …/original` · `PUT /geometrias/:id` · `POST …/restaurar` | geometria com ETag/304. **PUT**: geometria exclusiva → `.orig.json` ao lado; geometria **compartilhada** (o pipeline grava uma por simbologia) → **copy-on-write**: `geo/<importId>/<productId>.json` só do produto, chave compartilhada em `geoKeyCompartilhada`. Os dois pedem a miniatura ao serviço; resposta traz `miniatura: 'regerando' \| 'nao-solicitada'` |
@@ -72,12 +74,12 @@ No boot, imports não terminais viram `falhou` (`a API foi reiniciada durante a 
 
 | Página | O quê |
 |---|---|
-| `/` | empresas e catálogos com **ver** / **editar** / **importar para esta empresa**; menu: **Importar biblioteca .aq**, **Importar peça STEP / IFC**, **Converter peça CAD**, **Criar empresa** |
-| `/importar[?empresa=&tipo=aq\|cad]` | sobe `.aq`/`.zip`/`.stp`/`.step`/`.ifc` (`tipo` restringe; progresso de upload, campos CAD só quando o arquivo é CAD), acompanha o status a cada 2 s, lista as últimas importações |
+| `/` | empresas e catálogos com **ver** / **editar** / **apagar** / **importar para esta empresa**, **apagar empresa**; menu: **Importar biblioteca .aq**, **Importar peça STEP / IFC**, **Converter peça CAD**, **Criar empresa** |
+| `/importar[?empresa=&tipo=aq\|cad]` | sobe `.aq`/`.zip`/`.stp`/`.step`/`.ifc` (`tipo` restringe; progresso de upload, campos CAD só quando o arquivo é CAD), acompanha o status a cada 2 s, lista as últimas importações com **apagar** (só as terminadas) |
 | `/cad` | converte `.stp`/`.step`/`.ifc` pelo serviço (`POST /cad/tesselar`) sem criar produto: viewer 3D, unidade/bbox/sólidos/triângulos, download em JSON, IFC4 (browser) ou `.aq` (`POST /exportar/aq`); link para importar como produto |
 | `/:empresa/:catalogo` | página pública: cabeçalho com **editar catálogo**, cards com miniatura pré-gerada, modal com viewer 3D e **Editar informações e modelo 3D →** |
-| `/:empresa/:catalogo/editar` | metadados do catálogo + lista de produtos com **Editar** (importar só pelo menu da página inicial) |
-| `/:empresa/:catalogo/editar/:produtoId` | editor: viewport 3D (selecionar, mover, girar, espelhar, primitivas, STL/OBJ/JSON locais), informações, exportar IFC4 (no browser) e `.aq` (pelo serviço), salvar (`PUT /geometrias`), restaurar. **STEP/IFC não entram pelo editor** desde 2026-09-05: viram produto pela página inicial |
+| `/:empresa/:catalogo/editar` | metadados do catálogo, **apagar catálogo**, lista de produtos com **Editar** / **apagar** (importar só pelo menu da página inicial) |
+| `/:empresa/:catalogo/editar/:produtoId` | editor: viewport 3D (selecionar, mover, girar, espelhar, primitivas, STL/OBJ/JSON locais), informações, exportar IFC4 (no browser) e `.aq` (pelo serviço), salvar (`PUT /geometrias`), restaurar, **apagar peça**. **STEP/IFC não entram pelo editor** desde 2026-09-05: viram produto pela página inicial |
 | `/empresa/criar` | nome, customUrl, logo |
 
 O web fala **direto** com os dois serviços (CORS `WEB_ORIGIN`): `lib/api.ts` é o único lugar com
@@ -132,7 +134,7 @@ serviços com Mongo: o teste de aceitação da S7.14 (import Dancor e Amanco, ed
 | `apps/web/src/app/` | `page.tsx` (home), `importar/`, `[empresa]/[catalogo]/…`, `empresa/criar/` |
 | `apps/web/src/components/bim-catalog/` | viewer público: cards, modal, `bim-viewer-engine.ts` (`buildScene` — a mesma cena do `harness.html`) |
 | `apps/web/src/components/bim-editor/` | editor: `mesh-model.ts` (puro), `EditorViewport.tsx`, `GeometryPanel.tsx`, `InfoForm.tsx`, `ifc-export.ts`, `ProductEditor.tsx` |
-| `packages/dominio/src/` | `schemas/`, `storage-path.ts`, `geometry-store/`, `geo-buffers.ts`, `asset-cache.ts`, `validation.ts`, `upload.ts` |
+| `packages/dominio/src/` | `schemas/`, `storage-path.ts`, `geometry-store/`, `geo-buffers.ts`, `asset-cache.ts`, `validation.ts`, `upload.ts`, `mongo-pronto.guard.ts` (I32), `remocao.ts` (apagar em cascata) |
 | `tools/` | `testes-editor.sh`, `roundtrip-*.mts`, `e2e/` |
 | `storage/bim/` | `geo/<importId>/`, `thumbs/<importId>/`, `logos/` — gitignored, regenerável por import |
 

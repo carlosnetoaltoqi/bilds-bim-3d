@@ -14,6 +14,7 @@
 import { FormEvent, Suspense, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { API_URL, INGESTAO_URL } from '@/lib/api'
+import { BotaoApagar } from '@/components/BotaoApagar'
 
 interface Empresa { id: string; name: string; customUrl: string; catalogCount: number }
 
@@ -221,6 +222,10 @@ function ImportarPageInner() {
                   {!TERMINAL.includes(i.status) && <button onClick={() => setAtual(i)} className="text-[12px] text-[#1e40af] hover:underline">acompanhar</button>}
                   {i.catalogoUrl && <a href={i.catalogoUrl} className="text-[12px] text-[#1e40af] hover:underline">ver</a>}
                   {i.catalogoUrl && <a href={`${i.catalogoUrl}/editar`} className="text-[12px] text-[#1e40af] hover:underline">editar</a>}
+                  {TERMINAL.includes(i.status) && (
+                    <BotaoApagar rota={`/importacoes/${i.importId}`} servico="ingestao" onApagado={() => void carregarUltimas(empresa)}
+                      confirmacao={`Apagar a importação de "${i.fileName}"${i.productCount ? ` com ${i.productCount} produto(s)` : ''}, geometria e miniaturas? O catálogo fica (recontado).`} />
+                  )}
                 </li>
               ))}
             </ul>

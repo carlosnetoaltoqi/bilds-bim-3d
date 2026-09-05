@@ -2,7 +2,10 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
+  Inject,
+  Logger,
   Param,
   Patch,
   Query,
@@ -10,9 +13,10 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Company, CompanyDocument } from '@bim/dominio';
-import { BimCatalog, BimCatalogDocument } from '@bim/dominio';
-import { BimProduct, BimProductDocument } from '@bim/dominio';
+import {
+  BimCatalog, BimCatalogDocument, BimImport, BimImportDocument, BimProduct, BimProductDocument,
+  Company, CompanyDocument, IGeometryStore, NaoEncontrado, apagarCatalogo,
+} from '@bim/dominio';
 import { PatchCatalogoDto } from './patch-catalogo.dto';
 
 @Controller('catalogos')
@@ -21,7 +25,11 @@ export class CatalogosController {
     @InjectModel(Company.name) private readonly companyModel: Model<CompanyDocument>,
     @InjectModel(BimCatalog.name) private readonly catalogModel: Model<BimCatalogDocument>,
     @InjectModel(BimProduct.name) private readonly productModel: Model<BimProductDocument>,
+    @InjectModel(BimImport.name) private readonly importModel: Model<BimImportDocument>,
+    @Inject('GEOMETRY_STORE') private readonly store: IGeometryStore,
   ) {}
+
+  private readonly logger = new Logger(CatalogosController.name);
 
   @Get(':empresa/:slug')
   async get(
@@ -99,5 +107,25 @@ export class CatalogosController {
       filters: atualizado!.filters,
       productCount: atualizado!.productCount,
     };
+  }
+
+  /**
+   * Apaga o catálogo com tudo dele: produtos, `geo/` e `thumbs/` dos imports que o alimentaram e
+   * os documentos desses imports (remocao.ts). Sem auth (A7). Devolve o que foi removido.
+   */
+  @Delete(':catalogId')
+  async apagar(@Param('catalogId') catalogId: string) {
+    try {
+      const r = await apagarCatalogo(
+        { companies: this.companyModel as any, catalogs: this.catalogModel as any, products: this.productModel as any, imports: this.importModel as any },
+        this.store, catalogId,
+      );
+      this.logger.log(`catálogo ${catalogId} apagado — ${r.produtos} produtos, ${r.imports} imports, ${r.arquivos.length} chaves/prefixos${r.avisos.length ? ` (${r.avisos.length} avisos)` : ''}`);
+      for (const a of r.avisos) this.logger.warn(a);
+      return { ok: true, catalogId, ...r };
+    } catch (e) {
+      if (e instanceof NaoEncontrado) throw new NotFoundException(e.message);
+      throw e;
+    }
   }
 }

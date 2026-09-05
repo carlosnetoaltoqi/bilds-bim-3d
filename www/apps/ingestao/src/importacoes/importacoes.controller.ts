@@ -1,9 +1,12 @@
 import {
   BadRequestException,
   Body,
+  ConflictException,
   Controller,
+  Delete,
   Get,
   HttpCode,
+  NotFoundException,
   Param,
   Post,
   Query,
@@ -15,7 +18,7 @@ import { diskStorage } from 'multer';
 import * as crypto from 'node:crypto';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { nomeOriginalUtf8 } from '@bim/dominio';
+import { ImportacaoEmAndamento, NaoEncontrado, nomeOriginalUtf8 } from '@bim/dominio';
 import { ImportacoesService, tipoDe } from './importacoes.service';
 import { ImportarDto } from './importar.dto';
 
@@ -24,6 +27,7 @@ import { ImportarDto } from './importar.dto';
  *                                     → 202 { importId, tipo, status:'recebido', statusUrl }
  * GET  /importacoes/:importId       — status: recebido → parseando → gravando → publicado | vazio | falhou
  * GET  /importacoes?empresa=&limite= — últimas importações (da empresa, ou de todas)
+ * DELETE /importacoes/:importId    — apaga a importação terminada com produtos e storage (409 se em andamento)
  *
  * Sem auth (A7). O arquivo vai direto para o disco (`os.tmpdir()`): Dancor ~153 MB, Amanco
  * ~394 MB, Maxbar ~618 MB — nada disso cabe em RAM. O nome temporário preserva a extensão e o
@@ -62,5 +66,16 @@ export class ImportacoesController {
   @Get(':importId')
   async status(@Param('importId') importId: string) {
     return this.importacoes.status(importId);
+  }
+
+  @Delete(':importId')
+  async apagar(@Param('importId') importId: string) {
+    try {
+      return await this.importacoes.apagar(importId);
+    } catch (e) {
+      if (e instanceof NaoEncontrado) throw new NotFoundException(e.message);
+      if (e instanceof ImportacaoEmAndamento) throw new ConflictException(e.message);
+      throw e;
+    }
   }
 }

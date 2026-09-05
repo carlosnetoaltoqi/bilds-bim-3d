@@ -1,7 +1,10 @@
 import {
   Controller,
+  Delete,
   Post,
   Get,
+  Inject,
+  Logger,
   Param,
   Body,
   UseInterceptors,
@@ -16,9 +19,10 @@ import { Model } from 'mongoose';
 import * as path from 'path';
 import * as fs from 'fs';
 import { Response } from 'express';
-import { Company, CompanyDocument } from '@bim/dominio';
-import { BimCatalog, BimCatalogDocument } from '@bim/dominio';
-import { storagePath } from '@bim/dominio';
+import {
+  BimCatalog, BimCatalogDocument, BimImport, BimImportDocument, BimProduct, BimProductDocument,
+  Company, CompanyDocument, IGeometryStore, NaoEncontrado, apagarEmpresa, storagePath,
+} from '@bim/dominio';
 import { CriarEmpresaDto } from './criar-empresa.dto';
 
 /**
@@ -29,6 +33,7 @@ import { CriarEmpresaDto } from './criar-empresa.dto';
  * GET  /empresas/:customUrl           — uma, com os catálogos
  * GET  /empresas/:customUrl/catalogos — só os catálogos
  * GET  /logos/:companyId              — o logo
+ * DELETE /empresas/:customUrl        — apaga a empresa com catálogos, produtos, imports, storage e logo
  *
  * A empresa é só um agrupador de catálogos: quem importa escolhe por `customUrl`.
  */
@@ -39,8 +44,31 @@ export class EmpresasController {
   constructor(
     @InjectModel(Company.name) private readonly companyModel: Model<CompanyDocument>,
     @InjectModel(BimCatalog.name) private readonly catalogModel: Model<BimCatalogDocument>,
+    @InjectModel(BimProduct.name) private readonly productModel: Model<BimProductDocument>,
+    @InjectModel(BimImport.name) private readonly importModel: Model<BimImportDocument>,
+    @Inject('GEOMETRY_STORE') private readonly store: IGeometryStore,
   ) {
     this.storageBase = storagePath(); // mesma raiz do DiskGeometryStore (I17)
+  }
+
+  private readonly logger = new Logger(EmpresasController.name);
+
+  @Delete('empresas/:customUrl')
+  async apagar(@Param('customUrl') customUrl: string) {
+    const company = await this.companyModel.findOne({ customUrl }).lean().exec();
+    if (!company) throw new NotFoundException(`empresa "${customUrl}" não encontrada`);
+    try {
+      const r = await apagarEmpresa(
+        { companies: this.companyModel as any, catalogs: this.catalogModel as any, products: this.productModel as any, imports: this.importModel as any },
+        this.store, company._id,
+      );
+      this.logger.log(`empresa ${customUrl} apagada — ${r.catalogos} catálogos, ${r.produtos} produtos, ${r.imports} imports${r.avisos.length ? ` (${r.avisos.length} avisos)` : ''}`);
+      for (const a of r.avisos) this.logger.warn(a);
+      return { ok: true, customUrl, ...r };
+    } catch (e) {
+      if (e instanceof NaoEncontrado) throw new NotFoundException(e.message);
+      throw e;
+    }
   }
 
   @Get('empresas')

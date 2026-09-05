@@ -104,3 +104,5 @@
 | `pnpm start` (do `dist/`) morre com `Cannot find module '@bim/dominio'` ou `Unexpected token` em `src/index.ts` | O `tsc` não emite o pacote do workspace (symlink tratado como externo). Só `pnpm dev:*` (ts-node) funciona por enquanto — pendência registrada em `www/README.md` |
 | `GET /importacoes` (lista) lento com muitos imports | `toDto` faz três consultas por import (empresa, catálogo, produto CAD); `limite` máximo 100 |
 | `/importar` mostra `na fila — 1 importação(ões) à frente` por muito tempo | Comportamento pretendido: a vaga só libera depois das miniaturas do import anterior (Amanco ≈ 60 s no total) |
+| `DELETE /importacoes/:id` responde `409 importação em 'parseando' — espere terminar` | Pretendido: só importação terminada se apaga (a fila e o Python estariam com a mão nela). Espere `publicado`/`vazio`/`falhou`, ou reinicie o serviço (o boot marca `falhou`) e apague |
+| Apaguei uma peça e a geometria continua no `geo/<importId>/` | Pretendido: outro produto compartilha a mesma simbologia (o pipeline grava uma por simbologia). O arquivo só sai com o último produto que o usa; `DELETE /produtos/:id` devolve em `arquivos` o que de fato removeu |
