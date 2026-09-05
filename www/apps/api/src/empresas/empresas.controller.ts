@@ -21,6 +21,7 @@ import * as fs from 'fs';
 import { Request, Response } from 'express';
 import { AuthGuard } from '../auth/auth.guard';
 import { Company, CompanyDocument } from '../companies/companies.schema';
+import { storagePath } from '../common/storage-path';
 
 @Controller()
 export class EmpresasController {
@@ -29,10 +30,7 @@ export class EmpresasController {
   constructor(
     @InjectModel(Company.name) private readonly companyModel: Model<CompanyDocument>,
   ) {
-    this.storageBase = path.resolve(
-      process.cwd(),
-      process.env.STORAGE_PATH ?? '../../storage/bim',
-    );
+    this.storageBase = storagePath(); // mesma raiz do DiskGeometryStore (I17)
   }
 
   @UseGuards(AuthGuard)

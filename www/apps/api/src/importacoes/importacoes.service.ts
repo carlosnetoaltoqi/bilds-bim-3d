@@ -15,6 +15,7 @@ import { IGeometryStore } from '../geometry-store/geometry-store.interface';
 import { WorkerResult, ProductResult, CatalogMeta } from './parse-worker';
 import { ThumbWorkerInput } from './thumb-worker';
 import { aguardarResultado, aguardarMiniaturas, descreveResumo, ResumoMiniaturas } from './worker-ipc';
+import { storagePath } from '../common/storage-path';
 
 const WORKER_TIMEOUT_MS = 5 * 60 * 1000; // 5 min
 /** thumb-worker sem mensagem por este tempo = Chromium travado: mata e registra (I15). */
@@ -304,9 +305,6 @@ export class ImportacoesService {
   ): Promise<ResumoMiniaturas> {
     const tag = `[${importId.slice(0, 8)}]`;
     const workerPath = path.resolve(__dirname, 'thumb-worker.ts');
-    const storagePath = path.resolve(
-      process.env.STORAGE_PATH ?? path.join(process.cwd(), 'storage'),
-    );
     const child = fork(workerPath, [], {
       execArgv: [
         '--require',
@@ -342,7 +340,7 @@ export class ImportacoesService {
       return resumo;
     });
 
-    const input: ThumbWorkerInput = { products, storagePath, importId };
+    const input: ThumbWorkerInput = { products, storagePath: storagePath(), importId };
     child.send(input);
     return resultado;
   }

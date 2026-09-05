@@ -8,10 +8,16 @@ dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
+import { storagePath, storagePathDefinido } from './common/storage-path';
 
 // A geometria editada volta pelo PUT /geometrias/:id como JSON. Uma peça grande
 // (Maxbar) passa de 10 MB; o limite padrão do express é 100 KB.
 const JSON_BODY_LIMIT = process.env.JSON_BODY_LIMIT ?? '300mb';
+// Porta da API (I17): `PORT` no www/.env; o web aponta para ela via NEXT_PUBLIC_API_URL/API_URL.
+const PORT = Number(process.env.PORT ?? 4000);
+if (!Number.isInteger(PORT) || PORT <= 0 || PORT > 65535) {
+  throw new Error(`PORT inválida: ${JSON.stringify(process.env.PORT)} — use um inteiro entre 1 e 65535`);
+}
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
@@ -39,7 +45,7 @@ async function bootstrap() {
     // o download do .aq devolve o resumo num header; sem expor, o browser não o lê
     exposedHeaders: ['X-Aq-Resumo', 'Content-Disposition'],
   });
-  await app.listen(4000);
+  await app.listen(PORT);
   // Conversão de CAD grande pode levar minutos; o Node fecha a conexão em 300 s por padrão
   // (requestTimeout) e o browser vê "Failed to fetch". A importação virou assíncrona, mas
   // /cad/tesselar (síncrono, usado pelo editor) e uploads grandes precisam de folga.
@@ -47,6 +53,7 @@ async function bootstrap() {
   server.requestTimeout = 60 * 60 * 1000;
   server.headersTimeout = 65 * 1000;
   server.keepAliveTimeout = 65 * 1000;
-  console.log('API rodando em http://localhost:4000');
+  console.log(`API rodando em http://localhost:${PORT}`);
+  console.log(`storage em ${storagePath()}${storagePathDefinido() ? '' : '  (STORAGE_PATH não definido — usando o padrão; veja www/.env.example)'}`);
 }
 bootstrap();

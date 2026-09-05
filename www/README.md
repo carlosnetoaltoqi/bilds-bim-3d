@@ -385,8 +385,9 @@ python3 -c "import json;g=json.load(open('www/storage/bim/geo/<importId>/2cv-t-2
   > `docs/sessoes/S6.1-cache-de-assets.md`, seção 6.
 - **`STORAGE_PATH` é variável de ambiente, não commitada.** Está em `www/.env` (gitignored)
   como `STORAGE_PATH=../../storage/bim` (relativo a `apps/api/`). Sem ela a API lê de
-  `apps/api/storage` e não encontra as geometrias. O `DiskGeometryStore` faz
-  `path.resolve()` no construtor — caminhos relativos são aceitos desde que o `.env` exista.
+  `apps/api/storage` e não encontra as geometrias (o `main.ts` avisa no boot). Um único
+  resolvedor, `apps/api/src/common/storage-path.ts`, serve store, workers e logos — até a S7.11
+  o controller de empresas usava outro default e os logos iam para uma pasta diferente.
 
 ### Variáveis de ambiente — `www/.env`
 
@@ -402,9 +403,10 @@ cp www/.env.example www/.env
 | `MONGODB_DB` | Nome do banco (`bilds-bim-3d`). |
 | `SEED_USER` / `SEED_PASSWORD` | Login da POC. **Não consultam o banco** — `auth.controller.ts` compara direto com as variáveis (ADR 7.6). |
 | `JWT_SECRET` | Assina o token. Gere com `python3 -c "import secrets; print(secrets.token_hex(32))"`. |
-| `STORAGE_PATH` | Onde o `DiskGeometryStore` grava. Relativo ao CWD da API (`www/apps/api`). |
+| `STORAGE_PATH` | Onde o `DiskGeometryStore` grava geometria, miniaturas e logos. Relativo ao CWD da API (`www/apps/api`). Resolvida só em `apps/api/src/common/storage-path.ts` (I17); sem ela, `<cwd>/storage` e um aviso no boot. |
 | `WEB_ORIGIN` (opcional) | Origem aceita no CORS da API. Padrão `http://localhost:3000`. |
-| `NEXT_PUBLIC_API_URL` / `API_URL` (opcionais) | Base da API para o browser e para o servidor Next. Padrão `http://localhost:4000`. **Atenção (I17, em aberto):** três páginas ainda têm `http://localhost:4000` fixo e ignoram a variável. |
+| `PORT` (opcional) | Porta da API. Padrão `4000` (I17, 2026-09-05 — antes era fixa em `main.ts`). |
+| `NEXT_PUBLIC_API_URL` / `API_URL` (opcionais) | Base da API para o browser e para o servidor Next; no servidor `API_URL` tem precedência. Padrão `http://localhost:4000`. Resolvida em um só lugar, `apps/web/src/lib/api.ts` — `tests/test_www_config.py` acusa qualquer `localhost:4000` fora dele (I17). |
 | `JSON_BODY_LIMIT` (opcional) | Limite do body JSON — o `PUT /geometrias/:id` recebe MB. Padrão `300mb`. |
 | `PYTHON` (opcional) | Interpretador dos conversores `scripts/{step_to_geo,ifc_to_geo,geo_to_aq}.py`. Padrão `python3`; precisa de `cadquery-ocp` e `ifcopenshell` para STEP e IFC grande. |
 | `WORKER_PORT` (opcional) | Porta do servidor HTTP efêmero do `thumb-rasterizer.ts`. Padrão `0` (aleatória). |

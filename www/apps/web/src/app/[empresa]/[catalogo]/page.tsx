@@ -1,8 +1,7 @@
 import { notFound } from 'next/navigation'
 import { BimCatalogView } from '@/components/bim-catalog/BimCatalogView'
 import { PocCatalog, PocProduct } from '@/components/bim-catalog/types'
-
-const API_URL = 'http://localhost:4000'
+import { API_URL } from '@/lib/api'
 
 interface PageProps {
   params: Promise<{ empresa: string; catalogo: string }>

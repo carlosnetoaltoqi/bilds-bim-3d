@@ -8,9 +8,9 @@ export interface PocProduct {
   curva: number[][] | null
   potencia: number
   conexoes: string
-  /** URL absoluta: http://localhost:4000/geometrias/:id */
+  /** URL absoluta: `${API_URL}/geometrias/:id` (lib/api.ts) */
   geoUrl: string
-  /** URL absoluta: http://localhost:4000/thumbs/:id  ou null se ainda não gerada */
+  /** URL absoluta: `${API_URL}/thumbs/:id`, ou null se ainda não gerada */
   thumbUrl: string | null
 }
 

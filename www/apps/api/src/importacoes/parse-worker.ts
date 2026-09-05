@@ -2,7 +2,7 @@
  * parse-worker.ts — Filho de child_process.fork() para S2.3
  *
  * Recebe { aqPath, importId } via process.on('message').
- * Lê STORAGE_PATH de process.env.
+ * Resolve o storage com `common/storage-path.ts` (mesma regra da API).
  * Extrai produtos + geometrias, grava arquivos no GeometryStore (disco),
  * e envia resultado via process.send().
  *
@@ -14,6 +14,7 @@ import { extract, extractSimboloias } from '../../../../tools/aq-reader';
 import { toBuffers, OQ3DBuffers, OQ3DError } from '../../../../tools/oq3d-parser';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { storagePath } from '../common/storage-path';
 
 // Shared buffer for float32 bit-casting (float32 quantization matches Three.js Float32BufferAttribute)
 const _f32ab = new ArrayBuffer(4);
@@ -58,9 +59,7 @@ function dedupBuffers(b: OQ3DBuffers): OQ3DBuffers {
   return { pos: newPos, col: newCol, idx: newIdx };
 }
 
-const STORAGE_PATH = path.resolve(
-  process.env.STORAGE_PATH ?? path.join(process.cwd(), 'storage'),
-);
+const STORAGE_PATH = storagePath();
 
 interface WorkerInput {
   aqPath: string;

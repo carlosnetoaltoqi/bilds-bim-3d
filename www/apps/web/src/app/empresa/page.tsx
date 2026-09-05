@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { API_URL } from '@/lib/api';
 
 interface Company {
   id: string;
@@ -63,7 +64,7 @@ export default function EmpresaPage() {
         <div style={styles.header}>
           {company?.logoUrl && (
             <img
-              src={`http://localhost:4000${company.logoUrl}`}
+              src={`${API_URL}${company.logoUrl}`}
               alt="logo"
               style={styles.logo}
             />

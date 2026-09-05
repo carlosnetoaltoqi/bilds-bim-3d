@@ -1,12 +1,13 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { AssetStat, IGeometryStore } from './geometry-store.interface';
+import { storagePath } from '../common/storage-path';
 
 export class DiskGeometryStore implements IGeometryStore {
   private readonly baseDir: string;
 
   constructor() {
-    this.baseDir = path.resolve(process.env.STORAGE_PATH ?? path.join(process.cwd(), 'storage'));
+    this.baseDir = storagePath();
   }
 
   private validateKey(key: string): void {

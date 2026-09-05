@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { API_URL as API } from '@/lib/api';
 
-const API = process.env.API_URL ?? 'http://localhost:4000';
 
 export async function POST(req: NextRequest) {
   const token = req.cookies.get('session')?.value;

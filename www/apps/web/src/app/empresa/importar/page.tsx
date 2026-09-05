@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { API_URL } from '@/lib/api';
 
 type ImportStatus = 'recebido' | 'parseando' | 'gravando' | 'publicado' | 'vazio' | 'falhou';
 
@@ -112,7 +113,7 @@ export default function ImportarPage() {
         form.append('file', file);
 
         const xhr = new XMLHttpRequest();
-        xhr.open('POST', 'http://localhost:4000/importacoes');
+        xhr.open('POST', `${API_URL}/importacoes`);
         xhr.setRequestHeader('Authorization', `Bearer ${token}`);
 
         xhr.upload.onprogress = (ev) => {
