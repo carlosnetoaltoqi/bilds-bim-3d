@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import type { PocCatalog } from '../bim-catalog/types'
 import { CatalogForm } from './InfoForm'
 import { BotaoApagar } from '../BotaoApagar'
+import { BotaoExportarAq } from '../BotaoExportarAq'
 
 export function CatalogEditHeader({ catalog: inicial, publicUrl }: { catalog: PocCatalog; publicUrl: string }) {
   const router = useRouter()
@@ -20,7 +21,9 @@ export function CatalogEditHeader({ catalog: inicial, publicUrl }: { catalog: Po
             <a href={publicUrl} target="_blank" rel="noopener noreferrer" className="underline hover:text-white">ver página pública ↗</a>
             {' · '}<a href="/" className="underline hover:text-white">início</a>
           </p>
-          <div className="mt-3">
+          <div className="mt-3 flex items-center gap-3 flex-wrap">
+            <BotaoExportarAq catalogId={catalog.id} productCount={catalog.productCount}
+              className="px-2 py-1 rounded border border-white/60 text-[12px] text-white hover:bg-white/10 disabled:opacity-50" />
             <BotaoApagar rota={`/catalogos/${catalog.id}`} rotulo="apagar catálogo" depois="/"
               className="px-2 py-1 rounded border border-red-300/60 text-[12px] text-red-200 hover:bg-red-500/20"
               confirmacao={`Apagar o catálogo "${catalog.title}" com ${catalog.productCount} produto(s), geometria, miniaturas e as importações dele? Não tem volta.`} />
