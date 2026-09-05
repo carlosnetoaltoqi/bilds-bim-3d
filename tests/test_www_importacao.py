@@ -7,6 +7,11 @@ da API deixava o `BimImport` em `recebido/parseando/gravando` para sempre (pági
 e `importacoes/recuperacao.service.ts` marca `falhou` no boot o que ficou aberto e apaga os
 uploads temporários. Harnesses: `tests/paridade/fila.mts` (puro, strip-types) e
 `tests/paridade/recuperacao.cts` (ts-node de `www/apps/api`). Marcador `paridade`.
+
+S7.13 (teste de aceitação com a API de pé) acrescentou `tests/paridade/importacoes_processo.cts`:
+a nota "na fila — N à frente" é apagada quando o processamento começa (ficava no import publicado)
+e a vaga da fila só libera depois das miniaturas (o Chromium do import anterior rodava junto com o
+parse do seguinte) — para `.aq` e para CAD.
 """
 import json
 import subprocess
@@ -42,6 +47,18 @@ def recuperacao(node):
     proc = subprocess.run(
         [node, '--no-warnings', '--require', 'ts-node/register/transpile-only', '--require', 'reflect-metadata',
          str(ROOT / 'tests' / 'paridade' / 'recuperacao.cts')],
+        capture_output=True, text=True, cwd=API, timeout=300)
+    assert proc.returncode == 0, proc.stderr[-3000:]
+    return json.loads(proc.stdout)
+
+
+@pytest.fixture(scope='module')
+def processo(node):
+    if not (API / 'node_modules' / 'ts-node').is_dir():
+        pytest.skip('precisa de ts-node em www/apps/api/node_modules (pnpm install em www/)')
+    proc = subprocess.run(
+        [node, '--no-warnings', '--require', 'ts-node/register/transpile-only', '--require', 'reflect-metadata',
+         str(ROOT / 'tests' / 'paridade' / 'importacoes_processo.cts')],
         capture_output=True, text=True, cwd=API, timeout=300)
     assert proc.returncode == 0, proc.stderr[-3000:]
     return json.loads(proc.stdout)
@@ -116,3 +133,40 @@ def test_uploads_temporarios_so_os_nossos(recuperacao):
 def test_servico_nest_chama_a_recuperacao_no_on_module_init(recuperacao):
     r = recuperacao['servico_on_module_init']
     assert r['marcados'] == ['y'] and r['uploadsRemovidosEhArray'] is True
+
+
+# ── processamento dentro da vaga da fila (S7.13) ─────────────────────────────
+
+def _ordem(eventos, *nomes):
+    """Índice de cada evento (o primeiro que começa com o nome), para comparar a ordem."""
+    return [next(i for i, e in enumerate(eventos) if e.startswith(n)) for n in nomes]
+
+
+def test_nota_da_fila_e_apagada_quando_o_processamento_comeca(processo):
+    (import_id, primeiro), *_ = processo['aq']['updates']
+    assert import_id == 'imp1' and primeiro['status'] == 'parseando'
+    assert 'note' in primeiro and primeiro['note'] is None, primeiro
+    # o CAD já sobrescrevia com "convertendo…" — continua assim
+    (_, primeiro_cad), *_ = processo['cad']['updates']
+    assert primeiro_cad['status'] == 'parseando' and primeiro_cad['note'] == 'convertendo…'
+
+
+def test_vaga_da_fila_so_libera_depois_das_miniaturas_do_aq(processo):
+    r = processo['aq']
+    ev = r['eventos']
+    publicado, t_ini, t_fim, fim, segundo = _ordem(ev, 'update:publicado', 'thumbs:inicio', 'thumbs:fim', 'processo:fim', 'segundo:inicio')
+    # o segundo só começa depois que as miniaturas do primeiro acabaram (a fila libera a vaga
+    # antes de resolver a promise externa — por isso `segundo` pode vir antes de `processo:fim`)
+    assert publicado < t_ini < t_fim < segundo and t_fim < fim, ev
+    assert r['posicaoSegundo'] == 1 and r['aqRemovido'] is True
+    # o resultado das miniaturas foi registrado no import (I15) — depois de publicado
+    assert any(u.get('thumbCount') == 1 for _, u in r['updates'])
+
+
+def test_vaga_da_fila_so_libera_depois_da_miniatura_do_cad(processo):
+    r = processo['cad']
+    ev = r['eventos']
+    publicado, t_ini, t_fim, fim, segundo = _ordem(ev, 'update:publicado', 'thumbs:inicio', 'thumbs:fim', 'processo:fim', 'segundo:inicio')
+    assert publicado < t_ini < t_fim < segundo and t_fim < fim, ev
+    assert 'thumbs:inicio(imp2,1)' in ev
+    assert r['posicaoSegundo'] == 1 and r['stpRemovido'] is True

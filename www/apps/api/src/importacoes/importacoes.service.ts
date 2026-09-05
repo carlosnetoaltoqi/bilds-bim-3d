@@ -116,15 +116,20 @@ export class ImportacoesService {
     const t0 = Date.now();
     const lap = (label: string) => this.logger.log(`[${importId.slice(0, 8)}] ${label} — +${((Date.now() - t0) / 1000).toFixed(1)}s`);
 
-    const setStatus = (status: ImportStatus, extra?: Partial<BimImport>) =>
+    const setStatus = (status: ImportStatus, extra?: Partial<Record<keyof BimImport, unknown>>) =>
       this.importModel.findByIdAndUpdate(importId, {
         status,
         updatedAt: new Date(),
         ...extra,
       });
 
+    // As miniaturas rodam DEPOIS do try/catch, ainda dentro da vaga da fila (S7.13): assim dois
+    // uploads nunca têm dois Chromiums ao mesmo tempo, e uma falha nelas não vira `falhou`.
+    let paraMiniaturas: Array<{ productId: string; geoKey: string }> | null = null;
+
     try {
-      await setStatus('parseando');
+      // `note: null` apaga o "na fila — N à frente" que a espera escreveu (S7.13)
+      await setStatus('parseando', { note: null });
       lap('→ parseando (worker fork iniciado)');
 
       const result = await this.runWorker(importId, aqPath);
@@ -228,9 +233,9 @@ export class ImportacoesService {
 
       lap(`→ publicado — total ${((Date.now() - t0) / 1000).toFixed(1)}s`);
 
-      // Miniaturas em segundo plano (S2.4): não mudam o status do import, mas o
-      // resultado — inclusive cada falha — vai para o log e para o documento (I15).
-      void this.gerarMiniaturas(importId, productDocs.map((p) => ({ productId: p._id, geoKey: p.geoKey! })));
+      // Miniaturas não mudam o status do import (S2.4), mas o resultado — inclusive cada
+      // falha — vai para o log e para o documento (I15). Rodam abaixo, fora do try.
+      paraMiniaturas = productDocs.map((p) => ({ productId: p._id, geoKey: p.geoKey! }));
     } catch (err: any) {
       // Limpeza best-effort do que o worker gravou — falha aqui é logada, não escondida
       await this.store.deleteByPrefix(`geo/${importId}`).catch((e: any) =>
@@ -245,6 +250,9 @@ export class ImportacoesService {
     } finally {
       await fs.unlink(aqPath).catch(() => {});
     }
+
+    // Só agora a fila libera a vaga: quem espera vê "na fila" até o Chromium deste import fechar.
+    if (paraMiniaturas) await this.gerarMiniaturas(importId, paraMiniaturas); // nunca rejeita
   }
 
   private runWorker(importId: string, aqPath: string): Promise<WorkerResult> {

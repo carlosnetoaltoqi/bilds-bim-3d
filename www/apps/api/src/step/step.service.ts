@@ -266,6 +266,8 @@ export class StepService {
     const t0 = Date.now();
     const setStatus = (status: string, extra: Record<string, unknown> = {}) =>
       this.importModel.findByIdAndUpdate(importId, { status, updatedAt: new Date(), ...extra }).exec();
+    // miniatura depois do try/catch, ainda dentro da vaga da fila — mesmo motivo do processAsync dos .aq (S7.13)
+    let paraMiniatura: { productId: string; geoKey: string } | null = null;
     try {
       await setStatus('parseando', { note: 'convertendo…' });
       let ultimoProgresso = 0;
@@ -288,7 +290,7 @@ export class StepService {
         ].filter(Boolean).join(' — '),
       });
       this.logger.log(`${geo.formato?.toUpperCase()} importado — ${r.nome} → ${company.customUrl}/${r.slug} (produto ${r.productId}) em ${((Date.now() - t0) / 1000).toFixed(1)}s`);
-      void this.importacoes.gerarMiniaturas(importId, [{ productId: r.productId, geoKey: r.geoKey }]);
+      paraMiniatura = { productId: r.productId, geoKey: r.geoKey };
     } catch (err: any) {
       const msg = (err?.message ?? String(err)).slice(0, 2000);
       this.logger.error(`import ${importId.slice(0, 8)} FALHOU — ${msg}`);
@@ -297,6 +299,7 @@ export class StepService {
     } finally {
       await fs.unlink(opts.stpPath).catch(() => {});
     }
+    if (paraMiniatura) await this.importacoes.gerarMiniaturas(importId, [paraMiniatura]); // nunca rejeita
   }
 
   /**
