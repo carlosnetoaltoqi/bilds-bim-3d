@@ -129,6 +129,7 @@ Regras de execução: um commit por item; cada etapa termina com `pnpm -r build`
 - `GET /importacoes` faz três consultas por item; `www/README.md` "Estado da base" precisa ser atualizado a cada carga.
 - ~~I32~~ (fechado na S7.15: `MongoProntoGuard` → 503 na hora), Nest 11 (multer novo), `IngestaoClient` com timeout de 10 s no `PUT` (se o serviço travar, o PUT demora 10 s).
 - ~~C7~~ fechado na S7.15: preview só local, `vercel.json` removido. ~~I4~~ fechado na S7.15: pipeline autocontido.
+- `eng-reversa/tools/validar_aq.py` quebra no passo 4 (`import build` — `scripts/` não está no `sys.path` dele desde a E2); visto na S7.16 ao validar o `.aq` exportado. `eng-reversa/` está intocado por decisão do usuário — corrigir quando ele decidir mexer lá.
 - O inventário `docs/inventario-2026-09-05-fica-ou-sai.md` foi escrito ANTES desta arquitetura: as decisões D1–D3 dele foram superadas pela direção do usuário (o repo limpo é o `www/` de três apps + pipeline); o resto (arquivo/sai) continua válido.
 
 ## 5. O que fica fora (por enquanto)

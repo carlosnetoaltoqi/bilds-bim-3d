@@ -19,9 +19,10 @@ para o serviço ser autocontido quando for isolado num repositório próprio.
 | `aq_writer.py` + `schema-aq-607.sql` | **escrever** `.aq`: DDL completo do schema 607, constantes do AltoQi (sentinelas, IFC, aplicações), `EscritorAq` que grava texto em cp1252 (promovido do `eng-reversa/` em 2026-09-05, I4) |
 | `oq3d_writer.py` | **escrever** OQ3D: malhas indexadas → blob que o `oq3d.py` (e o Builder) leem; cilindro/tubo paramétricos |
 | `geo_to_aq.py` | `{pos, col, idx}` ou partes do editor → `.aq` com uma peça (usa os dois acima; nada de fora do serviço) |
+| `catalogo_to_aq.py` | **CLI** que o serviço executa em `GET /exportar/catalogo/:id`: manifesto JSON (catálogo + produtos + caminhos das geometrias no storage) → `.aq` **novo com todas as peças** — um grupo por série (`aq_writer.classificar_grupo`), uma simbologia por arquivo de geometria (compartilhada como no original), uma propriedade por chave de spec, curva Q-H; `--manter-prefixo-serie`; resumo JSON na última linha do stdout (S7.16) |
 | `processo.py` | `vigiar_stdin()`: o filho sai quando o pai morre |
 
-Nenhum módulo importa nada de fora deste diretório (`tests/test_geo_to_aq.py` garante). Todos importam os irmãos com o próprio diretório no `sys.path` — quem usa faz
+Nenhum módulo importa nada de fora deste diretório (`tests/test_geo_to_aq.py` garante). O inverso do `catalogo_de_aq.py` é o `catalogo_to_aq.py` (`tests/test_catalogo_to_aq.py` faz a ida e volta com a Akato inteira). Todos importam os irmãos com o próprio diretório no `sys.path` — quem usa faz
 `sys.path.insert(0, '<este dir>')` e `import oq3d`, como `build.py`, `tests/conftest.py` e
 `eng-reversa/tools/` fazem. O conhecimento sobre os formatos está em `docs/conhecimento/`
 (`oq3d.md`, `read-aq.md`, `parse-ifc.md`, `pipeline-estatico.md`).

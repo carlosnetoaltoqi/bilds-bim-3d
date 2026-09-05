@@ -1,7 +1,7 @@
 ---
 name: leitor-biblioteca-aq
 description: Lê E ESCREVE arquivos de biblioteca BIM do AltoQi Builder (.aq) — SQLite com geometria 3D embutida. Extrai peças, dados hidráulicos, curvas de bomba, propriedades, miniaturas e a malha 3D completa (formato OQ3D), dispensando os IFCs; e gera um .aq do zero, com o schema, os enums, o encoding cp1252 e o binário OQ3D corretos.
-version: 2.8.1
+version: 2.9.0
 author: Bilds / carlosnetoaltoqi
 ---
 
@@ -729,6 +729,34 @@ Regras que o `bilds-bim-3d/www/apps/ingestao/pipeline/geo_to_aq.py` segue e que 
   (a checagem "barras de tubo com 600 cm" é da Akato e não se aplica) e
   `read_aq.extract_simbologias` + `oq3d.to_buffers` devolvendo a mesma contagem, bbox e cor.
 
+### Um catálogo inteiro — N peças, geometria compartilhada, propriedades por chave
+
+Generalizar a receita acima para uma biblioteca com centenas de peças (`bilds-bim-3d`,
+`www/apps/ingestao/pipeline/catalogo_to_aq.py`, conferido contra a Amanco: 854 peças, 448
+simbologias, `NOME_PECA` igual ao original em 100 %, bbox e triângulos iguais em 448/448):
+
+- **Uma `SIMBOLOGIA_3D` por geometria distinta**, e uma linha de `PECA_SIMBOLOGIA_3D` por peça
+  que a usa — é assim que o AltoQi grava (Amanco: 1.168 peças, 869 vínculos, 457 simbologias).
+- **Uma `PROPRIEDADE_PERSONALIZADA` por chave**, num só `GRUPO_PROPRIEDADE_PERSONALIZADA`;
+  os valores por (peça, chave) em `VALOR_PROPRIEDADE_PERSONALIZADA`. Amanco: 12 propriedades,
+  4.925 valores.
+- **`NOME_PECA` curto, sem o nome do grupo**: `'50mm'` no grupo `Cap`. Quem exibe "Cap 50mm"
+  (por ambiguidade entre grupos) tem de tirar o prefixo antes de gravar.
+- **Códigos IFC do grupo inferidos do nome** quando não se tem os originais: tê/junção antes de
+  curva/joelho ("Junção Dupla com Joelho 45º" é tê); caixa sifonada `2085/4123/2092` sub 1 apl 9;
+  ralo pluvial `2085` sub 0 apl 10; terminal de ventilação `2079/4121/2092`; adaptador é luva;
+  sifão é cap (`2071` sub 3). 189 dos 192 grupos da Amanco batem com essas regras.
+- **Grupo com curva Q-H é bomba**: `2075/4118/2093`, `SUBTIPO_IFC 5`, `TIPO_APLICACAO_PECA 6`,
+  `MODELO_BOMBA` + `ITEM_CURVA_BOMBA` e `DADOS_HIDRAULICOS.ID_MODELO_BOMBA` (sem `TIPO_CURVA`).
+- **Peça com 3D, colunas como a Amanco:** `POSICIONAR_SIMBOLOGIA_3D 3`,
+  `INDICE_SIMBOLO3D_SELECIONADO 1`, `INDICACAO_DADOS = nome`, `DESCRICAO_DADOS_SIMBOLOGIA =
+  grupo`, dimensões na sentinela `-DBL_MAX`, `INDICACAO_PLANTA/DETALHE` nulos.
+- **Acuse**: geometria ausente, caractere fora do cp1252 (com tabela.coluna e posição), FK órfã.
+  Apague o arquivo parcial. Um `.aq` que "quase" abriu é pior do que nenhum.
+
+O que um catálogo publicado não guarda e o `.aq` gerado não terá: tubos e kits (sem simbologia
+3D), `ENTRADA_PECA`/`ENTRADA_3D`, simbologia 2D, `IMAGEM`, `WIREFRAME`, código comercial.
+
 ---
 
 ## Inferir fabricante e título
@@ -1137,6 +1165,14 @@ precisão nativa do AltoQi é o centímetro.
 ---
 
 ## Histórico
+
+**2.9.0** — Nova subseção "Um catálogo inteiro": as regras que só aparecem ao escrever N peças
+— uma simbologia por geometria distinta (e não por peça), uma propriedade por chave (e não por
+peça), `NOME_PECA` sem o nome do grupo, códigos IFC inferidos do nome (189/192 grupos da Amanco,
+com as correções tê > curva, caixa sifonada 2085, terminal 2079, ralo pluvial, adaptador, sifão),
+bomba por curva Q-H, colunas de peça com 3D como a Amanco grava. Vem do
+`www/apps/ingestao/pipeline/catalogo_to_aq.py` do `bilds-bim-3d` (S7.16), conferido com a
+Amanco inteira: 854 peças, 448 simbologias, nomes e geometria iguais aos originais.
 
 **2.8.1** — `build_product_map`/`find_aq_product` marcados como históricos: o modo `--ifc` do `build.py` foi removido em 2026-09-05 (I6); o matcher vive em `docs/estudo-oq3d/valida_ifc.py`.
 

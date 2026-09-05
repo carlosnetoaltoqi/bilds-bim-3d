@@ -45,6 +45,7 @@ Atlas — ver "A API não sobe e o Mongoose culpa o whitelist", no fim.
 | `POST /miniaturas/regerar` `{productId}` | 202 `{productId, naFrente}` — renderiza a miniatura do produto e grava `thumbKey`/`thumbAtualizadaEm` ou `thumbErro`. Quem chama é a API depois de editar geometria |
 | `POST /cad/tesselar` | multipart `.stp/.step/.ifc` (+ `deflexao`) → `{pos, col, idx, partes, unidade, bbox_mm, …}` síncrono — consumido pela página `/cad` do web (a conversão saiu do editor em 2026-09-05) |
 | `POST /exportar/aq` | JSON `{info, partes[] \| pos,col,idx}` → download do `.aq` (`geo_to_aq.py`); resumo no header `X-Aq-Resumo` |
+| `GET /exportar/catalogo/:catalogId` | download do **catálogo salvo como um `.aq` novo** (`catalogo_to_aq.py`, S7.16): todas as peças como estão na tela (as apagadas não vão; as editadas vão editadas, geometria inclusive), um grupo por série, simbologia compartilhada preservada, uma propriedade por chave de spec, curva Q-H. Gerado do zero (o `.aq` original não fica no servidor), stream e apagado — nada fica. Síncrono: Amanco 854 peças → 54 MB em 7 s. Nome `pecas_<Fabricante>_<Título>.aq`; resumo em `X-Aq-Resumo`. **404** catálogo inexistente, **400** sem produtos, **500** com o stderr do Python (geometria ausente, caractere fora do cp1252) |
 | `GET /health` | 200 `{status, mongo, pipeline}` ou 503 pela conexão do Mongoose |
 
 Estados de uma importação: `recebido → parseando → gravando → publicado | vazio | falhou`. As
@@ -78,7 +79,7 @@ No boot, imports não terminais viram `falhou` (`a API foi reiniciada durante a 
 | `/importar[?empresa=&tipo=aq\|cad]` | sobe `.aq`/`.zip`/`.stp`/`.step`/`.ifc` (`tipo` restringe; progresso de upload, campos CAD só quando o arquivo é CAD), acompanha o status a cada 2 s, lista as últimas importações com **apagar** (só as terminadas) |
 | `/cad` | converte `.stp`/`.step`/`.ifc` pelo serviço (`POST /cad/tesselar`) sem criar produto: viewer 3D, unidade/bbox/sólidos/triângulos, download em JSON, IFC4 (browser) ou `.aq` (`POST /exportar/aq`); link para importar como produto |
 | `/:empresa/:catalogo` | página pública: cabeçalho com **editar catálogo**, cards com miniatura pré-gerada, modal com viewer 3D e **Editar informações e modelo 3D →** |
-| `/:empresa/:catalogo/editar` | metadados do catálogo, **apagar catálogo**, lista de produtos com **Editar** / **apagar** (importar só pelo menu da página inicial) |
+| `/:empresa/:catalogo/editar` | metadados do catálogo, **baixar .aq (AltoQi Builder)** — o catálogo salvo vira uma biblioteca `.aq` nova para adicionar no Builder (`GET /exportar/catalogo/:id` do serviço) —, **apagar catálogo**, lista de produtos com **Editar** / **apagar** (importar só pelo menu da página inicial) |
 | `/:empresa/:catalogo/editar/:produtoId` | editor: viewport 3D (selecionar, mover, girar, espelhar, primitivas, STL/OBJ/JSON locais), informações, exportar IFC4 (no browser) e `.aq` (pelo serviço), salvar (`PUT /geometrias`), restaurar, **apagar peça**. **STEP/IFC não entram pelo editor** desde 2026-09-05: viram produto pela página inicial |
 | `/empresa/criar` | nome, customUrl, logo |
 
@@ -138,13 +139,13 @@ serviços com Mongo: o teste de aceitação da S7.14 (import Dancor e Amanco, ed
 | `tools/` | `testes-editor.sh`, `roundtrip-*.mts`, `e2e/` |
 | `storage/bim/` | `geo/<importId>/`, `thumbs/<importId>/`, `logos/` — gitignored, regenerável por import |
 
-## Estado da base e do storage (2026-09-05, fim da S7.15)
+## Estado da base e do storage (2026-09-05, fim da S7.16)
 
-**Zerado a pedido do usuário** depois de apagar o projeto na Vercel: as quatro coleções do Mongo
-(`companies`, `bim_catalogs`, `bim_products`, `bim_imports`) foram dropadas e `www/storage/bim/`
-(geometria, miniaturas, logos — 724 MB) foi apagado, assim como `output/` (3,2 GB de ZIPs, geometria,
-miniaturas e preview do pipeline estático — só a landing versionada ficou) e `eng-reversa/saida/`.
-O que existe hoje é o que uma sessão nova encontra: **nenhuma empresa, nenhum catálogo**.
+Zerado no fim da S7.15 (coleções dropadas, `www/storage/bim/`, `output/` e `eng-reversa/saida/`
+apagados) e **recarregado pelo usuário** em seguida: **2 empresas** — `amanco` com o catálogo
+`esgoto-sn-sr-silentium` (854 produtos: o `.aq` tem 856 com 3D, 2 `Cap 50mm` foram apagadas na
+interface; 457 geometrias em `geo/b9f20e3d…`) e `acme` com `pecas-ifc` (1 produto, `Projeto4.ifc`,
+760 mil triângulos). Storage: `geo/` 211 MB, `thumbs/` 2,9 MB.
 
 Para carregar: subir os três apps, criar uma empresa em `/empresa/criar`, importar em `/importar`
 (`input/` tem 16 `.aq`, gitignored). Reimportar um `.aq` **substitui** o catálogo de mesmo slug na
@@ -170,6 +171,9 @@ aponta para `geo/<importId>/<stem>.json` e a miniatura para `thumbs/<importId>/<
 - **Nest 10**: o multer embutido decodifica o nome do arquivo em latin1 (`upload.ts` corrige); subir
   para o Nest 11 traria o multer novo.
 - `tools/e2e/*.mjs` foram apontados para o serviço mas **não foram reexecutados** na S7.14.
+- **Não rode `pnpm -r build` com o `next dev` de pé**: o `next build` sobrescreve o `.next/` que o dev
+  server está usando e toda página passa a responder 500 (`Cannot find module './837.js'`) até
+  reiniciar o `pnpm dev:web` (aconteceu na S7.16). O `tsc --noEmit` em `apps/web` é seguro.
 
 ## Variáveis de ambiente — `www/.env`
 

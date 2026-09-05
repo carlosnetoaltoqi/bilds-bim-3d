@@ -222,6 +222,48 @@ aquecedor. `SUBTIPO_IFC` dentro de 2071: 0 curva/joelho, 1 luva, 3 cap, 4 tê, 6
 biblioteca sem geometria** — sem `CLASSE_SIMBOLOGIA_3D` o passo 1 não existe e a cascata
 cai no nome da pasta.
 
+### Escrever um catálogo inteiro — `www/apps/ingestao/pipeline/catalogo_to_aq.py` (S7.16, 2026-09-05)
+
+O `geo_to_aq.py` grava UMA peça. Para N peças (o "baixar .aq" da edição do catálogo, que gera
+uma biblioteca nova a partir do que está salvo no Mongo e no storage) valem mais cinco regras,
+todas conferidas contra a Amanco (854 peças exportadas, 448 simbologias, `NOME_PECA` idêntico
+ao original em 100 % das peças, bbox e nº de triângulos iguais em 448/448 geometrias):
+
+- **Uma `SIMBOLOGIA_3D` por arquivo de geometria, não por peça.** O pipeline grava uma geometria
+  por simbologia e várias peças apontam para ela; ao escrever, o mesmo arquivo vira a mesma
+  simbologia e cada peça ganha a sua linha em `PECA_SIMBOLOGIA_3D` (856 peças → 457 na Amanco
+  original; 854 → 448 no export). Uma geometria editada (copy-on-write) vira simbologia própria.
+- **Uma `PROPRIEDADE_PERSONALIZADA` por chave de spec, não por peça.** A Amanco tem 12
+  propriedades para 4.925 valores; escrever uma propriedade por (peça, chave) multiplicaria a
+  tabela por 400 e o Builder mostraria 4.000 "propriedades". Um único
+  `GRUPO_PROPRIEDADE_PERSONALIZADA` ("Fabricante: Título").
+- **`NOME_PECA` é o nome sem o prefixo da série.** O `catalogo.py` exibe "Cap 50mm" porque "50mm"
+  se repete entre Cap, Luva e Joelho; no `.aq` a Amanco grava `NOME_PECA = '50mm'` no grupo
+  `Cap`. Tirar o prefixo `"<série> "` do nome da tela devolve o original em 100 % das 854 peças.
+  A reconstrução pelo `catalogo.py` pode mostrar 52 nomes sem o prefixo que a tela tinha — a regra
+  de prefixo depende do conjunto de nomes do arquivo, e o export tem menos peças (sem tubos/kits).
+- **Grupo por série, com os códigos IFC inferidos do nome** (`aq_writer.classificar_grupo`): regras
+  por palavra inteira, ajustadas contra os 192 grupos com 3D da Amanco — 189 batem; os 3 que não
+  batem têm códigos diferentes dos irmãos no próprio arquivo ("Caixa Sifonada" 2076/3/9 ao lado de
+  "Caixa Sifonada 3 Entradas" 2085/1/9). Um grupo com produto de curva Q-H vira bomba
+  (`2075/4118/2093`, `SUBTIPO_IFC 5`, `TIPO_APLICACAO_PECA 6`, como a Dancor). `PROJETO_APLICACAO`
+  por palavra do título/série (`aplicacao_de`: esgoto 8, incêndio 22, gás 36, senão água fria 12).
+- **Colunas de uma peça com 3D, como a Amanco grava:** `POSICIONAR_SIMBOLOGIA_3D = 3`,
+  `INDICE_SIMBOLO3D_SELECIONADO = 1`, `INDICACAO_DADOS = nome`, `DESCRICAO_DADOS_SIMBOLOGIA =
+  grupo`, `COMPRIMENTO/ESPESSURA/LARGURA/ALTURA/PROFUNDIDADE_PECA = -DBL_MAX`, `INDICACAO_PLANTA`
+  e `INDICACAO_DETALHE` nulos. (O `geo_to_aq.py` usa `0`/`-1` e preenche as indicações — os dois
+  abrem no leitor do projeto; no Builder só a Akato, gerada como o `geo_to_aq.py`, foi vista.)
+
+**O que o catálogo não guarda e portanto não volta:** as peças sem simbologia 3D (312 tubos e kits
+da Amanco), `ENTRADA_PECA`/`ENTRADA_3D` (bocais, conectividade), simbologia 2D, `IMAGEM`,
+`WIREFRAME` e o **código comercial** (`ITEM.CODIGO_ITEM` sai com a spec "Código" se houver, senão o
+slug do produto). Guardar o `.aq` original no import resolveria isso por um caminho diferente
+(copiar e aplicar deltas) — não foi feito.
+
+**Erros que a geração acusa** (exit 1, `.aq` parcial apagado): geometria ausente ou inválida no
+storage (com o nome do produto), caractere fora do cp1252 em nome/série/spec (com tabela.coluna e
+posição), catálogo sem produtos, chave estrangeira órfã no `PRAGMA foreign_key_check` final.
+
 ### Diferenças entre versões de schema
 
 | Versão | Bibliotecas | Diferença notada |

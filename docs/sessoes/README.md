@@ -58,6 +58,7 @@ Convenção: `S<plano>.<n>-<slug>.md` para sessões numeradas; `AAAA-MM-DD-<slug
 | 2026-09-05 | S7.13 | `S7.13-teste-de-aceitacao-www.md` | S7.13: teste de aceitação com API + Mongo + Chromium — cenários de S7.11/S7.12 confirmados; achou e corrigiu I27–I31 (fila segura as miniaturas, nota `na fila`, workers órfãos, nome UTF-8, DTO do produto); I32 aberto; suíte 107 |
 | 2026-09-05 | S7.14 | `S7.14-www-servico-de-ingestao.md` | S7.14: inventário fica-ou-sai e reestruturação do `www/` em serviço de ingestão (pipeline Python + Chromium) + API de catálogo + web sem login (E1–E6); aceitação com Dancor e Amanco (856/448 em 58 s), copy-on-write, `kill -9`; suíte 102 |
 | 2026-09-05 | S7.15 | `S7.15-i32-c7-i4.md` | S7.15: I32 (`MongoProntoGuard` → 503 na hora), C7 (preview só local, `vercel.json` removido), I4 (`aq_writer.py`, `oq3d_writer.py` e schema no pipeline; `Gerador(EscritorAq)`); suíte 107 |
+| 2026-09-05 | S7.16 | `S7.16-exportar-catalogo-aq.md` | S7.16: o catálogo salvo vira um `.aq` novo — `catalogo_to_aq.py`, `GET /exportar/catalogo/:id`, botão "baixar .aq" na edição; Amanco 854 peças/448 simbologias em 7 s, nomes e geometria iguais ao original, sem as 2 peças apagadas; `classificar_grupo` 189/192; suíte 121 |
 
 Registro mais recente primeiro é o que o `CLAUDE.md` aponta em "Fase atual". Para saber onde a próxima sessão
 começa, leia a seção 7 do último registro.

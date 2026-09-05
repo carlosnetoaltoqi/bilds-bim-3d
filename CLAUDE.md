@@ -45,7 +45,7 @@ agente e skills fora do repo são auxiliares. **Toda sessão termina assim:**
 | Planos históricos | `docs/plano-produto-dinamico.md`, `docs/plano-integracao-bilds.md`, `docs/plans/` — **históricos**, não guiam nada |
 | O que a bilds.com recebe deste pipeline (lado consumidor) | `docs/saida-bilds-com/pipeline-bim-dinamico-na-bilds-com.md` |
 | Como a geometria do `.aq` foi descoberta e validada | `docs/estudo-oq3d/` |
-| **Escrever** `.aq`/OQ3D do zero | `www/apps/ingestao/pipeline/{aq_writer,oq3d_writer}.py` (I4, 2026-09-05) + `docs/conhecimento/read-aq.md`; catálogo a partir de PDF (Akato) em `eng-reversa/README.md` |
+| **Escrever** `.aq`/OQ3D do zero — uma peça (`geo_to_aq.py`) ou o **catálogo inteiro** (`catalogo_to_aq.py`, botão "baixar .aq") | `www/apps/ingestao/pipeline/{aq_writer,oq3d_writer,geo_to_aq,catalogo_to_aq}.py` + `docs/conhecimento/read-aq.md` ("Escrever um `.aq`", "Escrever um catálogo inteiro"); catálogo a partir de PDF (Akato) em `eng-reversa/README.md` |
 | Vocabulário (OQ3D, Import, Parte, Bake, sentinela, código de diâmetro…) | `CONCEPTS.md` |
 | **Pendências de sistema e ordem de ataque** (C1–C10, I1–I32, L1–L14) | `docs/auditoria-2026-09-03-pendencias.md`; o que fica/sai a caminho do repo limpo em `docs/inventario-2026-09-05-fica-ou-sai.md` |
 | **Registro de cada sessão**, índice cronológico | `docs/sessoes/README.md` |
@@ -113,9 +113,16 @@ só local; `vercel.json` removido — o projeto na Vercel ainda existe) e I4 (`a
 STEP/IFC saem do editor (menu na home: importar `.aq`, importar peça CAD, **converter peça CAD** em `/cad`, criar
 empresa) e **apagar em cada nível** (empresa, catálogo, peça, importação — `dominio/remocao.ts`). Suíte **115**.
 
-**Próxima sessão:** ver `docs/sessoes/S7.14-www-servico-de-ingestao.md`, seção 7 — build do `dist/` com o
-`@bim/dominio`, e2e reexecutados, aceitação automatizada, Nest 11; depois o isolamento do serviço.
-Decisão antiga ainda em aberto: LICENSE (C7, I4 e I32 foram fechados em 2026-09-05, S7.15).
+**S7.16 (2026-09-05):** a pedido — **o catálogo salvo vira um `.aq` novo** para o AltoQi Builder: `catalogo_to_aq.py`
+(N peças; um grupo por série com códigos IFC inferidos do nome — `aq_writer.classificar_grupo`, 189/192 grupos da
+Amanco —; uma simbologia por geometria compartilhada; uma propriedade por chave; curva Q-H), `GET /exportar/catalogo/:id`
+no serviço (stream, nada fica no servidor) e o botão **"baixar .aq (AltoQi Builder)"** na edição do catálogo. Amanco:
+854 peças (as 2 apagadas na interface não vão), 448 simbologias, 54 MB em 7 s, `NOME_PECA` e geometria iguais ao
+original. Registro: `docs/sessoes/S7.16-exportar-catalogo-aq.md`. Suíte **121**.
+
+**Próxima sessão:** primeiro o usuário abre o `.aq` exportado no Builder (S7.16 §7). Depois
+`docs/sessoes/S7.14-www-servico-de-ingestao.md`, seção 7 — build do `dist/` com o `@bim/dominio`, e2e reexecutados,
+aceitação automatizada, Nest 11; depois o isolamento do serviço. Decisão antiga ainda em aberto: LICENSE.
 
 **Estado da base:** em `www/README.md`, "Estado da base e do storage" — única versão.
 A raiz está **sem `config.json`** (o build interativo recria).
@@ -185,7 +192,7 @@ bilds-bim-3d/
 ├── www/                         ← em reestruturação (docs/arquitetura-www-servico-de-ingestao.md) — README próprio
 │   ├── apps/ingestao/pipeline/  ← ★ O PIPELINE PYTHON: read_aq.py, oq3d.py, dedup.py, catalogo.py, inferencia.py, miniaturas.py,
 │   │                               catalogo_de_aq.py (CLI), step_to_geo.py, ifc_to_geo.py, parse_ifc.py, geo_to_aq.py, aq_writer.py,
-│   │                               oq3d_writer.py, schema-aq-607.sql, thumbs.mjs + harness.html
+│   │                               oq3d_writer.py, catalogo_to_aq.py (catálogo salvo → .aq novo), schema-aq-607.sql, thumbs.mjs + harness.html
 │   ├── apps/api (Nest :4000) · apps/web (Next :3000) · tools/ (testes do editor)
 ├── input/                       ← .aq do usuário — gitignored
 └── output/                      ← gerado; só preview/index.html (landing feita à mão) é versionado
@@ -232,7 +239,7 @@ esperadas estão **nos arquivos**, não em texto: `.python-version`, `.nvmrc`, `
 ## Testes — `tests/`
 
 ```bash
-python3 -m pytest                                   # 115 testes, ≈ 60 s (abre o Chromium duas vezes)
+python3 -m pytest                                   # 121 testes, 1–4 min (abre o Chromium duas vezes; ida e volta da Akato)
 python3 -m pytest -m "not thumbs"                   # sem Chromium — é o que o CI roda
 python3 -m pytest -m "not thumbs and not paridade"  # só Python, sem Node
 ```
@@ -243,6 +250,7 @@ python3 -m pytest -m "not thumbs and not paridade"  # só Python, sem Node
 | `test_read_aq.py` | `open_aq` não cria arquivo, read-only, rejeita lixo; contagens da Akato; cp1252 sem `\x80–\x9f`/U+FFFD |
 | `test_build.py` | `auto_config` (só chaves do `.aq`; `--ifc` recusado — I6); `build_catalog_from_aq` + `diag` em Akato corrompida; render dos dois layouts com `1" x 1" <script>`; sem Jinja2/template → `RuntimeError`; `thumbCount`; `ThumbsError` sem Node, `--allow-no-thumbs`, `--skip-thumbs`, `run_all` exit 1; uma miniatura real |
 | `test_geo_to_aq.py` | I4: o pipeline não importa nada de fora do próprio diretório; `geo_to_aq.py` gera um `.aq` de uma malha que `read_aq.py` e `oq3d.py` leem de volta (nome com acento em cp1252, specs, um triângulo, cores) |
+| `test_catalogo_to_aq.py` | S7.16: `catalogo_to_aq.py` — manifesto com geometria compartilhada, cores, acentos, curva Q-H → relido por `read_aq`/`oq3d`/`catalogo.py` (uma simbologia por geometria, uma propriedade por chave, bomba 2075, cp1252 nos bytes); `--manter-prefixo-serie`; geometria ausente, caractere fora do cp1252 e catálogo vazio → exit 1 sem arquivo parcial; **ida e volta com a Akato inteira** (262 peças: nomes, séries, specs, bbox e triângulos iguais) |
 | `test_oq3d_roundtrip.py` | `eng-reversa/tools/oq3d_roundtrip.py` como processo: caminho padrão da Amanco, seis casos, `.aq` ausente → exit 1, `--sem-real` |
 | `test_editor_roundtrips.py` | `www/tools/testes-editor.sh`: round-trip do `mesh-model` por agrupamento a 2 µm; IFC exportado → `parse_ifc.py` com todo vértice pareado a ≤ 2 µm nos dois sentidos; `ROUNDTRIP_SABOTAR=1` e `ROUNDTRIP_SABOTAR_IFC=1` têm de falhar |
 | `test_processo.py` | E3: `executar()` do serviço — saída ≠ 0 com o stderr, sinal, timeout, ocioso, comando inexistente, stdin do filho aberto enquanto o pai vive; `vigiar_stdin` sai com 2 no EOF e continua com o stdin aberto; `thumbs.mjs` com `sairComStdin` para sem renderizar (marcador `thumbs`) |
