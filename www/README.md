@@ -135,34 +135,22 @@ serviços com Mongo: o teste de aceitação da S7.14 (import Dancor e Amanco, ed
 | `tools/` | `testes-editor.sh`, `roundtrip-*.mts`, `e2e/` |
 | `storage/bim/` | `geo/<importId>/`, `thumbs/<importId>/`, `logos/` — gitignored, regenerável por import |
 
-## Estado da base e do storage (2026-09-05, fim da S7.14)
+## Estado da base e do storage (2026-09-05, fim da S7.15)
 
-Mongo Atlas `bilds-bim-3d`, coleções `companies`, `bim_catalogs`, `bim_products`, `bim_imports`.
-**Uma empresa**, `poc-edicao` ("POC Edição"), com **9 catálogos**:
+**Zerado a pedido do usuário** depois de apagar o projeto na Vercel: as quatro coleções do Mongo
+(`companies`, `bim_catalogs`, `bim_products`, `bim_imports`) foram dropadas e `www/storage/bim/`
+(geometria, miniaturas, logos — 724 MB) foi apagado, assim como `output/` (3,2 GB de ZIPs, geometria,
+miniaturas e preview do pipeline estático — só a landing versionada ficou) e `eng-reversa/saida/`.
+O que existe hoje é o que uma sessão nova encontra: **nenhuma empresa, nenhum catálogo**.
 
-| slug | título | fabricante | layout | produtos | origem |
-|---|---|---|---|---|---|
-| `bomba-de-combate-a-incencio` | Bomba de Combate a Incêncio | DANCOR | series-rows | 13 | port TS (antes da S7.14) |
-| `pvc-agua-fria-soldavel` | PVC Água Fria Soldável | AKATO | catalog-grid | 262 | port TS |
-| `komeco` | KOMECO | KOMECO | catalog-grid | 12 | port TS |
-| `dispositivos-smart` | Dispositivos smart | INTELBRAS | catalog-grid | 32 | port TS |
-| `pvc-esgoto-silentium` | PVC Esgoto Silentium | AMANCO | catalog-grid | 856 | port TS |
-| `pecas-step` · `pecas-ifc` | Peças STEP · Peças IFC | STEP · IFC | catalog-grid | 5 · 5 | import CAD |
-| **`bombas-incendio`** | Bombas Incendio | Dancor | series-rows | 13 | **pipeline Python (S7.14)** |
-| **`esgoto-sn-sr-silentium`** | Esgoto SN SR Silentium | Amanco | catalog-grid | 856 | **pipeline Python (S7.14)** |
+Para carregar: subir os três apps, criar uma empresa em `/empresa/criar`, importar em `/importar`
+(`input/` tem 16 `.aq`, gitignored). Reimportar um `.aq` **substitui** o catálogo de mesmo slug na
+empresa (ids de produto mudam). Para zerar de novo: dropar as quatro coleções e apagar
+`www/storage/bim/{geo,thumbs,logos}`.
 
-Os títulos/fabricantes diferem entre os dois caminhos porque o pipeline Python usa a inferência do
-`build.py` (`inferencia.py`: `CLASSE_SIMBOLOGIA_3D`, pasta, nome do arquivo) e o port TS usava só a
-classe. Os cinco catálogos do port TS têm uma geometria **por produto** (`geo/<importId>/<slug do
-produto>.json`); os do pipeline têm uma **por simbologia**, compartilhada. Os dois modelos convivem
-na mesma API (copy-on-write só acontece quando há compartilhamento).
-
-`storage/bim/geo`: 712 MB em 25 diretórios de import (vários vazios — imports substituídos ou
-falhos; o `deleteByPrefix` passou a remover o diretório na S7.14). `thumbs/`: 12 MB.
-
-**Recarregar é só importar de novo** (`/importar`): `input/` tem 16 `.aq`. Reimportar um `.aq`
-**substitui** o catálogo de mesmo slug na empresa (ids de produto mudam). Para zerar: apagar as
-quatro coleções e `storage/bim/{geo,thumbs}`.
+Lembrete sobre os dois modelos de geometria que a API aceita: catálogos do pipeline Python têm uma
+geometria **por simbologia**, compartilhada entre produtos (copy-on-write ao editar); o `geoKey`
+aponta para `geo/<importId>/<stem>.json` e a miniatura para `thumbs/<importId>/<stem>.webp`.
 
 ## Decisões e pendências
 
