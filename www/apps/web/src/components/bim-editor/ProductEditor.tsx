@@ -14,7 +14,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { API_URL, apiJson } from '@/lib/api'
+import { API_URL, INGESTAO_URL, apiJson } from '@/lib/api'
 import type { GeoData } from '../bim-catalog/bim-viewer-engine'
 import { invalidateGeo } from '../bim-catalog/bim-viewer-engine'
 import type { PocCatalog, PocProduct } from '../bim-catalog/types'
@@ -186,7 +186,7 @@ export function ProductEditor(props: Props) {
     setSaving(true)
     setMsg(null)
     try {
-      const r = await fetch(`${API_URL}/exportar/aq`, {
+      const r = await fetch(`${INGESTAO_URL}/exportar/aq`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
@@ -230,7 +230,7 @@ export function ProductEditor(props: Props) {
     try {
       const fd = new FormData()
       fd.append('file', file)
-      const r = await fetch(`${API_URL}/cad/tesselar`, { method: 'POST', body: fd })
+      const r = await fetch(`${INGESTAO_URL}/cad/tesselar`, { method: 'POST', body: fd })
       const data = await r.json().catch(() => ({}))
       if (!r.ok) throw new Error(data?.message ? String(data.message) : `API ${r.status}`)
       const novas = segment(data as GeoData).map((p) => ({ ...p, nome: `${file.name.replace(/\.(stp|step|ifc)$/i, '')} · ${p.nome}` }))

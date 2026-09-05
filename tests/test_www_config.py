@@ -38,6 +38,9 @@ def test_web_so_lib_api_conhece_as_urls_dos_servicos():
     assert culpados == [], f'`localhost:4000`/`4100` fixo fora de lib/api.ts: {culpados}'
     lib = LIB_API.read_text(encoding='utf8')
     assert 'NEXT_PUBLIC_API_URL' in lib and 'process.env.API_URL' in lib
+    assert 'NEXT_PUBLIC_INGESTAO_URL' in lib and 'process.env.INGESTAO_URL' in lib
+    # o web não tem mais rotas-proxy nem login (A7): tudo vai direto aos dois serviços
+    assert not (WEB_SRC / 'app' / 'api').exists() and not (WEB_SRC / 'middleware.ts').exists()
 
 
 def test_api_so_o_cliente_conhece_o_servico_de_ingestao():

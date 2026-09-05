@@ -1,8 +1,8 @@
 /**
- * e2e-cad-import.mjs — sobe um STEP ou IFC pela API assíncrona, acompanha o
+ * e2e-cad-import.mjs — sobe um STEP ou IFC pelo serviço de ingestão, acompanha o
  * status até publicar e abre o produto no editor, medindo o carregamento.
  *
- * É o teste de `POST /cad/importar` + `GET /cad/importacoes/:id` + editor, o
+ * É o teste de `POST /importacoes` + `GET /importacoes/:id` (apps/ingestao) + editor, o
  * mesmo caminho da página /importar-step. Serve tanto para uma peça de 33 KB
  * (2831A09.stp, ~3 s) quanto para um Revit de 124 MB (Projeto4.ifc, ~4 min).
  *
@@ -20,6 +20,7 @@ const arg = (nome, padrao) => {
   return i >= 0 ? (process.argv[i + 1] ?? true) : padrao
 }
 const API = process.env.API_URL ?? 'http://localhost:4000'
+const INGESTAO = process.env.INGESTAO_URL ?? 'http://localhost:4100'
 const WEB = process.env.WEB_URL ?? 'http://localhost:3000'
 const ARQUIVO = process.argv[2]
 if (!ARQUIVO || ARQUIVO.startsWith('--')) throw new Error('uso: e2e-cad-import.mjs <arquivo.stp|.ifc> [opções]')
@@ -32,7 +33,7 @@ fd.append('file', await openAsBlob(ARQUIVO), basename(ARQUIVO))
 for (const k of ['nome', 'catalogo', 'fabricante', 'deflexao', 'empresa']) if (arg(k)) fd.append(k, arg(k))
 const tamanhoMb = statSync(ARQUIVO).size / 1024 / 1024
 const t0 = Date.now()
-const r = await fetch(`${API}/cad/importar`, { method: 'POST', body: fd })
+const r = await fetch(`${INGESTAO}/importacoes`, { method: 'POST', body: fd })
 const inicio = await r.json()
 if (!r.ok) throw new Error(`importar: ${r.status} ${JSON.stringify(inicio)}`)
 console.log(`upload de ${tamanhoMb.toFixed(1)} MB em ${Date.now() - t0} ms → ${inicio.status} ${inicio.importId}`)
@@ -42,7 +43,7 @@ let st
 let ultimaNota = ''
 while (true) {
   await new Promise((ok) => setTimeout(ok, 3000))
-  st = await (await fetch(`${API}/cad/importacoes/${inicio.importId}`)).json()
+  st = await (await fetch(`${INGESTAO}/importacoes/${inicio.importId}`)).json()
   const linha = `${st.status} | ${st.note ?? ''}`
   if (linha !== ultimaNota) { console.log(`  ${((Date.now() - t0) / 1000).toFixed(0)}s ${linha}`); ultimaNota = linha }
   if (st.status === 'publicado' || st.status === 'falhou') break
