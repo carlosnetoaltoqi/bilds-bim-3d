@@ -1,7 +1,8 @@
 {
-  "name": "bilds-bim-3d-poc",
+  "name": "bilds-bim-3d-www",
   "private": true,
   "scripts": {
+    "dev:ingestao": "pnpm --filter ingestao dev",
     "dev:api": "pnpm --filter api dev",
     "dev:web": "pnpm --filter web dev"
   },

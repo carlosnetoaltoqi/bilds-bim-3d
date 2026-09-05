@@ -1,6 +1,6 @@
 import { Transform } from 'class-transformer';
 import { IsNotEmpty, IsString, MaxLength } from 'class-validator';
-import { LIMITES } from '../common/validation';
+import { LIMITES } from '@bim/dominio';
 
 /** Campos de formulário do `POST /empresas` (multipart: `name`, `customUrl`, arquivo `logo`). */
 export class CriarEmpresaDto {

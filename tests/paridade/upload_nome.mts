@@ -2,7 +2,7 @@
 // arquivo decodificado como latin1. Puro, roda com strip-types; imprime JSON para test_www_config.py.
 //
 //   node --no-warnings --experimental-strip-types tests/paridade/upload_nome.mts
-import { nomeOriginalUtf8 } from '../../www/apps/api/src/common/upload.ts'
+import { nomeOriginalUtf8 } from '../../www/packages/dominio/src/upload.ts'
 
 const mojibake = Buffer.from('pecas_komeco_aquecimento_agua_a_gás.aq', 'utf8').toString('latin1') // o que o busboy entrega
 process.stdout.write(JSON.stringify({

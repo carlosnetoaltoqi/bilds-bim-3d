@@ -1,6 +1,6 @@
 import { Transform } from 'class-transformer';
 import { IsIn, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
-import { LIMITES } from '../common/validation';
+import { LIMITES } from '@bim/dominio';
 
 /** Corpo do `PATCH /catalogos/:catalogId` (I16): título, fabricante e layout. */
 export class PatchCatalogoDto {

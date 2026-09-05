@@ -1,31 +1,40 @@
-"""Dependências da API da POC coerentes (I12).
+"""Dependências dos apps de `www/` coerentes (I12, estendido na E3).
 
 Até 2026-09-05 `@nestjs/mongoose@12` exigia Nest ^11||^12 sobre um Nest 10 instalado (peer
 violada, sem aviso porque o pnpm só reporta na instalação), e havia dois drivers Mongo: o
-`mongodb@6` do `health.controller.ts` e o `mongodb@7` que o `mongoose@9` embute. Agora
-`@nestjs/mongoose` é 11 (peers ^10||^11), o pacote `mongodb` saiu de `apps/api`, o health
-responde pela conexão do Mongoose e as ferramentas de `www/tools` usam `mongoose.mongo`.
+`mongodb@6` do `health.controller.ts` e o `mongodb@7` que o `mongoose@9` embute. Desde a E3
+há três importers no lockfile — `apps/api`, `apps/ingestao` e `packages/dominio` — e eles têm
+de resolver as MESMAS versões de Nest e Mongoose: o `@bim/dominio` é fonte TypeScript compilada
+dentro de cada app, e duas cópias de `@nestjs/common` ou de `mongoose` quebrariam a injeção e
+os schemas em silêncio.
 
-Estes testes leem `package.json` e `pnpm-lock.yaml` — nada de rede — e acusam a volta de
-qualquer uma das duas situações. Só Python.
+Estes testes leem `package.json` e `pnpm-lock.yaml` — nada de rede. Só Python.
 """
 import json
 import re
-from pathlib import Path
 
 from conftest import ROOT
 
 WWW = ROOT / 'www'
 API = WWW / 'apps' / 'api'
+INGESTAO = WWW / 'apps' / 'ingestao'
+DOMINIO = WWW / 'packages' / 'dominio'
 LOCK = (WWW / 'pnpm-lock.yaml').read_text(encoding='utf8')
-PKG = json.loads((API / 'package.json').read_text(encoding='utf8'))
+IMPORTERS = ('apps/api', 'apps/ingestao', 'packages/dominio')
 
 
-def _versao_instalada(nome):
-    """Versão resolvida no importer apps/api do lockfile (ex.: '10.4.22')."""
-    bloco = LOCK[LOCK.index('  apps/api:'):]
+def _bloco_importer(importer):
+    i = LOCK.index(f'  {importer}:\n')
+    resto = LOCK[i + len(importer) + 4:]
+    m = re.search(r'^  \S', resto, flags=re.M)     # próximo importer (indentação 2)
+    return resto[: m.start()] if m else resto
+
+
+def _versao_instalada(nome, importer='apps/api'):
+    """Versão resolvida no importer do lockfile (ex.: '10.4.22')."""
+    bloco = _bloco_importer(importer)
     m = re.search(rf"^      '?{re.escape(nome)}'?:\n        specifier: .*\n        version: (\d+\.\d+\.\d+)", bloco, flags=re.M)
-    assert m, f'{nome} não está no importer apps/api do pnpm-lock.yaml'
+    assert m, f'{nome} não está no importer {importer} do pnpm-lock.yaml'
     return m.group(1)
 
 
@@ -45,30 +54,62 @@ def _satisfaz(versao, faixa):
 
 
 def test_nestjs_mongoose_satisfaz_o_nest_instalado():
-    mongoose_nest = _versao_instalada('@nestjs/mongoose')
-    peers = _peers('@nestjs/mongoose', mongoose_nest)
-    for pacote in ('@nestjs/common', '@nestjs/core', 'mongoose'):
-        instalado = _versao_instalada(pacote)
-        assert _satisfaz(instalado, peers[pacote]), (
-            f'@nestjs/mongoose@{mongoose_nest} exige {pacote} {peers[pacote]}, instalado {instalado}')
+    for importer in ('apps/api', 'apps/ingestao'):
+        mongoose_nest = _versao_instalada('@nestjs/mongoose', importer)
+        peers = _peers('@nestjs/mongoose', mongoose_nest)
+        for pacote in ('@nestjs/common', '@nestjs/core', 'mongoose'):
+            instalado = _versao_instalada(pacote, importer)
+            assert _satisfaz(instalado, peers[pacote]), (
+                f'{importer}: @nestjs/mongoose@{mongoose_nest} exige {pacote} {peers[pacote]}, instalado {instalado}')
 
 
 def test_platform_express_satisfaz_o_nest_instalado():
-    v = _versao_instalada('@nestjs/platform-express')
-    peers = _peers('@nestjs/platform-express', v)
-    for pacote in ('@nestjs/common', '@nestjs/core'):
-        assert _satisfaz(_versao_instalada(pacote), peers[pacote]), (pacote, peers[pacote], _versao_instalada(pacote))
+    for importer in ('apps/api', 'apps/ingestao'):
+        v = _versao_instalada('@nestjs/platform-express', importer)
+        peers = _peers('@nestjs/platform-express', v)
+        for pacote in ('@nestjs/common', '@nestjs/core'):
+            assert _satisfaz(_versao_instalada(pacote, importer), peers[pacote]), (importer, pacote, peers[pacote])
+
+
+def test_os_tres_importers_resolvem_as_mesmas_versoes():
+    """Uma só cópia de Nest, Mongoose e class-validator: o dominio é compilado dentro de cada app."""
+    for pacote in ('@nestjs/common', '@nestjs/mongoose', 'mongoose', 'class-validator', 'class-transformer', 'reflect-metadata'):
+        versoes = {imp: _versao_instalada(pacote, imp) for imp in IMPORTERS}
+        assert len(set(versoes.values())) == 1, f'{pacote} resolvido em versões diferentes: {versoes}'
+    for pacote in ('@nestjs/core', '@nestjs/platform-express', 'multer'):
+        assert _versao_instalada(pacote, 'apps/api') == _versao_instalada(pacote, 'apps/ingestao'), pacote
+
+
+def test_dominio_e_dependencia_dos_dois_apps_e_so_deles():
+    for app in (API, INGESTAO):
+        pkg = json.loads((app / 'package.json').read_text(encoding='utf8'))
+        assert pkg['dependencies'].get('@bim/dominio') == 'workspace:*', app
+    web = json.loads((WWW / 'apps' / 'web' / 'package.json').read_text(encoding='utf8'))
+    assert '@bim/dominio' not in web.get('dependencies', {}), 'o web não consome schemas do Mongo — fala com a API'
 
 
 def test_um_so_driver_mongo():
-    assert 'mongodb' not in PKG['dependencies'] and 'mongodb' not in PKG.get('devDependencies', {}), \
-        'o pacote mongodb voltou a apps/api — o mongoose já embute o driver'
-    culpados = [str(p.relative_to(ROOT)) for base in (API / 'src', WWW / 'tools')
+    for base in (API, INGESTAO, DOMINIO):
+        pkg = json.loads((base / 'package.json').read_text(encoding='utf8'))
+        assert 'mongodb' not in pkg.get('dependencies', {}) and 'mongodb' not in pkg.get('devDependencies', {}), \
+            f'o pacote mongodb voltou a {base.relative_to(ROOT)} — o mongoose já embute o driver'
+    culpados = [str(p.relative_to(ROOT)) for base in (API / 'src', INGESTAO / 'src', DOMINIO / 'src', WWW / 'tools')
                 for p in base.rglob('*.ts') if 'node_modules' not in p.parts and re.search(r"from ['\"]mongodb['\"]", p.read_text(encoding='utf8'))]
     assert culpados == [], f"import direto de 'mongodb' — use mongoose.mongo: {culpados}"
 
 
 def test_health_responde_pela_conexao_do_mongoose():
-    src = (API / 'src' / 'health' / 'health.controller.ts').read_text(encoding='utf8')
-    assert '@InjectConnection()' in src and 'readyState' in src and 'ServiceUnavailableException' in src
-    assert 'new MongoClient' not in src
+    for app in (API, INGESTAO):
+        src = (app / 'src' / 'health' / 'health.controller.ts').read_text(encoding='utf8')
+        assert '@InjectConnection()' in src and 'readyState' in src and 'ServiceUnavailableException' in src, app
+        assert 'new MongoClient' not in src
+
+
+def test_nenhum_parser_em_typescript():
+    """A2: o `.aq`/OQ3D é lido só pelo Python do pipeline — o port TS saiu na E3."""
+    for base in (API / 'src', INGESTAO / 'src', DOMINIO / 'src', WWW / 'tools'):
+        for p in base.rglob('*.ts'):
+            if 'node_modules' in p.parts:
+                continue
+            txt = p.read_text(encoding='utf8')
+            assert 'node:sqlite' not in txt and 'DatabaseSync' not in txt and '0x5B' not in txt, f'{p.relative_to(ROOT)} lê .aq/OQ3D em TypeScript'

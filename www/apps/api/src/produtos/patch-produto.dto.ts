@@ -1,6 +1,6 @@
 import { Transform } from 'class-transformer';
 import { IsNotEmpty, IsNumber, IsOptional, IsString, MaxLength, ValidateIf } from 'class-validator';
-import { IsCurva, IsSpecs, LIMITES } from '../common/validation';
+import { IsCurva, IsSpecs, LIMITES } from '@bim/dominio';
 
 /**
  * Corpo do `PATCH /produtos/:id` (I16). Só os campos presentes são alterados; `null`

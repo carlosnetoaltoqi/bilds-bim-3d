@@ -2,9 +2,9 @@ import { Controller, Get, Inject, NotFoundException, Param, Req, Res } from '@ne
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Request, Response } from 'express';
-import { BimProduct, BimProductDocument } from '../bim-products/bim-products.schema';
-import { AssetStat, IGeometryStore } from '../geometry-store/geometry-store.interface';
-import { ASSET_CACHE_CONTROL, assetEtag, ifNoneMatchSatisfied } from '../common/asset-cache';
+import { BimProduct, BimProductDocument } from '@bim/dominio';
+import { AssetStat, IGeometryStore } from '@bim/dominio';
+import { ASSET_CACHE_CONTROL, assetEtag, ifNoneMatchSatisfied } from '@bim/dominio';
 
 @Controller('thumbs')
 export class ThumbsController {

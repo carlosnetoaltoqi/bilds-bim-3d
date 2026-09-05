@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { EmpresasController } from './empresas.controller';
-import { Company, CompanySchema } from '../companies/companies.schema';
-import { BimCatalog, BimCatalogSchema } from '../bim-catalogs/bim-catalogs.schema';
+import { Company, CompanySchema } from '@bim/dominio';
+import { BimCatalog, BimCatalogSchema } from '@bim/dominio';
 
 @Module({
   imports: [

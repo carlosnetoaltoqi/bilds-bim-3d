@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { BimProduct, BimProductSchema } from '../bim-products/bim-products.schema';
-import { BimCatalog, BimCatalogSchema } from '../bim-catalogs/bim-catalogs.schema';
+import { BimProduct, BimProductSchema } from '@bim/dominio';
+import { BimCatalog, BimCatalogSchema } from '@bim/dominio';
 import { ProdutosController } from './produtos.controller';
 
 @Module({

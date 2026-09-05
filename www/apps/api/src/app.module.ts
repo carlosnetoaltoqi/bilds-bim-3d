@@ -1,18 +1,22 @@
+/**
+ * API de catálogo — leitura e edição (docs/arquitetura-www-servico-de-ingestao.md).
+ * Importar biblioteca/peça, converter CAD e renderizar miniatura são do serviço de
+ * ingestão (apps/ingestao, :4100); esta API só pede a miniatura nova depois de uma
+ * edição de geometria (common/ingestao-client.ts).
+ */
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { HealthController } from './health/health.controller';
-import { GeometryStoreModule } from './geometry-store/geometry-store.module';
+import { GeometryStoreModule } from '@bim/dominio';
 import { GeometriasModule } from './geometrias/geometrias.module';
-import { ImportacoesModule } from './importacoes/importacoes.module';
 import { CatalogosModule } from './catalogos/catalogos.module';
 import { ThumbsModule } from './thumbs/thumbs.module';
 import { EmpresasModule } from './empresas/empresas.module';
 import { ProdutosModule } from './produtos/produtos.module';
-import { StepModule } from './step/step.module';
-import { Company, CompanySchema } from './companies/companies.schema';
-import { BimCatalog, BimCatalogSchema } from './bim-catalogs/bim-catalogs.schema';
-import { BimProduct, BimProductSchema } from './bim-products/bim-products.schema';
-import { BimImport, BimImportSchema } from './bim-imports/bim-imports.schema';
+import { Company, CompanySchema } from '@bim/dominio';
+import { BimCatalog, BimCatalogSchema } from '@bim/dominio';
+import { BimProduct, BimProductSchema } from '@bim/dominio';
+import { BimImport, BimImportSchema } from '@bim/dominio';
 
 @Module({
   imports: [
@@ -22,12 +26,10 @@ import { BimImport, BimImportSchema } from './bim-imports/bim-imports.schema';
     ),
     GeometryStoreModule,
     GeometriasModule,
-    ImportacoesModule,
     CatalogosModule,
     ThumbsModule,
     EmpresasModule,
     ProdutosModule,
-    StepModule,
     MongooseModule.forFeature([
       { name: Company.name, schema: CompanySchema },
       { name: BimCatalog.name, schema: BimCatalogSchema },

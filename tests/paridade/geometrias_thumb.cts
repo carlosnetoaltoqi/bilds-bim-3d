@@ -1,23 +1,24 @@
 /**
- * Harness do I14: o PUT /geometrias/:id e o POST /geometrias/:id/restaurar têm de disparar a
- * regeneração da miniatura, e `regerarMiniatura` tem de registrar o resultado no produto.
+ * Harness do I14/A5/A6: `PUT /geometrias/:id` e `POST /geometrias/:id/restaurar` da API
  *
- * Instancia o GeometriasController e o ImportacoesService à mão (sem Nest, sem Mongo), com
- * modelos e store falsos em memória; o thumb-worker do último cenário é o REAL (fork via
- * ts-node) com um geoKey inexistente — falha sem precisar de Chromium. Imprime JSON.
+ *   1. pedem a miniatura nova ao serviço de ingestão (IngestaoClient) — a API não tem Chromium;
+ *   2. fazem copy-on-write quando a geometria é compartilhada com outros produtos (o pipeline
+ *      grava uma por simbologia): o produto ganha `geo/<importId>/<productId>.json` e guarda a
+ *      chave compartilhada em `geoKeyCompartilhada`; restaurar desfaz;
+ *   3. quando o serviço não responde, registram `thumbErro` no produto e devolvem
+ *      `miniatura: 'nao-solicitada'`;
+ *   4. `GET /produtos/:id` devolve `thumbAtualizadaEm`/`thumbErro` (I31).
+ *
+ * Instancia os controllers à mão (sem Nest, sem Mongo, sem rede), com modelos, store e cliente
+ * falsos em memória. Imprime JSON para tests/test_geometrias_thumb.py.
  *
  *   cd www/apps/api && node --require ts-node/register/transpile-only --require reflect-metadata \
  *       ../../../tests/paridade/geometrias_thumb.cts
  *
- * Precisa rodar com CWD em www/apps/api (o ts-node lê o tsconfig com decorators de lá).
- * Extensão .cts porque o package.json da raiz tem "type": "module": um .ts aqui seria ESM
- * para o Node 24 (imports sem extensão falham e o hook do ts-node não é consultado).
+ * Extensão .cts porque o package.json da raiz tem "type": "module".
  */
 import * as path from 'node:path';
-import * as os from 'node:os';
-import * as fs from 'node:fs';
 import { GeometriasController } from '../../www/apps/api/src/geometrias/geometrias.controller';
-import { ImportacoesService } from '../../www/apps/api/src/importacoes/importacoes.service';
 import { ProdutosController } from '../../www/apps/api/src/produtos/produtos.controller';
 
 // ── falsos ───────────────────────────────────────────────────────────────────
@@ -28,6 +29,7 @@ function modeloFalso(docs: Record<string, any>) {
     return q;
   };
   return {
+    docs,
     updates,
     findById: (id: string) => consulta(docs[id] ?? null),
     findByIdAndUpdate: (id: string, upd: any) => {
@@ -35,6 +37,7 @@ function modeloFalso(docs: Record<string, any>) {
       docs[id] = { ...(docs[id] ?? {}), ...upd };
       return consulta(docs[id]);
     },
+    countDocuments: (filtro: any) => consulta(Object.values(docs).filter((d: any) => d.geoKey === filtro.geoKey && d._id !== filtro._id.$ne).length),
   };
 }
 
@@ -46,56 +49,96 @@ function storeFalso() {
     put: async (k: string, b: Buffer) => { arquivos.set(k, b); },
     get: async (k: string) => { if (!arquivos.has(k)) throw enoent(); return arquivos.get(k)!; },
     stat: async (k: string) => { if (!arquivos.has(k)) throw enoent(); return { size: arquivos.get(k)!.length, mtimeMs: 1 }; },
-    delete: async (k: string) => { arquivos.delete(k); },
+    delete: async (k: string) => { if (!arquivos.has(k)) throw enoent(); arquivos.delete(k); },
     deleteByPrefix: async (p: string) => { for (const k of [...arquivos.keys()]) if (k.startsWith(p)) arquivos.delete(k); },
   };
 }
 
+function clienteFalso(resposta: { ok: boolean; erro?: string } = { ok: true }) {
+  const chamadas: string[] = [];
+  return { chamadas, regerarMiniatura: async (id: string) => { chamadas.push(id); return resposta; } };
+}
+
+// o Logger do Nest escreve no stdout e sujaria o JSON que o pytest lê (resolvido a partir de apps/api: este arquivo mora em tests/)
+const { Logger } = require(require.resolve('@nestjs/common', { paths: [path.resolve(__dirname, '../../www/apps/api')] }));
+Logger.overrideLogger(false);
+
 const geoValida = { pos: [0, 0, 0, 1, 0, 0, 0, 1, 0], col: [], idx: [0, 1, 2] };
+const geoNova = { pos: [0, 0, 0, 2, 0, 0, 0, 2, 0], col: [], idx: [0, 1, 2] };
 
 async function main() {
   const saida: Record<string, unknown> = {};
 
-  // ── 1. PUT e restaurar chamam regerarMiniatura com (productId, importId, geoKey) ──
+  // ── 1. geometria exclusiva: backup .orig.json, miniatura pedida no PUT e no restaurar ──
   {
-    const produtos = modeloFalso({ p1: { _id: 'p1', importId: 'imp1', geoKey: 'geo/imp1/p1.json' } });
+    const produtos = modeloFalso({ p1: { _id: 'p1', importId: 'imp1', geoKey: 'geo/imp1/p1.json', geoKeyCompartilhada: null } });
     const store = storeFalso();
     await store.put('geo/imp1/p1.json', Buffer.from(JSON.stringify(geoValida)));
-    const chamadas: any[] = [];
-    const importacoes = { regerarMiniatura: async (...a: any[]) => { chamadas.push(a); return null; } };
-    const ctrl = new GeometriasController(produtos as any, store as any, importacoes as any);
-    (ctrl as any).logger = { log() {}, warn() {}, error() {} }; // o Nest Logger escreve no stdout e suja o JSON
-
-    const r1 = await ctrl.putGeometry('p1', { ...geoValida, pos: geoValida.pos.map((v) => v * 2) });
-    const r2 = await ctrl.restaurar('p1');
-    saida.put_e_restaurar = {
-      putMiniatura: (r1 as any).miniatura,
-      restaurarMiniatura: (r2 as any).miniatura,
-      chamadas,
-      backupFeito: (r1 as any).backupFeito,
+    const cliente = clienteFalso();
+    const ctrl = new GeometriasController(produtos as any, store as any, cliente as any);
+    const put = await ctrl.putGeometry('p1', geoNova);
+    const temOrig = store.arquivos.has('geo/imp1/p1.orig.json');
+    const rest = await ctrl.restaurar('p1');
+    saida.exclusiva = {
+      putMiniatura: put.miniatura, putGeoKey: put.geoKey, backupFeito: put.backupFeito, copiaFeita: put.copiaFeita,
+      temOrigDepoisDoPut: temOrig,
+      restaurarMiniatura: (rest as any).miniatura, restaurado: (rest as any).restaurado,
       origRemovido: !store.arquivos.has('geo/imp1/p1.orig.json'),
+      vivoVoltouAoOriginal: JSON.parse(store.arquivos.get('geo/imp1/p1.json')!.toString()).pos[3] === 1,
+      chamadas: cliente.chamadas,
     };
   }
 
-  // ── 2. regerarMiniatura com o thumb-worker REAL e geoKey inexistente → thumbErro no produto ──
+  // ── 2. geometria compartilhada: copy-on-write no PUT, desfeito no restaurar ──
   {
-    const tsNode = path.join(process.cwd(), 'node_modules', 'ts-node');
-    if (!fs.existsSync(tsNode)) {
-      saida.regerar_real_geo_inexistente = { skip: 'sem ts-node em www/apps/api/node_modules' };
-    } else {
-      const storage = fs.mkdtempSync(path.join(os.tmpdir(), 'geometrias-thumb-'));
-      process.env.STORAGE_PATH = storage;
-      const produtos = modeloFalso({ p1: { _id: 'p1' } });
-      const imports = modeloFalso({});
-      const svc = new ImportacoesService(imports as any, {} as any, produtos as any, {} as any, storeFalso() as any);
-      (svc as any).logger = { log() {}, warn() {}, error() {} }; // silencia o Nest Logger no stdout
-      const resumo = await svc.regerarMiniatura('p1', 'imp1', 'geo/imp1/nao-existe.json');
-      fs.rmSync(storage, { recursive: true, force: true });
-      saida.regerar_real_geo_inexistente = { resumo, updates: produtos.updates, importUpdates: imports.updates };
-    }
+    const produtos = modeloFalso({
+      p1: { _id: 'p1', importId: 'imp1', geoKey: 'geo/imp1/g.json', geoKeyCompartilhada: null, thumbKey: 'thumbs/imp1/g.webp' },
+      p2: { _id: 'p2', importId: 'imp1', geoKey: 'geo/imp1/g.json', geoKeyCompartilhada: null, thumbKey: 'thumbs/imp1/g.webp' },
+    });
+    const store = storeFalso();
+    await store.put('geo/imp1/g.json', Buffer.from(JSON.stringify(geoValida)));
+    const cliente = clienteFalso();
+    const ctrl = new GeometriasController(produtos as any, store as any, cliente as any);
+    const put = await ctrl.putGeometry('p1', geoNova);
+    const depoisDoPut = {
+      p1: { geoKey: produtos.docs.p1.geoKey, compartilhada: produtos.docs.p1.geoKeyCompartilhada },
+      p2: { geoKey: produtos.docs.p2.geoKey, compartilhada: produtos.docs.p2.geoKeyCompartilhada ?? null },
+      arquivos: [...store.arquivos.keys()].sort(),
+      compartilhadoIntacto: JSON.parse(store.arquivos.get('geo/imp1/g.json')!.toString()).pos[3] === 1,
+      proprioNovo: JSON.parse(store.arquivos.get('geo/imp1/p1.json')!.toString()).pos[3] === 2,
+    };
+    // segundo PUT no mesmo produto: já tem arquivo próprio — não copia de novo nem faz .orig
+    const put2 = await ctrl.putGeometry('p1', geoValida);
+    const rest = await ctrl.restaurar('p1');
+    saida.compartilhada = {
+      put: { geoKey: put.geoKey, copiaFeita: put.copiaFeita, backupFeito: put.backupFeito, geoKeyCompartilhada: put.geoKeyCompartilhada, miniatura: put.miniatura },
+      depoisDoPut,
+      put2: { geoKey: put2.geoKey, copiaFeita: put2.copiaFeita, backupFeito: put2.backupFeito },
+      semOrigJson: ![...store.arquivos.keys()].some((k) => k.endsWith('.orig.json')),
+      restaurar: { restaurado: (rest as any).restaurado, geoKey: (rest as any).geoKey, miniatura: (rest as any).miniatura },
+      depoisDoRestaurar: {
+        p1: { geoKey: produtos.docs.p1.geoKey, compartilhada: produtos.docs.p1.geoKeyCompartilhada, geoEditadoEm: produtos.docs.p1.geoEditadoEm },
+        arquivos: [...store.arquivos.keys()].sort(),
+      },
+      chamadas: cliente.chamadas,
+    };
   }
 
-  // ── 3. GET /produtos/:id devolve o que regerarMiniatura gravou (S7.13) ──────────────
+  // ── 3. serviço de ingestão fora: thumbErro no produto, resposta diz que não pediu ──
+  {
+    const produtos = modeloFalso({ p1: { _id: 'p1', importId: 'imp1', geoKey: 'geo/imp1/p1.json', geoKeyCompartilhada: null } });
+    const store = storeFalso();
+    await store.put('geo/imp1/p1.json', Buffer.from(JSON.stringify(geoValida)));
+    const cliente = clienteFalso({ ok: false, erro: 'serviço de ingestão indisponível em http://localhost:4100 — fetch failed' });
+    const ctrl = new GeometriasController(produtos as any, store as any, cliente as any);
+    const put = await ctrl.putGeometry('p1', geoNova);
+    saida.ingestao_fora = {
+      miniatura: put.miniatura, miniaturaErro: put.miniaturaErro, geometriaGravada: JSON.parse(store.arquivos.get('geo/imp1/p1.json')!.toString()).pos[3] === 2,
+      thumbErroNoProduto: produtos.docs.p1.thumbErro, chamadas: cliente.chamadas,
+    };
+  }
+
+  // ── 4. GET /produtos/:id expõe thumbAtualizadaEm e thumbErro (I31) ──
   {
     const quando = new Date('2026-09-05T17:09:44.859Z');
     const produtos = modeloFalso({
@@ -103,12 +146,8 @@ async function main() {
       falhou: { _id: 'falhou', catalogId: 'c', importId: 'imp1', id: 'y', nome: 'Y', geoKey: 'geo/imp1/y.json', thumbErro: 'EACCES: permission denied' },
     });
     const ctrl = new ProdutosController(produtos as any, {} as any);
-    const ok: any = await ctrl.get('ok');
-    const falhou: any = await ctrl.get('falhou');
-    saida.get_produto_expoe_miniatura = {
-      ok: { thumbAtualizadaEm: ok.thumbAtualizadaEm, thumbErro: ok.thumbErro, thumbUrl: ok.thumbUrl },
-      falhou: { thumbAtualizadaEm: falhou.thumbAtualizadaEm, thumbErro: falhou.thumbErro, thumbUrl: falhou.thumbUrl },
-    };
+    const pick = (d: any) => ({ thumbAtualizadaEm: d.thumbAtualizadaEm, thumbErro: d.thumbErro, thumbUrl: d.thumbUrl });
+    saida.get_produto_expoe_miniatura = { ok: pick(await ctrl.get('ok')), falhou: pick(await ctrl.get('falhou')) };
   }
 
   process.stdout.write(JSON.stringify(saida));

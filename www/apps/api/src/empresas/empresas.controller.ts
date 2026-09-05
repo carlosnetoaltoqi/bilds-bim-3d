@@ -16,9 +16,9 @@ import { Model } from 'mongoose';
 import * as path from 'path';
 import * as fs from 'fs';
 import { Response } from 'express';
-import { Company, CompanyDocument } from '../companies/companies.schema';
-import { BimCatalog, BimCatalogDocument } from '../bim-catalogs/bim-catalogs.schema';
-import { storagePath } from '../common/storage-path';
+import { Company, CompanyDocument } from '@bim/dominio';
+import { BimCatalog, BimCatalogDocument } from '@bim/dominio';
+import { storagePath } from '@bim/dominio';
 import { CriarEmpresaDto } from './criar-empresa.dto';
 
 /**

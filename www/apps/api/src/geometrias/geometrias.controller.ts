@@ -15,30 +15,41 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import type { Request, Response } from 'express';
-import { BimProduct, BimProductDocument } from '../bim-products/bim-products.schema';
-import { AssetStat, IGeometryStore } from '../geometry-store/geometry-store.interface';
-import { ImportacoesService } from '../importacoes/importacoes.service';
-import { ASSET_CACHE_CONTROL, assetEtag, ifNoneMatchSatisfied } from '../common/asset-cache';
 import {
+  ASSET_CACHE_CONTROL,
+  AssetStat,
+  BimProduct,
+  BimProductDocument,
   GeoValidationError,
+  IGeometryStore,
+  assetEtag,
   geoStats,
+  ifNoneMatchSatisfied,
   originalKeyFor,
   validateGeoBuffers,
-} from '../common/geo-buffers';
+} from '@bim/dominio';
+import { IngestaoClient } from '../common/ingestao-client';
 
 /**
  * Leitura e escrita da geometria de um produto.
  *
  * GET  /geometrias/:id            — o JSON que o viewer consome (com ETag/304)
- * PUT  /geometrias/:id            — grava geometria editada (POC de edição, sem auth)
+ * PUT  /geometrias/:id            — grava geometria editada (sem auth — A7)
  * GET  /geometrias/:id/original   — o JSON como veio do .aq, se já houve edição
  * POST /geometrias/:id/restaurar  — volta ao original
  *
- * A primeira escrita copia o arquivo vivo para `<id>.orig.json` no mesmo prefixo
- * do import, para que "restaurar" nunca dependa do .aq de origem.
+ * Dois casos na primeira edição (A5 de docs/arquitetura-www-servico-de-ingestao.md):
  *
- * PUT e restaurar disparam a regeneração da miniatura em segundo plano (I14,
- * 2026-09-05) — até então o `thumbKey` seguia apontando para a imagem do import.
+ *   geometria EXCLUSIVA do produto  → copia o arquivo vivo para `<id>.orig.json` no mesmo
+ *                                     prefixo do import; "restaurar" nunca depende do .aq;
+ *   geometria COMPARTILHADA (o pipeline grava uma por simbologia; Amanco: 856 produtos em
+ *   448 geometrias)                 → copy-on-write: o produto ganha `geo/<importId>/<productId>.json`
+ *                                     só dele e guarda a chave compartilhada em
+ *                                     `geoKeyCompartilhada` — os outros produtos não mudam.
+ *
+ * PUT e restaurar pedem ao serviço de ingestão a miniatura nova (I14/A6) — a API não tem
+ * Chromium. Se o serviço não responder, o produto recebe `thumbErro` e a resposta diz
+ * `miniatura: 'nao-solicitada'`.
  */
 @Controller('geometrias')
 export class GeometriasController {
@@ -47,30 +58,23 @@ export class GeometriasController {
   constructor(
     @InjectModel(BimProduct.name) private readonly productModel: Model<BimProductDocument>,
     @Inject('GEOMETRY_STORE') private readonly store: IGeometryStore,
-    private readonly importacoes: ImportacoesService,
+    private readonly ingestao: IngestaoClient,
   ) {}
 
   @Get(':productId')
-  async getGeometry(
-    @Param('productId') productId: string,
-    @Req() req: Request,
-    @Res() res: Response,
-  ) {
+  async getGeometry(@Param('productId') productId: string, @Req() req: Request, @Res() res: Response) {
     const product = await this.productModel.findById(productId).lean().exec();
     if (!product) throw new NotFoundException('produto não encontrado');
     await this.sendBlob(product.geoKey, req, res);
   }
 
   @Get(':productId/original')
-  async getOriginal(
-    @Param('productId') productId: string,
-    @Req() req: Request,
-    @Res() res: Response,
-  ) {
+  async getOriginal(@Param('productId') productId: string, @Req() req: Request, @Res() res: Response) {
     const product = await this.productModel.findById(productId).lean().exec();
     if (!product) throw new NotFoundException('produto não encontrado');
-    // Sem edição ainda: o original É o arquivo vivo.
-    const key = (await this.exists(originalKeyFor(product.geoKey))) ? originalKeyFor(product.geoKey) : product.geoKey;
+    let key = product.geoKey;   // sem edição ainda: o original É o arquivo vivo
+    if (product.geoKeyCompartilhada) key = product.geoKeyCompartilhada;
+    else if (await this.exists(originalKeyFor(product.geoKey))) key = originalKeyFor(product.geoKey);
     await this.sendBlob(key, req, res);
   }
 
@@ -87,36 +91,69 @@ export class GeometriasController {
       throw err;
     }
 
-    const origKey = originalKeyFor(product.geoKey);
+    const agora = new Date();
+    const set: Record<string, unknown> = { geoEditadoEm: agora };
+    let geoKey = product.geoKey;
     let backupFeito = false;
-    if (!(await this.exists(origKey))) {
-      try {
-        const atual = await this.store.get(product.geoKey);
-        await this.store.put(origKey, atual);
-        backupFeito = true;
-      } catch (err: any) {
-        // Sem arquivo vivo não há o que preservar — segue gravando.
-        if (err.code !== 'ENOENT') throw err;
+    let copiaFeita = false;
+
+    if (!product.geoKeyCompartilhada) {
+      const outros = await this.productModel.countDocuments({ geoKey: product.geoKey, _id: { $ne: productId } }).exec();
+      if (outros > 0) {
+        // copy-on-write: este produto passa a ter arquivo próprio; o compartilhado é o "original"
+        geoKey = `geo/${product.importId}/${productId}.json`;
+        set.geoKey = geoKey;
+        set.geoKeyCompartilhada = product.geoKey;
+        copiaFeita = true;
+      } else {
+        const origKey = originalKeyFor(product.geoKey);
+        if (!(await this.exists(origKey))) {
+          try {
+            await this.store.put(origKey, await this.store.get(product.geoKey));
+            backupFeito = true;
+          } catch (err: any) {
+            if (err.code !== 'ENOENT') throw err;   // sem arquivo vivo não há o que preservar — segue gravando
+          }
+        }
       }
     }
 
     const blob = Buffer.from(JSON.stringify(geo));
-    await this.store.put(product.geoKey, blob);
-    const agora = new Date();
-    await this.productModel.findByIdAndUpdate(productId, { geoEditadoEm: agora }).exec();
+    await this.store.put(geoKey, blob);
+    await this.productModel.findByIdAndUpdate(productId, set).exec();
 
     const stats = geoStats(geo);
     this.logger.log(
-      `geometria gravada — ${product.geoKey} — ${stats.vertices} vértices, ${stats.triangulos} triângulos, ${(blob.length / 1024).toFixed(0)} KB${backupFeito ? ' (original preservado)' : ''}`,
+      `geometria gravada — ${geoKey} — ${stats.vertices} vértices, ${stats.triangulos} triângulos, ${(blob.length / 1024).toFixed(0)} KB` +
+        `${backupFeito ? ' (original preservado)' : ''}${copiaFeita ? ` (copy-on-write de ${product.geoKey})` : ''}`,
     );
-    void this.importacoes.regerarMiniatura(productId, product.importId, product.geoKey);
-    return { ok: true, geoKey: product.geoKey, geoEditadoEm: agora, backupFeito, miniatura: 'regerando', ...stats, bytes: blob.length };
+    const miniatura = await this.pedirMiniatura(productId);
+    return {
+      ok: true,
+      geoKey,
+      geoEditadoEm: agora,
+      backupFeito,
+      copiaFeita,
+      geoKeyCompartilhada: (set.geoKeyCompartilhada as string | undefined) ?? product.geoKeyCompartilhada ?? null,
+      ...miniatura,
+      ...stats,
+      bytes: blob.length,
+    };
   }
 
   @Post(':productId/restaurar')
   async restaurar(@Param('productId') productId: string) {
     const product = await this.productModel.findById(productId).lean().exec();
     if (!product) throw new NotFoundException('produto não encontrado');
+
+    if (product.geoKeyCompartilhada) {
+      // copy-on-write desfeito: volta a apontar para a geometria compartilhada e apaga a cópia
+      await this.store.delete(product.geoKey).catch((e: any) => this.logger.warn(`não removeu ${product.geoKey} — ${e?.message ?? e}`));
+      await this.productModel.findByIdAndUpdate(productId, { geoKey: product.geoKeyCompartilhada, geoKeyCompartilhada: null, geoEditadoEm: null }).exec();
+      this.logger.log(`geometria restaurada — ${productId} volta a ${product.geoKeyCompartilhada}`);
+      const miniatura = await this.pedirMiniatura(productId);
+      return { ok: true, restaurado: true, geoKey: product.geoKeyCompartilhada, ...miniatura };
+    }
 
     const origKey = originalKeyFor(product.geoKey);
     if (!(await this.exists(origKey))) {
@@ -127,11 +164,21 @@ export class GeometriasController {
     await this.store.delete(origKey).catch((e: any) => this.logger.warn(`não removeu ${origKey} — ${e?.message ?? e}`));
     await this.productModel.findByIdAndUpdate(productId, { geoEditadoEm: null }).exec();
     this.logger.log(`geometria restaurada — ${product.geoKey}`);
-    void this.importacoes.regerarMiniatura(productId, product.importId, product.geoKey);
-    return { ok: true, restaurado: true, geoKey: product.geoKey, miniatura: 'regerando' };
+    const miniatura = await this.pedirMiniatura(productId);
+    return { ok: true, restaurado: true, geoKey: product.geoKey, ...miniatura };
   }
 
   // ── helpers ──────────────────────────────────────────────────────────────
+
+  /** Pede a miniatura ao serviço de ingestão; se ele não responder, registra em `thumbErro`. */
+  private async pedirMiniatura(productId: string): Promise<{ miniatura: 'regerando' | 'nao-solicitada'; miniaturaErro: string | null }> {
+    const r = await this.ingestao.regerarMiniatura(productId);
+    if (r.ok) return { miniatura: 'regerando', miniaturaErro: null };
+    const erro = r.erro ?? 'serviço de ingestão não respondeu';
+    this.logger.error(`[${productId.slice(0, 8)}] miniatura NÃO solicitada — ${erro}`);
+    await this.productModel.findByIdAndUpdate(productId, { thumbErro: erro }).exec().catch(() => undefined);
+    return { miniatura: 'nao-solicitada', miniaturaErro: erro };
+  }
 
   private async exists(key: string): Promise<boolean> {
     try {

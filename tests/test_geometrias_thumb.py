@@ -1,14 +1,13 @@
-"""Miniatura regerada depois de editar a geometria (I14).
+"""Editar geometria na API: copy-on-write e miniatura pedida ao serviço (I14, A5, A6).
 
 Até 2026-09-05 o `PUT /geometrias/:id` gravava a geometria nova e o `thumbKey` seguia
-apontando para a imagem do import — o catálogo mostrava a peça antiga. Agora o PUT e o
-restaurar disparam `ImportacoesService.regerarMiniatura`, que reaproveita o thumb-worker e
-registra `thumbAtualizadaEm` ou `thumbErro` no produto. O harness
-`tests/paridade/geometrias_thumb.cts` instancia controller e service sem Nest nem Mongo (ts-node
-de `www/apps/api`) e, no segundo cenário, dispara o thumb-worker real com um geoKey inexistente.
-O terceiro (S7.13) garante que `GET /produtos/:id` devolve `thumbAtualizadaEm`/`thumbErro` — o
-Mongo tinha o valor e o DTO o omitia, então a edição parecia não regerar a miniatura.
-Marcador `paridade`; pula sem Node ou sem `ts-node` em `www/apps/api/node_modules`.
+apontando para a imagem do import — o catálogo mostrava a peça antiga. Desde a E3 a API não
+tem Chromium: PUT e restaurar pedem a miniatura ao serviço de ingestão (`IngestaoClient`) e,
+se ele não responder, gravam `thumbErro` no produto. E como o pipeline grava UMA geometria
+por simbologia (Amanco: 856 produtos em 448 geometrias), editar um produto que compartilha
+geometria faz copy-on-write: arquivo próprio em `geoKey`, chave compartilhada em
+`geoKeyCompartilhada`; restaurar desfaz. O harness `tests/paridade/geometrias_thumb.cts`
+instancia os controllers sem Nest nem Mongo (ts-node de `www/apps/api`). Marcador `paridade`.
 """
 import json
 import subprocess
@@ -37,25 +36,39 @@ def cenarios():
     return json.loads(proc.stdout)
 
 
-def test_put_e_restaurar_disparam_a_regeneracao_da_miniatura(cenarios):
-    r = cenarios['put_e_restaurar']
+def test_geometria_exclusiva_faz_backup_e_pede_miniatura_no_put_e_no_restaurar(cenarios):
+    r = cenarios['exclusiva']
     assert r['putMiniatura'] == 'regerando' and r['restaurarMiniatura'] == 'regerando'
-    # uma chamada por operação, com o produto, o import (prefixo da chave) e a geometria viva
-    assert r['chamadas'] == [['p1', 'imp1', 'geo/imp1/p1.json'], ['p1', 'imp1', 'geo/imp1/p1.json']]
-    assert r['backupFeito'] is True and r['origRemovido'] is True
+    assert r['putGeoKey'] == 'geo/imp1/p1.json' and r['backupFeito'] is True and r['copiaFeita'] is False
+    assert r['temOrigDepoisDoPut'] is True and r['restaurado'] is True
+    assert r['origRemovido'] is True and r['vivoVoltouAoOriginal'] is True
+    assert r['chamadas'] == ['p1', 'p1']     # uma por operação, com o produto
 
 
-def test_regerar_miniatura_registra_a_falha_no_produto(cenarios):
-    r = cenarios['regerar_real_geo_inexistente']
-    if 'skip' in r:
-        pytest.skip(r['skip'])
-    assert r['resumo']['geradas'] == 0 and len(r['resumo']['falhas']) == 1
-    assert 'ENOENT' in r['resumo']['falhas'][0]['message']
-    (update,) = [u for u in r['updates'] if 'thumbErro' in u[1]]
-    assert update[0] == 'p1' and 'ENOENT' in update[1]['thumbErro']
-    assert 'thumbAtualizadaEm' not in update[1]
-    # nada é escrito no documento do import — a regeneração é do produto
-    assert r['importUpdates'] == []
+def test_geometria_compartilhada_faz_copy_on_write_e_restaurar_desfaz(cenarios):
+    r = cenarios['compartilhada']
+    assert r['put'] == {'geoKey': 'geo/imp1/p1.json', 'copiaFeita': True, 'backupFeito': False,
+                        'geoKeyCompartilhada': 'geo/imp1/g.json', 'miniatura': 'regerando'}
+    d = r['depoisDoPut']
+    assert d['p1'] == {'geoKey': 'geo/imp1/p1.json', 'compartilhada': 'geo/imp1/g.json'}
+    assert d['p2'] == {'geoKey': 'geo/imp1/g.json', 'compartilhada': None}       # o outro produto não muda
+    assert d['arquivos'] == ['geo/imp1/g.json', 'geo/imp1/p1.json']
+    assert d['compartilhadoIntacto'] is True and d['proprioNovo'] is True
+    # segunda edição do mesmo produto: já é dele — nada de copiar de novo nem .orig.json
+    assert r['put2'] == {'geoKey': 'geo/imp1/p1.json', 'copiaFeita': False, 'backupFeito': False}
+    assert r['semOrigJson'] is True
+    assert r['restaurar'] == {'restaurado': True, 'geoKey': 'geo/imp1/g.json', 'miniatura': 'regerando'}
+    assert r['depoisDoRestaurar']['p1'] == {'geoKey': 'geo/imp1/g.json', 'compartilhada': None, 'geoEditadoEm': None}
+    assert r['depoisDoRestaurar']['arquivos'] == ['geo/imp1/g.json']
+    assert r['chamadas'] == ['p1', 'p1', 'p1']
+
+
+def test_servico_de_ingestao_fora_registra_thumb_erro_e_nao_perde_a_geometria(cenarios):
+    r = cenarios['ingestao_fora']
+    assert r['miniatura'] == 'nao-solicitada' and 'indisponível' in r['miniaturaErro']
+    assert r['geometriaGravada'] is True
+    assert 'indisponível' in r['thumbErroNoProduto']
+    assert r['chamadas'] == ['p1']
 
 
 def test_get_produto_expoe_o_resultado_da_regeneracao(cenarios):

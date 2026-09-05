@@ -1,8 +1,10 @@
 # www — POC dinâmica + POC de edição
 
-> **Em reestruturação (S7.14, 2026-09-05).** O `www/` está virando três apps — serviço de ingestão
-> (`apps/ingestao`, pipeline Python + Chromium), API de catálogo (`apps/api`) e web (`apps/web`) — conforme
-> `docs/arquitetura-www-servico-de-ingestao.md`, que diz em que etapa estamos. **Sem auth**: login, JWT,
+> **Em reestruturação (S7.14, 2026-09-05).** O `www/` virou três apps — serviço de ingestão
+> (`apps/ingestao`, :4100, pipeline Python + Chromium), API de catálogo (`apps/api`, :4000) e web (`apps/web`,
+> :3000) — mais o pacote `packages/dominio`, conforme `docs/arquitetura-www-servico-de-ingestao.md`, que diz
+> em que etapa estamos (E1–E3 feitas). **Subir:** `pnpm dev:ingestao`, `pnpm dev:api`, `pnpm dev:web` (três
+> terminais). O import de biblioteca e de peça CAD é `POST /importacoes` no serviço; a API só lê e edita. **Sem auth**: login, JWT,
 > `SEED_USER` e o middleware do Next saíram na E1; as seções abaixo que falam de token/auth estão
 > desatualizadas até a E6 reescrever este arquivo. Ferramentas removidas na E1: `workers/aq-parser`,
 > `tools/{test-worker,test-port-s2-2,ingest-library,measure-thumbs,smoke-geometry-store,regen-thumbs,thumb-rasterizer-sw}.ts`

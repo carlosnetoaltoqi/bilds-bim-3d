@@ -1,16 +1,15 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { GeometryStoreModule } from '../geometry-store/geometry-store.module';
-import { BimProduct, BimProductSchema } from '../bim-products/bim-products.schema';
-import { ImportacoesModule } from '../importacoes/importacoes.module';
+import { BimProduct, BimProductSchema, GeometryStoreModule } from '@bim/dominio';
 import { GeometriasController } from './geometrias.controller';
+import { IngestaoClient } from '../common/ingestao-client';
 
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: BimProduct.name, schema: BimProductSchema }]),
     GeometryStoreModule,
-    ImportacoesModule, // thumb-worker para regerar a miniatura após PUT/restaurar (I14)
   ],
   controllers: [GeometriasController],
+  providers: [IngestaoClient], // pede ao serviço de ingestão a miniatura nova após PUT/restaurar (I14, A6)
 })
 export class GeometriasModule {}

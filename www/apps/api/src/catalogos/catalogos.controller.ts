@@ -10,9 +10,9 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Company, CompanyDocument } from '../companies/companies.schema';
-import { BimCatalog, BimCatalogDocument } from '../bim-catalogs/bim-catalogs.schema';
-import { BimProduct, BimProductDocument } from '../bim-products/bim-products.schema';
+import { Company, CompanyDocument } from '@bim/dominio';
+import { BimCatalog, BimCatalogDocument } from '@bim/dominio';
+import { BimProduct, BimProductDocument } from '@bim/dominio';
 import { PatchCatalogoDto } from './patch-catalogo.dto';
 
 @Controller('catalogos')

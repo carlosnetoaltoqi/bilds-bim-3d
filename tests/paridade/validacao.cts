@@ -8,12 +8,12 @@
  *
  * `.cts` porque a raiz tem "type":"module" (ver geometrias_thumb.cts).
  */
-import { criarValidationPipe, normalizarCurva, normalizarSpecs } from '../../www/apps/api/src/common/validation';
+import { criarValidationPipe, normalizarCurva, normalizarSpecs } from '../../www/packages/dominio/src/validation';
 import { PatchProdutoDto } from '../../www/apps/api/src/produtos/patch-produto.dto';
 import { PatchCatalogoDto } from '../../www/apps/api/src/catalogos/patch-catalogo.dto';
-import { ExportarAqDto, ImportarCadDto } from '../../www/apps/api/src/step/cad.dto';
+import { ExportarAqDto } from '../../www/apps/ingestao/src/cad/cad.dto';
 import { CriarEmpresaDto } from '../../www/apps/api/src/empresas/criar-empresa.dto';
-import { ImportarAqDto } from '../../www/apps/api/src/importacoes/importar-aq.dto';
+import { ImportarDto } from '../../www/apps/ingestao/src/importacoes/importar.dto';
 
 const pipe = criarValidationPipe();
 
@@ -75,19 +75,19 @@ async function main() {
   s.exportar_so_geo = await valida(ExportarAqDto, { pos: parte.pos, col: [], idx: parte.idx });
 
   // ── POST /cad/importar (multipart → tudo texto) ──────────────────────────────
-  s.cad_ok = await valida(ImportarCadDto, { deflexao: '0.5', nome: ' peça ', fabricante: 'X' });
-  s.cad_sem_deflexao = await valida(ImportarCadDto, { nome: 'p' });
-  s.cad_deflexao_zero = await valida(ImportarCadDto, { deflexao: '0' });
-  s.cad_deflexao_grande = await valida(ImportarCadDto, { deflexao: '11' });
-  s.cad_deflexao_texto = await valida(ImportarCadDto, { deflexao: 'abc' });
+  s.cad_ok = await valida(ImportarDto, { deflexao: '0.5', nome: ' peça ', fabricante: 'X' });
+  s.cad_sem_deflexao = await valida(ImportarDto, { nome: 'p' });
+  s.cad_deflexao_zero = await valida(ImportarDto, { deflexao: '0' });
+  s.cad_deflexao_grande = await valida(ImportarDto, { deflexao: '11' });
+  s.cad_deflexao_texto = await valida(ImportarDto, { deflexao: 'abc' });
 
   // ── POST /empresas e POST /importacoes (sem auth desde S7.14) ────────────────
   s.empresa_ok = await valida(CriarEmpresaDto, { name: ' POC ', customUrl: ' Minha Empresa ' });
   s.empresa_sem_nome = await valida(CriarEmpresaDto, { name: '', customUrl: 'x' });
   s.empresa_sem_url = await valida(CriarEmpresaDto, { name: 'x' });
-  s.importar_aq_ok = await valida(ImportarAqDto, { empresa: ' poc ' });
-  s.importar_aq_vazio = await valida(ImportarAqDto, {});
-  s.importar_aq_campo_estranho = await valida(ImportarAqDto, { ownerId: 'x' });
+  s.importar_aq_ok = await valida(ImportarDto, { empresa: ' poc ' });
+  s.importar_aq_vazio = await valida(ImportarDto, {});
+  s.importar_aq_campo_estranho = await valida(ImportarDto, { ownerId: 'x' });
 
   process.stdout.write(JSON.stringify(s));
 }

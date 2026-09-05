@@ -1,9 +1,9 @@
 /**
  * Harness da recuperação no boot (I11): `recuperarImportsOrfaos` e `limparUploadsTemporarios`
- * de `www/apps/api/src/importacoes/recuperacao.service.ts`, com modelos e store falsos e um
+ * de `www/apps/ingestao/src/importacoes/recuperacao.service.ts`, com modelos e store falsos e um
  * tmpdir de verdade. Imprime JSON para tests/test_www_importacao.py.
  *
- *   cd www/apps/api && node --require ts-node/register/transpile-only --require reflect-metadata \
+ *   cd www/apps/ingestao && node --require ts-node/register/transpile-only --require reflect-metadata \
  *       ../../../tests/paridade/recuperacao.cts
  */
 import * as fs from 'node:fs';
@@ -14,7 +14,7 @@ import {
   RecuperacaoService,
   limparUploadsTemporarios,
   recuperarImportsOrfaos,
-} from '../../www/apps/api/src/importacoes/recuperacao.service';
+} from '../../www/apps/ingestao/src/importacoes/recuperacao.service';
 
 const silencio = { log() {}, warn() {}, error() {} };
 

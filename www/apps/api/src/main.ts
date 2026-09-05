@@ -8,8 +8,8 @@ dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
-import { storagePath, storagePathDefinido } from './common/storage-path';
-import { criarValidationPipe } from './common/validation';
+import { storagePath, storagePathDefinido } from '@bim/dominio';
+import { criarValidationPipe } from '@bim/dominio';
 
 // A geometria editada volta pelo PUT /geometrias/:id como JSON. Uma peça grande
 // (Maxbar) passa de 10 MB; o limite padrão do express é 100 KB.
