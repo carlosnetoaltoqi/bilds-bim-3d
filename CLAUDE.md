@@ -94,8 +94,7 @@ das miniaturas, I28 nota `na fila` em import publicado, I29 workers órfãos ap�
 em latin1, I31 DTO do produto sem `thumbAtualizadaEm`) e uma pendência de decisão (I32: 500 após 30 s com o
 Mongo fora). Suíte: **107 testes**, `python3 -m pytest` ≈ 60 s.
 
-**Próxima sessão:** ver `docs/sessoes/S7.13-teste-de-aceitacao-www.md`, seção 7. Os cinco commits da S7.13
-**ainda não foram enviados** ao origin. Restam a limpeza L1–L14 conforme cada área for tocada e as
+**Próxima sessão:** ver `docs/sessoes/S7.13-teste-de-aceitacao-www.md`, seção 7. Tudo enviado ao origin (CI verde). Restam a limpeza L1–L14 conforme cada área for tocada e as
 **decisões que só o usuário toma**: I32 (resposta com o Mongo fora), C7 (deploy do preview), I10 (auth na
 POC), I4 (promover o writer de `.aq`), LICENSE, se vale um `--strict`, se `STORAGE_PATH` vira obrigatória,
 se o Nest sobe para 11 (traria o multer novo).
