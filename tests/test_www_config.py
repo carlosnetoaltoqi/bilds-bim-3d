@@ -66,3 +66,36 @@ def test_storage_path_resolve_relativo_ao_cwd_com_e_sem_variavel():
                           capture_output=True, text=True, cwd=ROOT, timeout=60)
     assert proc.returncode == 0, proc.stderr[-2000:]
     assert json.loads(proc.stdout) == ['/srv/api/storage', '/repo/www/storage/bim', '/abs/storage', False, True]
+
+
+def test_nome_do_arquivo_enviado_volta_a_utf8():
+    """S7.13: o multer 2.0.2 embutido no Nest 10 lê o `filename` do multipart como latin1 (e não
+    conhece `defParamCharset`) — `gás.aq` virava `gÃ¡s.aq` no log, no `fileName` do import e no
+    nome do produto CAD. `common/upload.ts` refaz a decodificação com guarda de ida e volta."""
+    node = node_para_ts()
+    if not node:
+        pytest.skip('precisa de Node >= 22')
+    proc = subprocess.run([node, '--no-warnings', '--experimental-strip-types', str(ROOT / 'tests' / 'paridade' / 'upload_nome.mts')],
+                          capture_output=True, text=True, cwd=ROOT, timeout=60)
+    assert proc.returncode == 0, proc.stderr[-2000:]
+    r = json.loads(proc.stdout)
+    assert r == {
+        'mojibake_corrigido': 'pecas_komeco_aquecimento_agua_a_gás.aq',
+        'ascii_intacto': 'pecas_dancor_bombas_incendio_2026_04.1.aq',
+        'ja_correto_intacto': 'peça — gás.stp',
+        'fora_do_latin1_intacto': 'peça — x.ifc',
+        'ausente_usa_padrao': 'upload.aq',
+        'vazio_usa_padrao': 'upload.aq',
+    }
+
+
+def test_originalname_so_e_guardado_via_nome_original_utf8():
+    """Guarda de regressão: todo `originalname` que vira nome (não só extensão) passa por `nomeOriginalUtf8`."""
+    culpados = []
+    for p in _fontes(API_SRC):
+        if p.name == 'upload.ts':
+            continue
+        for n, linha in enumerate(p.read_text(encoding='utf8').splitlines(), 1):
+            if '.originalname' in linha and not any(ok in linha for ok in ('nomeOriginalUtf8(', 'extname(', 'inferExt(')):
+                culpados.append(f'{p.relative_to(ROOT)}:{n}: {linha.strip()}')
+    assert culpados == [], culpados

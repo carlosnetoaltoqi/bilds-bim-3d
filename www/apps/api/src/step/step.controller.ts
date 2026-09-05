@@ -22,6 +22,7 @@ import { AqInfo, AqParte, StepService } from './step.service';
 import { GeoValidationError, validateGeoBuffers } from '../common/geo-buffers';
 import { normalizarSpecs } from '../common/validation';
 import { ExportarAqDto, ImportarCadDto } from './cad.dto';
+import { nomeOriginalUtf8 } from '../common/upload';
 
 /**
  * POST /cad/tesselar   — .stp/.step/.ifc → { pos, col, idx, partes, … }  (para "adicionar parte" no editor)
@@ -53,7 +54,7 @@ export class StepController {
   async tesselar(@UploadedFile() file: Express.Multer.File, @Body() body: ImportarCadDto) {
     if (!file) throw new BadRequestException('campo "file" (.stp/.step/.ifc) obrigatório');
     try {
-      return await this.step.tesselar(file.path, deflexaoDe(body), file.originalname);
+      return await this.step.tesselar(file.path, deflexaoDe(body), nomeOriginalUtf8(file.originalname, file.filename));
     } finally {
       await fs.unlink(file.path).catch(() => {});
     }
@@ -71,7 +72,7 @@ export class StepController {
     if (!file) throw new BadRequestException('campo "file" (.stp/.step/.ifc) obrigatório');
     const opts = {
       stpPath: file.path,
-      fileName: file.originalname ?? file.filename,
+      fileName: nomeOriginalUtf8(file.originalname, file.filename),
       fileSize: file.size,
       empresa: body?.empresa,
       fabricante: body?.fabricante,

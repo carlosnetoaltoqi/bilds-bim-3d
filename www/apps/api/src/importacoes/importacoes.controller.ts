@@ -16,6 +16,7 @@ import * as crypto from 'node:crypto';
 import { Request } from 'express';
 import { ImportacoesService } from './importacoes.service';
 import { AuthGuard } from '../auth/auth.guard';
+import { nomeOriginalUtf8 } from '../common/upload';
 
 // .aq são SQLite raw: Dancor ~153 MB, Amanco ~394 MB, Maxbar ~618 MB.
 // diskStorage evita buffer inteiro em RAM; multer escreve direto em /tmp.
@@ -36,7 +37,7 @@ export class ImportacoesController {
   async upload(@Req() req: Request, @UploadedFile() file: Express.Multer.File) {
     if (!file) throw new BadRequestException('campo "file" obrigatório');
     const ownerId = (req as any).user.sub as string;
-    return this.importacoesService.create(ownerId, file.path, file.size, file.originalname ?? 'upload.aq');
+    return this.importacoesService.create(ownerId, file.path, file.size, nomeOriginalUtf8(file.originalname, 'upload.aq'));
   }
 
   // Deve vir antes de :importId para não capturar "ultima" como param
