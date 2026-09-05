@@ -42,7 +42,7 @@ Atlas — ver "A API não sobe e o Mongoose culpa o whitelist", no fim.
 | `GET /importacoes/:importId` | `{status, tipo, note, error, productCount, thumbCount, thumbFailed, thumbError, diag, catalogSlug, catalogTitle, empresa, catalogoUrl, editorUrl, segundos…}`; CAD publicado traz `produtoId`, `nome`, `thumbUrl` e o `editorUrl` do produto |
 | `GET /importacoes?empresa=&limite=` | últimas importações (padrão 20, máx. 100) |
 | `POST /miniaturas/regerar` `{productId}` | 202 `{productId, naFrente}` — renderiza a miniatura do produto e grava `thumbKey`/`thumbAtualizadaEm` ou `thumbErro`. Quem chama é a API depois de editar geometria |
-| `POST /cad/tesselar` | multipart `.stp/.step/.ifc` (+ `deflexao`) → `{pos, col, idx, partes, unidade, bbox_mm, …}` síncrono. Sem consumidor no web desde 2026-09-05 (o editor deixou de importar STEP/IFC); fica para ferramentas e e2e |
+| `POST /cad/tesselar` | multipart `.stp/.step/.ifc` (+ `deflexao`) → `{pos, col, idx, partes, unidade, bbox_mm, …}` síncrono — consumido pela página `/cad` do web (a conversão saiu do editor em 2026-09-05) |
 | `POST /exportar/aq` | JSON `{info, partes[] \| pos,col,idx}` → download do `.aq` (`geo_to_aq.py`); resumo no header `X-Aq-Resumo` |
 | `GET /health` | 200 `{status, mongo, pipeline}` ou 503 pela conexão do Mongoose |
 
@@ -72,8 +72,9 @@ No boot, imports não terminais viram `falhou` (`a API foi reiniciada durante a 
 
 | Página | O quê |
 |---|---|
-| `/` | empresas e catálogos com **ver** / **editar** / **importar para esta empresa**; menu: **Importar biblioteca .aq**, **Importar peça STEP / IFC**, **Criar empresa** |
+| `/` | empresas e catálogos com **ver** / **editar** / **importar para esta empresa**; menu: **Importar biblioteca .aq**, **Importar peça STEP / IFC**, **Converter peça CAD**, **Criar empresa** |
 | `/importar[?empresa=&tipo=aq\|cad]` | sobe `.aq`/`.zip`/`.stp`/`.step`/`.ifc` (`tipo` restringe; progresso de upload, campos CAD só quando o arquivo é CAD), acompanha o status a cada 2 s, lista as últimas importações |
+| `/cad` | converte `.stp`/`.step`/`.ifc` pelo serviço (`POST /cad/tesselar`) sem criar produto: viewer 3D, unidade/bbox/sólidos/triângulos, download em JSON, IFC4 (browser) ou `.aq` (`POST /exportar/aq`); link para importar como produto |
 | `/:empresa/:catalogo` | página pública: cabeçalho com **editar catálogo**, cards com miniatura pré-gerada, modal com viewer 3D e **Editar informações e modelo 3D →** |
 | `/:empresa/:catalogo/editar` | metadados do catálogo + lista de produtos com **Editar** (importar só pelo menu da página inicial) |
 | `/:empresa/:catalogo/editar/:produtoId` | editor: viewport 3D (selecionar, mover, girar, espelhar, primitivas, STL/OBJ/JSON locais), informações, exportar IFC4 (no browser) e `.aq` (pelo serviço), salvar (`PUT /geometrias`), restaurar. **STEP/IFC não entram pelo editor** desde 2026-09-05: viram produto pela página inicial |
