@@ -112,13 +112,22 @@ web ──GET /importacoes/:id (polling)──► "publicado" → link para /:em
 | **E2** | **Pipeline Python dentro do serviço:** `www/apps/ingestao/pipeline/` com `read_aq`, `oq3d`, `dedup`, `catalogo` (extraído de `build.py`), `inferencia`, `miniaturas`, `processo` (vigia do stdin), `catalogo_de_aq.py` (CLI, contrato na docstring), conversores CAD, `thumbs.mjs`+`harness.html` (montagens `/harness.html`, `/vendor`, `/geo` — serve o `three` de qualquer lugar); `scripts/build.py` de 1.290 → 695 linhas, importa daqui; `tests/` 106 verdes; CLI validada na Dancor (13 produtos, 13 miniaturas, 9,7 s). | ✅ 2026-09-05 (S7.14) |
 | **E3** | **Serviço `apps/ingestao`** (Nest, :4100): `POST /importacoes` (`.aq`/`.zip`/`.stp`/`.ifc`, fila), `PipelineService` roda `catalogo_de_aq.py`/`step_to_geo.py`/`ifc_to_geo.py`/`geo_to_aq.py`/`thumbs.mjs` via `processo.ts` (timeout, ociosidade, stdin em pipe), recuperação no boot, `POST /miniaturas/regerar` (fila própria), `cad/tesselar`, `exportar/aq`; `packages/dominio` (`@bim/dominio`: schemas, storage, validação, ETag, upload); API sem `importacoes`/`step`/port TS, `PUT /geometrias` com copy-on-write (A5) e `IngestaoClient` (A6); `test_paridade_ts`/`test_worker_ipc` saem, entram `test_processo` e os cenários de copy-on-write; suíte **102** testes. **Pendência:** `tsc` não emite o `@bim/dominio` no `dist/` (o symlink do workspace é tratado como externo) — `pnpm start` do `dist/` não roda; o modo dev (`ts-node`) é o único que funciona até o build do deploy ser feito. | ✅ 2026-09-05 (S7.14) |
 | **E4** | **Web sem login:** `/` (empresas + catálogos), `/importar` unificada, `/empresa/criar`; páginas de catálogo com a chamada para edição validada; editor apontando para os dois serviços. | ⬜ |
-| **E5** | **Testes e CI:** harnesses para `processo.ts`, fila, recuperação, DTOs, copy-on-write; `ci.yml` com os três apps; teste de aceitação com Mongo + Chromium (import Dancor → página → editar → miniatura regerada). | ⬜ |
-| **E6** | **Documentação final:** `www/README.md` reescrito (subir os três, contratos, `.env`), `docs/conhecimento/diagnostico.md`, `CLAUDE.md` (mapa), `README.md` da raiz. | ⬜ |
+| **E5** | **Testes e aceitação:** `test_processo` (executar: saída, sinal, timeout, ocioso, spawn, stdin aberto; `vigiar_stdin`; `thumbs.mjs` para no EOF), `geometrias_thumb` (exclusiva, copy-on-write, serviço fora, DTO), `test_www_config`/`test_www_deps` para três importers; `ci.yml` compila os três apps. **Teste de aceitação com os três serviços + Atlas + Chromium** (registro em `docs/sessoes/S7.14-…`): Dancor 13/13 em 11 s; **Amanco 856 produtos, 448 geometrias, 448 miniaturas em 58 s**; páginas `/`, `/importar`, catálogo (com "editar catálogo"), `/editar`; PUT → miniatura regerada pelo serviço → restaurar; copy-on-write real em `joelho-45-duplo-50mm` (o irmão intacto, miniaturas distintas, restaurar desfaz); `kill -9` no serviço com o Python a 100 geometrias → filho saiu sozinho, boot marcou `falhou` e limpou `geo/`. Achou e corrigiu: `three/build/three.module.js` fora do `exports` (miniaturas falhavam) e `deleteByPrefix` deixando o diretório. | ✅ 2026-09-05 (S7.14) |
+| **E6** | **Documentação:** `www/README.md` reescrito (três apps, contratos, fluxo, estado da base, decisões/pendências, `.env`, Atlas), `docs/conhecimento/diagnostico.md` (+8 linhas), `CLAUDE.md` (mapa, testes, fase atual), `README.md` da raiz, `pipeline/README.md`, sessão S7.14. | ✅ 2026-09-05 (S7.14) |
 
 Regras de execução: um commit por item; cada etapa termina com `pnpm -r build` verde em `www/` e
 `python3 -m pytest -m "not thumbs"` verde; documentação atualizada no mesmo commit da etapa.
 
-## 4. O que fica fora (por enquanto)
+## 4. Pendências deixadas pela S7.14
+
+- **Build para deploy**: o `tsc` não emite `@bim/dominio` no `dist/` (symlink do workspace é externo) — `pnpm start` não roda; só `pnpm dev:*`. Resolver ao isolar o serviço (compilar o dominio com `main` para `dist`, ou bundler).
+- `tools/e2e/e2e-editor.mjs` e `e2e-cad-import.mjs` apontam para os serviços novos mas não foram reexecutados.
+- Teste automatizado de aceitação (subir serviço + API com Mongo local, importar Dancor, editar) — hoje é roteiro manual na sessão.
+- `GET /importacoes` faz três consultas por item; `www/README.md` "Estado da base" precisa ser atualizado a cada carga.
+- I32 (Mongo fora → 500 após 30 s), Nest 11 (multer novo), `IngestaoClient` com timeout de 10 s no `PUT` (se o serviço travar, o PUT demora 10 s).
+- O inventário `docs/inventario-2026-09-05-fica-ou-sai.md` foi escrito ANTES desta arquitetura: as decisões D1–D3 dele foram superadas pela direção do usuário (o repo limpo é o `www/` de três apps + pipeline); o resto (arquivo/sai) continua válido.
+
+## 5. O que fica fora (por enquanto)
 
 - `eng-reversa/` (gerador de `.aq` a partir de PDF) — A9.
 - Auth/admin/visibilidade de catálogo — quando sair deste repositório.

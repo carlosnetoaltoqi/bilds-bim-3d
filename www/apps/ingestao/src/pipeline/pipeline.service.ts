@@ -22,6 +22,20 @@ import { executar, ProcessoError } from './processo';
  * em TypeScript (A2).
  */
 
+/**
+ * Pasta com o `three.module.js` que o harness importa: a `build/` do pacote `three` instalado
+ * neste app. `require.resolve('three')` devolve `…/three/build/three.cjs`; o subpath
+ * `three/build/three.module.js` NÃO está no `exports` do pacote (visto no teste de aceitação
+ * da S7.14 — a importação publicava e as 13 miniaturas falhavam).
+ */
+export function vendorDir(): string {
+  const dir = process.env.BILDS_THREE_DIR ?? path.dirname(require.resolve('three'));
+  if (!fs.existsSync(path.join(dir, 'three.module.js'))) {
+    throw new Error(`three.module.js não encontrado em ${dir} — instale \`three\` em apps/ingestao ou aponte BILDS_THREE_DIR`);
+  }
+  return dir;
+}
+
 export function pipelineDir(env: NodeJS.ProcessEnv = process.env): string {
   return path.resolve(env.PIPELINE_DIR ?? path.join(__dirname, '..', '..', 'pipeline'));
 }
@@ -176,7 +190,7 @@ export class PipelineService {
     const cfgPath = path.join(opts.outDir, `.thumbs-${crypto.randomUUID()}.json`);
     const cfg = {
       harnessDir: this.dir,
-      vendorDir: path.dirname(require.resolve('three/build/three.module.js')),
+      vendorDir: vendorDir(),
       geoDir: opts.geoDir,
       outDir: opts.outDir,
       geos: opts.geos,

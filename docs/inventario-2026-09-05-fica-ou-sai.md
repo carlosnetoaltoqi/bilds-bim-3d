@@ -1,6 +1,8 @@
 # Inventário — o que fica e o que sai (2026-09-05, S7.14)
 
-> **Estado: proposta para decisão do usuário.** Este projeto foi uma POC grande que provou várias
+> **Estado: proposta (2026-09-05, manhã) — parcialmente superada no mesmo dia.** O usuário decidiu a direção antes de responder D1–D8: o que vai para o repositório limpo é o **`www/` reestruturado** (serviço de ingestão com o pipeline Python + API de catálogo + web com editor) — ver `docs/arquitetura-www-servico-de-ingestao.md`. Isso responde D1 = (c) sem a API da POC dinâmica original, D2 = a infra migrou para o serviço, D3 = o editor fica. As seções 2.6 (eng-reversa), 2.5 (docs) e 4 (o que sai) continuam válidas; a seção 4 foi executada na E1.
+>
+> **Estado original: proposta para decisão do usuário.** Este projeto foi uma POC grande que provou várias
 > viabilidades. O próximo passo é levar o que vale para um repositório limpo. Antes disso, este
 > documento classifica **cada área do repositório atual** em um de quatro vereditos, com a evidência
 > (linhas, dependências, quem usa). As colunas "Veredito" marcadas com **D** dependem de uma decisão

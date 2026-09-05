@@ -211,52 +211,39 @@ Se em vez disso aparecer `AVISO: N simbologia(s) descartada(s)` ou `AVISO: N sim
 
 Se faltar uma peça que deveria ter forma e ela só existe como IFC, não no `.aq`, o build não a inclui — o modo `--ifc` foi removido em 2026-09-05 (ver "Peça que existe só como IFC").
 
-## POC de edição (em `www/`, local)
+## `www/` — serviço de ingestão, API de catálogo e web (POC, local)
 
-Sobre a POC dinâmica em `www/` (NestJS + Next.js + Mongo), a POC de edição acrescenta
-**edição das informações e do modelo 3D** de cada produto, sem login:
+O `www/` é o que vai para o repositório limpo (2026-09-05, `docs/arquitetura-www-servico-de-ingestao.md`):
+três apps sem login. O **serviço de ingestão** (`:4100`) recebe uma biblioteca `.aq`/`.zip` ou uma peça
+`.stp`/`.step`/`.ifc`, roda **o mesmo pipeline Python deste repositório** (`www/apps/ingestao/pipeline/`) e o
+Chromium para catálogo, geometria e miniaturas, e grava tudo no Mongo e no storage. A **API de catálogo**
+(`:4000`) serve e edita. O **web** (`:3000`) mostra o catálogo (cards com miniatura, modal com 3D) com a
+chamada para edição em cada página, o editor 3D e a página `/importar`.
 
 ```bash
-cd www && cp .env.example .env      # preencher Mongo, seed, JWT, STORAGE_PATH
+cd www && cp .env.example .env      # preencher Mongo e STORAGE_PATH
 pnpm install
-pnpm dev:api                        # :4000
+pnpm dev:ingestao                   # :4100
+pnpm dev:api                        # :4000  (outro terminal)
 pnpm dev:web                        # :3000  (outro terminal)
-# importar uma biblioteca (interface em /empresa/importar, ou pela API — ver CLAUDE.md)
-# abrir http://localhost:3000/<empresa>/<catalogo>/editar
+# abrir http://localhost:3000 → importar → ver catálogo → editar
 ```
 
 No editor: selecionar partes do modelo (o JSON plano é re-segmentado em componentes
 conexos), mover/girar/escalar com gizmo ou campos em cm, recolorir, espelhar, fundir,
-excluir, adicionar cilindro/tubo/caixa ou STL/OBJ, corte em Y, fantasma do original.
-**Salvar** grava de volta o `{pos, col, idx}` que o viewer público lê, preservando o
-original para "restaurar". **Exportar IFC** baixa um IFC4 do que está na tela (uma
-`IFCBUILDINGELEMENTPROXY` por parte, cores por face, informações do produto em
-`IFCPROPERTYSET`), lido de volta pelo `www/apps/ingestao/pipeline/parse_ifc.py` com os mesmos triângulos. A aba **Informações** edita nome, série, specs, curva Q-H,
-potência e conexões no banco, com "voltar" por campo. Detalhes em
-`docs/sessoes/S7.1-poc-edicao.md`.
-
-## Peça STEP ou IFC no editor, e saída em `.aq`
-
-No mesmo `www/`, um `.stp`/`.step` (Inventor, SolidWorks, CATIA…) ou um `.ifc` entra no
-editor como produto de um catálogo e sai como IFC4 ou `.aq`:
-
-```bash
-pip install --user --break-system-packages cadquery-ocp   # OpenCASCADE em Python, uma vez
-python3 www/apps/ingestao/pipeline/step_to_geo.py input/STEP/2831A09.stp --info   # inspeciona: unidade, sólidos, bbox
-python3 www/apps/ingestao/pipeline/ifc_to_geo.py peca.ifc --info                   # idem para IFC (parse_ifc.py + dedup)
-# com a API e o web de pé: http://localhost:3000/importar-step   (aceita .stp, .step e .ifc)
-```
-
-O STEP é B-rep paramétrico (não tem triângulos); a API tessela com OpenCASCADE. O IFC passa
-pelo `parse_ifc.py` do projeto quando é pequeno e pelo `ifcopenshell` quando é grande (um
-Revit de 124 MB leva ~4 min e 3,6 GB de RAM). A importação é assíncrona: a página mostra
-as etapas e o progresso do conversor. Nos dois casos a API cria o produto e a miniatura. No editor, **Exportar .aq** gera uma biblioteca AltoQi com a peça
-(`www/apps/ingestao/pipeline/geo_to_aq.py`, sobre o escritor OQ3D do `eng-reversa/`), lida de volta pelo
-`read_aq.py` do projeto. Detalhes em `docs/sessoes/S7.2-step-e-aq.md`.
+excluir, adicionar cilindro/tubo/caixa, STL/OBJ ou uma peça STEP/IFC tesselada pelo serviço,
+corte em Y, fantasma do original. **Salvar** grava de volta o `{pos, col, idx}` que o viewer
+público lê (copy-on-write quando a geometria é compartilhada entre produtos) e o serviço regera a
+miniatura. **Exportar IFC** baixa um IFC4 do que está na tela, lido de volta pelo `parse_ifc.py`
+com os mesmos triângulos; **Exportar .aq** gera uma biblioteca AltoQi com a peça (`geo_to_aq.py`,
+sobre o escritor OQ3D do `eng-reversa/`). A aba **Informações** edita nome, série, specs, curva Q-H,
+potência e conexões, com "voltar" por campo. Tudo em `www/README.md`.
 
 ## Documentação
 
-- `CLAUDE.md` — arquitetura, formato OQ3D, decisões e armadilhas conhecidas
+- `CLAUDE.md` — mapa do projeto: onde está cada conhecimento, fase atual, testes
+- `docs/arquitetura-www-servico-de-ingestao.md` — o `www/` em três apps: decisões, contratos, etapas, pendências
+- `www/README.md` — subir os três apps, rotas, estado da base, `.env`, Atlas
 - `docs/bilds-bim-3d-zip-spec.md` — contrato do ZIP consumido pela bilds.com
 - `docs/plano-integracao-bilds.md` — plano original da integração (**histórico**: o módulo já está em produção; não use como guia)
 - `docs/estudo-oq3d/` — como a geometria dentro do `.aq` foi descoberta e validada

@@ -6,8 +6,9 @@
 #     Os `.aq` de input/ são gitignored, então os testes que dependem deles PULAM
 #     aqui com motivo — o que roda são os blobs OQ3D sintéticos, o contrato do
 #     parser, o render dos templates e os harnesses Node de www/ (Node 24 roda .ts direto).
-#   www — `pnpm install --frozen-lockfile` + `pnpm -r build` (API com tsc, web com
-#     next build). Não sobe Mongo nem roda a POC; só prova que compila.
+#   www — `pnpm install --frozen-lockfile` + `pnpm -r build` (serviço de ingestão e API com tsc,
+#     web com next build; o pacote @bim/dominio compila dentro de cada app). Não sobe Mongo nem
+#     Chromium; só prova que compila.
 #   Versões: Node em .nvmrc, pnpm em packageManager (package.json), Python em .python-version.
 #
 # Localmente a mesma coisa é: python3 -m pytest -m "not thumbs"  e  (cd www && pnpm -r build)

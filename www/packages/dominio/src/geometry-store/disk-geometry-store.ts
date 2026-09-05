@@ -63,5 +63,7 @@ export class DiskGeometryStore implements IGeometryStore {
         }),
       ),
     );
+    // o diretório do prefixo (geo/<importId>, thumbs/<importId>) não fica vazio para trás
+    await fs.rm(path.join(this.baseDir, prefix), { recursive: true, force: true }).catch(() => undefined);
   }
 }
