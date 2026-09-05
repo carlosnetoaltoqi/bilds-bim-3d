@@ -13,7 +13,7 @@ import { PatchProdutoDto } from '../../www/apps/api/src/produtos/patch-produto.d
 import { PatchCatalogoDto } from '../../www/apps/api/src/catalogos/patch-catalogo.dto';
 import { ExportarAqDto, ImportarCadDto } from '../../www/apps/api/src/step/cad.dto';
 import { CriarEmpresaDto } from '../../www/apps/api/src/empresas/criar-empresa.dto';
-import { LoginDto } from '../../www/apps/api/src/auth/login.dto';
+import { ImportarAqDto } from '../../www/apps/api/src/importacoes/importar-aq.dto';
 
 const pipe = criarValidationPipe();
 
@@ -81,12 +81,13 @@ async function main() {
   s.cad_deflexao_grande = await valida(ImportarCadDto, { deflexao: '11' });
   s.cad_deflexao_texto = await valida(ImportarCadDto, { deflexao: 'abc' });
 
-  // ── POST /empresas e /auth/login ─────────────────────────────────────────────
+  // ── POST /empresas e POST /importacoes (sem auth desde S7.14) ────────────────
   s.empresa_ok = await valida(CriarEmpresaDto, { name: ' POC ', customUrl: ' Minha Empresa ' });
   s.empresa_sem_nome = await valida(CriarEmpresaDto, { name: '', customUrl: 'x' });
   s.empresa_sem_url = await valida(CriarEmpresaDto, { name: 'x' });
-  s.login_ok = await valida(LoginDto, { email: 'a@b', password: 'c' });
-  s.login_tipo_errado = await valida(LoginDto, { email: 1, password: null });
+  s.importar_aq_ok = await valida(ImportarAqDto, { empresa: ' poc ' });
+  s.importar_aq_vazio = await valida(ImportarAqDto, {});
+  s.importar_aq_campo_estranho = await valida(ImportarAqDto, { ownerId: 'x' });
 
   process.stdout.write(JSON.stringify(s));
 }

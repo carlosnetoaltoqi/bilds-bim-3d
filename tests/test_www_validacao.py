@@ -114,11 +114,13 @@ def test_cad_deflexao_vira_numero_entre_0_e_10(c):
     assert 'deve ser um número' in _erros(c['cad_deflexao_texto'])
 
 
-# ── POST /empresas, POST /auth/login ─────────────────────────────────────────
+# ── POST /empresas, POST /importacoes ────────────────────────────────────────
 
-def test_empresa_e_login(c):
+def test_empresa_e_importar_aq(c):
     assert c['empresa_ok'] == {'ok': {'name': 'POC', 'customUrl': 'Minha Empresa'}}   # o controller vira slug
     assert 'campo "name" obrigatório' in _erros(c['empresa_sem_nome'])
     assert 'campo "customUrl" obrigatório' in _erros(c['empresa_sem_url'])
-    assert c['login_ok'] == {'ok': {'email': 'a@b', 'password': 'c'}}
-    assert '"email" deve ser texto' in _erros(c['login_tipo_errado'])
+    # sem auth (S7.14): o import recebe a empresa por `customUrl`; campo fora do DTO é 400
+    assert c['importar_aq_ok'] == {'ok': {'empresa': 'poc'}}
+    assert c['importar_aq_vazio'] == {'ok': {}}
+    assert c['importar_aq_campo_estranho']['status'] == 400

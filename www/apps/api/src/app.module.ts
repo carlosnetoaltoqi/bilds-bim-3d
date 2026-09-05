@@ -6,7 +6,6 @@ import { GeometriasModule } from './geometrias/geometrias.module';
 import { ImportacoesModule } from './importacoes/importacoes.module';
 import { CatalogosModule } from './catalogos/catalogos.module';
 import { ThumbsModule } from './thumbs/thumbs.module';
-import { AuthModule } from './auth/auth.module';
 import { EmpresasModule } from './empresas/empresas.module';
 import { ProdutosModule } from './produtos/produtos.module';
 import { StepModule } from './step/step.module';
@@ -26,7 +25,6 @@ import { BimImport, BimImportSchema } from './bim-imports/bim-imports.schema';
     ImportacoesModule,
     CatalogosModule,
     ThumbsModule,
-    AuthModule,
     EmpresasModule,
     ProdutosModule,
     StepModule,

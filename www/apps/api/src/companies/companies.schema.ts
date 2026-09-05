@@ -14,8 +14,9 @@ export class Company {
   @Prop({ required: true, unique: true })
   customUrl: string;
 
-  @Prop({ required: true })
-  ownerId: string;
+  /** Resquício da POC com login; sem auth ninguém é dono. Fica opcional para ler documentos antigos. */
+  @Prop()
+  ownerId?: string;
 
   @Prop()
   logoKey?: string;

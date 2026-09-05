@@ -4,8 +4,6 @@ import {
   Get,
   Param,
   Body,
-  Req,
-  UseGuards,
   UseInterceptors,
   UploadedFile,
   NotFoundException,
@@ -17,27 +15,46 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as path from 'path';
 import * as fs from 'fs';
-import { Request, Response } from 'express';
-import { AuthGuard } from '../auth/auth.guard';
+import { Response } from 'express';
 import { Company, CompanyDocument } from '../companies/companies.schema';
+import { BimCatalog, BimCatalogDocument } from '../bim-catalogs/bim-catalogs.schema';
 import { storagePath } from '../common/storage-path';
 import { CriarEmpresaDto } from './criar-empresa.dto';
 
+/**
+ * Empresas (organizações) — sem auth (A7 de docs/arquitetura-www-servico-de-ingestao.md).
+ *
+ * GET  /empresas                      — todas, com a quantidade de catálogos
+ * POST /empresas                      — cria (multipart: name, customUrl, logo?)
+ * GET  /empresas/:customUrl           — uma, com os catálogos
+ * GET  /empresas/:customUrl/catalogos — só os catálogos
+ * GET  /logos/:companyId              — o logo
+ *
+ * A empresa é só um agrupador de catálogos: quem importa escolhe por `customUrl`.
+ */
 @Controller()
 export class EmpresasController {
   private readonly storageBase: string;
 
   constructor(
     @InjectModel(Company.name) private readonly companyModel: Model<CompanyDocument>,
+    @InjectModel(BimCatalog.name) private readonly catalogModel: Model<BimCatalogDocument>,
   ) {
     this.storageBase = storagePath(); // mesma raiz do DiskGeometryStore (I17)
   }
 
-  @UseGuards(AuthGuard)
+  @Get('empresas')
+  async listar() {
+    const companies = await this.companyModel.find().sort({ createdAt: 1 }).lean().exec();
+    const catalogos = await this.catalogModel.find().select('companyId').lean().exec();
+    const porEmpresa = new Map<string, number>();
+    for (const c of catalogos) porEmpresa.set(c.companyId, (porEmpresa.get(c.companyId) ?? 0) + 1);
+    return companies.map((c) => ({ ...this.toDto(c), catalogCount: porEmpresa.get(c._id) ?? 0 }));
+  }
+
   @Post('empresas')
   @UseInterceptors(FileInterceptor('logo', { limits: { fileSize: 2 * 1024 * 1024 } }))
   async create(
-    @Req() req: Request,
     @UploadedFile() logo: Express.Multer.File | undefined,
     @Body() body: CriarEmpresaDto, // obrigatoriedade e tamanho no DTO (I16)
   ) {
@@ -45,7 +62,6 @@ export class EmpresasController {
     const existing = await this.companyModel.findOne({ customUrl: slug }).lean().exec();
     if (existing) throw new ConflictException(`URL "${slug}" já está em uso`);
 
-    const ownerId = (req as any).user.sub as string;
     const companyId = crypto.randomUUID();
 
     let logoKey: string | undefined;
@@ -61,31 +77,23 @@ export class EmpresasController {
       _id: companyId,
       name: body.name,
       customUrl: slug,
-      ownerId,
       logoKey,
     });
-
-    return {
-      id: company._id,
-      name: company.name,
-      customUrl: company.customUrl,
-      logoUrl: logoKey ? `/logos/${companyId}` : null,
-    };
+    return this.toDto(company.toObject());
   }
 
-  @UseGuards(AuthGuard)
-  @Get('empresas/minha')
-  async minha(@Req() req: Request) {
-    const ownerId = (req as any).user.sub as string;
-    const company = await this.companyModel.findOne({ ownerId }).lean().exec();
-    if (!company) throw new NotFoundException('empresa não encontrada');
+  @Get('empresas/:customUrl')
+  async uma(@Param('customUrl') customUrl: string) {
+    const company = await this.companyModel.findOne({ customUrl }).lean().exec();
+    if (!company) throw new NotFoundException(`empresa "${customUrl}" não encontrada`);
+    return { ...this.toDto(company), catalogos: await this.catalogosDe(company._id) };
+  }
 
-    return {
-      id: company._id,
-      name: company.name,
-      customUrl: company.customUrl,
-      logoUrl: company.logoKey ? `/logos/${company._id}` : null,
-    };
+  @Get('empresas/:customUrl/catalogos')
+  async catalogos(@Param('customUrl') customUrl: string) {
+    const company = await this.companyModel.findOne({ customUrl }).lean().exec();
+    if (!company) throw new NotFoundException(`empresa "${customUrl}" não encontrada`);
+    return this.catalogosDe(company._id);
   }
 
   @Get('logos/:companyId')
@@ -104,6 +112,29 @@ export class EmpresasController {
     res.setHeader('Content-Type', contentType);
     res.setHeader('Cache-Control', 'public, max-age=86400');
     res.send(fs.readFileSync(logoPath));
+  }
+
+  private async catalogosDe(companyId: string) {
+    const cats = await this.catalogModel.find({ companyId }).sort({ createdAt: 1 }).lean().exec();
+    return cats.map((c) => ({
+      id: c._id,
+      slug: c.slug,
+      title: c.title,
+      manufacturer: c.manufacturer,
+      layout: c.layout,
+      productCount: c.productCount,
+      createdAt: c.createdAt,
+    }));
+  }
+
+  private toDto(c: { _id: string; name: string; customUrl: string; logoKey?: string; createdAt?: Date }) {
+    return {
+      id: c._id,
+      name: c.name,
+      customUrl: c.customUrl,
+      logoUrl: c.logoKey ? `/logos/${c._id}` : null,
+      createdAt: c.createdAt ?? null,
+    };
   }
 
   private inferExt(mimetype: string, originalname: string): string {

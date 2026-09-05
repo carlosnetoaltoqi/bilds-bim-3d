@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { API_URL } from '@/lib/api';
 
 type ImportStatus = 'recebido' | 'parseando' | 'gravando' | 'publicado' | 'vazio' | 'falhou';
@@ -34,7 +35,14 @@ function formatElapsed(s: number): string {
   return `há ${m}m ${(s % 60).toString().padStart(2, '0')}s`;
 }
 
+// useSearchParams exige Suspense no build estático do Next
 export default function ImportarPage() {
+  return <Suspense fallback={<main style={s.main}><p style={s.muted}>Carregando…</p></main>}><ImportarPageInner /></Suspense>;
+}
+
+function ImportarPageInner() {
+  // empresa (customUrl) dona do catálogo — vem de /empresa ("importar para esta empresa"); vazio = a primeira
+  const empresa = useSearchParams().get('empresa') ?? '';
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadPct, setUploadPct] = useState(0);
@@ -47,14 +55,14 @@ export default function ImportarPage() {
 
   // Recovery: ao carregar a página, busca a última importação no banco
   useEffect(() => {
-    fetch('/api/importacoes/ultima')
+    fetch(`${API_URL}/importacoes/ultima${empresa ? `?empresa=${encodeURIComponent(empresa)}` : ''}`)
       .then((r) => r.json())
       .then((data) => {
         if (data?.importId) setImp(data as ImportState);
       })
       .catch(() => {})
       .finally(() => setPageLoading(false));
-  }, []);
+  }, [empresa]);
 
   // Polling quando há importação não-terminal
   useEffect(() => {
@@ -66,7 +74,7 @@ export default function ImportarPage() {
 
     pollRef.current = setInterval(async () => {
       try {
-        const r = await fetch(`/api/importacoes/${imp.importId}`);
+        const r = await fetch(`${API_URL}/importacoes/${imp.importId}`);
         if (!r.ok) return;
         const data = await r.json();
         setImp(data as ImportState);
@@ -105,16 +113,14 @@ export default function ImportarPage() {
     setUploadPct(0);
     setUploadError(null);
 
-    // Obtém token primeiro, depois faz o upload via XHR para ter progresso real
-    fetch('/api/auth/token')
-      .then((r) => r.ok ? r.json() : Promise.reject('session'))
-      .then(({ token }) => new Promise<{ importId: string; status: string }>((resolve, reject) => {
+    // XHR em vez de fetch só para ter progresso real de upload (arquivos de centenas de MB)
+    new Promise<{ importId: string; status: string }>((resolve, reject) => {
         const form = new FormData();
         form.append('file', file);
+        if (empresa) form.append('empresa', empresa);
 
         const xhr = new XMLHttpRequest();
         xhr.open('POST', `${API_URL}/importacoes`);
-        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
 
         xhr.upload.onprogress = (ev) => {
           if (ev.lengthComputable) setUploadPct(Math.round((ev.loaded / ev.total) * 100));
@@ -127,7 +133,7 @@ export default function ImportarPage() {
         };
         xhr.onerror = () => reject('Erro de rede ao enviar arquivo');
         xhr.send(form);
-      }))
+      })
       .then((data) => {
         setImp({ importId: data.importId, status: data.status as ImportStatus, productCount: null, error: null, note: null, catalogId: null });
         setFile(null);
@@ -150,8 +156,8 @@ export default function ImportarPage() {
     <main style={s.main}>
       <div style={s.card}>
         <div style={s.topRow}>
-          <a href="/empresa" style={s.back}>← Empresa</a>
-          <h1 style={s.title}>Subir biblioteca .aq</h1>
+          <a href="/empresa" style={s.back}>← Empresas</a>
+          <h1 style={s.title}>Subir biblioteca .aq{empresa ? ` — ${empresa}` : ''}</h1>
         </div>
 
         {!imp && (

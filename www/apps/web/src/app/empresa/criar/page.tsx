@@ -2,6 +2,7 @@
 
 import { useState, FormEvent, ChangeEvent } from 'react';
 import { useRouter } from 'next/navigation';
+import { API_URL } from '@/lib/api';
 
 export default function CriarEmpresaPage() {
   const router = useRouter();
@@ -46,7 +47,7 @@ export default function CriarEmpresaPage() {
       form.append('customUrl', customUrl);
       if (logo) form.append('logo', logo);
 
-      const res = await fetch('/api/empresas', { method: 'POST', body: form });
+      const res = await fetch(`${API_URL}/empresas`, { method: 'POST', body: form });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setError(data.message ?? 'Erro ao criar empresa');

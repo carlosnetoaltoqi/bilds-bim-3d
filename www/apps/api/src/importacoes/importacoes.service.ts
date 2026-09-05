@@ -41,16 +41,15 @@ export class ImportacoesService {
     return imp;
   }
 
-  async findByIdAndVerifyOwner(importId: string, ownerId: string) {
-    const imp = await this.importModel.findById(importId).lean().exec();
-    if (!imp) throw new NotFoundException('importação não encontrada');
-    const company = await this.companyModel.findById(imp.companyId).lean().exec();
-    if (!company || company.ownerId !== ownerId) throw new NotFoundException('importação não encontrada');
-    return imp;
+  /** Empresa por `customUrl`; vazio = a primeira cadastrada (sem auth não há "minha empresa"). */
+  private async empresaDe(customUrl?: string) {
+    return customUrl
+      ? this.companyModel.findOne({ customUrl }).lean().exec()
+      : this.companyModel.findOne().sort({ createdAt: 1 }).lean().exec();
   }
 
-  async findLatestByOwnerId(ownerId: string) {
-    const company = await this.companyModel.findOne({ ownerId }).lean().exec();
+  async findLatest(empresa?: string) {
+    const company = await this.empresaDe(empresa);
     if (!company) return null;
     const imp = await this.importModel
       .findOne({ companyId: company._id })
@@ -71,18 +70,21 @@ export class ImportacoesService {
       note: (imp as any).note ?? null,
       catalogId: imp.catalogId ?? null,
       catalogSlug,
+      empresa: company.customUrl,
       createdAt: imp.createdAt,
       updatedAt: (imp as any).updatedAt ?? null,
     };
   }
 
   // filePath: caminho em disco escrito pelo multer diskStorage (evita buffer em RAM)
-  async create(ownerId: string, filePath: string, fileSize: number, fileName: string) {
+  async create(empresa: string | undefined, filePath: string, fileSize: number, fileName: string) {
     const sizeMb = (fileSize / 1024 / 1024).toFixed(1);
-    this.logger.log(`upload recebido — ${fileName} (${sizeMb} MB) owner=${ownerId}`);
+    this.logger.log(`upload recebido — ${fileName} (${sizeMb} MB) empresa=${empresa ?? '(primeira)'}`);
 
-    const company = await this.companyModel.findOne({ ownerId }).lean().exec();
-    if (!company) throw new BadRequestException('empresa não encontrada para este usuário');
+    const company = await this.empresaDe(empresa);
+    if (!company) {
+      throw new BadRequestException(empresa ? `empresa "${empresa}" não encontrada` : 'nenhuma empresa cadastrada — crie uma em /empresa/criar');
+    }
 
     const importId = crypto.randomUUID();
     await this.importModel.create({

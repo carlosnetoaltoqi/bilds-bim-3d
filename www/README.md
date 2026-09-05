@@ -1,5 +1,13 @@
 # www — POC dinâmica + POC de edição
 
+> **Em reestruturação (S7.14, 2026-09-05).** O `www/` está virando três apps — serviço de ingestão
+> (`apps/ingestao`, pipeline Python + Chromium), API de catálogo (`apps/api`) e web (`apps/web`) — conforme
+> `docs/arquitetura-www-servico-de-ingestao.md`, que diz em que etapa estamos. **Sem auth**: login, JWT,
+> `SEED_USER` e o middleware do Next saíram na E1; as seções abaixo que falam de token/auth estão
+> desatualizadas até a E6 reescrever este arquivo. Ferramentas removidas na E1: `workers/aq-parser`,
+> `tools/{test-worker,test-port-s2-2,ingest-library,measure-thumbs,smoke-geometry-store,regen-thumbs,thumb-rasterizer-sw}.ts`
+> e os scripts `smoke:geo`, `ingest`, `worker:test`, `port:test`, `thumb:measure`, `thumb:regen`.
+
 Monorepo pnpm com a API NestJS (`apps/api`, porta 4000) e o web Next.js (`apps/web`,
 porta 3000). Este arquivo é a **fonte de verdade da POC**: o mapa para subir e, mais abaixo,
 estado da base, decisões e armadilhas (movidos do `CLAUDE.md` em 2026-09-04, I22). O
