@@ -13,9 +13,12 @@ import { BimProduct, BimProductDocument } from '../bim-products/bim-products.sch
 import { Company, CompanyDocument } from '../companies/companies.schema';
 import { IGeometryStore } from '../geometry-store/geometry-store.interface';
 import { WorkerResult, ProductResult, CatalogMeta } from './parse-worker';
-import { ThumbWorkerInput, ThumbWorkerMessage } from './thumb-worker';
+import { ThumbWorkerInput } from './thumb-worker';
+import { aguardarResultado, aguardarMiniaturas, descreveResumo, ResumoMiniaturas } from './worker-ipc';
 
 const WORKER_TIMEOUT_MS = 5 * 60 * 1000; // 5 min
+/** thumb-worker sem mensagem por este tempo = Chromium travado: mata e registra (I15). */
+const THUMB_OCIOSO_MS = 2 * 60 * 1000;
 
 @Injectable()
 export class ImportacoesService {
@@ -87,9 +90,10 @@ export class ImportacoesService {
     });
 
     this.logger.log(`import ${importId} criado — disparando processamento`);
-    this.processAsync(importId, filePath, company._id as string).catch(() => {
-      /* errors are recorded in the import document */
-    });
+    // processAsync registra as falhas no documento; se nem isso conseguir, fica no log
+    this.processAsync(importId, filePath, company._id as string).catch((e: any) =>
+      this.logger.error(`[${importId.slice(0, 8)}] processAsync escapou — ${e?.message ?? e}`),
+    );
 
     return { importId, status: 'recebido' };
   }
@@ -198,11 +202,9 @@ export class ImportacoesService {
           catalogId,
           importId: { $ne: importId },
         });
-        try {
-          await this.store.deleteByPrefix(`geo/${prevImportId}`);
-        } catch {
-          /* best-effort */
-        }
+        await this.store.deleteByPrefix(`geo/${prevImportId}`).catch((e: any) =>
+          this.logger.warn(`[${importId.slice(0, 8)}] não removeu geo/${prevImportId} do import anterior — ${e?.message ?? e}`),
+        );
         note = `Substituiu catálogo existente (import anterior: ${prevImportId}, ${deleted.deletedCount} produtos removidos)`;
       }
 
@@ -216,20 +218,17 @@ export class ImportacoesService {
 
       lap(`→ publicado — total ${((Date.now() - t0) / 1000).toFixed(1)}s`);
 
-      // Dispara geração de miniaturas fire-and-forget (S2.4)
-      // Falhas não mudam o status do import — miniaturas são opcionais
-      this.spawnThumbWorker(importId, productDocs.map((p) => ({ productId: p._id, geoKey: p.geoKey! }))).catch(
-        () => { /* silencioso */ },
-      );
+      // Miniaturas em segundo plano (S2.4): não mudam o status do import, mas o
+      // resultado — inclusive cada falha — vai para o log e para o documento (I15).
+      void this.gerarMiniaturas(importId, productDocs.map((p) => ({ productId: p._id, geoKey: p.geoKey! })));
     } catch (err: any) {
-      // Cleanup files written by worker
-      try {
-        await this.store.deleteByPrefix(`geo/${importId}`);
-      } catch {
-        /* ignore */
-      }
-      // Remove any products inserted
-      await this.productModel.deleteMany({ importId }).catch(() => {});
+      // Limpeza best-effort do que o worker gravou — falha aqui é logada, não escondida
+      await this.store.deleteByPrefix(`geo/${importId}`).catch((e: any) =>
+        this.logger.warn(`[${importId.slice(0, 8)}] limpeza de geo/${importId} falhou — ${e?.message ?? e}`),
+      );
+      await this.productModel.deleteMany({ importId }).catch((e: any) =>
+        this.logger.warn(`[${importId.slice(0, 8)}] limpeza de produtos falhou — ${e?.message ?? e}`),
+      );
 
       this.logger.error(`[${importId.slice(0, 8)}] FALHOU — ${err.message} — +${((Date.now() - t0) / 1000).toFixed(1)}s`);
       await setStatus('falhou', { error: err.message ?? String(err) });
@@ -239,95 +238,112 @@ export class ImportacoesService {
   }
 
   private runWorker(importId: string, aqPath: string): Promise<WorkerResult> {
-    return new Promise((resolve, reject) => {
-      const workerPath = path.resolve(__dirname, 'parse-worker.ts');
-      const child = fork(workerPath, [], {
-        execArgv: [
-          '--require',
-          'ts-node/register/transpile-only',
-          '--require',
-          'reflect-metadata',
-        ],
-        env: { ...process.env },
-        silent: false,
-      });
-
-      const timer = setTimeout(() => {
-        child.kill('SIGKILL');
-        reject(new Error(`parse-worker timeout após ${WORKER_TIMEOUT_MS / 1000}s`));
-      }, WORKER_TIMEOUT_MS);
-
-      child.on('message', (msg: WorkerResult) => {
-        clearTimeout(timer);
-        resolve(msg);
-      });
-
-      child.on('error', (err) => {
-        clearTimeout(timer);
-        reject(err);
-      });
-
-      child.on('exit', (code) => {
-        clearTimeout(timer);
-        if (code !== 0) {
-          reject(new Error(`parse-worker encerrou com código ${code}`));
-        }
-      });
-
-      child.send({ aqPath, importId });
+    const workerPath = path.resolve(__dirname, 'parse-worker.ts');
+    const child = fork(workerPath, [], {
+      execArgv: [
+        '--require',
+        'ts-node/register/transpile-only',
+        '--require',
+        'reflect-metadata',
+      ],
+      env: { ...process.env },
+      silent: false,
     });
+    // Sair com 0 sem ter mandado o resultado também é erro — antes prendia a promise até o timeout (I15)
+    const resultado = aguardarResultado<WorkerResult>(child, 'parse-worker', WORKER_TIMEOUT_MS);
+    child.send({ aqPath, importId });
+    return resultado;
   }
 
-  /** Público desde a POC de edição: o import de STEP reaproveita o mesmo worker de miniaturas. */
+  /**
+   * Gera as miniaturas de um import e **registra o resultado** no documento do import
+   * (`thumbCount`, `thumbFailed`, `thumbError`, uma linha no `note`) e no log. Nunca
+   * rejeita — é o que os chamadores disparam em segundo plano. Público desde a POC de
+   * edição: o import de STEP/IFC usa o mesmo worker.
+   */
+  async gerarMiniaturas(
+    importId: string,
+    products: Array<{ productId: string; geoKey: string }>,
+  ): Promise<ResumoMiniaturas | null> {
+    const tag = `[${importId.slice(0, 8)}]`;
+    let resumo: ResumoMiniaturas | null = null;
+    let erro: string | null = null;
+    try {
+      resumo = await this.spawnThumbWorker(importId, products);
+    } catch (err: any) {
+      erro = err?.message ?? String(err);
+      resumo = err?.resumo ?? null;
+      this.logger.error(`${tag} ${erro}`);
+    }
+    const linha = erro ?? descreveResumo(resumo!);
+    if (!erro && resumo!.falhas.length) this.logger.warn(`${tag} ${linha}`);
+    try {
+      const imp = await this.importModel.findById(importId).select('note').lean().exec();
+      const note = imp?.note ? `${imp.note} — ${linha}` : linha;
+      await this.importModel.findByIdAndUpdate(importId, {
+        note,
+        thumbCount: resumo?.geradas ?? 0,
+        thumbFailed: resumo ? resumo.falhas.length : products.length,
+        ...(erro ? { thumbError: erro } : {}),
+        updatedAt: new Date(),
+      }).exec();
+    } catch (e: any) {
+      this.logger.error(`${tag} não registrou o resultado das miniaturas no import — ${e?.message ?? e}`);
+    }
+    return resumo;
+  }
+
+  /**
+   * Fork do thumb-worker. Resolve com o resumo (geradas + cada falha por produto);
+   * rejeita se o filho sair antes do `done`, se ficar ocioso ou se o processo falhar.
+   * Use `gerarMiniaturas` a menos que queira tratar a rejeição você mesmo.
+   */
   spawnThumbWorker(
     importId: string,
     products: Array<{ productId: string; geoKey: string }>,
-  ): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const workerPath = path.resolve(__dirname, 'thumb-worker.ts');
-      const storagePath = path.resolve(
-        process.env.STORAGE_PATH ?? path.join(process.cwd(), 'storage'),
-      );
-      const child = fork(workerPath, [], {
-        execArgv: [
-          '--require',
-          'ts-node/register/transpile-only',
-          '--require',
-          'reflect-metadata',
-        ],
-        env: { ...process.env },
-        silent: false,
-      });
-
-      const tThumb = Date.now();
-      let thumbCount = 0;
-      this.logger.log(`[${importId.slice(0, 8)}] thumb-worker iniciado — ${products.length} produtos`);
-
-      child.on('message', (msg: ThumbWorkerMessage) => {
-        if (msg.type === 'thumb') {
-          thumbCount++;
-          this.productModel
-            .findByIdAndUpdate(msg.productId, { thumbKey: msg.thumbKey })
-            .exec()
-            .catch(() => {});
-          if (thumbCount === 1 || thumbCount % 50 === 0) {
-            this.logger.log(`[${importId.slice(0, 8)}] thumbs: ${thumbCount}/${products.length} — +${((Date.now() - tThumb) / 1000).toFixed(1)}s`);
-          }
-        } else if (msg.type === 'done') {
-          this.logger.log(`[${importId.slice(0, 8)}] thumbs concluídas — ${thumbCount} em ${((Date.now() - tThumb) / 1000).toFixed(1)}s`);
-          resolve();
-        }
-      });
-
-      child.on('error', reject);
-      child.on('exit', (code) => {
-        if (code !== 0) reject(new Error(`thumb-worker encerrou com código ${code}`));
-        else resolve();
-      });
-
-      const input: ThumbWorkerInput = { products, storagePath, importId };
-      child.send(input);
+  ): Promise<ResumoMiniaturas> {
+    const tag = `[${importId.slice(0, 8)}]`;
+    const workerPath = path.resolve(__dirname, 'thumb-worker.ts');
+    const storagePath = path.resolve(
+      process.env.STORAGE_PATH ?? path.join(process.cwd(), 'storage'),
+    );
+    const child = fork(workerPath, [], {
+      execArgv: [
+        '--require',
+        'ts-node/register/transpile-only',
+        '--require',
+        'reflect-metadata',
+      ],
+      env: { ...process.env },
+      silent: false,
     });
-  }
 
+    const tThumb = Date.now();
+    let thumbCount = 0;
+    this.logger.log(`${tag} thumb-worker iniciado — ${products.length} produtos`);
+
+    const resultado = aguardarMiniaturas(
+      child,
+      products.length,
+      {
+        onMiniatura: async (productId, thumbKey) => {
+          // se o update falhar, o worker-ipc conta como falha do produto
+          await this.productModel.findByIdAndUpdate(productId, { thumbKey }).exec();
+          thumbCount++;
+          if (thumbCount === 1 || thumbCount % 50 === 0) {
+            this.logger.log(`${tag} thumbs: ${thumbCount}/${products.length} — +${((Date.now() - tThumb) / 1000).toFixed(1)}s`);
+          }
+        },
+        onFalha: (productId, message) => this.logger.warn(`${tag} miniatura falhou — ${productId}: ${message}`),
+      },
+      THUMB_OCIOSO_MS,
+    ).then((resumo) => {
+      this.logger.log(`${tag} thumbs concluídas — ${descreveResumo(resumo)} em ${((Date.now() - tThumb) / 1000).toFixed(1)}s`);
+      return resumo;
+    });
+
+    const input: ThumbWorkerInput = { products, storagePath, importId };
+    child.send(input);
+    return resultado;
+  }
 }

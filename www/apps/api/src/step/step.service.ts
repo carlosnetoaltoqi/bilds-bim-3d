@@ -204,7 +204,10 @@ export class StepService {
       updatedAt: new Date(),
     });
     // não aguarda: erros vão para o documento do import
-    this.processar(importId, company as any, opts).catch(() => {});
+    // processar registra a falha no documento; se nem isso conseguir, fica no log
+    this.processar(importId, company as any, opts).catch((e: any) =>
+      this.logger.error(`import ${importId.slice(0, 8)} — processar escapou: ${e?.message ?? e}`),
+    );
     return { importId, status: 'recebido', statusUrl: `/cad/importacoes/${importId}` };
   }
 
@@ -255,7 +258,6 @@ export class StepService {
     const t0 = Date.now();
     const setStatus = (status: string, extra: Record<string, unknown> = {}) =>
       this.importModel.findByIdAndUpdate(importId, { status, updatedAt: new Date(), ...extra }).exec();
-    let geoKey: string | null = null;
     try {
       await setStatus('parseando', { note: 'convertendo…' });
       let ultimoProgresso = 0;
@@ -268,7 +270,6 @@ export class StepService {
       });
       await setStatus('gravando', { note: `${geo.idx.length / 3} triângulos convertidos em ${((Date.now() - t0) / 1000).toFixed(0)} s — gravando…` });
       const r = await this.publicar(importId, company, opts, geo);
-      geoKey = r.geoKey;
       await setStatus('publicado', {
         catalogId: r.catalogId,
         productCount: 1,
@@ -279,12 +280,11 @@ export class StepService {
         ].filter(Boolean).join(' — '),
       });
       this.logger.log(`${geo.formato?.toUpperCase()} importado — ${r.nome} → ${company.customUrl}/${r.slug} (produto ${r.productId}) em ${((Date.now() - t0) / 1000).toFixed(1)}s`);
-      this.importacoes.spawnThumbWorker(importId, [{ productId: r.productId, geoKey: r.geoKey }]).catch(() => {});
+      void this.importacoes.gerarMiniaturas(importId, [{ productId: r.productId, geoKey: r.geoKey }]);
     } catch (err: any) {
       const msg = (err?.message ?? String(err)).slice(0, 2000);
       this.logger.error(`import ${importId.slice(0, 8)} FALHOU — ${msg}`);
-      await this.productModel.deleteMany({ importId }).catch(() => {});
-      if (geoKey) await this.store.deleteByPrefix(`geo/${importId}`).catch(() => {});
+      await this.limparImport(importId);
       await setStatus('falhou', { error: msg, note: `falhou após ${((Date.now() - t0) / 1000).toFixed(0)} s` });
     } finally {
       await fs.unlink(opts.stpPath).catch(() => {});
@@ -310,9 +310,18 @@ export class StepService {
         : `STEP tesselado (deflexão ${geo.deflexao_mm} mm) — ${geo.partes.length} sólido(s), unidade ${geo.unidade}`,
       updatedAt: new Date(),
     });
-    const r = await this.publicar(importId, company as any, opts, geo);
+    let r: Awaited<ReturnType<StepService['publicar']>>;
+    try {
+      r = await this.publicar(importId, company as any, opts, geo);
+    } catch (err: any) {
+      const msg = (err?.message ?? String(err)).slice(0, 2000);
+      this.logger.error(`import ${importId.slice(0, 8)} (sync) FALHOU ao publicar — ${msg}`);
+      await this.limparImport(importId);
+      await this.importModel.findByIdAndUpdate(importId, { status: 'falhou', error: msg, updatedAt: new Date() }).exec().catch(() => undefined);
+      throw err;
+    }
     await this.importModel.findByIdAndUpdate(importId, { catalogId: r.catalogId }).exec();
-    this.importacoes.spawnThumbWorker(importId, [{ productId: r.productId, geoKey: r.geoKey }]).catch(() => {});
+    void this.importacoes.gerarMiniaturas(importId, [{ productId: r.productId, geoKey: r.geoKey }]);
     this.logger.log(`${geo.formato?.toUpperCase()} importado — ${r.nome} → ${company.customUrl}/${r.slug} (produto ${r.productId})`);
     return {
       produtoId: r.productId,
@@ -329,6 +338,20 @@ export class StepService {
       formato: geo.formato,
       aviso: geo.aviso ?? null,
     };
+  }
+
+  /**
+   * Remove o que `publicar` pode ter deixado pela metade: o JSON em `geo/<importId>/` é
+   * gravado ANTES do `productModel.create`, então uma falha entre os dois deixava um
+   * arquivo órfão sem produto (I15). O prefixo é determinístico — não precisa saber a chave.
+   */
+  private async limparImport(importId: string) {
+    await this.productModel.deleteMany({ importId }).catch((e: any) =>
+      this.logger.warn(`import ${importId.slice(0, 8)} — limpeza de produtos falhou: ${e?.message ?? e}`),
+    );
+    await this.store.deleteByPrefix(`geo/${importId}`).catch((e: any) =>
+      this.logger.warn(`import ${importId.slice(0, 8)} — limpeza de geo/${importId} falhou: ${e?.message ?? e}`),
+    );
   }
 
   /** Catálogo (upsert) + produto + geometria no storage. Comum aos dois modos. */

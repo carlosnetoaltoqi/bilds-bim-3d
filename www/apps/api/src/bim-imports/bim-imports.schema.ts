@@ -39,6 +39,18 @@ export class BimImport {
   @Prop()
   productCount: number;
 
+  /** Miniaturas geradas pelo thumb-worker (I15) — preenchido ao fim do lote */
+  @Prop()
+  thumbCount: number;
+
+  /** Produtos cuja miniatura falhou; cada um está no log (`miniatura falhou — <productId>`) */
+  @Prop()
+  thumbFailed: number;
+
+  /** Mensagem quando o thumb-worker morreu antes do `done` (exit, ocioso, erro de processo) */
+  @Prop()
+  thumbError: string;
+
   @Prop({ required: true })
   fileName: string;
 

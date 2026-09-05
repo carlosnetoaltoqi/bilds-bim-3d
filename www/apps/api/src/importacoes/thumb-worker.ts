@@ -14,7 +14,9 @@
  *   4. Reporta { type: 'thumb', productId, thumbKey }
  *
  * Ao concluir: reporta { type: 'done', count }
- * Em erro individual: reporta { type: 'error', productId, message } e continua
+ * Em erro individual: reporta { type: 'error', productId, message } e continua — o pai
+ * (`worker-ipc.ts`, I15) conta cada uma, loga e grava o resumo no import; até 2026-09-05
+ * essa mensagem era ignorada.
  *
  * O Chromium sobe uma vez por worker (~1 s) e é reaproveitado em todas as
  * miniaturas do lote; `closeThumbRenderer()` o derruba antes do exit.
