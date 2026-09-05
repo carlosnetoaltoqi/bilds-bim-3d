@@ -20,7 +20,7 @@ import { invalidateGeo } from '../bim-catalog/bim-viewer-engine'
 import type { PocCatalog, PocProduct } from '../bim-catalog/types'
 import { EditorViewport, type Tool, type ViewPreset } from './EditorViewport'
 import { GeometryPanel, type EditorUi } from './GeometryPanel'
-import { CatalogForm, InfoForm, type ProdutoDto } from './InfoForm'
+import { InfoForm, type ProdutoDto } from './InfoForm'
 import { bake, bakeMatrix, segment, type Part } from './mesh-model'
 import { exportIfc as buildIfc } from './ifc-export'
 import { BotaoApagar } from '../BotaoApagar'
@@ -37,7 +37,7 @@ interface Props {
   produto: ProdutoDto
 }
 
-type Tab = 'geometria' | 'informacoes' | 'catalogo'
+type Tab = 'geometria' | 'informacoes'
 
 export function ProductEditor(props: Props) {
   const router = useRouter()
@@ -381,7 +381,7 @@ export function ProductEditor(props: Props) {
         {/* painel */}
         <aside className="w-[420px] shrink-0 border-l border-gray-200 flex flex-col min-h-0">
           <nav className="flex border-b border-gray-200 shrink-0">
-            {([['geometria', 'Geometria'], ['informacoes', 'Informações'], ['catalogo', 'Catálogo']] as Array<[Tab, string]>).map(([id, label]) => (
+            {([['geometria', 'Geometria'], ['informacoes', 'Informações']] as Array<[Tab, string]>).map(([id, label]) => (
               <button key={id} type="button" onClick={() => setTab(id)}
                 className={`flex-1 py-2 text-[12px] font-semibold border-b-2 ${tab === id ? 'border-[#1e40af] text-[#1e40af]' : 'border-transparent text-gray-500 hover:text-gray-800'}`}>
                 {label}
@@ -406,9 +406,7 @@ export function ProductEditor(props: Props) {
             {tab === 'informacoes' && (
               <InfoForm produto={produto} series={series} onSaved={(p) => { setProduto(p); router.refresh() }} />
             )}
-            {tab === 'catalogo' && (
-              <CatalogForm catalog={catalog} onSaved={(c) => { setCatalog(c); router.refresh() }} />
-            )}
+
           </div>
         </aside>
       </div>
