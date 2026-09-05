@@ -51,6 +51,7 @@ Convenção: `S<plano>.<n>-<slug>.md` para sessões numeradas; `AAAA-MM-DD-<slug
 | 2026-09-03 | S7.6 | `S7.6-geracao-acusa-erro-e-tests.md` | S7.6: a geração acusa erro (I1, I2, I3) e nasce a suíte `tests/` (I9) |
 | 2026-09-04 | S7.7 | `S7.7-passo-2-e-3-i7-i8-i13-ci.md` | S7.7: fim do passo 2 (I7, I8) e passo 3 (I13, CI mínimo) |
 | 2026-09-04 | S7.8 | `S7.8-passo-4-e-5-documentacao-e-ambiente.md` | S7.8: passo 4 (documentação passa a limpo, CLAUDE.md vira mapa) e passo 5 (ambiente declarado) |
+| 2026-09-05 | S7.9 | `S7.9-i26-conferencia-ifc-pareia-a-2um.md` | S7.9: I26 — conferência do exportador IFC pareia vértices a ≤ 2 µm e sai 1 em FALHA (suíte 58) |
 
 Registro mais recente primeiro é o que o `CLAUDE.md` aponta em "Fase atual". Para saber onde a próxima sessão
 começa, leia a seção 7 do último registro.

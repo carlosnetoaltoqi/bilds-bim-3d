@@ -1,7 +1,7 @@
 ---
 name: leitor-ifc
 description: Transforma arquivos IFC4 em JSONs de geometria prontos para consumo em viewers 3D. Cobre parse de entidades STEP, resolução de transforms, conversão de coordenadas, cores por face (IFCINDEXEDCOLOURMAP) e geração de buffers de vértices. Se a origem for uma biblioteca AltoQi, verifique antes se há um .aq — ele traz a mesma geometria.
-version: 1.8.0
+version: 1.8.1
 author: Bilds / carlosnetoaltoqi
 ---
 
@@ -634,7 +634,7 @@ quem posiciona é o `ObjectPlacement` do produto, não o operador de transforma�
 |---|---|
 | **Comparar só a bounding box** | Uma rotação e a sua **transposta** podem gerar a mesma caixa. Uma bbox idêntica não prova que os transforms estão certos — compare o conjunto de pontos. |
 | **Alinhar pelo centróide** | Um formato pode guardar sopa de triângulos (vértices repetidos) e o outro soldar os vértices; os centróides ficam com pesos diferentes. Alinhe pelo **canto da bounding box**. |
-| **Igualdade de conjunto arredondado** | Coordenadas em cima da fronteira de arredondamento caem para lados diferentes nos dois lados. Compare **por tolerância** (~10 µm), ordenando os pontos únicos. |
+| **Igualdade de conjunto arredondado** | Coordenadas em cima da fronteira de arredondamento caem para lados diferentes nos dois lados — e a fração "na fronteira" cresce com a malha (2,2% em 44 mil vértices), então um limite percentual não resolve. **Pareie cada ponto com o vizinho mais próximo do outro lado** (grade de célula = tolerância, 27 vizinhos) e exija par para **todos**, nos dois sentidos. A tolerância vem da precisão de escrita: 6 decimais em metros → pior caso ~1,7 µm → use 2 µm, não 10. |
 | **Usar a contagem do `ifcopenshell` como verdade** | O tesselador descarta triângulos degenerados. Numa peça com um decalque plano de espessura zero ele devolveu 27.375 onde o STEP declara **27.425** — 50 a menos. Para arquivo tessellated, conte pelo `CoordIndex`, não pelo tesselador. |
 
 A contagem de triângulos é o teste mais barato e mais decisivo: some `len(CoordIndex)`
@@ -664,10 +664,13 @@ regra abaixo é uma armadilha deste documento vista pelo outro lado:
 | **Strings: `'` → `''`, não-ASCII em `\X2\hhhh\X0\`** | "Incêndio" chega íntegro ao `ifcopenshell`; `split_top` respeita as aspas |
 | **`IFCPROPERTYSET` ligado à montagem** | as informações do produto (nome, série, specs, potência) viajam com a geometria |
 
-Ao conferir o arquivo gerado, valem as **quatro armadilhas de comparação** acima: compare o
-conjunto de pontos por tolerância (~10 µm), espere alguns pontos na fronteira do
-arredondamento (122 em 16.580 a 14 µm), e conte triângulos pelo `CoordIndex` — o
-`ifcopenshell.geom` devolve menos (descarta degenerados).
+Ao conferir o arquivo gerado, valem as **quatro armadilhas de comparação** acima: pareie cada
+vértice esperado com um do IFC lido a **≤ 2 µm** (e vice-versa) e exija zero sem par — o desvio
+real medido em 19 geometrias foi 0 a 1,5 µm; os "122 em 16.580 a 14 µm" que esta skill aceitava
+até a 1.8.0 eram artefato de comparar conjuntos arredondados a 10 µm, não erro do exportador.
+Conte triângulos pelo `CoordIndex` — o `ifcopenshell.geom` devolve menos (descarta degenerados).
+E faça a conferência **sair com código 1** quando falha e **ter um autoteste sabotado** (um
+vértice 1 mm fora tem de acusar): uma métrica que só imprime "FALHA" não protege nada.
 
 ---
 
@@ -748,6 +751,8 @@ Detalhes do caminho rápido que custaram tempo:
 ---
 
 ## Histórico
+
+**1.8.1** — Correção da armadilha "igualdade de conjunto arredondado": comparar conjuntos a 10 µm e tolerar uma fração na fronteira era o erro, não a solução — numa malha de 44 mil vértices a fração chega a 2,2% com desvio real de 1,4 µm. Agora: par por vizinho mais próximo a ≤ 2 µm (tolerância derivada dos 6 decimais do `REAL`), nos dois sentidos, zero sem par, exit 1 e autoteste sabotado. Os "14 µm" citados na 1.6.0 eram artefato dessa comparação.
 
 **1.8.0** — Subseção "Arquivo grande": quando o parser manual não escala e como usar o `ifcopenshell.geom.iterator` como caminho rápido (cor por material com `r()/g()/b()` como métodos, metros já convertidos, degenerados descartados, dedup em numpy, um produto só não paraleliza, conversão fora da requisição HTTP). Medido num Revit de 124 MB: 760.038 △ em 221 s, 3,6 GB.
 

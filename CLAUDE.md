@@ -76,10 +76,13 @@ mergeada por fast-forward em 2026-09-04 e ficou só como marcador).
 **Feito (S7.4 → S7.8, 2026-09-03/04):** passo 1 (push), passo 2 (geração acusa erro: C1–C3,
 I1–I3, I7, I8; suíte `tests/`, I9), passo 3 (C4, I13, CI mínimo I20), passo 4 (documentação:
 C8, C9, C10, I22, I23, I24, I25) e passo 5 (ambiente: I5, I18, I19, `bootstrap.sh`). Também C5,
-C6 (histórico reescrito — **todo SHA anterior a 2026-09-03 mudou**), I21. Suíte: **57 testes**,
-`python3 -m pytest` ≈ 25 s; CI verde em `main`.
+C6 (histórico reescrito — **todo SHA anterior a 2026-09-03 mudou**), I21. **S7.9 (2026-09-05):** I26 —
+a conferência do exportador IFC no `testes-editor.sh` acusava fronteira de arredondamento (buckets a
+10 µm) e saía 0 com FALHA; agora pareia vértices a ≤ 2 µm nos dois sentidos, sai 1, autoteste
+`ROUNDTRIP_SABOTAR_IFC`. Suíte: **58 testes**, `python3 -m pytest` ≈ 45 s; CI verde em `main`.
 
-**Próxima sessão:** ver `docs/sessoes/S7.8-passo-4-e-5-documentacao-e-ambiente.md`, seção 7. Em resumo: os itens de `www/`
+**Próxima sessão:** ver `docs/sessoes/S7.9-i26-conferencia-ifc-pareia-a-2um.md`, seção 7 (a lista é a
+da S7.8 §7, intacta). Em resumo: os itens de `www/`
 (I11, I12, I14–I17), a limpeza L1–L14 conforme cada área for tocada, e as **decisões que só o
 usuário toma**: C7 (deploy do preview), I10 (auth na POC), I6 (modo `--ifc`: matar ou arquivar),
 I4 (promover o writer de `.aq`), LICENSE, se vale um `--strict`.
@@ -199,7 +202,7 @@ esperadas estão **nos arquivos**, não em texto: `.python-version`, `.nvmrc`, `
 ## Testes — `tests/`
 
 ```bash
-python3 -m pytest                                   # 57 testes, ≈ 25 s (abre o Chromium uma vez)
+python3 -m pytest                                   # 58 testes, ≈ 45 s (abre o Chromium uma vez)
 python3 -m pytest -m "not thumbs"                   # sem Chromium — é o que o CI roda
 python3 -m pytest -m "not thumbs and not paridade"  # só Python, sem Node
 ```
@@ -210,7 +213,7 @@ python3 -m pytest -m "not thumbs and not paridade"  # só Python, sem Node
 | `test_read_aq.py` | `open_aq` não cria arquivo, read-only, rejeita lixo; contagens da Akato; cp1252 sem `\x80–\x9f`/U+FFFD |
 | `test_build.py` | `auto_config`; `build_catalog_from_aq` + `diag` em Akato corrompida; render dos dois layouts com `1" x 1" <script>`; sem Jinja2/template → `RuntimeError`; `thumbCount`; `ThumbsError` sem Node, `--allow-no-thumbs`, `--skip-thumbs`, `run_all` exit 1; uma miniatura real |
 | `test_oq3d_roundtrip.py` | `eng-reversa/tools/oq3d_roundtrip.py` como processo: caminho padrão da Amanco, seis casos, `.aq` ausente → exit 1, `--sem-real` |
-| `test_editor_roundtrips.py` | `www/tools/testes-editor.sh`: round-trip do `mesh-model` por agrupamento a 2 µm; `ROUNDTRIP_SABOTAR=1` tem de falhar |
+| `test_editor_roundtrips.py` | `www/tools/testes-editor.sh`: round-trip do `mesh-model` por agrupamento a 2 µm; IFC exportado → `parse_ifc.py` com todo vértice pareado a ≤ 2 µm nos dois sentidos; `ROUNDTRIP_SABOTAR=1` e `ROUNDTRIP_SABOTAR_IFC=1` têm de falhar |
 | `test_paridade_ts.py` | Python ↔ TypeScript (`www/tools`): blobs sintéticos e a Akato inteira, campo a campo e SHA-1; curvas Q-H da Dancor |
 | `test_bootstrap.py` | `bootstrap.sh --check` imprime a tabela e acusa Node ausente com exit 1 |
 

@@ -58,6 +58,7 @@ código foram reproduzidos uma segunda vez antes de fechar este documento.
 | I23 ✅ | Onze afirmações do CLAUDE.md/README quebradas ou desatualizadas — **corrigidas 2026-09-04** (S7.8, no texto movido; a de `NEXT_PUBLIC_API_URL` ficou anotada porque o código I17 continua em aberto) | docs |
 | I24 ◐ | Skills e CLAUDE.md com conhecimento só de um lado; regra "mesmo commit" nunca cumprida — **regra reescrita 2026-09-04** (S7.8: bump da skill no commit `docs:` de fechamento, como sempre foi a prática); a convergência de conteúdo skill ↔ `docs/conhecimento/` fica para quando cada área for tocada | docs |
 | I25 ✅ | `docs/plano-produto-dinamico.md` não marcado histórico; §11 incompleto; §13 com tabela quebrada — **corrigido 2026-09-04** (S7.8; CONCEPTS.md ganhou os 13 termos que faltavam) | docs |
+| I26 ✅ | Conferência do exportador IFC no `testes-editor.sh` comparava buckets a 10 µm com limite de 2% e imprimia `[FALHA]` saindo 0 — **corrigido 2026-09-05** (S7.9: par a ≤ 2 µm nos dois sentidos, exit 1, `ROUNDTRIP_SABOTAR_IFC`; achado porque a 20cv da Dancor virou a primeira geometria do storage) | testes |
 | L1–L14 | Limpeza (duplicações, código legado, `any`, funções gigantes, etc.) | todas |
 
 ---
@@ -190,6 +191,17 @@ código foram reproduzidos uma segunda vez antes de fechar este documento.
   não com "vizinho mais próximo": o `dedup` do bake chaveia por posição+cor (partes que se
   tocam duplicam vértices) e dois originais a 1,5 µm viram dois do bake a 1 µm — o mais
   próximo de cada lado divergia e ainda sobravam 34 de 68.488 na bomba 20cv.
+
+- **I26.** ✅ (S7.9, 2026-09-05) `www/tools/testes-editor.sh`, etapa Python do exportador IFC: comparava
+  **conjuntos** de coordenadas arredondadas a 10 µm (`round(x*1e5)`) e aceitava até 2% de
+  diferença — a mesma armadilha do I13, que a S7.7 corrigiu só no `mesh-model`. Apareceu quando
+  a bomba 20cv da Dancor (44.310 vértices) virou a primeira geometria de `www/storage/bim/geo/`
+  em 2026-09-04 11:10, depois do fechamento da S7.8: 984 pontos (2,2%) "na fronteira", desvio
+  real máximo **1,37 µm** (o `real()` escreve 6 decimais em metros; pior caso teórico ~1,7 µm).
+  Pior: o heredoc imprimia `[FALHA]` e saía 0 — só o `assert 'FALHA' not in out` do pytest via.
+  Agora pareia cada vértice a ≤ 2 µm (grade + 27 vizinhos) nos dois sentidos, imprime o desvio
+  máximo, sai 1 em qualquer FALHA; `ROUNDTRIP_SABOTAR_IFC=1` move um vértice do esperado 1 mm
+  depois de exportar e tem de dar exit 1 (`tests/test_editor_roundtrips.py`, 4 testes).
 
 ## Importantes — `www/`
 

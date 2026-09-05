@@ -65,6 +65,7 @@
 | `PUT /geometrias/:id` devolve `413 Payload Too Large` | Limite do body JSON — o padrão do express é 100 KB. `main.ts` sobe para `JSON_BODY_LIMIT` (300 MB) com `bodyParser: false` + `useBodyParser` |
 | Editor mostra centenas de partes numa peça de conexão | Normal: cada malha do OQ3D vira ≥1 componente; use **fundir** ou **re-segmentar** depois de mover. Na Dancor são 11–58 por bomba |
 | Parte com milhares de "arestas de borda" na Dancor | Não é defeito do editor: a malha do fabricante é sopa de triângulos (25–32% das arestas). O alarme vale para malha gerada/importada, que deve dar 0 |
+| `tests/test_editor_roundtrips.py` passou a falhar sem ninguém mexer no código | O teste usa a **primeira** geometria de `www/storage/bim/geo/` em ordem alfabética — importar uma biblioteca nova na POC muda a fixture. Se a falha é na conferência do IFC com "sem par", é erro real (desde S7.9 a métrica pareia a ≤ 2 µm; antes acusava fronteira de arredondamento a 10 µm) |
 | Depois de salvar geometria, a miniatura do card não muda | Esperado na POC de edição — thumb não é regenerada (pendência). O viewer 3D já mostra o novo, porque a ETag deriva de tamanho+mtime |
 | Mensagem "salvo" some no mesmo instante | `useEffect` que reseta o formulário dependia de `editadoEm` e rodava logo após o save — a dependência tem de ser só o `_id` do produto |
 | IFC exportado abre com a geometria em dobro | A montagem recebeu Representation — o `parse_ifc.py` processa `IFCELEMENTASSEMBLY` e `IFCBUILDINGELEMENTPROXY`; só as proxies podem ter malha |

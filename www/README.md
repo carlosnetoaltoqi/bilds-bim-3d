@@ -51,7 +51,8 @@ Páginas do web: `/login`, `/empresa`, `/empresa/criar`, `/empresa/importar` (co
 
 ```bash
 bash tools/testes-editor.sh                                   # round-trips sem browser (Node + Python)
-ROUNDTRIP_SABOTAR=1 bash tools/testes-editor.sh               # tem de falhar — autoteste da métrica do round-trip
+ROUNDTRIP_SABOTAR=1 bash tools/testes-editor.sh               # tem de falhar — autoteste da métrica do mesh-model
+ROUNDTRIP_SABOTAR_IFC=1 bash tools/testes-editor.sh           # tem de falhar — autoteste da conferência do IFC exportado
 node tools/e2e/e2e-editor.mjs --validar                       # editor no browser (Playwright + SwiftShader)
 node tools/e2e/e2e-cad-import.mjs ../input/STEP/2831A09.stp   # importar CAD e abrir no editor
 pnpm smoke:geo · pnpm thumb:measure · pnpm thumb:regen        # ferramentas da POC dinâmica (tools/)
@@ -245,9 +246,10 @@ aresta de borda. Matriz rígida (ortonormal, det>0) vira `IFCLOCALPLACEMENT` com
 `Axis = C·coluna_Y`, `RefDirection = C·coluna_X`; escala é assada nos vértices. As
 informações do Mongo viajam em `IFCPROPERTYSET` (`bilds_Produto`, `bilds_Especificacoes`),
 com acento em `\X2\…\X0\`. Verificado na 2CV com uma parte girada+deslocada, uma
-escalada e um tubo novo: `parse_ifc.py` devolve os **mesmos 27.937 triângulos**, pontos a
-10 µm com desvio máximo de 14 µm (fronteira de arredondamento — a armadilha conhecida),
-`ifcopenshell.validate` **0 erros**, psets lidos de volta com "Incêndio" íntegro. O
+escalada e um tubo novo: `parse_ifc.py` devolve os **mesmos 27.937 triângulos**, todo vértice
+com par a ≤ 2 µm nos dois sentidos (desvio máximo **1,26 µm** — o "14 µm" que constava aqui até
+2026-09-05 era artefato da comparação por buckets a 10 µm, I26), `ifcopenshell.validate`
+**0 erros**, psets lidos de volta com "Incêndio" íntegro. O
 `ifcopenshell.geom` conta 27.871 (descarta 66 degenerados — também conhecido).
 
 **STEP → editor, e editor → `.aq`** (S7.2, `docs/sessoes/S7.2-step-e-aq.md`). Um `.stp`
@@ -305,7 +307,8 @@ corta — só põe um `aviso` que a página mostra.
 
 ```bash
 bash www/tools/testes-editor.sh                 # sem browser: round-trip do mesh-model e do exportador IFC (Node + Python)
-ROUNDTRIP_SABOTAR=1 bash www/tools/testes-editor.sh   # tem de FALHAR: prova que a métrica do round-trip acusa erro
+ROUNDTRIP_SABOTAR=1 bash www/tools/testes-editor.sh   # tem de FALHAR: prova que a métrica do mesh-model acusa erro
+ROUNDTRIP_SABOTAR_IFC=1 bash www/tools/testes-editor.sh   # tem de FALHAR: prova que a conferência do IFC exportado acusa erro
 node www/tools/e2e/e2e-editor.mjs --validar     # browser (Playwright + SwiftShader): editar, salvar, restaurar, info, IFC, .aq
 node www/tools/e2e/e2e-cad-import.mjs input/STEP/2831A09.stp   # importar CAD assíncrono, status, editor
 ```
@@ -321,6 +324,15 @@ por grupo, com o sentido. Até 2026-09-04 (I13) comparava strings `toFixed(5)` e
 mais próximo" também não basta: o `dedup` do bake chaveia por posição **e cor**, e dois vértices
 a 1,5 µm podem virar dois a 1 µm. `python3 -m pytest tests/test_editor_roundtrips.py` roda o
 script e o autoteste sabotado (marcador `paridade`; pula sem Node, sem `three` ou sem storage).
+
+A conferência do **exportador IFC** (etapa Python do mesmo script) pareia cada vértice do
+`bake()` esperado com um do IFC lido pelo `parse_ifc.py` a **≤ 2 µm**, nos dois sentidos, e
+imprime o desvio máximo — o `real()` do exportador escreve 6 decimais em metros, então o pior
+caso teórico é ~1,7 µm. Até 2026-09-05 (I26) comparava conjuntos de coordenadas arredondadas a
+10 µm com um limite de 2%: na 20cv da Dancor 2,2% dos pontos caíam na fronteira de arredondamento
+com desvio real de 1,37 µm, e o heredoc imprimia `[FALHA]` sem sair 1. Os dois testes usam a
+**primeira geometria do storage em ordem alfabética** — importar uma biblioteca nova na POC
+troca a fixture (foi assim que o I26 apareceu).
 
 **Pendências desta linha:**
 - **Miniatura fica desatualizada depois de editar geometria** — o `thumbKey` continua
