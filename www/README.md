@@ -171,6 +171,8 @@ aponta para `geo/<importId>/<stem>.json` e a miniatura para `thumbs/<importId>/<
 - **Nest 10**: o multer embutido decodifica o nome do arquivo em latin1 (`upload.ts` corrige); subir
   para o Nest 11 traria o multer novo.
 - `tools/e2e/*.mjs` foram apontados para o serviço mas **não foram reexecutados** na S7.14.
+- **Exportar `.aq` gera do zero** (S7.16): o original não fica no servidor, então tubos/kits, bocais e
+  código comercial não voltam. O arquivo gerado foi aceito pelo Builder (usuário, 2026-09-05).
 - **Não rode `pnpm -r build` com o `next dev` de pé**: o `next build` sobrescreve o `.next/` que o dev
   server está usando e toda página passa a responder 500 (`Cannot find module './837.js'`) até
   reiniciar o `pnpm dev:web` (aconteceu na S7.16). O `tsc --noEmit` em `apps/web` é seguro.

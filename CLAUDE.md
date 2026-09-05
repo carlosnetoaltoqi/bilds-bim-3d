@@ -118,10 +118,10 @@ empresa) e **apagar em cada nível** (empresa, catálogo, peça, importação �
 Amanco —; uma simbologia por geometria compartilhada; uma propriedade por chave; curva Q-H), `GET /exportar/catalogo/:id`
 no serviço (stream, nada fica no servidor) e o botão **"baixar .aq (AltoQi Builder)"** na edição do catálogo. Amanco:
 854 peças (as 2 apagadas na interface não vão), 448 simbologias, 54 MB em 7 s, `NOME_PECA` e geometria iguais ao
-original. Registro: `docs/sessoes/S7.16-exportar-catalogo-aq.md`. Suíte **121**.
+original — e **o arquivo foi aceito pelo AltoQi Builder** (usuário, fim da sessão). Registro:
+`docs/sessoes/S7.16-exportar-catalogo-aq.md`. Suíte **121**.
 
-**Próxima sessão:** primeiro o usuário abre o `.aq` exportado no Builder (S7.16 §7). Depois
-`docs/sessoes/S7.14-www-servico-de-ingestao.md`, seção 7 — build do `dist/` com o `@bim/dominio`, e2e reexecutados,
+**Próxima sessão:** `docs/sessoes/S7.14-www-servico-de-ingestao.md`, seção 7 — build do `dist/` com o `@bim/dominio`, e2e reexecutados,
 aceitação automatizada, Nest 11; depois o isolamento do serviço. Decisão antiga ainda em aberto: LICENSE.
 
 **Estado da base:** em `www/README.md`, "Estado da base e do storage" — única versão.

@@ -1,7 +1,7 @@
 ---
 name: leitor-biblioteca-aq
 description: Lê E ESCREVE arquivos de biblioteca BIM do AltoQi Builder (.aq) — SQLite com geometria 3D embutida. Extrai peças, dados hidráulicos, curvas de bomba, propriedades, miniaturas e a malha 3D completa (formato OQ3D), dispensando os IFCs; e gera um .aq do zero, com o schema, os enums, o encoding cp1252 e o binário OQ3D corretos.
-version: 2.9.0
+version: 2.9.1
 author: Bilds / carlosnetoaltoqi
 ---
 
@@ -575,8 +575,10 @@ mesmo dia, **aberto no AltoQi Builder real**: árvore de classes, grupos e peça
 propriedades personalizadas visíveis, acentos íntegros (`Água`, `Redução`, `kgf/cm²`).
 É a prova de que a receita abaixo (schema 607 do `sqlite_master`, texto em cp1252 via
 `CAST(? AS TEXT)`, colunas não observadas deixadas no `DEFAULT` do DDL, sentinelas onde
-a biblioteca real as usa) produz um arquivo que o Builder aceita. Não foi verificado no
-Builder: a malha OQ3D na janela 3D, e a peça lançada numa rede sem `ENTRADA_PECA`.
+a biblioteca real as usa) produz um arquivo que o Builder aceita. Em 2026-09-05 o Builder aceitou
+também uma biblioteca de **854 peças com 448 blobs OQ3D reescritos** pelo escritor (Amanco exportada
+do `bilds-bim-3d`, relato do usuário: "deu tudo certo"). Sem registro detalhado do que foi olhado
+na janela 3D nem de peça lançada numa rede sem `ENTRADA_PECA`.
 
 ### O texto tem de ser gravado em cp1252
 
@@ -733,7 +735,8 @@ Regras que o `bilds-bim-3d/www/apps/ingestao/pipeline/geo_to_aq.py` segue e que 
 
 Generalizar a receita acima para uma biblioteca com centenas de peças (`bilds-bim-3d`,
 `www/apps/ingestao/pipeline/catalogo_to_aq.py`, conferido contra a Amanco: 854 peças, 448
-simbologias, `NOME_PECA` igual ao original em 100 %, bbox e triângulos iguais em 448/448):
+simbologias, `NOME_PECA` igual ao original em 100 %, bbox e triângulos iguais em 448/448, e
+**aceito pelo AltoQi Builder** em 2026-09-05):
 
 - **Uma `SIMBOLOGIA_3D` por geometria distinta**, e uma linha de `PECA_SIMBOLOGIA_3D` por peça
   que a usa — é assim que o AltoQi grava (Amanco: 1.168 peças, 869 vínculos, 457 simbologias).
@@ -1165,6 +1168,10 @@ precisão nativa do AltoQi é o centímetro.
 ---
 
 ## Histórico
+
+**2.9.1** — O `.aq` de 854 peças gerado pela receita "Um catálogo inteiro" (Amanco exportada) foi
+adicionado no AltoQi Builder pelo usuário em 2026-09-05 e funcionou — primeira prova no Builder de
+geometria OQ3D reescrita em escala. Ressalvas de "não visto no Builder" ajustadas.
 
 **2.9.0** — Nova subseção "Um catálogo inteiro": as regras que só aparecem ao escrever N peças
 — uma simbologia por geometria distinta (e não por peça), uma propriedade por chave (e não por

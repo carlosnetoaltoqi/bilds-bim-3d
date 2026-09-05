@@ -172,8 +172,12 @@ o essencial:
 > classes/grupos/peças correta e **propriedades personalizadas visíveis com acentos
 > íntegros** (`Água`, `Redução`, `kgf/cm²`). Print em
 > `eng-reversa/estudo/img/builder-akato-aberto-2026-09-02.png`. Versões anteriores deste
-> arquivo e do `eng-reversa/README.md` diziam que isso faltava provar. O que **ainda** não
-> foi visto no Builder: a malha OQ3D na janela 3D e a peça lançada numa rede.
+> arquivo e do `eng-reversa/README.md` diziam que isso faltava provar. **Em 2026-09-05 (S7.16)
+> o Builder também aceitou o `.aq` da Amanco exportado pelo `catalogo_to_aq.py`** — 854 peças,
+> 448 blobs OQ3D reescritos pelo `oq3d_writer.py` a partir do `{pos,col,idx}` do storage —
+> "testei e deu tudo certo", relato do usuário. Sem detalhe registrado do que foi olhado
+> (janela 3D, rede); o `eng-reversa/README.md` ainda lista isso como falta de prova e não foi
+> atualizado porque o diretório está intocado por decisão.
 
 **O texto tem de ser gravado em cp1252, e errar isso corrompe o arquivo em silêncio.**
 O módulo `sqlite3` do Python vincula `str` como UTF-8 e `bytes` como BLOB — nenhum dos
@@ -227,7 +231,8 @@ cai no nome da pasta.
 O `geo_to_aq.py` grava UMA peça. Para N peças (o "baixar .aq" da edição do catálogo, que gera
 uma biblioteca nova a partir do que está salvo no Mongo e no storage) valem mais cinco regras,
 todas conferidas contra a Amanco (854 peças exportadas, 448 simbologias, `NOME_PECA` idêntico
-ao original em 100 % das peças, bbox e nº de triângulos iguais em 448/448 geometrias):
+ao original em 100 % das peças, bbox e nº de triângulos iguais em 448/448 geometrias) — e o
+arquivo **abriu no AltoQi Builder** (usuário, 2026-09-05):
 
 - **Uma `SIMBOLOGIA_3D` por arquivo de geometria, não por peça.** O pipeline grava uma geometria
   por simbologia e várias peças apontam para ela; ao escrever, o mesmo arquivo vira a mesma
@@ -251,8 +256,8 @@ ao original em 100 % das peças, bbox e nº de triângulos iguais em 448/448 geo
 - **Colunas de uma peça com 3D, como a Amanco grava:** `POSICIONAR_SIMBOLOGIA_3D = 3`,
   `INDICE_SIMBOLO3D_SELECIONADO = 1`, `INDICACAO_DADOS = nome`, `DESCRICAO_DADOS_SIMBOLOGIA =
   grupo`, `COMPRIMENTO/ESPESSURA/LARGURA/ALTURA/PROFUNDIDADE_PECA = -DBL_MAX`, `INDICACAO_PLANTA`
-  e `INDICACAO_DETALHE` nulos. (O `geo_to_aq.py` usa `0`/`-1` e preenche as indicações — os dois
-  abrem no leitor do projeto; no Builder só a Akato, gerada como o `geo_to_aq.py`, foi vista.)
+  e `INDICACAO_DETALHE` nulos. (O `geo_to_aq.py` usa `0`/`-1` e preenche as indicações; os dois
+  conjuntos abriram no Builder — a Akato em 2026-09-02, a Amanco exportada em 2026-09-05.)
 
 **O que o catálogo não guarda e portanto não volta:** as peças sem simbologia 3D (312 tubos e kits
 da Amanco), `ENTRADA_PECA`/`ENTRADA_3D` (bocais, conectividade), simbologia 2D, `IMAGEM`,
