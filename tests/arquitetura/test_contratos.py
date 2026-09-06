@@ -64,8 +64,10 @@ def test_manifesto_e_info_plugin_exemplos_validam():
     contratos.validar('info-plugin', {'arquivo': 'p.dll', 'bytes': 100, 'host': 'https://x', 'hosts': ['https://x'], 'dotnet': True,
                                       'plugin': None, 'empresa': None, 'versao': None})
     contratos.validar('info-familias-revit', {'entrada': 'f.zip', 'bytes': 10, 'n_familias': 1, 'n_tipos': 2, 'com_geometria_irma': 0, 'ignorados': 0,
-                                              'avisos': [], 'familias': [{'arquivo': 'a/F.rfa', 'titulo': 'F', 'revit': None, 'formato': 2021, 'categoria': None,
-                                                                          'fabricante': None, 'tipos': 2, 'type_catalog': True, 'geometria_irma': None, 'preview': False}]})
+                                              'n_projetos': 1, 'projetos_sem_ifc': 1, 'avisos': [],
+                                              'familias': [{'arquivo': 'a/F.rfa', 'titulo': 'F', 'revit': None, 'formato': 2021, 'categoria': None,
+                                                            'fabricante': None, 'tipos': 2, 'type_catalog': True, 'geometria_irma': None, 'preview': False}],
+                                              'projetos': [{'arquivo': 'm.rvt', 'revit': 'Autodesk Revit 2019', 'formato': 2019, 'bytes': 5, 'ifc_irmao': None}]})
     contratos.validar('resumo-miniaturas', {'geo': 'a', 'bytes': 10})
     contratos.validar('resumo-miniaturas', {'geo': 'a', 'error': 'x'})
     with pytest.raises(jsonschema.ValidationError):

@@ -1,15 +1,17 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "bim_pipeline/contratos/info-familias-revit.schema.json",
-  "title": "O que `familias_revit inspecionar` tira de um .rfa, de uma pasta ou de um .zip de famílias Revit",
+  "title": "O que `familias_revit inspecionar` tira de um .rfa, de um .rvt, de uma pasta ou de um .zip de famílias Revit",
   "type": "object",
-  "required": ["entrada", "bytes", "familias", "n_familias", "n_tipos", "com_geometria_irma", "ignorados", "avisos"],
+  "required": ["entrada", "bytes", "familias", "n_familias", "n_tipos", "com_geometria_irma", "projetos", "n_projetos", "projetos_sem_ifc", "ignorados", "avisos"],
   "properties": {
     "entrada": { "type": "string" },
     "bytes": { "type": "integer" },
     "n_familias": { "type": "integer" },
     "n_tipos": { "type": "integer" },
     "com_geometria_irma": { "type": "integer" },
+    "n_projetos": { "type": "integer" },
+    "projetos_sem_ifc": { "type": "integer", "description": "projetos .rvt que só entram com a tradução pela APS" },
     "ignorados": { "type": "integer" },
     "avisos": { "type": "array", "items": { "type": "string" } },
     "familias": {
@@ -28,6 +30,20 @@
           "type_catalog": { "type": "boolean" },
           "geometria_irma": { "type": ["string", "null"] },
           "preview": { "type": "boolean" }
+        }
+      }
+    },
+    "projetos": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["arquivo", "bytes"],
+        "properties": {
+          "arquivo": { "type": "string" },
+          "revit": { "type": ["string", "null"] },
+          "formato": { "type": ["integer", "null"] },
+          "bytes": { "type": "integer" },
+          "ifc_irmao": { "type": ["string", "null"] }
         }
       }
     }

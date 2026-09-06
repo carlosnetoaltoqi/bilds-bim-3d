@@ -15,6 +15,8 @@ Papéis:
   dll_plugin   DLL de um plugin de CAD que é casca de catálogo web: {caminho}
   manifesto_plugin  manifesto.json de um download real do plugin web: {caminho}
   rfa_familias  .zip (ou pasta) de famílias Revit .rfa de um fabricante, com type catalogs .txt ao lado: {caminho}
+  rvt_projeto   .zip (ou .rvt) de um PROJETO Revit de fabricante com as famílias colocadas; o IFC traduzido pela APS
+                em cache (`aps_cache/<sha256 do .rvt>.ifc`) evita o job na suíte: {caminho, aps_cache}
 """
 import json
 from pathlib import Path

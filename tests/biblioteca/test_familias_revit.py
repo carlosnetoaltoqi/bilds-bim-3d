@@ -322,17 +322,18 @@ def test_descobrir_zip_e_recusas(tmp_path):
     assert a['txt'].endswith('Fam_A.txt') and a['geometria'].endswith('pasta/Fam_A.ifc') and a['pasta'] == 'pasta'
     b = next(f for f in d['familias'] if f['rel'].endswith('Fam_B.rfa'))
     assert b['txt'] is None and b['geometria'].endswith('geo/Fam_B.stp')           # irmã em outra pasta, pelo nome
-    assert d['projetos'] == ['modelo.rvt']
+    assert [p['rel'] for p in d['projetos']] == ['modelo.rvt'] and d['projetos'][0]['ifc'] is None
     import shutil; shutil.rmtree(raiz)
-    # .rvt direto é recusado com a explicação; extensão desconhecida também; .rfa ilegível não derruba o resto
-    (tmp_path / 'm.rvt').write_bytes(b'x')
-    with pytest.raises(SystemExit, match='projeto/modelo Revit'):
-        fr.preparar(str(tmp_path / 'm.rvt'))
+    # extensão desconhecida é recusada; .rfa ilegível não derruba o resto; projeto sem IFC e sem APS fica fora com a explicação
     (tmp_path / 'fam.dwg').write_bytes(b'x')
     with pytest.raises(SystemExit, match='envie um .rfa'):
         fr.preparar(str(tmp_path / 'fam.dwg'))
     with pytest.raises(SystemExit, match='nenhuma família legível'):
         fr.importar(str(z), str(tmp_path / 'geo'), progresso=lambda _m: None)
+    # só um projeto, sem APS: erro que explica o que fazer
+    (tmp_path / 'm.rvt').write_bytes(b'x')
+    with pytest.raises(SystemExit, match='Autodesk Platform Services'):
+        fr.importar(str(tmp_path / 'm.rvt'), str(tmp_path / 'geo'), progresso=lambda _m: None)
 
 
 # ─── com famílias reais ───────────────────────────────────────────────────────

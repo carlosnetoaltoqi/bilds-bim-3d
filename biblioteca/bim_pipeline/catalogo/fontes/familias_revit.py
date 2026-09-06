@@ -26,6 +26,13 @@ um `.rvt` (projeto) não tem `PartAtom` e não entrega as famílias embutidas. D
   3. Tipo sem parâmetro dimensional reconhecível fica FORA (avisado no diagnóstico): sem geometria não há
      peça no `.aq` (`aq-escrita.md`).
 
+PROJETOS `.rvt` (ADR-019): um projeto não tem `PartAtom`, mas fabricantes distribuem modelos de amostra com as
+famílias já colocadas. Um `.rvt` entra por um IFC: o IRMÃO de mesmo nome quando existe (grátis), ou a tradução
+`.rvt → IFC` pela Autodesk Platform Services (`conversores/aps.py`) quando quem importa autoriza (`--aps-credenciais`
+ou `--aps`; cada projeto custa um job, com cache por SHA-256). Do IFC, `conversores/ifc_elementos.py` separa os
+elementos e cada TIPO de família ("Família:Tipo") vira um produto com a geometria real da primeira instância;
+os psets do Revit (Identity Data etc.) viram specs. Sem IFC irmão e sem APS, o projeto fica fora com aviso.
+
 COMPATIBILIDADE COM O `.aq`: todo texto que vai para nome, série, chave e valor de spec passa por
 `cp1252_seguro` — o escritor do `.aq` é estrito e aborta num caractere fora do cp1252.
 
@@ -34,9 +41,10 @@ SAÍDA (`--saida`): `{config, catalog, n_geometrias, diag, hints}` com `hints.sc
 Um `<geo>.json` por geometria em `--geo-dir`. Progresso no stderr; erro sai com 1.
 
 Uso:
-    python3 -m bim_pipeline.cli.familias_revit inspecionar familias.zip            # famílias, tipos, categorias → stdout JSON
+    python3 -m bim_pipeline.cli.familias_revit inspecionar familias.zip            # famílias, tipos, categorias, projetos → stdout JSON
     python3 -m bim_pipeline.cli.familias_revit importar familias.zip --geo-dir DIR --saida catalogo.json \
-        [--titulo T] [--fabricante F] [--comprimento-mm 1000] [--deflexao 0.2] [--trabalho DIR] [--sair-com-stdin]
+        [--titulo T] [--fabricante F] [--comprimento-mm 1000] [--deflexao 0.2] [--trabalho DIR] [--sair-com-stdin] \
+        [--aps | --aps-credenciais cred.json] [--aps-cache DIR]      # projetos .rvt → IFC pela APS (cobrado por projeto)
 """
 import argparse
 import json
@@ -227,6 +235,10 @@ def descobrir(raiz):
     for t in por_ext.get('.txt', []):
         txts.setdefault((os.path.dirname(t), _norm(os.path.splitext(os.path.basename(t))[0])), t)
 
+    def irma(caminho):
+        candidatos = geos.get(_norm(os.path.splitext(os.path.basename(caminho))[0]), [])
+        return next((g for g in candidatos if os.path.dirname(g) == os.path.dirname(caminho)), candidatos[0] if candidatos else None)
+
     familias = []
     for rfa in sorted(por_ext.get('.rfa', [])):
         base = os.path.splitext(os.path.basename(rfa))[0]
@@ -234,13 +246,15 @@ def descobrir(raiz):
         txt = txts.get((os.path.dirname(rfa), chave))
         if txt and not type_catalog.eh_type_catalog(type_catalog.decodificar(open(txt, 'rb').read(4096))):
             txt = None
-        candidatos = geos.get(chave, [])
-        geometria = next((g for g in candidatos if os.path.dirname(g) == os.path.dirname(rfa)), candidatos[0] if candidatos else None)
         familias.append({
             'rfa': rfa, 'rel': os.path.relpath(rfa, pasta_raiz), 'pasta': os.path.relpath(os.path.dirname(rfa), pasta_raiz),
-            'txt': txt, 'geometria': geometria,
+            'txt': txt, 'geometria': irma(rfa),
         })
-    projetos = [os.path.relpath(p, pasta_raiz) for ext in EXT_PROJETO for p in por_ext.get(ext, [])]
+    projetos = []
+    for ext in EXT_PROJETO:
+        for p in sorted(por_ext.get(ext, [])):
+            g = irma(p)
+            projetos.append({'rvt': p, 'rel': os.path.relpath(p, pasta_raiz), 'ifc': g if g and g.lower().endswith(('.ifc', '.ifczip')) else None})
     return {'raiz': pasta_raiz, 'familias': familias, 'projetos': projetos}
 
 
@@ -512,23 +526,109 @@ def _codigo(parametros):
     return None
 
 
-def _fabricante(familias):
+_CHAVES_FABRICANTE = ('Manufacturer', 'Fabricante', 'Produtor', 'Manufacturer Name')
+
+
+def _fabricante(familias, produtos=()):
     votos = {}
     for f in familias:
         for _t, params in f['tipos']:
-            for nome in ('Manufacturer', 'Fabricante'):
+            for nome in _CHAVES_FABRICANTE:
                 v = str((params.get(nome) or {}).get('valor') or '').strip()
                 if v:
                     votos[v] = votos.get(v, 0) + 1
+    for p in produtos:
+        for nome in _CHAVES_FABRICANTE:
+            v = str((p.get('specs') or {}).get(nome) or '').strip()
+            if v:
+                votos[v] = votos.get(v, 0) + 1
     return max(votos, key=votos.get) if votos else None
 
 
-def catalogo_de_familias(familias, geo_dir, titulo=None, fabricante=None, comprimento_mm=None, deflexao=0.2,
-                         progresso=avisar, origem=None):
+# ─── Projetos .rvt → produtos (via IFC) ───────────────────────────────────────
+
+def ifc_do_projeto(proj, aps, trabalho, progresso=avisar):
     """
-    Famílias lidas (`ler_familia`) → o resultado do contrato `catalogo`, com um `<geo>.json` por geometria
-    em `geo_dir`. Uma família com geometria irmã compartilha a geometria entre os tipos; sem ela, cada
-    tipo recebe uma forma representativa (tipos com as mesmas cotas compartilham o mesmo JSON).
+    O IFC de um projeto: o irmão de mesmo nome (grátis) ou, com `aps = {'cliente', 'cache'}`, a tradução pela
+    APS gravada em `trabalho`. Devolve `(caminho_ifc, origem)` com origem ∈ {'irmao', 'aps', 'aps-cache'} ou
+    `(None, motivo)`.
+    """
+    if proj.get('ifc'):
+        return proj['ifc'], 'irmao'
+    if not aps:
+        return None, 'sem IFC irmão e sem a tradução pela Autodesk Platform Services autorizada — marque "usar a APS" ou exporte o IFC do projeto'
+    from bim_pipeline.conversores import aps as aps_mod
+    destino = os.path.join(trabalho, os.path.splitext(os.path.basename(proj['rvt']))[0] + '.aps.ifc')
+    os.makedirs(trabalho, exist_ok=True)
+    try:
+        r = aps_mod.rvt_para_ifc(proj['rvt'], destino, aps['cliente'], aps.get('cache'), progresso)
+    except SystemExit as e:
+        return None, str(e)
+    return destino, ('aps-cache' if r.get('cache') else 'aps')
+
+
+def produtos_de_projeto(proj, caminho_ifc, origem, geo_dir, texto, progresso=avisar):
+    """
+    Um projeto (via seu IFC) → `(produtos, series, n_geo, avisos)`: um produto por tipo de família, geometria da
+    primeira instância (local, na origem da família), specs dos psets do Revit + identidade do projeto.
+    """
+    from bim_pipeline.conversores import ifc_elementos
+    nome_proj = os.path.splitext(os.path.basename(proj['rvt']))[0]
+    slug_proj = slugify(nome_proj) or 'projeto'
+    revit = None
+    try:
+        info, _png = rfa_partatom.ler(proj['rvt'])
+        revit = info.get('revit')
+    except Exception:
+        pass
+    grupos = ifc_elementos.por_tipo(ifc_elementos.elementos(caminho_ifc, progresso))
+    progresso(f"  projeto {nome_proj}: {sum(g['instancias'] for g in grupos.values())} elemento(s), {len(grupos)} tipo(s) de família")
+    fonte = {'irmao': f'IFC do projeto ({os.path.basename(caminho_ifc)})', 'aps': 'IFC do projeto traduzido pela Autodesk Platform Services',
+             'aps-cache': 'IFC do projeto traduzido pela Autodesk Platform Services (cache)'}[origem]
+    produtos, series, avisos = [], [], []
+    n_geo = 0
+    for (fam, tipo), g in grupos.items():
+        el = g['primeiro']
+        if not fam and not tipo:
+            avisos.append(f'{nome_proj}: elemento {el["guid"]} sem família/tipo — fora')
+            continue
+        serie = texto(humanizar(fam or tipo))
+        if serie not in series:
+            series.append(serie)
+        nome_geo = f'{slug_proj}--{slugify(fam) or "familia"}--{slugify(tipo) or "tipo"}.json'
+        with open(os.path.join(geo_dir, nome_geo), 'w', encoding='utf-8') as f:
+            json.dump(ifc_elementos.geo_do_viewer(el), f, separators=(',', ':'))
+        n_geo += 1
+        specs = {texto(k): texto(v) for k, v in ifc_elementos.specs_de(el).items()}
+        specs['Família Revit'] = texto(humanizar(fam or tipo))
+        specs['Tipo Revit'] = texto(tipo or fam)
+        if specs.get('Category'):
+            specs['Categoria Revit'] = specs.pop('Category')
+        specs['Projeto Revit'] = texto(nome_proj)
+        if revit:
+            specs['Revit'] = revit
+        specs['Instâncias no projeto'] = str(g['instancias'])
+        specs['Fonte 3D'] = texto(fonte)
+        specs['Geometria 3D'] = texto(f'geometria real do elemento no projeto ({len(el["faces"])} triângulos), na origem da família; '
+                                      f'compartilhada pelas {g["instancias"]} instância(s) do tipo')
+        pid = slugify(f'{nome_proj}-{fam}-{tipo}') or f'{slug_proj}-{len(produtos) + 1}'
+        codigo = next((str(specs[k]).strip() for k in ('Model', 'Modelo', 'Código', 'Codigo', 'Code', 'Catalogue Code', 'Product Code',
+                                                       'Article Number', 'Type Mark') if specs.get(k)), None)
+        produtos.append({
+            'id': pid, 'nome': texto(tipo or fam), 'serie': serie, 'geo': nome_geo, 'potencia': None,
+            'conexoes': specs.get('Categoria Revit') or el['classe'], 'specs': specs, 'curva': None, 'codigo': codigo,
+        })
+    return produtos, series, n_geo, avisos
+
+
+def catalogo_de_familias(familias, geo_dir, titulo=None, fabricante=None, comprimento_mm=None, deflexao=0.2,
+                         progresso=avisar, origem=None, projetos=(), aps=None, trabalho=None):
+    """
+    Famílias lidas (`ler_familia`) e projetos (`descobrir()['projetos']`) → o resultado do contrato `catalogo`,
+    com um `<geo>.json` por geometria em `geo_dir`. Uma família com geometria irmã compartilha a geometria
+    entre os tipos; sem ela, cada tipo recebe uma forma representativa (tipos com as mesmas cotas compartilham
+    o mesmo JSON). Um projeto entra pelo IFC irmão ou pela APS (`aps = {'cliente', 'cache'}`), um produto por
+    tipo de família do modelo.
     """
     os.makedirs(geo_dir, exist_ok=True)
     diag = diag_vazio()
@@ -539,12 +639,46 @@ def catalogo_de_familias(familias, geo_dir, titulo=None, fabricante=None, compri
     mudou_cp1252 = 0
     versoes = {}
     representativas = {}   # chave de forma → nome do arquivo de geometria
+    proj_stats = {'projetos': len(projetos), 'traduzidos_aps': 0, 'do_cache': 0, 'ifc_irmao': 0, 'fora': 0, 'produtos': 0}
 
     def texto(s):
         nonlocal mudou_cp1252
         t, mudou = cp1252_seguro(s)
         mudou_cp1252 += int(mudou)
         return t
+
+    trabalho_proprio = None
+    if projetos and not trabalho:
+        trabalho = trabalho_proprio = tempfile.mkdtemp(prefix='familias-revit-aps-')
+    for proj in projetos:
+        caminho_ifc, origem_ifc = ifc_do_projeto(proj, aps, trabalho, progresso)
+        if not caminho_ifc:
+            proj_stats['fora'] += 1
+            avisos.append(f"{proj['rel']}: projeto Revit fora — {origem_ifc}")
+            continue
+        proj_stats[{'irmao': 'ifc_irmao', 'aps': 'traduzidos_aps', 'aps-cache': 'do_cache'}[origem_ifc]] += 1
+        try:
+            prods, sers, ng, avs = produtos_de_projeto(proj, caminho_ifc, origem_ifc, geo_dir, texto, progresso)
+        except ImportError:
+            avisos.append(f"{proj['rel']}: ifcopenshell não instalado — o IFC do projeto não pôde ser lido")
+            proj_stats['fora'] += 1
+            continue
+        except Exception as e:
+            avisos.append(f"{proj['rel']}: IFC do projeto ilegível ({e})")
+            proj_stats['fora'] += 1
+            continue
+        avisos.extend(avs)
+        for p in prods:
+            base_id, k = p['id'], 2
+            while p['id'] in ids:
+                p['id'], k = f'{base_id}-{k}', k + 1
+            ids.add(p['id'])
+        produtos.extend(prods)
+        series.extend(s for s in sers if s not in series)
+        n_geo += ng
+        proj_stats['produtos'] += len(prods)
+    if trabalho_proprio:
+        shutil.rmtree(trabalho_proprio, ignore_errors=True)
 
     for fi, fam in enumerate(familias, start=1):
         avisos.extend(f"{fam['rel']}: {a}" for a in fam.get('avisos') or [])
@@ -631,7 +765,7 @@ def catalogo_de_familias(familias, geo_dir, titulo=None, fabricante=None, compri
                 'specs': specs, 'curva': None, 'codigo': texto(_codigo(params) or '') or None,
             })
 
-    fabricante = fabricante or _fabricante(familias) or 'Fabricante'
+    fabricante = fabricante or _fabricante(familias, produtos) or 'Fabricante'
     titulo = titulo or 'Famílias Revit'
     config = {'slug': slugify(titulo) or 'familias-revit', 'titulo': texto(titulo), 'fabricante': texto(fabricante),
               'descricao': '', 'layout': 'catalog-grid'}
@@ -640,7 +774,8 @@ def catalogo_de_familias(familias, geo_dir, titulo=None, fabricante=None, compri
     hints = {'n_pecas': len(produtos), 'n_simbologias': n_geo, 'schema': 'familias-revit', 'grupos': list(series),
              'linhas': [titulo], 'has_curves': False,
              'origem': {**(origem or {}), 'familias': len(familias), 'tipos': sum(len(f['tipos']) for f in familias),
-                        'com_geometria_irma': n_irma, 'representativas': n_repr, 'sem_cota': n_sem, 'revit': versoes}}
+                        'com_geometria_irma': n_irma, 'representativas': n_repr, 'sem_cota': n_sem, 'revit': versoes,
+                        'projetos': proj_stats}}
     return montar_resultado(config, montar_catalogo(config, produtos, series), n_geo, diag, hints)
 
 
@@ -657,12 +792,13 @@ def preparar(entrada, trabalho=None, progresso=avisar):
         raiz = trabalho or tempfile.mkdtemp(prefix='familias-revit-')
         _ex, ignorados = extrair_zip(entrada, raiz, progresso)
         return raiz, ignorados, trabalho is None
-    if ext in EXT_PROJETO:
-        raise FamiliasRevitError(f'{os.path.basename(entrada)} é um projeto/modelo Revit, não uma família: as famílias embutidas '
-                                 f'não são legíveis fora do Revit — exporte cada família (.rfa) ou o modelo em IFC')
-    if os.path.isdir(entrada) or ext in EXT_RFA:
+    if os.path.isdir(entrada) or ext in EXT_RFA + EXT_PROJETO:
         return entrada, [], False
-    raise FamiliasRevitError(f'{os.path.basename(entrada)}: envie um .rfa, uma pasta ou um .zip com as famílias')
+    raise FamiliasRevitError(f'{os.path.basename(entrada)}: envie um .rfa, um projeto .rvt, uma pasta ou um .zip com as famílias')
+
+
+SEM_APS = ('as famílias embutidas num projeto não são legíveis fora do Revit — coloque o IFC do projeto ao lado '
+           '(mesmo nome) ou autorize a tradução pela Autodesk Platform Services')
 
 
 def inspecionar(entrada, trabalho=None, progresso=avisar):
@@ -688,12 +824,23 @@ def inspecionar(entrada, trabalho=None, progresso=avisar):
                 'fabricante': next((str((p.get('Manufacturer') or p.get('Fabricante') or {}).get('valor') or '') for _t, p in lf['tipos']
                                     if (p.get('Manufacturer') or p.get('Fabricante'))), None) or None,
             })
+        projetos = []
         for p in d['projetos']:
-            avisos.append(f'{p}: projeto/modelo Revit ignorado — não é família')
+            revit = formato = None
+            try:
+                info, _png = rfa_partatom.ler(p['rvt'])
+                revit, formato = info.get('revit'), info.get('formato')
+            except Exception as e:
+                avisos.append(f"{p['rel']}: não li o BasicFileInfo ({e})")
+            projetos.append({'arquivo': p['rel'], 'revit': revit, 'formato': formato, 'bytes': os.path.getsize(p['rvt']),
+                             'ifc_irmao': os.path.relpath(p['ifc'], raiz) if p.get('ifc') else None})
+            if not p.get('ifc'):
+                avisos.append(f"{p['rel']}: projeto Revit — {SEM_APS}")
         return {
             'entrada': os.path.basename(entrada), 'bytes': _tamanho(entrada), 'familias': fams,
             'n_familias': len(fams), 'n_tipos': sum(f['tipos'] for f in fams),
             'com_geometria_irma': sum(1 for f in fams if f['geometria_irma']),
+            'projetos': projetos, 'n_projetos': len(projetos), 'projetos_sem_ifc': sum(1 for p in projetos if not p['ifc_irmao']),
             'ignorados': len(ignorados), 'avisos': avisos,
         }
     finally:
@@ -707,29 +854,43 @@ def _tamanho(caminho):
     return os.path.getsize(caminho)
 
 
-def importar(entrada, geo_dir, titulo=None, fabricante=None, comprimento_mm=None, deflexao=0.2, trabalho=None, progresso=avisar):
+def cliente_aps(credenciais_json=None, usar_env=False):
+    """`ClienteAPS` a partir do JSON ou do ambiente, ou None quando a APS não foi autorizada."""
+    if not credenciais_json and not usar_env:
+        return None
+    from bim_pipeline.conversores import aps as aps_mod
+    cid, sec = aps_mod.credenciais(credenciais_json)
+    return aps_mod.ClienteAPS(cid, sec)
+
+
+def importar(entrada, geo_dir, titulo=None, fabricante=None, comprimento_mm=None, deflexao=0.2, trabalho=None, progresso=avisar,
+             aps=None):
+    """`aps = {'cliente': ClienteAPS, 'cache': dir|None}` autoriza traduzir projetos .rvt pela APS; None = projetos só com IFC irmão."""
     raiz, ignorados, temp = preparar(entrada, trabalho, progresso)
+    trabalho_aps = tempfile.mkdtemp(prefix='familias-revit-ifc-')
     try:
         d = descobrir(raiz)
-        if not d['familias']:
-            extra = ' (há projeto .rvt: exporte as famílias ou um IFC)' if d['projetos'] else ''
+        traduziveis = [p for p in d['projetos'] if p.get('ifc') or aps]
+        if not d['familias'] and not traduziveis:
+            extra = f' — {len(d["projetos"])} projeto(s) .rvt: {SEM_APS}' if d['projetos'] else ''
             raise FamiliasRevitError(f'{os.path.basename(entrada)}: nenhuma família .rfa encontrada{extra}')
-        progresso(f"{len(d['familias'])} família(s) em {os.path.basename(entrada)}")
+        progresso(f"{len(d['familias'])} família(s) e {len(d['projetos'])} projeto(s) em {os.path.basename(entrada)}")
         familias, avisos_leitura = [], []
         for f in d['familias']:
             try:
                 familias.append(ler_familia(f, progresso))
             except Exception as e:
                 avisos_leitura.append(f"{f['rel']}: não li ({e})")
-        if not familias:
+        if d['familias'] and not familias and not traduziveis:
             raise FamiliasRevitError(f'{os.path.basename(entrada)}: nenhuma família legível — {"; ".join(avisos_leitura)[:500]}')
         titulo = titulo or (os.path.splitext(os.path.basename(entrada))[0] if not os.path.isdir(entrada) else os.path.basename(entrada.rstrip('/')))
         r = catalogo_de_familias(familias, geo_dir, titulo, fabricante, comprimento_mm, deflexao, progresso,
-                                 origem={'entrada': os.path.basename(entrada), 'bytes': _tamanho(entrada), 'ignorados': len(ignorados),
-                                         'projetos_ignorados': d['projetos']})
-        r['diag']['avisos'] = avisos_leitura + [f'{p}: projeto/modelo Revit ignorado — não é família' for p in d['projetos']] + r['diag']['avisos']
+                                 origem={'entrada': os.path.basename(entrada), 'bytes': _tamanho(entrada), 'ignorados': len(ignorados)},
+                                 projetos=d['projetos'], aps=aps, trabalho=trabalho_aps)
+        r['diag']['avisos'] = avisos_leitura + r['diag']['avisos']
         return r
     finally:
+        shutil.rmtree(trabalho_aps, ignore_errors=True)
         if temp:
             shutil.rmtree(raiz, ignore_errors=True)
 
@@ -751,6 +912,9 @@ def main():
     m.add_argument('--comprimento-mm', type=float, default=None, help=f'trecho das formas representativas (padrão {PROPORCOES["comprimento_perfil_mm"]:.0f})')
     m.add_argument('--deflexao', type=float, default=0.2, help='deflexão da tesselação da geometria irmã STEP/IGES, em mm')
     m.add_argument('--trabalho', help='pasta onde extrair o .zip (padrão: temporária, apagada ao fim)')
+    m.add_argument('--aps', action='store_true', help='traduzir projetos .rvt pela APS com APS_CLIENT_ID/APS_CLIENT_SECRET do ambiente (cobrado)')
+    m.add_argument('--aps-credenciais', help='JSON {client_id, client_secret} — o mesmo que --aps, com as credenciais em arquivo')
+    m.add_argument('--aps-cache', help='pasta de cache dos IFC traduzidos, por SHA-256 do .rvt (o mesmo projeto não paga duas vezes)')
     m.add_argument('--sair-com-stdin', action='store_true', help='termina com 2 quando o processo pai fecha o stdin')
     args = ap.parse_args()
 
@@ -761,13 +925,17 @@ def main():
     if args.sair_com_stdin:
         from bim_pipeline.processo import vigiar_stdin
         vigiar_stdin()
+    cli = cliente_aps(args.aps_credenciais, args.aps)
+    aps = {'cliente': cli, 'cache': args.aps_cache} if cli else None
     r = importar(args.entrada, os.path.abspath(args.geo_dir), args.titulo, args.fabricante, args.comprimento_mm,
-                 args.deflexao, args.trabalho)
+                 args.deflexao, args.trabalho, aps=aps)
     with open(args.saida, 'w', encoding='utf-8') as f:
         json.dump(r, f, ensure_ascii=False)
     o = r['hints']['origem']
-    avisar(f"pronto — {r['hints']['n_pecas']} peça(s) de {o['familias']} família(s), {r['n_geometrias']} geometria(s) "
-           f"({o['com_geometria_irma']} de arquivo irmão, {o['representativas']} representativas, {o['sem_cota']} sem cota) → {args.saida}")
+    pj = o['projetos']
+    avisar(f"pronto — {r['hints']['n_pecas']} peça(s) de {o['familias']} família(s) e {pj['projetos']} projeto(s), {r['n_geometrias']} geometria(s) "
+           f"({o['com_geometria_irma']} de arquivo irmão, {o['representativas']} representativas, {o['sem_cota']} sem cota; "
+           f"projetos: {pj['produtos']} peça(s), {pj['traduzidos_aps']} traduzido(s) na APS, {pj['do_cache']} do cache, {pj['fora']} fora) → {args.saida}")
 
 
 if __name__ == '__main__':

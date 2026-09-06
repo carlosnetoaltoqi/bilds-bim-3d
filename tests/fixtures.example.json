@@ -7,5 +7,6 @@
   "iges_pasta":  {"caminho": "<pasta com .igs de faces soltas>"},
   "dll_plugin":  {"caminho": "/mnt/c/Program Files/Autodesk/ApplicationPlugins/<plugin>.bundle/<plugin>.dll"},
   "manifesto_plugin": {"caminho": "<pasta de downloads>/manifesto.json"},
-  "rfa_familias": {"caminho": "input/revit/<familias>.zip"}
+  "rfa_familias": {"caminho": "input/revit/<familias>.zip"},
+  "rvt_projeto": {"caminho": "input/revit/<projeto>.zip", "aps_cache": "storage/bim/aps"}
 }
