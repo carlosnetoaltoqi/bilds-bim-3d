@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * /cad — converter uma peça CAD (.stp/.step/.ifc) sem criar produto: o serviço de ingestão
+ * /cad — converter uma peça CAD (.stp/.step/.igs/.ifc) sem criar produto: o serviço de ingestão
  * tessela (`POST /cad/tesselar`, OpenCASCADE / parse_ifc.py), a página mostra o resultado no
  * viewer 3D com unidade, bbox, sólidos e triângulos, e oferece o download em JSON `{pos,col,idx}`,
  * IFC4 (gerado no browser, `ifc-export.ts`) ou `.aq` (`POST /exportar/aq`). É a função que saiu
@@ -30,7 +30,7 @@ interface Tesselado extends GeoData {
   aviso?: string
 }
 
-const EXT_CAD = /\.(stp|step|ifc)$/i
+const EXT_CAD = /\.(stp|step|igs|iges|ifc)$/i
 const inputCls = 'w-full border border-gray-300 rounded px-2 py-1.5 text-[13px] bg-white'
 const btn = 'px-3 py-1.5 rounded border border-gray-300 text-[12px] font-semibold text-gray-700 disabled:opacity-50'
 const btnPrimary = 'px-4 py-2 rounded bg-[#1e40af] text-white text-[13px] font-semibold disabled:opacity-50'
@@ -67,7 +67,7 @@ export default function CadPage() {
   async function converter(e: FormEvent) {
     e.preventDefault()
     if (!file) return
-    if (!EXT_CAD.test(file.name)) { setErro('envie .stp, .step ou .ifc'); return }
+    if (!EXT_CAD.test(file.name)) { setErro('envie .stp, .step, .igs ou .ifc'); return }
     setConvertendo(true); setErro(null); setGeo(null); setMsg(null)
     try {
       const fd = new FormData()
@@ -140,8 +140,8 @@ export default function CadPage() {
 
         <form onSubmit={converter} className="bg-white border border-gray-200 rounded-lg p-5 flex flex-col gap-4 text-[13px]">
           <label className="flex flex-col gap-1">
-            <span className="text-[12px] text-gray-600 font-medium">Arquivo .stp / .step / .ifc</span>
-            <input type="file" accept=".stp,.step,.ifc,.STP,.STEP,.IFC" required disabled={convertendo} onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="text-[13px]" />
+            <span className="text-[12px] text-gray-600 font-medium">Arquivo .stp / .step / .igs / .ifc</span>
+            <input type="file" accept=".stp,.step,.igs,.iges,.ifc,.STP,.STEP,.IGS,.IGES,.IFC" required disabled={convertendo} onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="text-[13px]" />
           </label>
           <div className="grid grid-cols-2 gap-3 items-end">
             <label className="flex flex-col gap-1"><span className="text-[12px] text-gray-600">Deflexão da malha (mm, só STEP)</span>

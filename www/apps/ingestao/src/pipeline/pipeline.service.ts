@@ -13,7 +13,11 @@ import { executar, ProcessoError } from './processo';
  * `pipeline/` (Python ou o `thumbs.mjs` no Node) e devolve o que ele produziu, tipado.
  *
  *   catalogoDeAq   python3 pipeline/catalogo_de_aq.py   .aq|.zip → geo/<importId>/*.json + catálogo em JSON
- *   tesselar       python3 pipeline/step_to_geo.py | ifc_to_geo.py   CAD → {pos,col,idx,partes,…}
+ *   inspecionarPlugin / catalogoDePlugin
+ *                  python3 pipeline/catallog.py         DLL de plugin de AutoCAD (Catallog) → host e categorias;
+ *                                                       categoria → download dos IGES/RFA + tesselação → o MESMO
+ *                                                       JSON do catalogo_de_aq.py (S7.17)
+ *   tesselar       python3 pipeline/step_to_geo.py | ifc_to_geo.py   CAD (STEP, IGES, IFC) → {pos,col,idx,partes,…}
  *   gerarAq        python3 pipeline/geo_to_aq.py       partes do editor → .aq
  *   catalogoParaAq python3 pipeline/catalogo_to_aq.py  catálogo salvo (produtos + geometria do storage) → .aq
  *   miniaturas     node    pipeline/thumbs.mjs         geometrias → WebP por geometria (Chromium)
@@ -75,10 +79,13 @@ export interface StepGeo extends GeoBuffers {
   escala_aplicada?: number;
   cor_por_face?: boolean;
   segundos: number;
-  formato?: 'step' | 'ifc';
+  formato?: 'step' | 'iges' | 'ifc';
   caminho?: string;
   tamanho_mb?: number;
   aviso?: string;
+  volume_cm3?: number;
+  costurado?: boolean;        // IGES: faces soltas costuradas num sólido (S7.17)
+  arestas_livres?: number;
 }
 
 export interface AqInfo {
@@ -105,8 +112,27 @@ export interface ResumoMiniaturas {
   falhas: Array<{ geo: string; message: string }>;
 }
 
-export function formatoDe(nome: string): 'step' | 'ifc' {
-  return /\.ifc(zip|xml)?$/i.test(nome) ? 'ifc' : 'step';
+/** O que `catallog.py inspecionar` tira da DLL (e, com rede, do catálogo web). */
+export interface PluginInfo {
+  arquivo: string;
+  bytes: number;
+  host: string;
+  hosts: string[];
+  plugin: string | null;
+  empresa: string | null;
+  versao: string | null;
+  dotnet: boolean;
+  titulo?: string;
+  formulario_download?: string | null;
+  categorias?: Array<{ slug: string; name: string; grupos: number; grupos_nomes: string[] }>;
+}
+
+/** Os cinco campos do formulário de download do catálogo Catallog — nunca persistidos. */
+export interface LeadDownload { full_name: string; email: string; mobile: string; company: string; position: string }
+
+export function formatoDe(nome: string): 'step' | 'iges' | 'ifc' {
+  if (/\.ifc(zip|xml)?$/i.test(nome)) return 'ifc';
+  return /\.ige?s$/i.test(nome) ? 'iges' : 'step';
 }
 
 @Injectable()
@@ -139,8 +165,55 @@ export class PipelineService {
   }
 
   /**
-   * CAD já em disco → geometria do viewer. `.stp/.step` → `step_to_geo.py` (OpenCASCADE, deflexão
-   * em mm); `.ifc` → `ifc_to_geo.py` (parse_ifc.py exato ou ifcopenshell para arquivo grande).
+   * DLL de um plugin de AutoCAD → host do catálogo web, nome/versão do plugin e, salvo `semRede`,
+   * título do catálogo e categorias (com o número de grupos de cada). Síncrono, segundos.
+   */
+  async inspecionarPlugin(dllPath: string, opts: { semRede?: boolean } = {}): Promise<PluginInfo> {
+    const args = [this.script('catallog.py'), 'inspecionar', dllPath];
+    if (opts.semRede) args.push('--sem-rede');
+    const { stdout } = await executar(PYTHON, args, { nome: 'catallog.py inspecionar', cwd: this.dir, timeoutMs: 5 * 60 * 1000 });
+    const linha = stdout.trim().split('\n').reverse().find((l) => l.startsWith('{'));
+    if (!linha) throw new Error('catallog.py inspecionar terminou sem o JSON');
+    return JSON.parse(linha) as PluginInfo;
+  }
+
+  /**
+   * Categoria de um catálogo Catallog → arquivos baixados em `downloads` (IGES/RFA + manifesto) e
+   * geometrias em `geoDir`, devolvendo o mesmo `ResultadoCatalogo` do `catalogo_de_aq.py`. O lead
+   * vai num JSON temporário apagado no `finally` — não fica em disco nem no log.
+   */
+  async catalogoDePlugin(opts: {
+    host: string; categoria: string; lead: LeadDownload; downloads: string; geoDir: string;
+    igsPorGrupo?: number; deflexao?: number; plugin?: PluginInfo | null; onProgresso?: (linha: string) => void;
+  }): Promise<ResultadoCatalogo> {
+    const id = crypto.randomUUID();
+    const leadPath = path.join(os.tmpdir(), `catallog-lead-${id}.json`);
+    const pluginPath = path.join(os.tmpdir(), `catallog-plugin-${id}.json`);
+    const saida = path.join(os.tmpdir(), `catallog-catalogo-${id}.json`);
+    await fsp.writeFile(leadPath, JSON.stringify(opts.lead), { mode: 0o600 });
+    const args = [
+      this.script('catallog.py'), 'importar', '--host', opts.host, '--categoria', opts.categoria, '--lead', leadPath,
+      '--downloads', opts.downloads, '--geo-dir', opts.geoDir, '--saida', saida,
+      '--igs-por-grupo', String(opts.igsPorGrupo ?? 1), '--deflexao', String(opts.deflexao ?? 0.2), '--sair-com-stdin',
+    ];
+    if (opts.plugin) {
+      await fsp.writeFile(pluginPath, JSON.stringify(opts.plugin));
+      args.push('--plugin', pluginPath);
+    }
+    try {
+      await executar(PYTHON, args, {
+        nome: 'catallog.py importar', cwd: this.dir, timeoutMs: TIMEOUT_MS, ociosoMs: OCIOSO_PYTHON_MS,
+        onStderr: (l) => { if (l.trim()) opts.onProgresso?.(l.trim()); },
+      });
+      return JSON.parse(await fsp.readFile(saida, 'utf8')) as ResultadoCatalogo;
+    } finally {
+      await Promise.all([leadPath, pluginPath, saida].map((p) => fsp.unlink(p).catch(() => {})));
+    }
+  }
+
+  /**
+   * CAD já em disco → geometria do viewer. `.stp/.step/.igs/.iges` → `step_to_geo.py` (OpenCASCADE,
+   * deflexão em mm; IGES costurado); `.ifc` → `ifc_to_geo.py` (parse_ifc.py exato ou ifcopenshell para arquivo grande).
    */
   async tesselar(caminho: string, deflexaoMm = 0.2, nomeOriginal?: string, onProgresso?: (linha: string) => void): Promise<StepGeo> {
     const outJson = path.join(os.tmpdir(), `cad-${crypto.randomUUID()}.json`);

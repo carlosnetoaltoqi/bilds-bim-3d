@@ -59,7 +59,8 @@ www/
 
 | Rota | O quê |
 |---|---|
-| `POST /importacoes` (multipart `file`, campos `empresa?`, `fabricante?`, `catalogo?`, `nome?`, `deflexao?`) | 202 `{importId, status:'recebido', statusUrl}`. Tipo pela extensão: `.aq`/`.zip` → biblioteca; `.stp`/`.step`/`.ifc` → peça CAD |
+| `POST /importacoes` (multipart `file`, campos `empresa?`, `fabricante?`, `catalogo?`, `nome?`, `deflexao?`) | 202 `{importId, status:'recebido', statusUrl}`. Tipo pela extensão: `.aq`/`.zip` → biblioteca; `.stp`/`.step`/`.igs`/`.ifc` → peça CAD |
+| `POST /importacoes/plugin-autocad/inspecionar` (multipart DLL) · `POST /importacoes/plugin-autocad` (DLL + `categoria` + lead + `empresa?`, `host?`, `igsPorGrupo?`, `deflexao?`) | S7.17: plugin de AutoCAD da plataforma Catallog → catálogo web → IGES/RFA da categoria → catálogo (tipo `plugin`, mesmo caminho de publicação da biblioteca); downloads em `catallog/<importId>/` |
 | `GET /importacoes/:importId` | `{status, note, error, productCount, catalogId, catalogoUrl?, editorUrl?, thumbCount…}` |
 | `GET /importacoes?empresa=<customUrl>` | últimas importações da empresa |
 | `DELETE /importacoes/:importId` | apaga importação terminada (produtos, storage, documento; 409 em andamento) |
@@ -86,7 +87,8 @@ posição na fila, o progresso do Python e o resumo das miniaturas.
 
 | Página | O quê |
 |---|---|
-| `/` | empresas e catálogos com links **ver** / **editar** / **importar**; menu **Importar biblioteca .aq** · **Importar peça STEP / IFC** · **Converter peça CAD** · **Criar empresa** |
+| `/` | empresas e catálogos com links **ver** / **editar** / **importar**; menu **Importar biblioteca .aq** · **Importar peça STEP / IGES / IFC** · **Importar plugin do AutoCAD** · **Converter peça CAD** · **Criar empresa** |
+| `/importar/plugin` | DLL do plugin → inspecionar → categoria + formulário do fabricante → import tipo `plugin` (S7.17) |
 | `/empresa/criar` | cria empresa (nome, customUrl, logo) |
 | `/importar[?tipo=aq\|cad]` | sobe `.aq`/`.zip`/`.stp`/`.ifc` e acompanha o status (uma página para os dois tipos; `tipo` restringe) |
 | `/cad` | converter STEP/IFC sem criar produto (viewer + download JSON/IFC/.aq) |

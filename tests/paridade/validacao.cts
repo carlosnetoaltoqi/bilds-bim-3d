@@ -14,6 +14,7 @@ import { PatchCatalogoDto } from '../../www/apps/api/src/catalogos/patch-catalog
 import { ExportarAqDto } from '../../www/apps/ingestao/src/cad/cad.dto';
 import { CriarEmpresaDto } from '../../www/apps/api/src/empresas/criar-empresa.dto';
 import { ImportarDto } from '../../www/apps/ingestao/src/importacoes/importar.dto';
+import { ImportarPluginDto } from '../../www/apps/ingestao/src/importacoes/importar-plugin.dto';
 
 const pipe = criarValidationPipe();
 
@@ -88,6 +89,19 @@ async function main() {
   s.importar_aq_ok = await valida(ImportarDto, { empresa: ' poc ' });
   s.importar_aq_vazio = await valida(ImportarDto, {});
   s.importar_aq_campo_estranho = await valida(ImportarDto, { ownerId: 'x' });
+
+  // ── POST /importacoes/plugin-autocad (multipart → tudo texto) — S7.17 ────────
+  const lead = { fullName: ' Carlos ', email: 'c@x.com', mobile: '48 9', company: 'educa', position: 'Consultor' };
+  s.plugin_ok = await valida(ImportarPluginDto, { empresa: ' poc ', categoria: 'tupygrooved-173', igsPorGrupo: '3', deflexao: '0.5', host: 'https://conexoes.tupy.com.br', ...lead });
+  s.plugin_minimo = await valida(ImportarPluginDto, { categoria: 'tupygrooved-173', ...lead });
+  s.plugin_sem_lead = await valida(ImportarPluginDto, { categoria: 'tupygrooved-173' });
+  s.plugin_email_invalido = await valida(ImportarPluginDto, { categoria: 'x', ...lead, email: 'carlos' });
+  s.plugin_host_http = await valida(ImportarPluginDto, { categoria: 'x', host: 'http://conexoes.tupy.com.br', ...lead });
+  s.plugin_categoria_invalida = await valida(ImportarPluginDto, { categoria: 'Tupy Grooved!', ...lead });
+  s.plugin_sem_categoria = await valida(ImportarPluginDto, { ...lead });
+  s.plugin_igs_fora = await valida(ImportarPluginDto, { categoria: 'x', igsPorGrupo: '-2', ...lead });
+  s.plugin_igs_fracao = await valida(ImportarPluginDto, { categoria: 'x', igsPorGrupo: '1.5', ...lead });
+  s.plugin_campo_estranho = await valida(ImportarPluginDto, { categoria: 'x', ...lead, ownerId: 'x' });
 
   process.stdout.write(JSON.stringify(s));
 }

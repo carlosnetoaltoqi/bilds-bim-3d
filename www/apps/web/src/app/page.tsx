@@ -34,7 +34,8 @@ export default async function HomePage() {
           <h1 className="text-2xl font-bold" style={{ fontFamily: 'Fira Sans, Inter, system-ui, sans-serif' }}>Empresas e catálogos</h1>
           <nav aria-label="menu" className="flex gap-2 flex-wrap">
             <a href="/importar?tipo=aq" className="px-3 py-1.5 rounded bg-[#1e40af] text-white text-[12px] font-semibold">Importar biblioteca .aq</a>
-            <a href="/importar?tipo=cad" className="px-3 py-1.5 rounded bg-[#1e40af] text-white text-[12px] font-semibold">Importar peça STEP / IFC</a>
+            <a href="/importar?tipo=cad" className="px-3 py-1.5 rounded bg-[#1e40af] text-white text-[12px] font-semibold">Importar peça STEP / IGES / IFC</a>
+            <a href="/importar/plugin" className="px-3 py-1.5 rounded bg-[#1e40af] text-white text-[12px] font-semibold">Importar plugin do AutoCAD</a>
             <a href="/cad" className="px-3 py-1.5 rounded border border-gray-300 text-[12px] font-semibold text-gray-700">Converter peça CAD</a>
             <a href="/empresa/criar" className="px-3 py-1.5 rounded border border-gray-300 text-[12px] font-semibold text-gray-700">Criar empresa</a>
           </nav>

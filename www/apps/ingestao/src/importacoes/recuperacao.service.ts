@@ -24,8 +24,8 @@ import { BimImport, BimImportDocument, BimProduct, BimProductDocument, IGeometry
 export const STATUS_NAO_TERMINAIS = ['recebido', 'parseando', 'gravando'] as const;
 export const ERRO_REINICIO = 'a API foi reiniciada durante a importação — envie o arquivo de novo';
 
-/** Uploads que o multer deixa em `os.tmpdir()`: `bim-<uuid>.aq|.zip` (biblioteca) e `cad-<uuid>.<ext>` (peça). */
-export const UPLOAD_TEMPORARIO = /^(bim-[0-9a-f-]{36}\.(aq|zip)|cad-[0-9a-f-]{36}\.(stp|step|ifc|ifczip|ifcxml))$/i;
+/** Uploads que o multer deixa em `os.tmpdir()`: `bim-<uuid>.aq|.zip` (biblioteca), `cad-<uuid>.<ext>` (peça) e `plugin-<uuid>.dll` (plugin de AutoCAD). */
+export const UPLOAD_TEMPORARIO = /^(bim-[0-9a-f-]{36}\.(aq|zip)|cad-[0-9a-f-]{36}\.(stp|step|ifc|ifczip|ifcxml)|plugin-[0-9a-f-]{36}\.dll)$/i;
 
 export interface LogMinimo {
   log(msg: string): void;

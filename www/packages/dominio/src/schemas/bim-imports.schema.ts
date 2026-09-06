@@ -14,7 +14,8 @@ const IMPORT_STATUSES = [
 
 export type ImportStatus = (typeof IMPORT_STATUSES)[number];
 
-const IMPORT_TIPOS = ['aq', 'cad'] as const;
+/** 'aq' biblioteca .aq/.zip · 'cad' uma peça STEP/IFC · 'plugin' catálogo web de um plugin de AutoCAD (Catallog) — S7.17 */
+const IMPORT_TIPOS = ['aq', 'cad', 'plugin'] as const;
 export type ImportTipo = (typeof IMPORT_TIPOS)[number];
 
 @Schema({ collection: 'bim_imports' })
@@ -31,7 +32,7 @@ export class BimImport {
   @Prop({ type: String, enum: IMPORT_STATUSES, required: true })
   status: ImportStatus;
 
-  /** 'aq' (biblioteca .aq/.zip) ou 'cad' (uma peça STEP/IFC) — os dois passam pelo serviço de ingestão (E3) */
+  /** 'aq' (biblioteca .aq/.zip), 'cad' (uma peça STEP/IFC) ou 'plugin' (catálogo web de um plugin de AutoCAD) — todos pelo serviço de ingestão (E3) */
   @Prop({ type: String, enum: IMPORT_TIPOS, default: 'aq' })
   tipo: ImportTipo;
 

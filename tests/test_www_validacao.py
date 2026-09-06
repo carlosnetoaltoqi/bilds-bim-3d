@@ -124,3 +124,23 @@ def test_empresa_e_importar_aq(c):
     assert c['importar_aq_ok'] == {'ok': {'empresa': 'poc'}}
     assert c['importar_aq_vazio'] == {'ok': {}}
     assert c['importar_aq_campo_estranho']['status'] == 400
+
+
+# ── POST /importacoes/plugin-autocad (multipart) — S7.17 ─────────────────────
+
+def test_importar_plugin_lead_categoria_e_limites(c):
+    ok = c['plugin_ok']['ok']
+    assert ok['empresa'] == 'poc' and ok['categoria'] == 'tupygrooved-173' and ok['host'] == 'https://conexoes.tupy.com.br'
+    assert ok['igsPorGrupo'] == 3 and ok['deflexao'] == 0.5          # texto do multipart → número
+    assert ok['fullName'] == 'Carlos' and ok['email'] == 'c@x.com'  # trim
+    assert set(c['plugin_minimo']['ok']) == {'categoria', 'fullName', 'email', 'mobile', 'company', 'position'}
+    e = _erros(c['plugin_sem_lead'])
+    for campo in ('fullName', 'email', 'mobile', 'company', 'position'):
+        assert campo in e
+    assert '"email" inválido' in _erros(c['plugin_email_invalido'])
+    assert 'URL https' in _erros(c['plugin_host_http'])
+    assert 'slug' in _erros(c['plugin_categoria_invalida'])
+    assert '"categoria" é obrigatória' in _erros(c['plugin_sem_categoria'])
+    assert '-1 (todos)' in _erros(c['plugin_igs_fora'])
+    assert 'deve ser inteiro' in _erros(c['plugin_igs_fracao'])
+    assert c['plugin_campo_estranho']['status'] == 400

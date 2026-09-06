@@ -10,7 +10,8 @@ import {
 } from '@bim/dominio';
 import { FILA_IMPORTACOES, FILA_MINIATURAS, Fila } from './fila';
 import { ImportarDto } from './importar.dto';
-import { PipelineService, ProdutoPipeline, ResumoMiniaturas, StepGeo } from '../pipeline/pipeline.service';
+import { ImportarPluginDto } from './importar-plugin.dto';
+import { PipelineService, PluginInfo, ProdutoPipeline, ResultadoCatalogo, ResumoMiniaturas, StepGeo } from '../pipeline/pipeline.service';
 
 /**
  * ImportacoesService — o fluxo de uma importação (docs/arquitetura-www-servico-de-ingestao.md, §2):
@@ -20,8 +21,11 @@ import { PipelineService, ProdutoPipeline, ResumoMiniaturas, StepGeo } from '../
  *
  * Biblioteca (`.aq`/`.zip`): `catalogo_de_aq.py` grava uma geometria por simbologia em
  * `geo/<importId>/` e devolve o catálogo; os produtos apontam para `geo/<importId>/<geo>`
- * (vários podem compartilhar — A5). Peça CAD (`.stp`/`.ifc`): `step_to_geo.py`/`ifc_to_geo.py`
- * → um produto num catálogo "Peças STEP/IFC" da empresa.
+ * (vários podem compartilhar — A5). Plugin de AutoCAD (S7.17): `catallog.py` descobre o catálogo
+ * web na DLL, baixa os IGES/RFA de uma categoria para `catallog/<importId>/` (ficam — são a
+ * fonte), tessela em `geo/<importId>/` e devolve o MESMO JSON — os dois passam por
+ * `processarCatalogo`. Peça CAD (`.stp`/`.igs`/`.ifc`): `step_to_geo.py`/`ifc_to_geo.py` → um produto
+ * num catálogo "Peças STEP/IFC" da empresa.
  *
  * Miniaturas são por geometria (`thumbs/<importId>/<stem>.webp`) e nunca mudam o status do
  * import; cada falha fica em `note`/`thumbFailed`/`thumbError` (I15). A vaga da fila só libera
@@ -30,7 +34,8 @@ import { PipelineService, ProdutoPipeline, ResumoMiniaturas, StepGeo } from '../
  */
 
 const EXT_AQ = /\.(aq|zip)$/i;
-const EXT_CAD = /\.(stp|step|ifc|ifczip|ifcxml)$/i;
+const EXT_CAD = /\.(stp|step|igs|iges|ifc|ifczip|ifcxml)$/i;
+const EXT_DLL = /\.dll$/i;
 
 export function tipoDe(nomeOuExt: string): ImportTipo | null {
   if (EXT_AQ.test(nomeOuExt)) return 'aq';
@@ -124,9 +129,106 @@ export class ImportacoesService {
     return { importId, tipo, status: 'recebido', statusUrl: `/importacoes/${importId}` };
   }
 
+  // ── plugin de AutoCAD (S7.17) ─────────────────────────────────────────────
+
+  /** Só inspeciona a DLL (host, plugin, versão, título e categorias do catálogo web). Apaga o upload. */
+  async inspecionarPlugin(arquivo: ArquivoRecebido): Promise<PluginInfo> {
+    try {
+      if (!EXT_DLL.test(arquivo.fileName)) throw new BadRequestException(`"${arquivo.fileName}" não é a DLL do plugin — envie o .dll do bundle (ex. TupyCAD.dll)`);
+      const info = await this.pipeline.inspecionarPlugin(arquivo.path);
+      return { ...info, arquivo: arquivo.fileName };   // o Python vê o nome temporário do multer
+    } catch (e: any) {
+      if (e instanceof BadRequestException) throw e;
+      throw new BadRequestException(`não li o plugin: ${(e?.message ?? String(e)).split('\n').slice(-3).join(' ').slice(0, 500)}`);
+    } finally {
+      await fs.unlink(arquivo.path).catch(() => {});
+    }
+  }
+
+  /**
+   * DLL + categoria + dados do formulário → uma importação `plugin` na fila: `catallog.py` baixa os
+   * arquivos da categoria para `catallog/<importId>/` e devolve o catálogo, que é publicado como
+   * uma biblioteca. O lead só existe no processo filho (JSON temporário) — nunca no Mongo.
+   */
+  async createPlugin(arquivo: ArquivoRecebido, body: ImportarPluginDto) {
+    let company: { _id: string; customUrl: string };
+    let info: PluginInfo;
+    try {
+      if (!EXT_DLL.test(arquivo.fileName)) throw new BadRequestException(`"${arquivo.fileName}" não é a DLL do plugin — envie o .dll do bundle (ex. TupyCAD.dll)`);
+      company = await this.empresaDe(body.empresa);
+      try {
+        info = { ...(await this.pipeline.inspecionarPlugin(arquivo.path, { semRede: true })), arquivo: arquivo.fileName };
+      } catch (e: any) {
+        throw new BadRequestException(`não li o plugin: ${(e?.message ?? String(e)).split('\n').slice(-3).join(' ').slice(0, 500)}`);
+      }
+    } catch (e) {
+      await fs.unlink(arquivo.path).catch(() => {});
+      throw e;
+    }
+    const host = (body.host || info.host).replace(/\/+$/, '');
+    const rotulo = [info.plugin ?? arquivo.fileName, info.versao].filter(Boolean).join(' ');
+    this.logger.log(`plugin recebido — ${rotulo} → ${host} · categoria ${body.categoria} · igs/grupo ${body.igsPorGrupo ?? 1} · empresa=${company.customUrl}`);
+
+    const importId = crypto.randomUUID();
+    await this.importModel.create({
+      _id: importId,
+      companyId: company._id,
+      tipo: 'plugin' as ImportTipo,
+      status: 'recebido' as ImportStatus,
+      fileName: `${rotulo} · ${body.categoria}`,
+      note: `plugin ${rotulo} → ${host} · categoria ${body.categoria}`,
+      updatedAt: new Date(),
+    });
+    const lead = { full_name: body.fullName, email: body.email, mobile: body.mobile, company: body.company, position: body.position };
+    const downloads = path.join(storagePath(), 'catallog', importId);
+    const trabalho = () => this.processarCatalogo(importId, company, {
+      rotulo: 'catallog.py importar',
+      produzir: (geoDir, onProgresso) => this.pipeline.catalogoDePlugin({
+        host, categoria: body.categoria, lead, downloads, geoDir, igsPorGrupo: body.igsPorGrupo ?? 1, deflexao: body.deflexao ?? 0.2, plugin: info, onProgresso,
+      }),
+      aoTerminar: () => fs.unlink(arquivo.path),
+      aoFalhar: () => fs.rm(downloads, { recursive: true, force: true }),
+      notaExtra: (r) => {
+        const o = (r.hints as any)?.origem;
+        if (!o) return null;
+        const semIgs = Array.isArray(o.grupos_sem_igs) && o.grupos_sem_igs.length ? ` · ${o.grupos_sem_igs.length} grupo(s) sem IGES ficaram fora` : '';
+        return `${r.n_geometrias} peça(s) de ${o.grupos} grupo(s) · ${o.arquivos} arquivo(s), ${(o.bytes / 1e6).toFixed(0)} MB de ${o.host}${semIgs}`;
+      },
+    });
+    this.fila
+      .executar(importId, trabalho, (naFrente) => {
+        if (naFrente > 0) {
+          this.importModel.findByIdAndUpdate(importId, { note: `na fila — ${naFrente} importação(ões) à frente`, updatedAt: new Date() })
+            .exec().catch(() => undefined);
+        }
+      })
+      .catch((e: any) => this.logger.error(`[${importId.slice(0, 8)}] processamento escapou — ${e?.message ?? e}`));
+    return { importId, tipo: 'plugin', status: 'recebido', statusUrl: `/importacoes/${importId}`, host, plugin: info };
+  }
+
   // ── biblioteca .aq / .zip ────────────────────────────────────────────────
 
-  private async processarAq(importId: string, arquivo: ArquivoRecebido, company: { _id: string; customUrl: string }) {
+  private processarAq(importId: string, arquivo: ArquivoRecebido, company: { _id: string; customUrl: string }) {
+    return this.processarCatalogo(importId, company, {
+      rotulo: 'catalogo_de_aq.py',
+      produzir: (geoDir, onProgresso) => this.pipeline.catalogoDeAq({ aqPath: arquivo.path, geoDir, nomeOriginal: arquivo.fileName, onProgresso }),
+      aoTerminar: () => fs.unlink(arquivo.path),
+    });
+  }
+
+  /**
+   * O caminho comum a tudo que vira um CATÁLOGO INTEIRO (biblioteca `.aq` e catálogo web de um
+   * plugin): `produzir` roda o pipeline e devolve o JSON do `catalogo_de_aq.py`; daí em diante é
+   * upsert do catálogo, produtos, limpeza do import anterior de mesmo slug e miniaturas.
+   * `aoFalhar` limpa o que só este tipo criou (os downloads do plugin); `aoTerminar` roda sempre.
+   */
+  private async processarCatalogo(importId: string, company: { _id: string; customUrl: string }, o: {
+    rotulo: string;
+    produzir: (geoDir: string, onProgresso: (linha: string) => void) => Promise<ResultadoCatalogo>;
+    aoTerminar: () => Promise<unknown>;
+    aoFalhar?: () => Promise<unknown>;
+    notaExtra?: (r: ResultadoCatalogo) => string | null;
+  }) {
     const tag = `[${importId.slice(0, 8)}]`;
     const t0 = Date.now();
     const lap = (label: string) => this.logger.log(`${tag} ${label} — +${((Date.now() - t0) / 1000).toFixed(1)}s`);
@@ -140,17 +242,14 @@ export class ImportacoesService {
     try {
       // `note: null` apaga o "na fila — N à frente" que a espera escreveu
       await setStatus('parseando', { note: null });
-      lap('→ parseando (catalogo_de_aq.py)');
+      lap(`→ parseando (${o.rotulo})`);
 
       let ultimoProgresso = 0;
-      const resultado = await this.pipeline.catalogoDeAq({
-        aqPath: arquivo.path, geoDir, nomeOriginal: arquivo.fileName,
-        onProgresso: (linha) => {
-          if (Date.now() - ultimoProgresso > 1000) {   // no máximo uma atualização por segundo no Mongo
-            ultimoProgresso = Date.now();
-            this.importModel.findByIdAndUpdate(importId, { note: linha, updatedAt: new Date() }).exec().catch(() => {});
-          }
-        },
+      const resultado = await o.produzir(geoDir, (linha) => {
+        if (Date.now() - ultimoProgresso > 1000) {   // no máximo uma atualização por segundo no Mongo
+          ultimoProgresso = Date.now();
+          this.importModel.findByIdAndUpdate(importId, { note: linha, updatedAt: new Date() }).exec().catch(() => {});
+        }
       });
       const { config, catalog, n_geometrias, diag } = resultado;
       lap(`pipeline retornou — ${catalog.produtos.length} produtos, ${n_geometrias} geometrias`);
@@ -198,10 +297,10 @@ export class ImportacoesService {
       await this.productModel.insertMany(productDocs);
       lap(`insertMany — ${productDocs.length} produtos`);
 
-      let note = descreveDiag(diag);
+      let note = [descreveDiag(diag), o.notaExtra?.(resultado) ?? null].filter(Boolean).join(' · ');
       if (prevImportId) {
         const deleted = await this.productModel.deleteMany({ catalogId, importId: { $ne: importId } });
-        for (const prefixo of [`geo/${prevImportId}`, `thumbs/${prevImportId}`]) {
+        for (const prefixo of [`geo/${prevImportId}`, `thumbs/${prevImportId}`, `catallog/${prevImportId}`]) {
           await this.store.deleteByPrefix(prefixo).catch((e: any) =>
             this.logger.warn(`${tag} não removeu ${prefixo} do import anterior — ${e?.message ?? e}`));
         }
@@ -224,11 +323,14 @@ export class ImportacoesService {
         this.logger.warn(`${tag} limpeza de geo/${importId} falhou — ${e?.message ?? e}`));
       await this.productModel.deleteMany({ importId }).catch((e: any) =>
         this.logger.warn(`${tag} limpeza de produtos falhou — ${e?.message ?? e}`));
+      if (o.aoFalhar) {
+        await o.aoFalhar().catch((e: any) => this.logger.warn(`${tag} limpeza específica falhou — ${e?.message ?? e}`));
+      }
       const msg = (err?.message ?? String(err)).slice(0, 2000);
       this.logger.error(`${tag} FALHOU — ${msg} — +${((Date.now() - t0) / 1000).toFixed(1)}s`);
       await setStatus('falhou', { error: msg, note: `falhou após ${((Date.now() - t0) / 1000).toFixed(0)} s` });
     } finally {
-      await fs.unlink(arquivo.path).catch(() => {});
+      await o.aoTerminar().catch(() => {});
     }
 
     // Só agora a fila libera a vaga: quem espera vê "na fila" até o Chromium deste import fechar.
@@ -337,7 +439,7 @@ export class ImportacoesService {
     const fabricante = (body.fabricante ?? '').trim() || (ehIfc ? 'IFC' : 'STEP');
     const titulo = (body.catalogo ?? '').trim() || (ehIfc ? 'Peças IFC' : 'Peças STEP');
     const slug = slugify(titulo) || (ehIfc ? 'pecas-ifc' : 'pecas-step');
-    const nome = (body.nome ?? '').trim() || path.basename(fileName).replace(/\.(stp|step|ifc)$/i, '');
+    const nome = (body.nome ?? '').trim() || path.basename(fileName).replace(/\.(stp|step|igs|iges|ifc)$/i, '');
 
     let catalog = await this.catalogModel.findOne({ companyId: company._id, slug }).lean().exec();
     if (!catalog) {
@@ -377,12 +479,14 @@ export class ImportacoesService {
           }
         : {
             Fonte: geo.fonte,
-            Formato: 'STEP (ISO 10303-21)',
+            Formato: geo.formato === 'iges' ? 'IGES (faces costuradas em sólido)' : 'STEP (ISO 10303-21)',
             'Unidade do arquivo': geo.unidade,
             'Dimensões (mm)': `${bb[0].toFixed(1)} × ${bb[1].toFixed(1)} × ${bb[2].toFixed(1)}`,
             Sólidos: String(geo.partes.length),
             Triângulos: String(geo.idx.length / 3),
             'Deflexão (mm)': String(geo.deflexao_mm),
+            ...(geo.volume_cm3 != null ? { 'Volume (cm³)': geo.volume_cm3.toFixed(1) } : {}),
+            ...(geo.arestas_livres ? { 'Arestas livres após costura': String(geo.arestas_livres) } : {}),
           },
       curva: null,
       potencia: null,
@@ -477,7 +581,7 @@ export class ImportacoesService {
     const empresa = company?.customUrl ?? null;
     const catalogoUrl = empresa && cat ? `/${empresa}/${cat.slug}` : null;
     let produto: Record<string, unknown> = {};
-    if (imp.tipo === 'cad' && imp.status === 'publicado') {
+    if (imp.tipo === 'cad' && imp.status === 'publicado') {   // 'aq' e 'plugin' são catálogos inteiros — nada por produto aqui
       const p = await this.productModel.findOne({ importId: imp._id }).lean().exec();
       if (p && catalogoUrl) {
         produto = { produtoId: p._id, nome: p.nome, editorUrl: `${catalogoUrl}/editar/${p._id}`, specs: p.specs, thumbUrl: p.thumbKey ? `/thumbs/${p._id}` : null };

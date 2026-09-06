@@ -38,12 +38,14 @@ Atlas — ver "A API não sobe e o Mongoose culpa o whitelist", no fim.
 
 | Rota | O quê |
 |---|---|
-| `POST /importacoes` | multipart `file` + campos opcionais `empresa` (customUrl; vazio = a primeira), e para peça CAD `fabricante`, `catalogo`, `nome`, `deflexao` (mm, só STEP). Tipo pela extensão. → **202** `{importId, tipo, status:'recebido', statusUrl}` |
+| `POST /importacoes` | multipart `file` (`.aq`/`.zip` biblioteca; `.stp`/`.step`/`.igs`/`.iges`/`.ifc` peça CAD) + campos opcionais `empresa` (customUrl; vazio = a primeira), e para peça CAD `fabricante`, `catalogo`, `nome`, `deflexao` (mm, STEP/IGES). Tipo pela extensão. → **202** `{importId, tipo, status:'recebido', statusUrl}` |
+| `POST /importacoes/plugin-autocad/inspecionar` | multipart `file` = a **DLL de um plugin de AutoCAD** da plataforma Catallog (ex. `TupyCAD.dll`) → síncrono `{host, plugin, versao, empresa, titulo, categorias:[{slug,name,grupos,grupos_nomes}]}` (`catallog.py inspecionar`). **400** se não é PE/.NET ou não tem URL de catálogo (S7.17) |
+| `POST /importacoes/plugin-autocad` | multipart `file` (DLL) + `categoria` (slug) + lead do formulário do site (`fullName`, `email`, `mobile`, `company`, `position` — **obrigatórios, nunca persistidos**) + opcionais `empresa`, `host` (sobrepõe o da DLL), `igsPorGrupo` (1 padrão; -1 todos; 0 nenhum), `deflexao` → **202** `{importId, tipo:'plugin', status, statusUrl, host, plugin}`. Na fila: baixa IGES/RFA da categoria para `storage/bim/catallog/<importId>/`, tessela em `geo/<importId>/`, publica como uma biblioteca (mesmo caminho do `.aq`). `note` traz "lendo grupo N/M", "k/N arquivo", a tesselação e o resumo (peças, grupos, MB, grupos sem IGES) |
 | `GET /importacoes/:importId` | `{status, tipo, note, error, productCount, thumbCount, thumbFailed, thumbError, diag, catalogSlug, catalogTitle, empresa, catalogoUrl, editorUrl, segundos…}`; CAD publicado traz `produtoId`, `nome`, `thumbUrl` e o `editorUrl` do produto |
 | `GET /importacoes?empresa=&limite=` | últimas importações (padrão 20, máx. 100) |
 | `DELETE /importacoes/:importId` | apaga uma importação **terminada**: produtos dela, `geo/<importId>`, `thumbs/<importId>`, documento; o catálogo fica, recontado. **409** se ainda está em `recebido`/`parseando`/`gravando` |
 | `POST /miniaturas/regerar` `{productId}` | 202 `{productId, naFrente}` — renderiza a miniatura do produto e grava `thumbKey`/`thumbAtualizadaEm` ou `thumbErro`. Quem chama é a API depois de editar geometria |
-| `POST /cad/tesselar` | multipart `.stp/.step/.ifc` (+ `deflexao`) → `{pos, col, idx, partes, unidade, bbox_mm, …}` síncrono — consumido pela página `/cad` do web (a conversão saiu do editor em 2026-09-05) |
+| `POST /cad/tesselar` | multipart `.stp/.step/.igs/.ifc` (+ `deflexao`) → `{pos, col, idx, partes, unidade, bbox_mm, formato, volume_cm3?, costurado?, …}` síncrono — consumido pela página `/cad` do web (a conversão saiu do editor em 2026-09-05) |
 | `POST /exportar/aq` | JSON `{info, partes[] \| pos,col,idx}` → download do `.aq` (`geo_to_aq.py`); resumo no header `X-Aq-Resumo` |
 | `GET /exportar/catalogo/:catalogId` | download do **catálogo salvo como um `.aq` novo** (`catalogo_to_aq.py`, S7.16): todas as peças como estão na tela (as apagadas não vão; as editadas vão editadas, geometria inclusive), um grupo por série, simbologia compartilhada preservada, uma propriedade por chave de spec, curva Q-H. Gerado do zero (o `.aq` original não fica no servidor), stream e apagado — nada fica. Síncrono: Amanco 854 peças → 54 MB em 7 s. Nome `pecas_<Fabricante>_<Título>.aq`; resumo em `X-Aq-Resumo`. **404** catálogo inexistente, **400** sem produtos, **500** com o stderr do Python (geometria ausente, caractere fora do cp1252) |
 | `GET /health` | 200 `{status, mongo, pipeline}` ou 503 pela conexão do Mongoose |
@@ -77,7 +79,8 @@ No boot, imports não terminais viram `falhou` (`a API foi reiniciada durante a 
 |---|---|
 | `/` | empresas e catálogos com **ver** / **editar** / **apagar** / **importar para esta empresa**, **apagar empresa**; menu: **Importar biblioteca .aq**, **Importar peça STEP / IFC**, **Converter peça CAD**, **Criar empresa** |
 | `/importar[?empresa=&tipo=aq\|cad]` | sobe `.aq`/`.zip`/`.stp`/`.step`/`.ifc` (`tipo` restringe; progresso de upload, campos CAD só quando o arquivo é CAD), acompanha o status a cada 2 s, lista as últimas importações com **apagar** (só as terminadas) |
-| `/cad` | converte `.stp`/`.step`/`.ifc` pelo serviço (`POST /cad/tesselar`) sem criar produto: viewer 3D, unidade/bbox/sólidos/triângulos, download em JSON, IFC4 (browser) ou `.aq` (`POST /exportar/aq`); link para importar como produto |
+| `/cad` | converte `.stp`/`.step`/`.igs`/`.ifc` pelo serviço (`POST /cad/tesselar`) sem criar produto: viewer 3D, unidade/bbox/sólidos/triângulos, download em JSON, IFC4 (browser) ou `.aq` (`POST /exportar/aq`); link para importar como produto |
+| `/importar/plugin` | **Importar plugin do AutoCAD** (S7.17): sobe a DLL → **Inspecionar** (host, plugin, versão, categorias com nº de grupos) → empresa, categoria, host (editável), peças 3D por grupo, deflexão, e o formulário de download do catálogo do fabricante (nome, e-mail, telefone, empresa, cargo — lembrados em `localStorage`, nunca gravados aqui) → `POST /importacoes/plugin-autocad` → volta para `/importar`, que acompanha |
 | `/:empresa/:catalogo` | página pública: cabeçalho com **editar catálogo**, cards com miniatura pré-gerada, modal com viewer 3D e **Editar informações e modelo 3D →** |
 | `/:empresa/:catalogo/editar` | metadados do catálogo, **baixar .aq (AltoQi Builder)** — o catálogo salvo vira uma biblioteca `.aq` nova para adicionar no Builder (`GET /exportar/catalogo/:id` do serviço) —, **apagar catálogo**, lista de produtos com **Editar** / **apagar** (importar só pelo menu da página inicial) |
 | `/:empresa/:catalogo/editar/:produtoId` | editor: viewport 3D (selecionar, mover, girar, espelhar, primitivas, STL/OBJ/JSON locais), informações, exportar IFC4 (no browser) e `.aq` (pelo serviço), salvar (`PUT /geometrias`), restaurar, **apagar peça**. **STEP/IFC não entram pelo editor** desde 2026-09-05: viram produto pela página inicial |
@@ -130,6 +133,7 @@ serviços com Mongo: o teste de aceitação da S7.14 (import Dancor e Amanco, ed
 | `apps/ingestao/src/importacoes/` | `importacoes.service.ts` (o fluxo acima, CAD e regeneração de miniatura), controller, `importar.dto.ts`, `fila.ts`, `recuperacao.service.ts` |
 | `apps/ingestao/src/pipeline/` | `processo.ts` (spawn com timeout, ociosidade, stdin em pipe, `ProcessoError`) e `pipeline.service.ts` — a ÚNICA fronteira com Python/Node |
 | `apps/ingestao/src/{cad,miniaturas,health}/` | `POST /cad/tesselar`, `POST /exportar/aq`, `POST /miniaturas/regerar`, `GET /health` |
+| `apps/ingestao/src/importacoes/importar-plugin.dto.ts` + `ImportacoesService.createPlugin`/`processarCatalogo` + `pipeline/catallog.py` | import de **plugin de AutoCAD** (tipo `plugin`): DLL → catálogo web Catallog → IGES/RFA → catálogo; o `.aq` e o plugin publicam pelo mesmo `processarCatalogo` (S7.17) |
 | `apps/ingestao/pipeline/` | **o pipeline Python** + `thumbs.mjs`/`harness.html` + escritor de `.aq`/OQ3D (README próprio; autocontido desde I4); o `scripts/build.py` da raiz importa daqui |
 | `apps/api/src/{empresas,catalogos,produtos,geometrias,thumbs,health}/` | um módulo Nest por assunto; `common/ingestao-client.ts` fala com o serviço |
 | `apps/web/src/app/` | `page.tsx` (home), `importar/`, `[empresa]/[catalogo]/…`, `empresa/criar/` |
@@ -139,13 +143,16 @@ serviços com Mongo: o teste de aceitação da S7.14 (import Dancor e Amanco, ed
 | `tools/` | `testes-editor.sh`, `roundtrip-*.mts`, `e2e/` |
 | `storage/bim/` | `geo/<importId>/`, `thumbs/<importId>/`, `logos/` — gitignored, regenerável por import |
 
-## Estado da base e do storage (2026-09-05, fim da S7.16)
+## Estado da base e do storage (2026-09-05, fim da S7.17)
 
 Zerado no fim da S7.15 (coleções dropadas, `www/storage/bim/`, `output/` e `eng-reversa/saida/`
-apagados) e **recarregado pelo usuário** em seguida: **2 empresas** — `amanco` com o catálogo
+apagados) e **recarregado pelo usuário** em seguida: **3 empresas** — `amanco` com o catálogo
 `esgoto-sn-sr-silentium` (854 produtos: o `.aq` tem 856 com 3D, 2 `Cap 50mm` foram apagadas na
-interface; 457 geometrias em `geo/b9f20e3d…`) e `acme` com `pecas-ifc` (1 produto, `Projeto4.ifc`,
-760 mil triângulos). Storage: `geo/` 211 MB, `thumbs/` 2,9 MB.
+interface; 457 geometrias em `geo/b9f20e3d…`) **e `tupygrooved`** (10 produtos, import tipo `plugin`
+`2029b807…` do teste de ponta a ponta da S7.17 — o plugin TupyCAD, categoria TupyGrooved de
+`conexoes.tupy.com.br`; os 22 arquivos baixados estão em `catallog/2029b807…`, 39 MB), `acme` com
+`pecas-ifc` (1 produto, `Projeto4.ifc`, 760 mil triângulos) e `xpto` (2 catálogos do usuário).
+Storage: `geo/` ≈ 224 MB, `thumbs/` ≈ 3 MB, `catallog/` 39 MB.
 
 Para carregar: subir os três apps, criar uma empresa em `/empresa/criar`, importar em `/importar`
 (`input/` tem 16 `.aq`, gitignored). Reimportar um `.aq` **substitui** o catálogo de mesmo slug na

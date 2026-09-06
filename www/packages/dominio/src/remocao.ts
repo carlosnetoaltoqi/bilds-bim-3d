@@ -123,6 +123,7 @@ export async function apagarCatalogo(m: Modelos, store: IGeometryStore, catalogI
   for (const id of importIds) {
     await apagarPrefixo(store, `geo/${id}`, r);
     await apagarPrefixo(store, `thumbs/${id}`, r);
+    await apagarPrefixo(store, `catallog/${id}`, r);   // arquivos baixados de um plugin de AutoCAD (S7.17)
   }
   const imps = await m.imports.deleteMany({ catalogId }).exec();
   r.imports = imps.deletedCount ?? 0;
@@ -144,6 +145,7 @@ export async function apagarEmpresa(m: Modelos, store: IGeometryStore, companyId
   for (const imp of await m.imports.find({ companyId }).select('_id').lean().exec()) {
     await apagarPrefixo(store, `geo/${imp._id}`, r);
     await apagarPrefixo(store, `thumbs/${imp._id}`, r);
+    await apagarPrefixo(store, `catallog/${imp._id}`, r);
   }
   const imps = await m.imports.deleteMany({ companyId }).exec();
   r.imports += imps.deletedCount ?? 0;
@@ -163,6 +165,7 @@ export async function apagarImportacao(m: Modelos, store: IGeometryStore, import
   r.produtos = del.deletedCount ?? 0;
   await apagarPrefixo(store, `geo/${importId}`, r);
   await apagarPrefixo(store, `thumbs/${importId}`, r);
+  await apagarPrefixo(store, `catallog/${importId}`, r);
   await m.imports.deleteOne({ _id: importId }).exec();
   r.imports = 1;
   if (imp.catalogId) {
