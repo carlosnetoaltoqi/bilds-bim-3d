@@ -35,8 +35,20 @@ R=$(curl -s -F "file=@$RFA" -F "empresa=$EMP" -F "catalogo=Famílias" localhost:
 Esperado: a resposta já traz `familias.n_familias`/`n_tipos`; `publicado` com `productCount` = tipos
 menos os sem cota; `note` diz quantos vieram de geometria irmã e quantos de forma representativa; a série
 dos representativos termina em "(forma representativa)" e cada produto tem a spec "Geometria 3D". O `.aq`
-exportado (§4) passa em `validar_aq`. Falha esperada: um `.rvt` ou um `.zip` sem `.rfa` → `400` na hora,
-com a explicação.
+exportado (§4) passa em `validar_aq`. Falha esperada: um `.zip` sem `.rfa` nem `.rvt` → `400` na hora, com a
+explicação.
+
+**Projeto Revit via APS** (fixture `rvt_projeto`; exige `APS_CLIENT_ID`/`APS_CLIENT_SECRET` no `.env` do criador):
+
+```bash
+curl -s localhost:4100/importacoes/familias-revit/aps                                     # {"disponivel":true}
+RVT="<caminho do rvt_projeto>"
+curl -s -F "file=@$RVT" -F "empresa=$EMP" localhost:4100/importacoes/familias-revit         # 400: só projeto, sem APS — explica o que fazer
+R=$(curl -s -F "file=@$RVT" -F "empresa=$EMP" -F usarAps=true localhost:4100/importacoes/familias-revit); echo $R   # 202
+```
+Esperado: `note` com "N projeto(s): M peça(s) do IFC (… traduzido(s) na APS, … do cache)"; um produto por tipo de
+família colocado, série = família, specs dos psets (Identity Data, códigos do fabricante), "Instâncias no projeto";
+a segunda importação do mesmo `.rvt` sai "do cache" (zero jobs). Cada tradução nova consome tokens da conta APS.
 
 ## 2. API de catálogo — a página lê
 

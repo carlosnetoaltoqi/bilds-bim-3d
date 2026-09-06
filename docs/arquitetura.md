@@ -24,7 +24,7 @@ bilds-bim-3d/
 │   │   ├── aq/            leitura (read_aq, oq3d) e escrita (aq_writer, oq3d_writer, schema-aq-607.sql)
 │   │   ├── geometria/     contrato {pos,col,idx}, dedup (único), eixos (único lugar das conversões), bocais, perfis (seções extrudadas)
 │   │   ├── catalogo/      catalogo (build_catalog_from_aq), inferencia, slugify (único), diag; fontes/: aq, plugin_catalogo_web, familias_revit
-│   │   ├── conversores/   step_iges, ifc (ifc_to_geo + parse_ifc), rfa_partatom, type_catalog
+│   │   ├── conversores/   step_iges, ifc (ifc_to_geo + parse_ifc), rfa_partatom, type_catalog, aps (.rvt → IFC na APS), ifc_elementos
 │   │   ├── miniaturas/    miniaturas.py, thumbs.mjs, harness.html, package.json (playwright + three)
 │   │   ├── saida/         zip_bilds (ÚNICO escritor do ZIP), geo_to_aq (uma peça), catalogo_to_aq (catálogo)
 │   │   ├── processo.py    vigiar_stdin

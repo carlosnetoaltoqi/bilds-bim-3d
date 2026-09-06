@@ -137,6 +137,43 @@ sufixo " (forma representativa)" — é o que vira `GRUPO_PECA` no `.aq` — e c
 mesa e alma do tipo; trecho de 1000 mm (aprox.); sem solda nem raio"), mais "Fonte 3D" (o arquivo irmão
 ou "forma representativa (perfil_i)").
 
+## Projetos `.rvt`: o IFC pela Autodesk Platform Services (ADR-019)
+
+Fabricantes também distribuem **modelos de amostra** `.rvt` com as famílias colocadas. Um projeto é OLE2 como
+o `.rfa` (o `BasicFileInfo` dá a versão), mas não tem `PartAtom`: nada de tipos, nada de parâmetros, e a
+geometria no mesmo binário proprietário. O caminho é um **IFC do projeto**:
+
+- **irmão**: um `.ifc` de mesmo nome ao lado (exportado por quem tem o Revit) — grátis;
+- **APS Model Derivative** (`conversores/aps.py`): o `.rvt` sobe para um bucket transiente da conta e volta como
+  IFC. Endpoints verificados: token `POST /authentication/v2/token` (client_credentials, Basic), bucket
+  `POST /oss/v2/buckets` (409 = já existe), upload por URLs S3 assinadas em partes de 5 MB
+  (`GET/POST …/signeds3upload`), `POST /modelderivative/v2/designdata/job` com `{"type":"ifc"}`, polling de
+  `GET …/{urn}/manifest` até `success`, download por `GET …/manifest/{derivativeUrn}/signedcookies` (URL do CDN
+  mais três cookies CloudFront). Um projeto de 17 MB levou 157 s. Cada job custa tokens da conta e o arquivo sai
+  da máquina: por isso é **opt-in** por importação, e o IFC fica em **cache por SHA-256** do `.rvt`.
+
+**O Model Derivative não aceita `.rfa`.** `GET /modelderivative/v2/designdata/formats` lista as entradas de cada
+saída e `rfa` não está em nenhuma; `rvt` está em `svf`, `svf2`, `ifc`, `dwg` e `thumbnail`. A saída `obj` só
+existe para formatos de CAD mecânico. Logo a APS resolve projetos, não famílias — a forma representativa
+continua sendo o caminho das famílias sem geometria irmã.
+
+### O IFC do projeto vira produtos
+
+`conversores/ifc_elementos.py` itera os elementos com `ifcopenshell.geom` em coordenadas **locais** (sem
+`USE_WORLD_COORDS`): a malha fica na origem que a família define, e duas instâncias do mesmo tipo em lugares
+diferentes dão a mesma malha — o catálogo guarda uma só. Identidade, na ordem:
+
+1. psets **"Family Name"** e **"Type Name"** (o exportador da Autodesk inclui as propriedades do Revit);
+2. `Name`/`ObjectType` no formato **"Família:Tipo:IdDoElemento"** — o id numérico final é descartado;
+3. o `Name` do `IfcTypeObject` como tipo.
+
+Um produto por (família, tipo): série = família humanizada, nome = tipo, geometria da primeira instância,
+`Instâncias no projeto` contadas. As specs são os psets achatados (Identity Data, Dimensions, códigos do
+fabricante…), **sem** as propriedades de instância (Mark, Level, Host, Offset, Phase, Design Option…), sem
+GUIDs e sem "n/a"; `Category` vira "Categoria Revit". Um modelo de amostra costuma trazer também famílias
+auxiliares (vista de abertura, adaptadores de teste) — elas entram como produtos e quem importa apaga o que não
+é produto.
+
 ## O catálogo que sai
 
 Mesmo contrato `catalogo` de toda fonte (`hints.schema = 'familias-revit'`):
@@ -157,7 +194,9 @@ tipos que a usam, e uma `PROPRIEDADE_PERSONALIZADA` por chave de spec.
 
 ## O que este caminho não faz
 
-- Não lê geometria de `.rfa` nem de `.rvt`; não converte `.aq` de volta para `.rfa`.
+- Não lê geometria de `.rfa` nem de `.rvt` diretamente; não converte `.aq` de volta para `.rfa`. A APS só
+  traduz projetos; a única rota da Autodesk que abre `.rfa` é o Design Automation for Revit, que exige um
+  add-in .NET compilado contra o SDK do Revit.
 - Não distingue idiomas: um pacote com a mesma família em `ENU/` e `PTB/` gera duas séries (os nomes
   diferem). Filtrar é decisão de quem importa.
 - Não usa a miniatura do `.rfa` como thumb do produto: a miniatura sai da geometria, pelo Chromium,
@@ -173,8 +212,12 @@ tipos que a usam, e uma `PROPRIEDADE_PERSONALIZADA` por chave de spec.
 - `biblioteca/bim_pipeline/geometria/perfis.py` — `extrudar`, anéis (`retangulo`, `circulo`, `secao_i`,
   `secao_u`, `secao_l`), `chapa_trapezoidal`, `deitar`/`assentar`, `arestas_de_borda`, `volume_assinado`.
 - `biblioteca/bim_pipeline/catalogo/fontes/familias_revit.py` — `descobrir`, `ler_familia`, `fundir_tipos`,
-  `dimensoes`, `forma_representativa`, `catalogo_de_familias`, `inspecionar`, `importar`, CLI
-  `inspecionar`/`importar`; contrato `contratos/info-familias-revit.schema.json`.
+  `dimensoes`, `forma_representativa`, `ifc_do_projeto`, `produtos_de_projeto`, `catalogo_de_familias`,
+  `inspecionar`, `importar`, CLI `inspecionar`/`importar [--aps|--aps-credenciais] [--aps-cache]`; contrato
+  `contratos/info-familias-revit.schema.json`.
+- `biblioteca/bim_pipeline/conversores/aps.py` — `ClienteAPS` (token, bucket, upload S3, job, manifesto, download),
+  `rvt_para_ifc` com cache; CLI `aps`. `conversores/ifc_elementos.py` — `elementos`, `familia_e_tipo`,
+  `specs_de`, `por_tipo`, `geo_do_viewer`.
 - `pacotes/base/src/biblioteca.ts` — `inspecionarFamiliasRevit`, `catalogoDeFamiliasRevit`;
   `servicos/criador-de-catalogos` — `POST /importacoes/familias-revit` (e `.rfa` solto em `POST /importacoes`);
   `web/src/app/importar/revit/`.
@@ -186,4 +229,4 @@ tipos que a usam, e uma `PROPRIEDADE_PERSONALIZADA` por chave de spec.
   renderização pega.
 - `docs/conhecimento/plugin-cad-catalogo-web.md` — a outra fonte que lê `.rfa` (só como spec, geometria do IGES).
 - `docs/conhecimento/aq-escrita.md` — o que o `.aq` exige de cada produto (geometria, cp1252, série → grupo).
-- `docs/decisoes/ADR-018-familias-revit-hibrido.md` — a decisão.
+- `docs/decisoes/ADR-018-familias-revit-hibrido.md` — a decisão sobre famílias; `ADR-019` — projetos via APS, opt-in.

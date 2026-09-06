@@ -68,6 +68,7 @@ python3 -m bim_pipeline.cli.catalogo_de_aq pecas.aq --geo-dir /tmp/geo --saida /
 python3 -m bim_pipeline.cli.step_iges peca.stp saida.json          # CAD → geometria do viewer
 python3 -m bim_pipeline.cli.familias_revit inspecionar familias.zip   # famílias Revit .rfa: tipos, categorias, type catalogs, geometria irmã
 python3 -m bim_pipeline.cli.familias_revit importar familias.zip --geo-dir /tmp/geo --saida /tmp/cat.json   # → catálogo (geometria irmã ou forma representativa)
+APS_CLIENT_ID=… APS_CLIENT_SECRET=… python3 -m bim_pipeline.cli.aps projeto.rvt projeto.ifc --cache /tmp/aps   # projeto Revit → IFC na Autodesk (cobrado)
 python3 -m bim_pipeline.cli.ferramentas.validar_aq gerado.aq      # um .aq gerado passa pelos leitores da biblioteca?
 python3 -m bim_pipeline.cli.ferramentas.oq3d_anatomy pecas.aq 12  # dissecar um blob OQ3D byte a byte
 ```

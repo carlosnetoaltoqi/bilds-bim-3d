@@ -16,7 +16,7 @@ introdução de um parágrafo, seções curtas, tabelas, e ao fim "Onde está no
 | `ifc.md` | IFC4: leitura, escrita (exportador do editor), verificação de ida e volta a 2 µm |
 | `step-iges.md` | STEP/IGES com OpenCASCADE; costura de faces soltas e orientação pelo volume |
 | `plugin-cad-catalogo-web.md` | plugin de CAD que é casca de um catálogo web: DLL, API, lead, IGES/RFA, termos de uso |
-| `revit-familias.md` | famílias Revit `.rfa`: OLE2, `PartAtom`, `BasicFileInfo`, type catalog `.txt`; o que não se lê; geometria irmã ou forma representativa |
+| `revit-familias.md` | famílias Revit `.rfa`: OLE2, `PartAtom`, `BasicFileInfo`, type catalog `.txt`; o que não se lê; geometria irmã ou forma representativa; projetos `.rvt` via IFC (APS Model Derivative, opt-in) |
 | `pdf-catalogo.md` | tabelas de um catálogo comercial em PDF; o que um PDF nunca determina |
 | `formas-representativas.md` | geometria por parâmetro: dado × norma × invenção; os defeitos que passam em teste |
 | `inferencia.md` | fabricante, título, slug e layout inferidos do `.aq` e do caminho |

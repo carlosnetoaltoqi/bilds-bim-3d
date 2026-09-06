@@ -105,6 +105,11 @@ Quando existe, é a fonte dos tipos: o `.rfa` costuma guardar só um tipo-molde.
 O `.ifc`/`.stp`/`.igs` de mesmo nome que uma família Revit, de onde a geometria real vem quando a fonte
 não a entrega. Sem ele, a peça recebe uma forma representativa.
 
+### Projeto Revit
+Um `.rvt`: modelo com famílias colocadas. Não tem `PartAtom`; só entra pelo seu IFC — irmão ou traduzido pela
+**APS** (Autodesk Platform Services, Model Derivative), que aceita `.rvt` e não `.rfa`. Cada tipo de família
+colocado vira um produto. Opt-in por importação, cobrado por projeto, cache por SHA-256. (ADR-019)
+
 ---
 
 ## Catálogo e edição (docs/conhecimento/catalogo-modelo.md)
