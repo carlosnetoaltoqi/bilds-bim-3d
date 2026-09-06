@@ -6,5 +6,6 @@
 #
 -r requirements.txt
 ifcopenshell==0.8.5      # www/apps/ingestao/pipeline/ifc_to_geo.py (IFC B-rep e IFC grande na POC); round-trip do exportador IFC do editor
-cadquery-ocp==7.9.3.1.1  # OpenCASCADE: www/apps/ingestao/pipeline/step_to_geo.py (tesselar .stp); ~165 MB
+cadquery-ocp==7.9.3.1.1  # OpenCASCADE: www/apps/ingestao/pipeline/step_to_geo.py (tesselar .stp e .igs — IGES costurado desde a S7.17); ~165 MB
 pypdf==6.14.2            # eng-reversa/tools/pdf_coords.py (catálogo comercial em PDF → células)
+olefile==0.47            # www/apps/ingestao/pipeline/rfa_partatom.py (tipos de uma família Revit .rfa, para o import de plugin de AutoCAD); sem ele o import segue sem a spec "Tipos Revit"

@@ -15,7 +15,9 @@ para o serviço ser autocontido quando for isolado num repositório próprio.
 | `miniaturas.py` | driver Python do `thumbs.mjs` (Node/Playwright): uma WebP por geometria |
 | `thumbs.mjs` + `harness.html` | Chromium headless renderiza com o mesmo Three.js e câmera do viewer |
 | `catalogo_de_aq.py` | **CLI** que o serviço executa: `.aq` → `--geo-dir` + `--saida` JSON (contrato na docstring) |
-| `step_to_geo.py` · `ifc_to_geo.py` · `parse_ifc.py` | CAD → `{pos, col, idx}` (OpenCASCADE / parser IFC do projeto) |
+| `step_to_geo.py` · `ifc_to_geo.py` · `parse_ifc.py` | CAD → `{pos, col, idx}` (OpenCASCADE / parser IFC do projeto). STEP e **IGES** (`.igs/.iges`: faces soltas costuradas em sólido, orientação pelo volume assinado — S7.17) |
+| `catallog.py` | **CLI** que o serviço executa no import de **plugin de AutoCAD** (plataforma Catallog/Collabo): `inspecionar <dll>` → host do catálogo web, plugin, versão, categorias; `importar` → baixa IGES/RFA de uma categoria (formulário de lead do site, manifesto idempotente), tessela e devolve o **mesmo JSON do `catalogo_de_aq.py`** (S7.17) |
+| `rfa_partatom.py` | o que se lê de uma família Revit `.rfa` sem o Revit: `PartAtom` (tipos DN32…), versão, preview PNG (`olefile`, opcional) — vira a spec "Tipos Revit" no `catallog.py` |
 | `aq_writer.py` + `schema-aq-607.sql` | **escrever** `.aq`: DDL completo do schema 607, constantes do AltoQi (sentinelas, IFC, aplicações), `EscritorAq` que grava texto em cp1252 (promovido do `eng-reversa/` em 2026-09-05, I4) |
 | `oq3d_writer.py` | **escrever** OQ3D: malhas indexadas → blob que o `oq3d.py` (e o Builder) leem; cilindro/tubo paramétricos |
 | `geo_to_aq.py` | `{pos, col, idx}` ou partes do editor → `.aq` com uma peça (usa os dois acima; nada de fora do serviço) |
