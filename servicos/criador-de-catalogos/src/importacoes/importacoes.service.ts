@@ -5,10 +5,11 @@ import * as crypto from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { BimCatalog, BimCatalogDocument, BimImport, BimImportDocument, BimProduct, BimProductDocument, Company, CompanyDocument, IGeometryStore, ImportStatus, ImportTipo, apagarImportacao, storagePath } from '@bim/dominio';
-import type { PluginInfo } from '@bim/base';
+import type { FamiliasRevitInfo, PluginInfo } from '@bim/base';
 import { FILA_IMPORTACOES, Fila } from './fila';
 import { ImportarDto } from './importar.dto';
 import { ImportarPluginDto } from './importar-plugin.dto';
+import { ImportarRevitDto } from './importar-revit.dto';
 import { PipelineService } from '../pipeline/pipeline.service';
 import { ArquivoRecebido, Empresa, PublicacaoService } from '../publicacao/publicacao.service';
 
@@ -17,19 +18,22 @@ export { descreveDiag, descreveResumo } from '../publicacao/descricoes';
 
 /**
  * ImportacoesService — a ENTRADA e a CONSULTA de importações (criador de catálogos):
- * recebe o upload (biblioteca `.aq`/`.zip`, peça CAD, plugin de CAD), cria o `BimImport` em `recebido`,
- * enfileira o trabalho (uma importação por vez, I11 — as demais esperam com a posição no `note`) e
- * responde status/lista/apagar. O trabalho em si é do `PublicacaoService`; as miniaturas, do
+ * recebe o upload (biblioteca `.aq`/`.zip`, peça CAD, plugin de CAD, famílias Revit), cria o `BimImport`
+ * em `recebido`, enfileira o trabalho (uma importação por vez, I11 — as demais esperam com a posição no
+ * `note`) e responde status/lista/apagar. O trabalho em si é do `PublicacaoService`; as miniaturas, do
  * `MiniaturasService`.
  */
 
 const EXT_AQ = /\.(aq|zip)$/i;
 const EXT_CAD = /\.(stp|step|igs|iges|ifc|ifczip|ifcxml)$/i;
 const EXT_DLL = /\.dll$/i;
+const EXT_RFA = /\.rfa$/i;
+const EXT_REVIT = /\.(rfa|zip)$/i;   // na rota própria, `.zip` é um pacote de famílias (na rota geral, `.zip` é biblioteca .aq)
 
 export function tipoDe(nomeOuExt: string): ImportTipo | null {
   if (EXT_AQ.test(nomeOuExt)) return 'aq';
   if (EXT_CAD.test(nomeOuExt)) return 'cad';
+  if (EXT_RFA.test(nomeOuExt)) return 'revit';
   return null;
 }
 
@@ -65,8 +69,9 @@ export class ImportacoesService {
     const tipo = tipoDe(arquivo.fileName) ?? tipoDe(arquivo.path);
     if (!tipo) {
       await fs.unlink(arquivo.path).catch(() => {});
-      throw new BadRequestException(`extensão não suportada em "${arquivo.fileName}" — envie .aq, .zip, .stp, .step ou .ifc`);
+      throw new BadRequestException(`extensão não suportada em "${arquivo.fileName}" — envie .aq, .zip, .stp, .step, .igs, .ifc ou .rfa`);
     }
+    if (tipo === 'revit') return this.createFamiliasRevit(arquivo, { empresa: body.empresa });
     let company;
     try {
       company = await this.empresaDe(body.empresa);
@@ -169,6 +174,70 @@ export class ImportacoesService {
     return { importId, tipo: 'plugin', status: 'recebido', statusUrl: `/importacoes/${importId}`, host, plugin: info };
   }
 
+  // ── famílias Revit (.rfa solto ou .zip de famílias) ──────────────────────
+
+  /**
+   * `.rfa`/`.zip` → uma importação `revit` na fila: a biblioteca lê PartAtom e type catalogs, converte a
+   * geometria irmã quando há (IFC/STEP/IGES de mesmo nome) e gera forma representativa quando não há,
+   * e devolve o catálogo, publicado como uma biblioteca. A inspeção síncrona recusa na hora o que não
+   * tem nenhuma família (um `.zip` de outra coisa, um projeto `.rvt`).
+   */
+  async createFamiliasRevit(arquivo: ArquivoRecebido, body: ImportarRevitDto) {
+    let company: Empresa;
+    let info: FamiliasRevitInfo;
+    try {
+      if (!EXT_REVIT.test(arquivo.fileName)) throw new BadRequestException(`"${arquivo.fileName}" não é .rfa nem .zip — envie a família ou um .zip com as famílias`);
+      company = await this.empresaDe(body.empresa);
+      try {
+        info = await this.pipeline.inspecionarFamiliasRevit(arquivo.path);
+      } catch (e: any) {
+        throw new BadRequestException(`não li as famílias: ${(e?.message ?? String(e)).split('\n').slice(-3).join(' ').slice(0, 500)}`);
+      }
+      if (info.n_familias === 0) {
+        throw new BadRequestException(`"${arquivo.fileName}" não tem nenhuma família .rfa legível${info.avisos.length ? ` — ${info.avisos.slice(0, 3).join('; ').slice(0, 400)}` : ''}`);
+      }
+    } catch (e) {
+      await fs.unlink(arquivo.path).catch(() => {});
+      throw e;
+    }
+    const sizeMb = (arquivo.size / 1024 / 1024).toFixed(1);
+    const titulo = body.catalogo || arquivo.fileName.replace(EXT_REVIT, '');
+    this.logger.log(`famílias Revit recebidas — ${arquivo.fileName} (${sizeMb} MB): ${info.n_familias} família(s), ${info.n_tipos} tipo(s), ${info.com_geometria_irma} com geometria irmã · empresa=${company.customUrl}`);
+
+    const importId = crypto.randomUUID();
+    await this.importModel.create({
+      _id: importId,
+      companyId: company._id,
+      tipo: 'revit' as ImportTipo,
+      status: 'recebido' as ImportStatus,
+      fileName: arquivo.fileName,
+      note: `${info.n_familias} família(s) Revit, ${info.n_tipos} tipo(s), ${info.com_geometria_irma} com geometria irmã — ${sizeMb} MB recebidos`,
+      updatedAt: new Date(),
+    });
+    const trabalho = () => this.publicacao.processarCatalogo(importId, company, {
+      rotulo: 'familias_revit importar',
+      produzir: (geoDir, onProgresso) => this.pipeline.catalogoDeFamiliasRevit({
+        entrada: arquivo.path, geoDir, titulo, fabricante: body.fabricante, comprimentoMm: body.comprimentoMm, deflexao: body.deflexao, onProgresso,
+      }),
+      aoTerminar: () => fs.unlink(arquivo.path),
+      notaExtra: (r) => {
+        const o = (r.hints as any)?.origem;
+        if (!o) return null;
+        const semCota = o.sem_cota ? ` · ${o.sem_cota} tipo(s) sem cota ficaram fora` : '';
+        return `${r.hints.n_pecas} peça(s) de ${o.familias} família(s) · ${o.com_geometria_irma} com geometria irmã, ${o.representativas} com forma representativa${semCota}`;
+      },
+    });
+    this.fila
+      .executar(importId, trabalho, (naFrente) => {
+        if (naFrente > 0) {
+          this.importModel.findByIdAndUpdate(importId, { note: `na fila — ${naFrente} importação(ões) à frente`, updatedAt: new Date() })
+            .exec().catch(() => undefined);
+        }
+      })
+      .catch((e: any) => this.logger.error(`[${importId.slice(0, 8)}] processamento escapou — ${e?.message ?? e}`));
+    return { importId, tipo: 'revit', status: 'recebido', statusUrl: `/importacoes/${importId}`, familias: info };
+  }
+
   // ── apagar ───────────────────────────────────────────────────────────────
 
   /** Apaga uma importação terminada: produtos, `geo/`, `thumbs/`, documento; reconta o catálogo (remocao.ts). */
@@ -207,7 +276,7 @@ export class ImportacoesService {
     const empresa = company?.customUrl ?? null;
     const catalogoUrl = empresa && cat ? `/${empresa}/${cat.slug}` : null;
     let produto: Record<string, unknown> = {};
-    if (imp.tipo === 'cad' && imp.status === 'publicado') {   // 'aq' e 'plugin' são catálogos inteiros — nada por produto aqui
+    if (imp.tipo === 'cad' && imp.status === 'publicado') {   // 'aq', 'plugin' e 'revit' são catálogos inteiros — nada por produto aqui
       const p = await this.productModel.findOne({ importId: imp._id }).lean().exec();
       if (p && catalogoUrl) {
         produto = { produtoId: p._id, nome: p.nome, editorUrl: `${catalogoUrl}/editar/${p._id}`, specs: p.specs, thumbUrl: p.thumbKey ? `/thumbs/${p._id}` : null };

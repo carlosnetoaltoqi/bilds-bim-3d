@@ -10,7 +10,7 @@ import { Biblioteca, bibliotecaDir } from '@bim/base';
 export class PipelineService extends Biblioteca {}
 
 export type {
-  AqInfo, AqParte, LeadDownload, ManifestoCatalogoAq, PluginInfo, ProdutoPipeline, ResultadoCatalogo,
+  AqInfo, AqParte, FamiliasRevitInfo, LeadDownload, ManifestoCatalogoAq, PluginInfo, ProdutoPipeline, ResultadoCatalogo,
   ResumoMiniaturas, StepGeo,
 } from '@bim/base';
 export { formatoDe } from '@bim/base';

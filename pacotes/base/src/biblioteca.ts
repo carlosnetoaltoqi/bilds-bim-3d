@@ -4,6 +4,7 @@
  * instancia `Biblioteca` (ou a injeta) e chama o que é do seu contexto:
  *
  *   catalogoDeAq / catalogoDePlugin / inspecionarPlugin   criador de catálogos (e conversores, o inspecionar)
+ *   inspecionarFamiliasRevit / catalogoDeFamiliasRevit    criador de catálogos (famílias .rfa, soltas ou em .zip)
  *   tesselar / gerarAq                                    conversores (e o criador, para peça CAD)
  *   catalogoParaAq                                        criador de catálogos (exportar catálogo salvo → .aq)
  *   gerarZipBilds                                         gerador de ZIP
@@ -100,6 +101,21 @@ export interface PluginInfo {
   categorias?: Array<{ slug: string; name: string; grupos: number; grupos_nomes: string[] }>;
 }
 
+/** O que `familias_revit inspecionar` tira de um .rfa, pasta ou .zip de famílias Revit (contrato `info-familias-revit`). */
+export interface FamiliasRevitInfo {
+  entrada: string;
+  bytes: number;
+  n_familias: number;
+  n_tipos: number;
+  com_geometria_irma: number;
+  ignorados: number;
+  avisos: string[];
+  familias: Array<{
+    arquivo: string; titulo: string; revit?: string | null; formato?: number | null; categoria?: string | null; fabricante?: string | null;
+    tipos: number; type_catalog: boolean; geometria_irma?: string | null; preview: boolean;
+  }>;
+}
+
 /** Os cinco campos do formulário de download do catálogo web — nunca persistidos. */
 export interface LeadDownload { full_name: string; email: string; mobile: string; company: string; position: string }
 
@@ -169,6 +185,42 @@ export class Biblioteca extends BibliotecaCli {
       return validarContrato<ResultadoCatalogo>('catalogo', JSON.parse(await fsp.readFile(saida, 'utf8')));
     } finally {
       await Promise.all([leadPath, pluginPath, saida].map((p) => fsp.unlink(p).catch(() => {})));
+    }
+  }
+
+  /**
+   * `.rfa`, pasta ou `.zip` de famílias Revit → famílias, tipos, categorias, quais têm type catalog e
+   * geometria irmã. Síncrono, segundos (só lê os streams OLE — nunca a geometria, que é proprietária).
+   */
+  async inspecionarFamiliasRevit(entrada: string): Promise<FamiliasRevitInfo> {
+    const { stdout } = await this.rodar('familias_revit', ['inspecionar', entrada], { timeoutMs: 5 * 60 * 1000 });
+    const linha = stdout.trim().split('\n').reverse().find((l) => l.startsWith('{'));
+    if (!linha) throw new Error('familias_revit inspecionar terminou sem o JSON');
+    return validarContrato<FamiliasRevitInfo>('info-familias-revit', JSON.parse(linha));
+  }
+
+  /**
+   * Famílias Revit → geometrias em `geoDir` (uma por família com geometria irmã; uma por conjunto de
+   * cotas nas formas representativas) e o mesmo `ResultadoCatalogo` do `catalogo_de_aq.py`.
+   * `comprimentoMm` é o trecho das formas representativas (padrão da biblioteca: 1000).
+   */
+  async catalogoDeFamiliasRevit(opts: {
+    entrada: string; geoDir: string; titulo?: string; fabricante?: string; comprimentoMm?: number; deflexao?: number;
+    onProgresso?: (linha: string) => void;
+  }): Promise<ResultadoCatalogo> {
+    const saida = path.join(os.tmpdir(), `familias-revit-${crypto.randomUUID()}.json`);
+    const args = ['importar', opts.entrada, '--geo-dir', opts.geoDir, '--saida', saida, '--sair-com-stdin'];
+    if (opts.titulo) args.push('--titulo', opts.titulo);
+    if (opts.fabricante) args.push('--fabricante', opts.fabricante);
+    if (opts.comprimentoMm) args.push('--comprimento-mm', String(opts.comprimentoMm));
+    if (opts.deflexao) args.push('--deflexao', String(opts.deflexao));
+    try {
+      await this.rodar('familias_revit', args, {
+        onStderr: (l) => { if (l.trim()) opts.onProgresso?.(l.trim()); },
+      });
+      return validarContrato<ResultadoCatalogo>('catalogo', JSON.parse(await fsp.readFile(saida, 'utf8')));
+    } finally {
+      await fsp.unlink(saida).catch(() => {});
     }
   }
 

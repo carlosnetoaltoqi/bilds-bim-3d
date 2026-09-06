@@ -15,7 +15,7 @@ const IMPORT_STATUSES = [
 export type ImportStatus = (typeof IMPORT_STATUSES)[number];
 
 /** 'aq' biblioteca .aq/.zip · 'cad' uma peça STEP/IGES/IFC · 'plugin' catálogo web de um plugin de CAD */
-const IMPORT_TIPOS = ['aq', 'cad', 'plugin'] as const;
+const IMPORT_TIPOS = ['aq', 'cad', 'plugin', 'revit'] as const;
 export type ImportTipo = (typeof IMPORT_TIPOS)[number];
 
 @Schema({ collection: 'bim_imports' })

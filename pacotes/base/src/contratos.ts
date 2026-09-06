@@ -9,7 +9,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { bibliotecaDir } from './biblioteca-cli';
 
-export type NomeContrato = 'catalogo' | 'geometria' | 'manifesto-catalogo-aq' | 'resumo-miniaturas' | 'info-plugin';
+export type NomeContrato = 'catalogo' | 'geometria' | 'manifesto-catalogo-aq' | 'resumo-miniaturas' | 'info-plugin' | 'info-familias-revit';
 
 export class ContratoInvalido extends Error {
   constructor(readonly contrato: NomeContrato, readonly detalhes: string) {
