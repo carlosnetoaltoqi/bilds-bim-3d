@@ -124,7 +124,7 @@ export default function CadPage() {
     <main className="min-h-screen bg-gray-50 text-gray-900 py-12 px-6" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
       <div className="max-w-[880px] mx-auto">
         <p className="text-[12px] text-gray-500 mb-1"><a href="/" className="hover:underline">← início</a></p>
-        <h1 className="text-2xl font-bold mb-1" style={{ fontFamily: 'Fira Sans, Inter, system-ui, sans-serif' }}>Converter peça CAD</h1>
+        <h1 className="text-2xl font-bold mb-1" style={{ fontFamily: 'Fira Sans, Inter, system-ui, sans-serif' }}>Inspecionar / converter CAD</h1>
         <aside className="mb-6 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-[13px] text-gray-600 flex flex-col gap-2">
           <p><strong className="font-semibold text-gray-900">Para que serve:</strong> você tem um arquivo STEP, IGES ou IFC e quer inspecionar sua geometria ou convertê-lo para outro formato — sem adicioná-lo a nenhum catálogo. Útil para verificar se o arquivo está correto antes de importar, ou para gerar um <code>.aq</code> avulso para usar diretamente no AltoQi Builder.</p>
           <p><strong className="font-semibold text-gray-900">O que você pode fazer após converter:</strong> ver a geometria no viewer 3D (dimensões, número de sólidos e triângulos); baixar como JSON interno <code>&#123;pos,col,idx&#125;</code>; exportar como IFC4 (gerado no browser); ou baixar como <code>.aq</code> compatível com o Builder.</p>

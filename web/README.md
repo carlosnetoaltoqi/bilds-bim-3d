@@ -6,9 +6,9 @@ Next.js, sem login (ADR-007). Fala **direto** com os serviços, **um cliente por
 
 | Página | Contexto | Serviços |
 |---|---|---|
-| `/` | catálogo | empresas e catálogos (catalogo); menu: importar `.aq`, importar peça CAD, importar plugin, converter CAD, **Gerar ZIP bilds.com** (zip), criar empresa |
+| `/` | catálogo | empresas e catálogos (catalogo); menu: importar `.aq`, importar peça CAD, importar plugin, importar famílias Revit, converter CAD, **Gerar ZIP bilds.com** (zip), criar empresa |
 | `/:empresa/:catalogo` | catálogo | página pública com miniaturas e viewer 3D (catalogo) |
-| `/importar[?tipo=aq\|cad]` · `/importar/plugin` | criador | upload com progresso, status a cada 2 s, últimas importações (criador); inspecionar DLL (conversores) |
+| `/importar[?tipo=aq\|cad]` · `/importar/plugin` · `/importar/revit` | criador | upload com progresso, status a cada 2 s, últimas importações (criador); inspecionar DLL (conversores); famílias Revit `.rfa`/`.zip` (criador) |
 | `/cad` | conversores | STEP/IGES/IFC → viewer, download JSON/IFC4 (browser)/.aq |
 | `/:empresa/:catalogo/editar` | catálogo | metadados (catalogo), baixar `.aq` do catálogo (criador), apagar |
 | `/:empresa/:catalogo/editar/:produtoId` | editor | viewport 3D, informações (editor `PATCH`), salvar geometria (editor `PUT`, copy-on-write), restaurar, exportar IFC4 (browser) e `.aq` (conversores) |

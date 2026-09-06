@@ -21,7 +21,7 @@ interface Empresa { id: string; name: string; customUrl: string; catalogCount: n
 
 interface Importacao {
   importId: string
-  tipo: 'aq' | 'cad' | 'plugin'
+  tipo: 'aq' | 'cad' | 'plugin' | 'revit'
   status: 'recebido' | 'parseando' | 'gravando' | 'publicado' | 'vazio' | 'falhou' | string
   fileName: string
   note: string | null
@@ -164,11 +164,11 @@ function ImportarPageInner() {
           {tipo === 'cad' && <>
             <p><strong className="font-semibold text-gray-900">Para que serve:</strong> você tem um arquivo 3D de uma peça individual (STEP, IGES ou IFC) e quer adicioná-la a um catálogo para visualizar no viewer e exportar para o Builder. Cada arquivo vira um produto num catálogo da empresa escolhida.</p>
             <p><strong className="font-semibold text-gray-900">O que acontece:</strong> a geometria é tesselada (STEP/IGES via OpenCASCADE; IFC via interpretador próprio) e o produto é criado no catálogo, pronto para editar no editor 3D ou baixar como <code>.aq</code>.</p>
-            <p>Para só inspecionar ou converter o arquivo sem criar produto, use <a href="/cad" className="text-[#1e40af] underline">Converter peça CAD</a>.</p>
+            <p>Para só inspecionar ou converter o arquivo sem criar produto, use <a href="/cad" className="text-[#1e40af] underline">Inspecionar / converter CAD</a>.</p>
           </>}
           {tipo === null && <>
             <p><strong className="font-semibold text-gray-900">Para que serve:</strong> importar uma biblioteca <code>.aq</code>/<code>.zip</code> (catálogo inteiro do Builder) ou uma peça CAD individual (<code>.stp</code>, <code>.igs</code>, <code>.ifc</code>). O tipo é detectado pela extensão: biblioteca cria um catálogo; peça CAD cria um produto num catálogo da empresa.</p>
-            <p>Para só converter e inspecionar uma peça sem criar produto, use <a href="/cad" className="text-[#1e40af] underline">Converter peça CAD</a>.</p>
+            <p>Para só converter e inspecionar uma peça sem criar produto, use <a href="/cad" className="text-[#1e40af] underline">Inspecionar / converter CAD</a>. Famílias Revit (<code>.rfa</code>) têm página própria: <a href="/importar/revit" className="text-[#1e40af] underline">Importar famílias Revit</a>.</p>
           </>}
         </aside>
 
