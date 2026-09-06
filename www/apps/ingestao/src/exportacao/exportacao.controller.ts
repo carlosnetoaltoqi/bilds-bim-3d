@@ -85,6 +85,7 @@ export class ExportacaoController {
       await limparUpload();   // .aq/zip de entrada não é mais necessário
 
       const { size } = await fs.stat(zipPath);
+      res.status(200);
       res.setHeader('Content-Type', 'application/zip');
       res.setHeader('Content-Length', String(size));
       res.setHeader('Content-Disposition', `attachment; filename="${r.nomeArquivo}"`);

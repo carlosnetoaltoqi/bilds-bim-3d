@@ -57,7 +57,7 @@ export function BotaoGerarZip() {
 
     xhr.addEventListener('load', () => {
       xhrRef.current = null
-      if (xhr.status === 200) {
+      if (xhr.status >= 200 && xhr.status < 300) {
         const blob = xhr.response as Blob
         const nomeHeader = xhr.getResponseHeader('Content-Disposition') ?? ''
         const match = nomeHeader.match(/filename="([^"]+)"/)
