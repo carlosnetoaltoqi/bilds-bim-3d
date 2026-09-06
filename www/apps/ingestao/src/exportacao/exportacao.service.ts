@@ -5,11 +5,11 @@ import { BimCatalog, BimCatalogDocument, BimProduct, BimProductDocument, storage
 import { PipelineService, ManifestoCatalogoAq } from '../pipeline/pipeline.service';
 
 /**
- * ExportacaoService — o catálogo salvo (Mongo + storage) vira um `.aq` novo do AltoQi Builder,
- * gerado do zero pelo `pipeline/catalogo_to_aq.py` (o `.aq` original não fica no servidor — A1).
- * Sai tudo o que a tela de edição mostra: as peças que restaram (as apagadas não vão), com nome,
- * série, specs, curva e a geometria como está no storage (editada ou não). O arquivo é
- * temporário: quem chama serve como download e apaga.
+ * ExportacaoService — dois modos de exportação:
+ *
+ *   catalogoParaAq  catálogo salvo (Mongo + storage) → `.aq` novo do AltoQi Builder
+ *   zipBilds        `.aq`/`.zip` enviado pelo usuário → ZIP do formato bilds.com
+ *                   (manifest + catalog + geo/ + thumbs/), sem armazenar nada no servidor.
  */
 @Injectable()
 export class ExportacaoService {
@@ -53,6 +53,26 @@ export class ExportacaoService {
     const r = await this.pipeline.catalogoParaAq(manifesto, (linha) => this.logger.log(`${tag} ${linha}`));
     this.logger.log(`${tag} .aq gerado — ${r.resumo.pecas} peças, ${r.resumo.simbologias} simbologias, ${(r.resumo.bytes / 1024 / 1024).toFixed(1)} MB em ${((Date.now() - t0) / 1000).toFixed(1)}s`);
     return { ...r, nomeArquivo: nomeDoArquivoAq(cat.manufacturer, cat.title) };
+  }
+
+  /**
+   * `.aq`/`.zip` já em disco → ZIP bilds.com temporário (quem chama serve e apaga).
+   * `nomeOriginal` é o nome que veio do upload, para os logs do pipeline.
+   * Miniaturas são geradas; se o Chromium não estiver disponível o ZIP sai sem `thumbs/`.
+   */
+  async zipBilds(aqPath: string, nomeOriginal?: string): Promise<{ path: string; nomeArquivo: string }> {
+    const tag = `[zip-bilds/${nomeOriginal ?? 'arquivo'}]`;
+    const t0 = Date.now();
+    this.logger.log(`${tag} iniciando geração do ZIP bilds.com`);
+    const r = await this.pipeline.gerarZipBilds({
+      aqPath,
+      nomeOriginal,
+      onProgresso: (l) => this.logger.log(`${tag} ${l}`),
+    });
+    this.logger.log(`${tag} ZIP gerado em ${((Date.now() - t0) / 1000).toFixed(1)}s`);
+    const base = (nomeOriginal ?? 'catalogo').replace(/\.(aq|zip)$/i, '');
+    const nomeArquivo = `${base}-bilds.zip`;
+    return { ...r, nomeArquivo };
   }
 }
 

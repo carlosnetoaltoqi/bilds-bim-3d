@@ -287,6 +287,34 @@ export class PipelineService {
   }
 
   /**
+   * `.aq` ou `.zip` → ZIP do formato bilds.com (manifest + catalog + geo/ + thumbs/).
+   * O ZIP de saída é temporário: quem chama serve como download e apaga.
+   * `skipThumbs` passa `--skip-thumbs`; sem ele o Chromium roda mas uma falha de miniatura
+   * não aborta o build — o ZIP sai sem `thumbs/` e o viewer renderiza no browser.
+   */
+  async gerarZipBilds(opts: {
+    aqPath: string;
+    nomeOriginal?: string;
+    skipThumbs?: boolean;
+    onProgresso?: (linha: string) => void;
+  }): Promise<{ path: string }> {
+    const outZip = path.join(os.tmpdir(), `bilds-zip-${crypto.randomUUID()}.zip`);
+    const args = [this.script('zip_bilds.py'), opts.aqPath, '--saida', outZip, '--sair-com-stdin'];
+    if (opts.nomeOriginal) args.push('--nome-original', opts.nomeOriginal);
+    if (opts.skipThumbs) args.push('--skip-thumbs');
+    try {
+      await executar(PYTHON, args, {
+        nome: 'zip_bilds.py', cwd: this.dir, timeoutMs: TIMEOUT_MS, ociosoMs: OCIOSO_PYTHON_MS,
+        onStderr: (l) => { if (l.trim()) opts.onProgresso?.(l.trim()); },
+      });
+      return { path: outZip };
+    } catch (e) {
+      await fsp.unlink(outZip).catch(() => {});
+      throw e;
+    }
+  }
+
+  /**
    * Uma miniatura WebP por geometria, no Chromium (A2/A6). `geos` são caminhos relativos a
    * `geoDir`; a saída é `<outDir>/<stem>.webp`. Cada geometria que falha vem em `falhas`
    * (o thumbs.mjs continua as outras); se o Chromium nem sobe, lança `ProcessoError`.
