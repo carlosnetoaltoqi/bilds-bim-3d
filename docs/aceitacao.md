@@ -120,5 +120,5 @@ e `geo/<importId>` foi removido.
 
 ---
 
-Registre no `docs/sessoes/` o que rodou, o que imprimiu e o que divergiu. O último roteiro executado:
+Registre no `docs/historico/sessoes/` o que rodou, o que imprimiu e o que divergiu. O último roteiro executado:
 S8.4 (editor de ponta a ponta) e S8.3 (stateless, ZIP, tesselar, inspecionar, import).

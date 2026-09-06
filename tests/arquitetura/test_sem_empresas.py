@@ -9,8 +9,10 @@ TERMOS = [l.strip().lower() for l in (ROOT / 'tests' / 'arquitetura' / 'termos_e
           if l.strip() and not l.startswith('#')]
 PADRAO = re.compile('|'.join(re.escape(t) for t in TERMOS), re.I)
 EXTS = {'.py', '.ts', '.tsx', '.mts', '.cts', '.mjs', '.js', '.sh', '.json', '.yaml', '.yml', '.html', '.md', '.toml', '.sql', '.txt', '.css'}
-# F6 acrescenta docs/conhecimento e docs/skills quando forem reescritos
-RAIZES = ['biblioteca/bim_pipeline', 'pacotes/base/src', 'pacotes/dominio/src', 'servicos', 'web/src', 'web/tools', 'tests', '.github', 'scripts', '.env.example']
+RAIZES = ['biblioteca/bim_pipeline', 'pacotes/base/src', 'pacotes/dominio/src', 'servicos', 'web/src', 'web/tools', 'tests', '.github', 'scripts', '.env.example',
+          'docs/conhecimento', 'docs/skills', 'docs/decisoes', 'docs/arquitetura.md', 'docs/aceitacao.md', 'README.md', 'CLAUDE.md', 'CONCEPTS.md', 'biblioteca/README.md']
+# um link para o histórico pode carregar o nome de uma sessão que cita um fabricante — o caminho é tirado da linha antes do grep
+HISTORICO = re.compile(r'docs/historico/[^\s)`\]]*')
 IGNORAR_PARTES = {'node_modules', 'dist', '.next', '__pycache__', 'e2e'}
 PERMITIDOS = {ROOT / 'tests' / 'fixtures.local.json', ROOT / 'tests' / 'arquitetura' / 'termos_efemeros.txt'}
 

@@ -1,99 +1,160 @@
 # Concepts
 
-Shared domain vocabulary for this project — entities, named processes, and status concepts with project-specific meaning. Seeded with core domain vocabulary from the dynamic BIM catalog POC (S4.2), then accretes as ce-compound and ce-compound-refresh process learnings; direct edits are fine. Glossary only, not a spec or catch-all.
+Vocabulário do projeto — entidades, processos com nome e estados que têm significado próprio aqui.
+Glossário, não especificação: cada entrada aponta para o documento de `docs/conhecimento/` que a
+explica. Nenhum nome de fabricante ou de arquivo da POC (ADR-016).
 
 ---
 
-## BIM Dynamic Catalog Domain
+## Arquitetura (docs/arquitetura.md)
 
-### GeometryStore
-The interface that abstracts where BIM geometry and thumbnail blobs are stored. Exposes four operations: put, get, delete, and deleteByPrefix. The POC implements it against local disk (`DiskGeometryStore`); the reconstruction is intended to implement it against S3 (`S3GeometryStore`, not yet in this codebase). Code that writes or reads geometry files must go through this interface — never write directly to a filesystem path — so the storage backend can be swapped without touching the caller.
+### Biblioteca
+O pacote Python `bim_pipeline` (`biblioteca/`). Stateless: arquivo entra, arquivo ou JSON sai. Não
+conhece Mongo, HTTP nem caminhos do repositório. Todo contexto consome as mesmas funções dela — por
+CLI (`python -m bim_pipeline.cli.<nome>`), nunca por import de fora.
 
-### Import
-A pipeline run that ingests a `.aq` library file and produces a publishable catalog: documents in `bim_products`, a record in `bim_catalogs`, and geometry files written through GeometryStore. An Import has a state machine (recebido → parseando → gravando → publicado | vazio | falhou). The `falhou` terminal state carries a cleanup obligation: all geometry files written under this import's prefix must be deleted before the state is recorded. An import that reaches `vazio` parsed without error but found no geometry — this is a valid outcome for certain `.aq` files (tubes, fixture kits), not an error.
+### Contexto
+Uma responsabilidade de negócio com deployable próprio em `servicos/`: **criador de catálogos**
+(importar e publicar), **API de catálogo** (ler), **editor de peças** (editar), **gerador de ZIP**
+(`.aq` → ZIP da bilds.com), **conversores** (CAD ↔ geometria ↔ `.aq`). Cada um leva consigo só o que
+precisa ao ser portado (docs/arquitetura.md §4).
 
-### Geometry Pointer
-The fields `geoKey` and `thumbKey` on a product document. They are the only coupling between a MongoDB product document and its binary files. Key formats: `geo/{importId}/{slugifiedProductName}.json` for geometry (where the slug is derived from `NOME_PECA` in the `.aq` file), and `thumbs/{importId}/{mongoProductId}.webp` for thumbnails (where the id is the MongoDB `_id`). Queries on products never need to know the storage backend; the API layer resolves the pointer to a byte stream via GeometryStore.
+### Stateless
+Um serviço que não lê nem grava Mongo nem storage: `gerador-zip` e `conversores`. Sobem sem
+`MONGODB_URI`; upload e resultado são temporários. Regra 3 das fronteiras.
+
+### Contrato
+JSON Schema em `biblioteca/bim_pipeline/contratos/` para o que cruza a fronteira biblioteca ↔ serviço
+(`catalogo`, `geometria`, `manifesto-catalogo-aq`, `resumo-miniaturas`, `info-plugin`). A biblioteca
+prova em teste que emite conforme; `@bim/base` valida o que lê. ADR-015.
+
+### Fixture por papel
+Um arquivo real usado por testes, referenciado pelo **papel** (`aq_pequena`, `aq_grande`,
+`aq_malha_v3`, `step_peca`, `iges_pasta`, `dll_plugin`, `manifesto_plugin`) em
+`tests/fixtures.local.json` (gitignored), nunca pelo nome do fabricante. Sem o arquivo o teste pula.
+
+### Termos efêmeros
+Fabricantes, domínios e diretórios da POC que não podem aparecer em código, contratos, conhecimento
+ou skills (`tests/arquitetura/termos_efemeros.txt`). Só em `docs/historico/`, `docs/integracoes/` e
+fixtures locais. ADR-016.
 
 ---
 
-## Escrita de `.aq` (eng-reversa)
+## Formato `.aq` e OQ3D (docs/conhecimento/aq-formato.md, oq3d.md)
+
+### OQ3D
+Formato binário proprietário do AltoQi para a malha 3D de uma peça — o BLOB `SIMBOLOGIA_3D.SIMBOLOGIA_3D`
+do `.aq`. Árvore serializada estilo Delphi com malhas, cores e transformações, em centímetros Z-up.
+É a razão de o projeto não precisar de IFC. Leitor `bim_pipeline.aq.oq3d`, escritor `oq3d_writer`.
+
+### Simbologia 3D
+A linha da tabela `SIMBOLOGIA_3D` que carrega um OQ3D. Várias peças podem apontar para a mesma
+(`PECA_SIMBOLOGIA_3D`): é a origem da **geometria compartilhada** e do copy-on-write no editor.
 
 ### Código de diâmetro
-O número que o AltoQi grava em `PECA.DIAMETRO_PECA`, `ENTRADA_PECA.DIAMETRO_EP` e `ENTRADA_3D.DIAMETRO`. **Não é uma medida** — é um índice numa escala de diâmetros nominais do AltoQi: 8 = 40 mm, 9 = 50 mm, 10 = 60 mm, 11 = 75 mm, 12 = 100 mm, 14 = 150 mm, 15 = 200 mm. Os códigos 1 a 7 não são observáveis nas bibliotecas disponíveis. Chamar de "diâmetro em cm" é o erro que esta entrada existe para evitar: a chave do `build_product_map` se chamava `diametro_cm` até 2026-09-02, e hoje é `diametro_codigo`.
+O número em `PECA.DIAMETRO_PECA`, `ENTRADA_PECA.DIAMETRO_EP` e `ENTRADA_3D.DIAMETRO`. **Não é medida**:
+é um índice na escala de diâmetros nominais do AltoQi (8 = 40 mm, 9 = 50 mm, 10 = 60 mm, 11 = 75 mm,
+12 = 100 mm, 14 = 150 mm, 15 = 200 mm). Chamar de "diâmetro em cm" foi o erro que esta entrada
+existe para evitar.
 
 ### Sentinela
-O valor que o AltoQi usa no lugar de `NULL` para dizer "não definido": `-2147483647` em coluna inteira e `-1.7976931348623157e+308` (`-DBL_MAX`) em coluna real. Uma coluna com sentinela **não** está vazia no sentido do SQL, então `IS NULL` não a encontra e qualquer aritmética sobre ela produz lixo. Aparece em `TIPO_CONFIGURACAO_GP`, `SECAO_EP` e, em 82% das peças da Amanco (963 de 1.168), em `DIAMETRO_PECA`.
+O valor que o AltoQi grava no lugar de `NULL`: `-2147483647` em coluna inteira, `-1.7976931348623157e+308`
+(`-DBL_MAX`) em coluna real. Não é `NULL` para o SQL — `IS NULL` não acha, e aritmética produz lixo.
+
+### cp1252
+O encoding real do texto de um `.aq`, embora o SQLite declare UTF-8. Ler como latin-1 só falha em
+0x80–0x9F — onde vivem travessão, aspas curvas e reticências — e falha em silêncio. Ler e escrever
+sempre em cp1252, estrito.
+
+---
+
+## Geometria (docs/conhecimento/geometria.md)
+
+### `{pos, col, idx}`
+O contrato de geometria do viewer: posições em metros, Y-up, 3 floats por vértice; cor RGB 0–1 por
+vértice (ou vazia); índices de triângulo. Tudo o que a biblioteca produz e todo viewer consome.
+
+### Dedup
+Quantização float32 de posição **e cor** como chave de vértice. Reduz ~80 % dos vértices e, como a
+cor está na chave, triângulos de cores diferentes nunca compartilham vértice — o que permite ao
+editor re-segmentar uma malha em **Partes**. Não solda costuras de malha de fabricante.
+
+### Bocal
+Marcador de ponto de conexão do AltoQi dentro da geometria (cores fixas verde e azuis). Não é
+produto: fica fora do bbox e vira `marker` no editor.
 
 ### Forma representativa
-Malha 3D gerada por parâmetro a partir do diâmetro nominal do catálogo e de proporções normativas ou inventadas, quando o fabricante não publica cota de forma. Distingue-se da **geometria de fabricante**, que vem do `.aq`, do IFC ou de medição. Uma forma representativa serve para visualizar, contar peça e detectar interferência grosseira, e **não** serve para conferir encaixe ou colisão fina. Toda peça que carrega uma traz a ressalva gravada no nome do `GRUPO_SIMBOLOGIA_3D` e numa propriedade personalizada, para que a distinção sobreviva até a ficha do produto na página publicada.
-
----
-
-## Editor 3D e conversores CAD (POC de edição, `www/`)
-
-### Parte
-Unidade de edição no editor 3D: `{ pos, col, idx, matrix, visible, marker }`. Nasce da
-**re-segmentação** do `{pos,col,idx}` plano em componentes conexos do grafo de triângulos.
-Funciona porque o dedup do import põe a cor na chave — triângulos de cores diferentes nunca
-compartilham vértice — logo cada componente tem cor uniforme e aproxima uma
-`TQi3DTriangleMesh` do `.aq`. Uma parte com `marker = true` é um **bocal**: marcador de
-conexão do AltoQi (verde `1,154,63`, azuis `10,84,152` e `0,116,232`), não produto. Uma
-parte oculta não entra no arquivo salvo nem nos exports.
-
-### Bake
-Aplicar as matrizes das partes visíveis, concatenar, arredondar a 1 µm e deduplicar com a
-mesma quantização float32 do import. É o que "Salvar geometria", "Exportar IFC" e
-"Exportar .aq" fazem antes de escrever. Round-trip sem edição preserva os triângulos e
-reduz o JSON pela metade.
-
-### Original preservado
-Na primeira escrita de `PUT /geometrias/:id` o arquivo vivo é copiado para
-`<id>.orig.json` no mesmo prefixo do import; "restaurar original" copia de volta e apaga
-o backup. Para as informações, o equivalente é `infoOriginal` no documento do produto.
-
-### Importação CAD
-Um STEP ou IFC que entra como produto de um catálogo pelo `POST /cad/importar`. Tem um
-`BimImport` próprio (porque `geoKey` e miniatura embutem o `importId`) e passa pelo mesmo
-estado do import de `.aq`: recebido → parseando → gravando → publicado | falhou. É
-**assíncrona**: um Revit de 124 MB leva ~4 min. O progresso do conversor vai em
-`BimImport.note`.
-
-### Caminho exato e caminho rápido (IFC)
-O `ifc_to_geo.py` escolhe entre o `parse_ifc.py` do projeto (exato: `IFCINDEXEDCOLOURMAP`,
-placements, instâncias) para arquivo ≤ 20 MB com `IFCTRIANGULATEDFACESET`, e o
-`ifcopenshell.geom.iterator` (C++, cor por material) para o resto. O rápido descarta
-triângulos degenerados e já entrega metros.
+Malha gerada por parâmetro quando o fabricante não publica cota: diâmetro nominal (dado), espessura
+de parede (norma), o resto inventado com a regra explícita. Serve para visualizar e contar, não para
+conferir encaixe. A ressalva vai gravada dentro do arquivo. (`docs/conhecimento/formas-representativas.md`)
 
 ### Arestas de borda
-Arestas com um só triângulo. Zero em sólido fechado gerado (tubo, caixa). Em malha de
-fabricante **não** mede qualidade: a Dancor tem 25–32% de arestas de borda porque a
-tesselação chega como sopa de triângulos. O painel mostra o número; só é alarme em parte
-gerada ou importada.
+Arestas com um só triângulo. Em malha de fabricante são normais (um quarto a um terço das arestas);
+só são alarme em sólidos gerados ou costurados, que devem dar zero.
 
 ---
 
-## Termos usados em todo o repositório (acrescentados em 2026-09-04, S7.8)
+## Catálogo e edição (docs/conhecimento/catalogo-modelo.md)
 
-A auditoria (I25/CONCEPTS) apontou termos usados em dezenas de arquivos sem definição. Uma linha cada:
+### Import
+Uma execução do criador de catálogos que transforma um `.aq`, uma peça CAD ou um plugin web num
+catálogo publicado. Máquina de estados `recebido → parseando → gravando → publicado | vazio | falhou`.
+`falhou` obriga a limpar o que gravou; `vazio` é resultado válido (biblioteca só de tubos/kits).
 
-| Termo | Significado aqui |
-|---|---|
-| **OQ3D** | Formato binário proprietário do AltoQi para a malha 3D dentro do `.aq` (BLOB `SIMBOLOGIA_3D.SIMBOLOGIA_3D`). Assinatura de 37 bytes, árvore de nós com transforms column-major, unidades em **centímetros**. Leitor: `www/apps/ingestao/pipeline/oq3d.py` e `www/tools/oq3d-parser.ts`; escritor: `eng-reversa/tools/oq3d_writer.py`. Ver `docs/conhecimento/oq3d.md`. |
-| **Simbologia 3D** | Registro de `SIMBOLOGIA_3D` no `.aq`: uma malha OQ3D com nome, ligada às peças por `PECA_SIMBOLOGIA_3D`. Peça sem simbologia (tubo, kit) não tem forma fixa e é pulada por design. |
-| **TQi3DReusedObject** | Nó do OQ3D que reaproveita por referência uma malha já lida (parafusos, repetições). Não resolvê-lo custava ~30% dos triângulos (S5.1, 2026-08-30). |
-| **ADR** | *Architecture Decision Record* — decisão numerada com contexto e consequência. Vivem em `docs/plano-produto-dinamico.md` §9 e em `docs/solutions/architecture-patterns/`. |
-| **importId** | UUID de um `BimImport` da POC. Entra nas chaves de storage (`geo/<importId>/…`, `thumbs/<importId>/…`), então apagar e reimportar produz chaves novas. |
-| **slug** | Identificador em minúsculas com hifens, derivado do título (`slugify`, com normalização NFD). Nomeia o catálogo na URL, a pasta do preview e o ZIP. |
-| **dedup** | Deduplicação de vértices por chave exata (posição quantizada em float32, e cor quando há) — `www/apps/ingestao/pipeline/dedup.py` e o equivalente no `parse-worker.ts`/`mesh-model.ts`. Reduz ~79% dos vértices; **não** solda emendas de malha de fabricante. |
-| **series-rows / catalog-grid** | Os dois layouts de página: fileiras por série (bombas, com curva Q-H) e grade densa com filtros (conexões). Escolhido pela inferência do `build.py`. |
-| **Q-H** | Curva vazão × altura manométrica de uma bomba, lida de `CURVA_BOMBA` do `.aq` e desenhada em SVG no layout `series-rows`. |
-| **bocal** | Marcador de conexão do AltoQi dentro da malha: partes verdes `(1,154,63)` e azuis `(10,84,152)`, `(0,116,232)`. Não é produto; o leitor pode filtrá-los (`skip_markers`) e o editor os lista como "Bocal N". |
-| **customUrl** | Campo da empresa na POC que vira o primeiro segmento da URL pública (`/<customUrl>/<slug>`). |
-| **SwiftShader** | Renderizador WebGL por software do Chromium; obrigatório (flags) para o Playwright renderizar miniaturas e rodar os testes e2e em WSL/CI sem GPU. |
-| **harness** | `www/apps/ingestao/pipeline/harness.html`: página mínima com o mesmo Three.js, `buildScene()` e câmera do viewer, aberta pelo Playwright para fotografar cada geometria. |
-| **Import** (POC) vs **importar** | Ver "Flagged Ambiguities" abaixo. |
+### Ponteiro de geometria
+`geoKey` e `thumbKey` no documento do produto — o **único** acoplamento entre Mongo e arquivos
+(`geo/<importId>/<stem>.json`, `thumbs/<importId>/<stem>.webp`). Ninguém resolve caminho fora do
+`IGeometryStore`.
 
-## Flagged Ambiguities
+### GeometryStore
+A interface (`put/get/stat/delete/deleteByPrefix`) por onde toda geometria, miniatura e logo entra
+e sai do storage. Disco na POC; é a costura para S3.
 
-_"import" (the verb, as in "upload and process") and "Import" (the domain entity with a state machine) — these are the same thing but the entity sense should be capitalized to distinguish it._
+### Copy-on-write
+Primeira edição da geometria de um produto que **compartilha** simbologia: o produto ganha um arquivo
+só dele (`geo/<importId>/<productId>.json`) e guarda a chave compartilhada em `geoKeyCompartilhada`;
+os irmãos não mudam. Geometria exclusiva ganha `.orig.json`. Restaurar desfaz os dois casos.
+
+### Original preservado
+`<id>.orig.json` da geometria exclusiva na primeira escrita, e `infoOriginal` para as informações:
+"voltar" é copiar de volta.
+
+### Parte
+Unidade de edição no editor 3D: `{pos, col, idx, matrix, visible, marker}`, nascida da re-segmentação
+da malha em componentes conexos (funciona porque o dedup separa cores). Parte oculta não é salva.
+
+### Bake
+Aplicar as matrizes das partes visíveis, concatenar, arredondar a 1 µm e deduplicar com a mesma
+quantização do import. É o que salvar, exportar IFC e exportar `.aq` fazem antes de escrever.
+
+---
+
+## Processos e serviços (docs/conhecimento/processos-filhos.md, servicos-web.md)
+
+### Filho que morre com o pai
+Toda CLI da biblioteca e o `thumbs.mjs` recebem o `stdin` em pipe e saem com código 2 no EOF
+(`--sair-com-stdin`). Um `kill -9` no serviço não deixa Python nem Chromium órfãos.
+
+### Fila
+Uma importação por vez (concorrência configurável) numa fila em memória; as demais esperam em
+`recebido` com a posição no `note`. A vaga só libera depois das miniaturas. Pressupõe uma instância;
+a **recuperação no boot** marca `falhou` o que ficou aberto e apaga uploads temporários.
+
+### Harness
+`harness.html` + `thumbs.mjs`: a mesma cena do viewer aberta num Chromium headless para renderizar
+uma miniatura por geometria. Servido por `http://` local porque módulos ES não vivem em `file://`.
+
+### SwiftShader
+O rasterizador em software do Chromium: sem ele o WebGL não inicializa em headless sem GPU.
+
+### customUrl
+O identificador legível de uma empresa (`/<customUrl>/<slug>`). Empresa é agrupador de catálogos,
+não controle de acesso (ADR-007).
+
+### Layouts
+`series-rows` (famílias com variantes e curva Q-H) e `catalog-grid` (itens heterogêneos com filtros).
+Inferidos do `.aq` (`docs/conhecimento/inferencia.md`).
+
+### Curva Q-H
+Vazão × altura manométrica de uma bomba, lida do `.aq` (`ITEM_CURVA_BOMBA`) e desenhada em SVG na
+página; sua presença decide o layout.

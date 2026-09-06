@@ -10,7 +10,7 @@ promovida para o pipeline do serviço de ingestão em 2026-09-05 (I4) para que o
 `Gerador(EscritorAq)`.
 
 Tudo aqui foi observado em bibliotecas reais de fabricante (schemas 595 e 607);
-o conhecimento está em `docs/conhecimento/read-aq.md` e na skill `leitor-biblioteca-aq`.
+o conhecimento está em `docs/conhecimento/aq-escrita.md` e na skill `leitor-biblioteca-aq`.
 """
 import os
 import sqlite3
@@ -78,8 +78,8 @@ UNIDADE_METRO, UNIDADE_PECA = 1, 0
 MEDICAO_TUBO, MEDICAO_CONEXAO = 1, 2
 
 # CODIGO_DIAMETRO — o código que o AltoQi usa em `PECA.DIAMETRO_PECA` e
-# `ENTRADA_PECA.DIAMETRO_EP`. NÃO é o diâmetro em centímetro, como a versão
-# `docs/conhecimento/aq-formato.md` diz: numa biblioteca real a peça `50 mm - 2"` tem
+# `ENTRADA_PECA.DIAMETRO_EP`. NÃO é o diâmetro em centímetro (erro antigo, corrigido em
+# `docs/conhecimento/aq-formato.md`): numa biblioteca real a peça `50 mm - 2"` tem
 # `DIAMETRO_PECA = 9`, e a `100 mm - 4"` tem 12.
 #
 # Só estes seis pares foram observados. Numa biblioteca de conexões real, ~10 % das peças trazem código

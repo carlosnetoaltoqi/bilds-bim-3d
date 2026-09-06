@@ -1,118 +1,104 @@
-# Diagnóstico rápido — sintoma → causa provável
+# Diagnóstico rápido — sintoma → causa → o que fazer
 
-> Movido do `CLAUDE.md` em 2026-09-04 (S7.8, item I22 da auditoria). O conteúdo é o que estava lá,
-> com as afirmações desatualizadas de I23 corrigidas no lugar; onde diz "este arquivo", "acima" ou
-> "no histórico", leia-se o `CLAUDE.md` antigo — o histórico está em `docs/sessoes/`. **Manter aqui**
-> a partir de agora: o `CLAUDE.md` só aponta para este arquivo.
+Sintomas de **formato e algoritmo** da biblioteca (`.aq`/OQ3D, IFC, STEP/IGES, geometria,
+miniaturas, ZIP). Sintomas operacionais de um serviço específico (rotas, banco, build, ambiente)
+estão em `docs/conhecimento/servicos-web.md` — ver a seção final deste documento.
 
-| Sintoma | Causa provável |
-|---|---|
-| Uma peça isolada, "solta no ar", sem mudar a contagem de triângulos | Rotação do OQ3D lida como row-major — ela é column-major |
-| Parafusos/detalhes faltando, ~30% menos triângulos que o IFC | Instâncias `TQi3DReusedObject` por referência não resolvidas |
-| Peças separadas por metros | resolve_lp() não acumula hierarquia recursivamente |
-| Fragmentos a 5–16m do corpo | LP aberrante no IFC exportado — filtrar outliers |
-| Modelo ~1000× maior | Conversão mm→m desnecessária — verificar magnitude das coordenadas brutas |
-| Modelo cinza (tem cores no IFC) | build_face_color_map() não chamado, ou IFCINDEXEDCOLOURMAP não encontrado |
-| 0 cores do IFCCOLOURRGBLIST | Regex espera inteiros mas floats têm casas decimais |
-| `col[]` presente mas Three.js ignora | Material sem `vertexColors: true` ou `color` não é 0xffffff |
-| `import * as THREE from 'three'` falha | importmap ausente ou fora de ordem no HTML |
-| Canvas não encontrado no init | Módulo rodou antes de 'cards-rendered' — verificar handshake |
-| GPU trava | Loop de animação em todos os cards — thumbnail estática + loop só no click |
-| ZIP vazio de geo files | IFCs não foram parseados — verificar output/geo/ após o build |
-| .aq não abre como SQLite | Tentar abrir como ZIP; se falhar: arquivo corrompido. Caminho inexistente é `FileNotFoundError` explícito desde S7.4 |
-| Chip de filtro não filtra e o console só erra ao clicar ("Invalid or unexpected token") | Nome de série com `"` (Komeco `1" x 1"`, Maxbar `"T" Horizontal`) em `data-filter`/`onclick` sem escape — **corrigido em S7.4**: `autoescape=True` e handler lê `this.dataset.filter`. Se voltar, alguém desligou o autoescape |
-| `build.py` falhou mas o shell viu exit 0 | Até S7.4 `run_all` e `main` nunca chamavam `sys.exit(1)`. Hoje: catálogo sem produto e qualquer falha no `--all` saem com 1 e "gerados" conta builds, não ZIPs |
-| Texto com lixo (`5U \x96 19\x94`) | Texto lido como `latin-1` ou UTF-8 — o `.aq` é **cp1252** (ver "Encoding é cp1252, não latin-1") |
-| Peça existe como `.IFC` na pasta mas não sai no catálogo | Desde 2026-09-05 (I6) o build lê só o `.aq`: a peça precisa estar cadastrada nele, ou entra pela POC (`ifc_to_geo.py`). As linhas antigas sobre `file_map`/`scan_input` saíram com o modo `--ifc` |
-| Nome do produto é só dimensão ("100mm") | Esperado para catálogos flat no .aq — build.py prefixa com GRUPO_PECA automaticamente |
-| Fabricante/título stale do catálogo anterior | aq_stale não estava resetando titulo/slug — fix em commit 5e38b65; deletar config.json corrompido se necessário |
-| `Fabricante []` sem sugestão | BIBLIOTECA vazia no .aq e pasta avô é genérica — peek_aq tenta pasta avô, depois filename |
-| Título sugerido ruim (ex: `"Esgoto Sn Sr"`) | Pasta pai do .aq é genérica (`input/`, `.`) — organizar como `input/Fabricante/Nome da Linha/pecas.aq` |
-| Slug com acento (`inc-ndio`) | slugify não normalizava unicode — corrigido com NFD + strip combining marks (commit 8b4272a) |
-| Slug mostra valor antigo do config.json | ec.get('slug') tomava precedência sobre titulo atual — removido; slug sempre = slugify(titulo) (commit fbbf292) |
-| **Fabricante vazio na página publicada** | `PECA.BIBLIOTECA` está vazia em todas as bibliotecas reais vistas (12+) — usar o prefixo de `CLASSE_SIMBOLOGIA_3D.NOME_CLASSE` |
-| **Título vira o nome do fabricante** | Pasta pai é o fabricante (`input/Intelbras/pecas_Intelbras_*.aq`) — comparar o slug da pasta com o 1º token do arquivo antes de usá-la como título |
-| **Título em forma de slug** na página | Derivado do filename sem limpeza — remover ruído (`pecas`, anos, versões), preservar siglas (CFTV, PPCI) e separar CamelCase |
-| **Título colado** (`"Barramentoblindado"`) | Filename com palavra composta toda-minúscula (ex: `pecas_maxbar_barramentoblindado.aq`) — CamelCase split não actua, token fica capitalizado só na 1ª letra. Fix (commit ec42af2): token único todo-minúsculo > 10 chars é ignorado; a cascata cai para `linhas` do banco, que devolve `'Barramento Blindado'`. Organizar o filename como `barramento_blindado.aq` ou `BarramentoBlindado.aq` evita o problema. |
-| Nome do produto redundante (`Pontos de comando Interruptor…`) | Prefixo do grupo aplicado sem necessidade — prefixar só quando o nome é ambíguo, decidindo **por grupo** |
-| **Preview 404 em `data/*.json`, erro `Unexpected token 'T'`** | Template usava `./data/`; com `cleanUrls` a página é servida em `/<slug>` sem barra final e o relativo vai para a raiz. Usar caminho absoluto `'/' + CATALOG.slug + '/data/'`. O `'T'` é a página 404 da Vercel ("The page…") caindo no `JSON.parse` |
-| **Thumbs 404 na Vercel** | Mesmo root cause de `data/`: `./thumbs/` resolvia para `/thumbs/` (raiz). Corrigido em 2026-09-02 — `THUMB_BASE = '/' + CATALOG.slug + '/thumbs/'` nos dois layouts |
-| Preview gigante (centenas de MB) | Faltou `dedup()` no caminho `.aq` — reduz ~79% dos vértices |
-| ZIPs entrando no commit | `output/*.zip` não cobre subpastas; a saída é aninhada — usar `output/**/*.zip` |
-| Joelhos e curvas retos no viewer | Transforms do OQ3D ignorados — usar o parser de árvore de `oq3d.py` |
-| Peças 100× maiores/menores | OQ3D é **centímetros**; multiplicar por 0.01 |
-| Menos produtos que peças no banco | Peças sem `PECA_SIMBOLOGIA_3D` são tubos e kits — sem forma fixa, pular é o correto |
-| Parafusos faltando / um solto no ar | Instâncias `TQi3DReusedObject` por referência — **resolvido em 2026-08-30 (S5.1)**; se voltar, ver `oq3d.md`, "Instâncias repetidas" |
-| Miniatura chapada, sem relevo, diferente do viewer | Está saindo do rasterizador software — o caminho de produção é `www/tools/thumb-rasterizer.ts` (Playwright). Confira com `grep chromium.launch www/tools/thumb-rasterizer.ts` |
-| Thumb leva ~2 s cada e o import estoura o tempo | Geometria passada como **objeto** para `page.evaluate` — passar como string JSON e dar `JSON.parse` dentro da página (6×) |
-| Worker de thumbs não sai / Chromium órfão | Faltou `await closeThumbRenderer()` antes do `process.exit()` — o handle do servidor HTTP prende o event loop |
-| Thumb regenerada não aparece no browser | ETag de `/thumbs/:productId` deriva só do `thumbKey` e o `Cache-Control` é `immutable` — hard reload |
-| `pnpm thumb:regen <id>` ignora o importId | `sh -c 'cmd' arg` faz `arg` virar `$0` — o script precisa de `"$@"` e um `--` de placeholder (corrigido em 2026-08-30) |
-| WebGL não inicializa em headless | Faltam os flags SwiftShader — obrigatórios em WSL/CI/container; sem eles **todas** as geometrias falham de uma vez |
-| Query com `WHERE NOME_x = 'algo acentuado'` volta vazia, sem erro | O texto no `.aq` é cp1252 e o `sqlite3` vincula `str` como UTF-8 — usar `CAST(? AS TEXT)` com `.encode('cp1252')` |
-| Diâmetro do mapa vale ~2× o esperado, ou vem `-1.8e308` | `PECA.DIAMETRO_PECA` é um **código**, não centímetro, e `-DBL_MAX` é sentinela. A chave é `diametro_codigo` desde 2026-09-02 e já filtra a sentinela |
-| `no such column: DIAMETRO` em `ENTRADA_3D` | Coluna só existe no schema 607; as bibliotecas 552–582 não a têm |
-| `.aq` gerado abre e valida, mas os nomes saem como `SoldÃ¡vel` | Texto gravado em UTF-8 — o AltoQi grava **cp1252**; usar `CAST(? AS TEXT)` com bytes cp1252 |
-| `.aq` gerado publica com o título errado (ex.: "Saida") | O título vem da pasta pai do `.aq`, e `saida`/`output` não estão em `_GENERIC_DIRS` (`build.py:922`) — pôr o `.aq` numa pasta com nome descritivo |
-| `.aq` sem geometria publica com fabricante vindo do nome da pasta | Sem `CLASSE_SIMBOLOGIA_3D` o passo 1 da cascata não existe e `PECA.BIBLIOTECA` está vazio nas 12 bibliotecas reais — preencher `PECA.BIBLIOTECA` ao gerar |
-| Sólido gerado mostra o interior por uma emenda | Perfil de revolução que fecha em si mesmo sem soldar o último anel no primeiro: `2 × lados` arestas de borda |
-| Peça gerada com partes soltas ou flutuando | Malhas corretas em posição relativa errada — não aparece em bbox, contagem nem round-trip; conferir abrindo o preview |
-| Sobrou um `.aq` de 0 byte onde não havia arquivo | `sqlite3.connect()` **cria** o arquivo num caminho inexistente. **Corrigido em S7.4**: `open_aq` checa `isfile` e abre em `mode=ro` (URI com `pathname2url`); `peek_metadata` deixa `FileNotFoundError` subir. Esta linha existiu desde 2026-09-02 sem o código ser corrigido — a tabela não substitui o fix |
-| API em `Retrying (n)...` eterno, sem responder request nenhum | Não conecta no Mongo. A mensagem do Mongoose culpa o whitelist, mas é texto fixo — meça DNS, TCP, TLS e auth separadamente (ver "A API não sobe e o Mongoose culpa o whitelist") |
-| `tlsv1 alert internal error` / `SSL alert number 80` nos 3 nós, com o TCP abrindo | **IP não liberado no Atlas** (ou cluster M0 pausado). O handshake morre antes da autenticação, então não é credencial. Liberar em *Network Access*; a API reconecta sozinha no próximo retry |
-| Página pública `404` e `/empresas/minha` `404` com a API saudável | A base está **vazia** (foi assim entre 2026-09-02 e 03). Ver "Estado" no topo e a receita de re-importar pela API |
-| `PUT /geometrias/:id` devolve `413 Payload Too Large` | Limite do body JSON — o padrão do express é 100 KB. `main.ts` sobe para `JSON_BODY_LIMIT` (300 MB) com `bodyParser: false` + `useBodyParser` |
-| Editor mostra centenas de partes numa peça de conexão | Normal: cada malha do OQ3D vira ≥1 componente; use **fundir** ou **re-segmentar** depois de mover. Na Dancor são 11–58 por bomba |
-| Parte com milhares de "arestas de borda" na Dancor | Não é defeito do editor: a malha do fabricante é sopa de triângulos (25–32% das arestas). O alarme vale para malha gerada/importada, que deve dar 0 |
-| `tests/test_editor_roundtrips.py` passou a falhar sem ninguém mexer no código | O teste usa a **primeira** geometria de `www/storage/bim/geo/` em ordem alfabética — importar uma biblioteca nova na POC muda a fixture. Se a falha é na conferência do IFC com "sem par", é erro real (desde S7.9 a métrica pareia a ≤ 2 µm; antes acusava fronteira de arredondamento a 10 µm) |
-| Depois de salvar geometria, a miniatura do card não muda | Desde 2026-09-05 (I14) o `PUT`/`restaurar` regeram a miniatura em segundo plano (alguns segundos; o Chromium sobe a cada chamada). Se continua velha, veja `thumbErro` no produto e o log `miniatura NÃO regerada após edição` — antes disso era pendência conhecida |
-| Import `publicado` mas produtos sem miniatura | O thumb-worker falhou em alguns ou morreu: `thumbCount`/`thumbFailed`/`thumbError` no documento do import e a linha `miniaturas: N/M geradas…` no `note`; cada produto no log `miniatura falhou — <productId>: <motivo>`. Até 2026-09-05 (I15) essas falhas eram ignoradas em silêncio |
-| Import fica em `parseando` para sempre / thumbs nunca concluem | Antes do I15 um filho que saía com código 0 sem mandar mensagem prendia a promise (5 min no parse-worker, para sempre no thumb-worker). Agora `worker-ipc.ts` rejeita no `exit` e mata por ociosidade (2 min sem mensagem). Se ainda travar, é fora do worker: Mongo (`setStatus` pendente) |
-| Logos numa pasta e geometria em outra; API "não acha nada" sem `.env` | `STORAGE_PATH` — até 2026-09-05 (I17) `empresas.controller.ts` usava outro default. Agora só `common/storage-path.ts` resolve; o boot imprime `storage em …` e avisa quando a variável não está definida |
-| Import fica em `recebido` com `na fila — N importação(ões) à frente` | Normal desde 2026-09-05 (I11): uma importação por vez (`IMPORTACOES_CONCORRENCIA`, padrão 1). Se não anda, a que está na frente travou — veja o log dela |
-| Import `falhou` com "a API foi reiniciada durante a importação" | A API caiu (ou foi reiniciada) com o import aberto; no boot o `RecuperacaoService` marca todo não terminal como `falhou` e limpa produtos, `geo/<importId>/` e o upload do tmp (I11). Envie o arquivo de novo |
-| `400` com `property X should not exist` | O corpo tem um campo fora do DTO — desde o I16 (2026-09-05) campos desconhecidos são rejeitados, não descartados. Os campos aceitos estão em `*.dto.ts` ao lado do controller |
-| `400` em `specs` com "recebeu object" / "recebeu array" | Valor de spec tem de ser texto, número ou booleano (`IsSpecs`) — antes virava `"[object Object]"` no banco |
-| `GET /health` devolve 503 "Mongo desconectado/conectando" | É o `readyState` da conexão do Mongoose da API (I12) — a API está em retry; diagnóstico por camadas em `www/README.md`. Antes o health abria um cliente novo e dizia `ok` mesmo com a API sem conexão |
-| Web chama `localhost:4000` mesmo com `NEXT_PUBLIC_API_URL` definida | Até 2026-09-05 (I17) três páginas tinham o host fixo. Agora só `lib/api.ts` o conhece — `tests/test_www_config.py` acusa a volta |
-| Mensagem "salvo" some no mesmo instante | `useEffect` que reseta o formulário dependia de `editadoEm` e rodava logo após o save — a dependência tem de ser só o `_id` do produto |
-| IFC exportado abre com a geometria em dobro | A montagem recebeu Representation — o `parse_ifc.py` processa `IFCELEMENTASSEMBLY` e `IFCBUILDINGELEMENTPROXY`; só as proxies podem ter malha |
-| IFC exportado: `parse_ifc.py` ignora um face set | Entidade quebrada em várias linhas — `build_entity_index` casa `#id=TIPO(args);` **por linha** |
-| IFC exportado: parte rotacionada fora do lugar | Axis/RefDirection do `IFCAXIS2PLACEMENT3D` montados sem converter os eixos — é `Axis = C·coluna_Y`, `RefDirection = C·coluna_X`, com `C: (x,y,z)→(x,−z,y)` |
-| `step_to_geo.py` morre com `Segmentation fault` | Referência morta da binding OCP: documento XCAF liberado com rótulos em uso, ou `ex.Current()` guardado após `Next()`. Manter `doc`/`reader`/sequência vivos; copiar com `TopoDS.Solid_s()`; `python3 -X faulthandler` mostra a linha |
-| `POST /step/importar` → 500 "step_to_geo.py falhou: No module named 'OCP'" | OpenCASCADE não instalado para o Python que a API chama — `pip install --user --break-system-packages cadquery-ocp` (PEP 668 exige a flag no Ubuntu) |
-| STEP importado 1000× maior ou deitado | Faltou `×0,001` (o OCC entrega mm) ou a troca `(x, z, −y)` — o script já faz os dois; conferir se a geometria veio de outro caminho |
-| `.aq` exportado publica com título estranho (ex.: "scratchpad") | `peek_aq` infere o título da pasta pai — pôr o arquivo em `input/<Fabricante>/<Linha>/` antes do `build.py` |
-| `validar_aq.py` falha só em "barras de tubo com 600 cm" | Regra específica do catálogo da Akato; um `.aq` de peça única gerado pelo `geo_to_aq.py` não tem tubo — as outras 19 checagens é que valem |
-| IFC importado no editor 1000× maior ou 1000× menor | `ifc_to_geo.py` escala ×0,001 só com `.MILLI.` declarado **e** bbox bruta > 50. Um IFC em mm de peça pequena (< 50 mm) não dispara — importar e aplicar ×0,001 no editor ("escala global") |
-| `POST /importacoes` de um IFC devolve "não extraiu geometria" | Arquivo B-rep (`IFCADVANCEDBREP`) sem `ifcopenshell` no Python da API, ou IFC só com curvas — `python3 -c "import ifcopenshell"` |
-| **"Failed to fetch" / "fetch error" ao importar CAD grande, e nada no log da API** | A requisição nunca terminou: conversão de minutos contra timeout de 300 s. A importação é assíncrona (202 + `GET /importacoes/:id` no serviço de ingestão); se voltar a acontecer, o serviço está fora ou o `requestTimeout` foi reduzido |
-| IFC grande importado sai todo cinza | Caminho `ifcopenshell`: `style.diffuse.r()` é método no 0.8 — `_rgb_do_material` trata os dois casos; se ainda assim cinza, o arquivo não tem `IfcSurfaceStyle` (Revit exporta material só com a opção de cores) |
-| Importação fica em `parseando` por minutos | Normal para B-rep facetado grande: 124 MB → 221 s e 3,6 GB de RAM. Acompanhe em `/importar` ou `GET /importacoes/:id` (:4100); `falhou` traz o erro do Python |
-| Import `publicado` com a nota `na fila — N à frente` (ou `na fila — … — miniaturas: N/M geradas`) | Código anterior à S7.13: a nota da espera não era apagada ao começar. Hoje `parseando` grava `note: null`; se voltar, olhe `setStatus('parseando'…)` em `importacoes.service.ts` |
-| Dois Chromiums ao mesmo tempo depois de dois uploads (`miniaturas — N geometria(s)` de dois imports com 1 s de diferença no log) | Antes da S7.13 a fila liberava a vaga em `publicado`; hoje só depois das miniaturas — o segundo fica em `recebido` até o Chromium do primeiro fechar (Amanco: ~37 s). `IMPORTACOES_CONCORRENCIA` > 1 e a fila própria da regeneração (`POST /miniaturas/regerar`) são as únicas formas legítimas de ver dois |
-| `geo/<importId>/` ganhando arquivos **depois** de o serviço morrer; `ps -o ppid= -p <pid do python>` mostra pai 1 | Filho órfão. Desde a E3 (S7.14) o Python roda com `--sair-com-stdin` e o `thumbs.mjs` com `sairComStdin: true`, e o `processo.ts` dá a eles o stdin em pipe: o pai morto fecha o pipe e o filho sai com 2. Se reaparecer, alguém tirou a flag ou trocou `stdio: ['pipe', …]` por `'ignore'`. **Cuidado:** `pgrep -f catalogo_de_aq` acha o SEU shell se o padrão estiver na linha de comando dele — confira com `ps -p <pid>` |
-| Nome de arquivo com `Ã¡`, `Ã©`, `Ã§` no log `upload recebido`, no `fileName` do import ou no nome do produto CAD | O multer que roda é o 2.0.2 embutido no `@nestjs/platform-express` 10 (decodifica latin1; ignora `defParamCharset`). `packages/dominio/src/upload.ts` refaz em UTF-8 — se apareceu, um caminho novo usa `originalname` direto; `tests/test_www_config.py` acusa |
-| `GET /produtos/:id` com `thumbAtualizadaEm: null` depois de editar a geometria, mas o log diz `miniatura regerada` | Até a S7.13 o `toDto` de `produtos.controller.ts` não devolvia o campo — o Mongo tinha o valor. Conferir o DTO antes de desconfiar do worker |
-| Qualquer rota responde `503 Mongo desconectado — o serviço está em retry…` na hora | Comportamento pretendido desde a S7.15 (`MongoProntoGuard`, I32): Mongo inacessível (Atlas bloqueado, whitelist, rede). Antes era `500` depois de 30 s. `GET /health` diz o `readyState`; os serviços reconectam sozinhos |
-| Quer simular "Atlas bloqueado" sem mexer na whitelist | Proxy TCP local terminando TLS **com SNI** (`ssl.wrap_socket(..., server_hostname=<nó>.mongodb.net)`; sem SNI o Atlas devolve `tlsv1 alert internal error`) e a API em `mongodb://…@127.0.0.1:<porta>/?directConnection=true&authSource=admin`. Matar o proxy = Mongo fora; `readyState` cai em segundos. Receita completa em `docs/sessoes/S7.13-teste-de-aceitacao-www.md` §3 |
-| `kill -9` na API/serviço e ele continua respondendo; ou `pkill -f` derrubou o seu próprio terminal | `pnpm dev:*` cria `sh -c` → `node`: `pgrep -f 'src/main.ts' \| head -1` pega o `sh`. Mate o pid de `ss -ltnp \| grep ':4000 '` (ou `:4100`), e o pai por `ps -o ppid=`. `pkill -f '<padrão>'`/`pgrep -f` casam com a linha de comando do shell que os executa se o padrão estiver nela (falso "órfão vivo" na S7.14) |
-| Import `publicado` com `thumbCount: 0`, `thumbFailed: N` e `thumbError: Package subpath './build/three.module.js' is not defined by "exports"` | O `exports` do pacote `three` não expõe `build/three.module.js`; `pipeline.service.ts:vendorDir()` resolve pela `build/` de `require.resolve('three')` (S7.14). Se voltou, alguém trocou a resolução; `BILDS_THREE_DIR` aponta manualmente |
-| `PUT /geometrias/:id` responde `miniatura: 'nao-solicitada'` e o produto ganha `thumbErro: serviço de ingestão indisponível em http://localhost:4100` | A API não tem Chromium (A6): o serviço de ingestão está fora ou `INGESTAO_URL` aponta errado. A geometria foi gravada; suba o serviço e chame `POST /miniaturas/regerar {productId}` |
-| Editei a geometria, a miniatura foi regerada (`thumbAtualizadaEm` novo, ETag novo) mas a imagem é idêntica | Edição que não muda a forma projetada — escala uniforme, por exemplo: a câmera enquadra pela bbox. Não é defeito; mude uma dimensão só e compare |
-| Dois produtos mudam de geometria quando edito um | Não deve acontecer desde a E3: o pipeline grava uma geometria por simbologia e o `PUT` faz copy-on-write (`geoKeyCompartilhada`). Se aconteceu, o produto já tinha `geoKeyCompartilhada` e o `countDocuments` foi pulado — olhe `geometrias.controller.ts` |
-| `pnpm start` (do `dist/`) morre com `Cannot find module '@bim/dominio'` ou `Unexpected token` em `src/index.ts` | O `tsc` não emite o pacote do workspace (symlink tratado como externo). Só `pnpm dev:*` (ts-node) funciona por enquanto — pendência registrada em `www/README.md` |
-| `GET /importacoes` (lista) lento com muitos imports | `toDto` faz três consultas por import (empresa, catálogo, produto CAD); `limite` máximo 100 |
-| `/importar` mostra `na fila — 1 importação(ões) à frente` por muito tempo | Comportamento pretendido: a vaga só libera depois das miniaturas do import anterior (Amanco ≈ 60 s no total) |
-| `DELETE /importacoes/:id` responde `409 importação em 'parseando' — espere terminar` | Pretendido: só importação terminada se apaga (a fila e o Python estariam com a mão nela). Espere `publicado`/`vazio`/`falhou`, ou reinicie o serviço (o boot marca `falhou`) e apague |
-| Apaguei uma peça e a geometria continua no `geo/<importId>/` | Pretendido: outro produto compartilha a mesma simbologia (o pipeline grava uma por simbologia). O arquivo só sai com o último produto que o usa; `DELETE /produtos/:id` devolve em `arquivos` o que de fato removeu |
-| Todas as páginas do web respondem 500 com `Cannot find module './837.js'` (webpack-runtime) | Alguém rodou `pnpm -r build`/`next build` com o `next dev` de pé: o build sobrescreveu o `.next/` do dev server. Reinicie o `pnpm dev:web`. Para conferir tipos sem derrubar nada, `npx tsc --noEmit` em `apps/web` |
-| `baixar .aq` na edição do catálogo falha com `… tem caractere fora do cp1252 na posição N` | Um nome de peça, série ou valor de spec tem um caractere que o `.aq` (cp1252) não representa — seta `→`, emoji, travessão de outra fonte. O erro diz a tabela.coluna e o texto; edite a peça e exporte de novo. O gerador não troca por `?` de propósito |
-| `baixar .aq` falha com `geometria ausente no storage — geo/<importId>/<x>.json` | O produto aponta para uma geometria que não está mais em `www/storage/bim/`: storage apagado à mão ou import anterior removido. Reimporte a biblioteca (substitui o catálogo de mesmo slug) |
-| O `.aq` exportado reimportado mostra nomes diferentes da tela (`75mm - Tê na parede` em vez de `Pia de Cozinha Industrial 75mm - Tê na parede`) | Não é perda: `NOME_PECA` no arquivo é o nome original (o `catalogo_to_aq.py` tira o prefixo da série que o `catalogo.py` acrescenta), e a regra de prefixo do `catalogo.py` depende do conjunto de nomes do arquivo — com 2 peças a menos e sem os tubos, o que era ambíguo pode deixar de ser. `--manter-prefixo-serie` grava o nome da tela |
-| Peça IGES importada aparece **escura**/com faces pretas no viewer, ou o volume assinado da malha sai negativo | IGES (SolidWorks) não tem sólido: são faces soltas sem orientação. Desde a S7.17 o `step_to_geo.py` costura (`BRepBuilderAPI_Sewing`), fecha em sólido e inverte pelo volume assinado; se ainda assim escurece, veja `arestas_livres` no JSON — casca que não fecha (o TAMPÃO da Tupy tem 10) e cor por face que não sobreviveu à costura |
-| `catallog.py`/importar plugin falha com `HTTP 400 … "BinaryFile matching query does not exist."` | O corpo do `POST /api/crm/v1/form/` levou `binary_file_id: null`; o navegador omite a chave. Não mande |
-| Importar plugin: `note` fica minutos em "lendo grupo N/M" antes do primeiro download | Pretendido: o plano lê o detalhe de cada grupo e os recursos de cada produto até achar um IGES, com pausas de 0,3 s (18 grupos ≈ 2 min). Depois vem "k/22 arquivo" |
-| Importar plugin publicou menos peças do que grupos ("N grupo(s) sem IGES ficaram fora") | Pretendido: só grupos com um produto que tem `.igs` viram peça; os que só têm `.rfa` (Revit, proprietário) ou nada ficam fora e são listados no aviso |
-| O `.aq` da Tupy reimportado vira catálogo "Grooved" em vez de "TupyGrooved" | `inferencia.py` tira o fabricante do título ("Tupy" de "TupyGrooved"). O botão do plugin não passa por aí; edite o título na tela se importar pelo `.aq` |
-| `POST /importacoes/plugin-autocad/inspecionar` → `400 não li o plugin: … nenhuma URL nas strings` | A DLL não é de um plugin Catallog/Collabo (o `inspecionar` procura `https://…` nas strings UTF-16 do .NET). Outros fabricantes exigem outro leitor |
+## OQ3D
+
+| Sintoma | Causa | O que fazer |
+|---|---|---|
+| Uma peça isolada, "solta no ar", sem mudar a contagem de triângulos | Rotação do OQ3D lida como row-major — é column-major | Transpor a matriz antes de aplicar |
+| Parafusos e detalhes faltando, malha bem mais pobre que o esperado | Instâncias por referência (objeto reaproveitado) não resolvidas | Resolver cada instância pelo objeto referenciado, não só pelo container — ver `oq3d.md`, "Instâncias repetidas" |
+| Peças 100× maiores ou menores | OQ3D grava em **centímetros** | Multiplicar por 0,01 ao converter para metros |
+| Joelhos e curvas aparecem retos no viewer | Transforms do OQ3D ignorados | Usar o parser de árvore completo, não só a malha de folha |
+| Menos produtos que peças na origem | Peças sem geometria vinculada são tubos/kits, sem forma fixa | Comportamento esperado — pular ao montar o catálogo |
+
+## `.aq` e cp1252
+
+| Sintoma | Causa | O que fazer |
+|---|---|---|
+| `.aq` não abre como SQLite | Pode ser ZIP, ou arquivo corrompido | Tentar abrir como ZIP primeiro; se falhar, é corrompido. Caminho inexistente deve lançar erro explícito de arquivo ausente — nunca criar um `.aq` vazio no lugar |
+| Texto com lixo no meio do nome | Lido como latin-1 ou UTF-8 | Ler sempre como **cp1252** — é o encoding real, mesmo o SQLite declarando UTF-8 |
+| `WHERE NOME_x = 'algo acentuado'` volta vazio, sem erro | O `sqlite3` do Python vincula `str` como UTF-8; o texto armazenado é cp1252 | `CAST(? AS TEXT)` com o parâmetro já `.encode('cp1252')` |
+| Diâmetro do mapa vale ~2× o esperado, ou vem um número enorme negativo | O campo de diâmetro é um **código**, não centímetro; o número enorme é a sentinela de NULL do formato | Tratar como código (índice numa escala), nunca como medida direta; filtrar a sentinela antes de qualquer conta |
+| `no such column` numa tabela de entrada 3D | Coluna só existe em versões mais novas do schema do `.aq` | Checar a versão do schema antes de assumir a coluna |
+| `.aq` gerado abre e valida, mas os nomes saem com caractere trocado | Texto gravado em UTF-8 em vez de cp1252 | Escrever sempre com bytes cp1252 |
+| Geometria muito maior que o esperado ao gerar a partir do `.aq` | Faltou a deduplicação de vértices | Rodar a etapa de dedup — reduz da ordem de 79% dos vértices numa malha típica |
+| `baixar .aq` falha dizendo que um caractere está fora do cp1252 | Nome de peça/série/spec tem caractere que cp1252 não representa (seta, emoji, travessão de outra fonte) | Editar o texto ofensivo e exportar de novo — o gerador não substitui por `?` de propósito |
+| `.aq` exportado e reimportado mostra um nome mais curto que o exibido na tela | Não é perda: o nome gravado é o original, sem o prefixo de série que a tela acrescenta para exibição | Comportamento esperado; usar a opção de preservar o prefixo se o objetivo é manter o nome como aparece na tela |
+
+## IFC
+
+| Sintoma | Causa | O que fazer |
+|---|---|---|
+| Modelo ~1000× maior que o esperado | Conversão mm→m aplicada sem necessidade (ou pulada quando era necessária) | Verificar a magnitude das coordenadas brutas antes de decidir a escala — alguns exportadores declaram uma unidade e gravam em outra |
+| Modelo cinza, mas o IFC de origem tem cor | Mapa de cor por face não construído, ou entidade de mapa de cor não encontrada | Conferir se o parser extrai o mapa de cor indexado; sem essa entidade não há cor por face |
+| Zero cores extraídas de uma lista de cores RGB | Regex de parsing espera só inteiros; os valores têm casa decimal | Ajustar a regex para casar float |
+| `col[]` presente na geometria, mas o viewer ignora e mostra tudo de uma cor | Material sem `vertexColors: true`, ou `color` diferente de branco (a cor do vértice é multiplicada pelo `color` do material) | `vertexColors: true` **e** `color: 0xffffff` juntos |
+| Fragmentos da peça a vários metros do corpo principal | Um posicionamento local aberrante no arquivo de origem | Filtrar como outlier ao consolidar a malha, não tentar "corrigir" a transformação |
+| Sub-partes separadas por metros, cada uma na própria origem | A hierarquia de posicionamento local não é acumulada recursivamente | Acumular a transformação por toda a cadeia, não só o nível mais próximo da peça |
+| Peça exportada abre com a geometria em dobro | Uma montagem recebeu representação geométrica própria além dos elementos-folha | Só entidades de folha (proxies) carregam malha; montagens/assemblies não |
+| Parser de IFC ignora um conjunto de faces existente no arquivo | A entidade está quebrada em várias linhas de texto | Casar entidade por unidade lógica completa (`#id=TIPO(args);`), não por linha física |
+| Parte da peça exportada aparece rotacionada fora do lugar | Eixos do posicionamento 3D montados sem a conversão de sistema de coordenadas | Aplicar a conversão de eixo também em `Axis`/`RefDirection`, não só na posição |
+
+## STEP e IGES
+
+| Sintoma | Causa | O que fazer |
+|---|---|---|
+| Conversor morre com `Segmentation fault` | Referência morta da binding do OpenCASCADE — documento liberado com rótulos ainda em uso, ou iterador guardado além do escopo válido | Manter documento/leitor/sequência vivos durante todo o processamento; copiar formas pela função de cópia da API; rodar com rastreador de falhas do Python para achar a linha exata |
+| Conversão falha dizendo que o módulo do OpenCASCADE não existe | A dependência nativa não está instalada para o Python que o conversor usa | Instalar o pacote do OpenCASCADE (com as flags que distribuições recentes exigem para instalar fora de venv) |
+| STEP importado sai 1000× maior, ou deitado (eixos trocados) | Faltou a escala mm→m, ou a troca de eixo Y-up | Aplicar as duas conversões; conferir se a geometria passou mesmo pelo conversor |
+| IFC importado no editor sai 1000× maior ou menor | A heurística de escala só dispara com unidade declarada em milímetro **e** bounding box bruta acima de um limiar — peça pequena em mm não dispara | Aplicar a escala manualmente pela ferramenta de escala global do editor |
+| Importação de IFC devolve "não extraiu geometria" | Representação B-rep avançada sem a biblioteca de leitura de IFC disponível, ou arquivo só com curvas | Confirmar que a dependência de leitura de IFC está instalada |
+| IFC grande importado sai todo cinza mesmo com material colorido na origem | No caminho de leitura via biblioteca nativa de IFC, o acesso à cor mudou de propriedade para método entre versões | Tratar as duas formas de acesso; se persistir cinza, o arquivo pode genuinamente não ter estilo de superfície definido |
+| Peça IGES aparece escura/com faces pretas, ou o volume assinado da malha sai negativo | IGES não carrega sólido — faces soltas sem orientação consistente | Costurar as faces num sólido e inverter pelo sinal do volume; se persistir, conferir a contagem de arestas livres no JSON — casca que não fecha deixa arestas livres, e cor por face pode não sobreviver à costura |
+
+## Geometria, miniaturas e ZIP
+
+| Sintoma | Causa | O que fazer |
+|---|---|---|
+| Sólido gerado por parâmetro mostra o interior por uma emenda | Perfil de revolução fecha em si mesmo sem soldar o último anel ao primeiro | Conferir arestas de borda — o dobro do número de lados do perfil como arestas de borda denuncia a emenda aberta |
+| Peça gerada com partes soltas ou flutuando | Malhas corretas em posição relativa errada — não aparece em bbox nem em contagem de triângulos | Conferir visualmente (abrir o viewer), não só métricas agregadas |
+| Editor mostra dezenas de partes numa peça só | Comportamento esperado — cada malha de origem no OQ3D vira ao menos um componente ao re-segmentar | Usar fundir ou re-segmentar depois de mover, não tratar como defeito |
+| Uma parte no editor tem milhares de "arestas de borda" | Não é defeito — malha de fabricante é naturalmente não estanque (sopa de triângulos) | O alarme de arestas de borda só vale para malha **gerada** ou **costurada**, que deveria dar zero |
+| Dois produtos mudam de geometria quando só um é editado | Bug de copy-on-write: a contagem de "quantos produtos usam esta geometria" foi pulada antes de decidir copiar | Conferir se essa contagem roda antes da decisão de copiar vs. sobrescrever |
+| Apaguei uma peça e o arquivo de geometria continua no storage | Esperado — outro produto ainda compartilha a mesma geometria (uma por simbologia, não por produto) | O arquivo só sai com o último produto que o usa; a resposta da remoção lista o que de fato foi apagado |
+| Miniatura chapada, sem relevo, visivelmente diferente do viewer | Está saindo de um rasterizador que não é o harness Playwright | Confirmar que a geração passa pelo harness (Chromium + o mesmo Three.js do viewer) — ver `miniaturas.md` |
+| Geração de miniatura leva ~2 s cada e o import estoura o tempo | Geometria passada como **objeto** para `page.evaluate` | Passar como string JSON e fazer `JSON.parse` dentro da página — ~6× mais rápido |
+| Processo de miniaturas não termina sozinho, ou o Chromium fica órfão | Faltou fechar browser e servidor HTTP antes do `process.exit` | Fechar os dois num `finally`, sempre antes de sair |
+| Miniatura regenerada não aparece no browser | ETag deriva só da chave (que não muda), com cache `immutable` | Hard reload para confirmar; para valer em produção, derivar a ETag do conteúdo |
+| Import com produtos, mas a etapa de miniaturas não gerou nada | Node incompatível, Playwright/Chromium ausentes, timeout do lote, ou WebGL sem os flags de software rendering | Conferir `thumbCount` contra a contagem de geometrias — menor que o esperado denuncia degradação; os flags de software rendering são obrigatórios sem GPU |
+| Resolução do pacote `three` falha ao montar o harness | O pacote não expõe o caminho do build direto pelo mapa de `exports` | Resolver o caminho a partir da localização do próprio pacote instalado; uma variável de ambiente pode sobrepor quando necessário |
+| Miniatura regenerada tem data nova mas a imagem é idêntica | A edição não mudou a forma projetada (escala uniforme, por exemplo) — a câmera enquadra pelo bbox | Não é defeito; para comparar de verdade, editar uma dimensão de forma não uniforme |
+| Edição de geometria funciona mas o produto fica com erro de miniatura registrado | O serviço de miniaturas não respondeu — a escrita da geometria em si teve sucesso | A geometria já foi gravada; suba o serviço responsável e dispare a regeneração pontual daquele produto |
+
+## Serviços e ferramentas
+
+Sintomas de serviço HTTP, build e ambiente (não de formato/algoritmo) estão em
+`docs/conhecimento/servicos-web.md`. As armadilhas mais recentes registradas lá:
+
+- **Contrato JSON Schema recusado** — schemas em draft 2020-12 exigem a build `ajv/dist/2020`
+  (`Ajv2020`); o construtor padrão do Ajv só conhece draft-07 e falha sem dizer isso claramente.
+- **`tsc -b` "não vê" mudança depois de `rm -rf dist`** — sem `tsBuildInfoFile` apontando para
+  dentro de `dist/`, o cache incremental sobrevive fora da pasta apagada.
+- **Suíte de teste "passa" com menos testes do que deveria** — uma exclusão de diretório do
+  coletor pode casar sem querer com uma pasta de teste inteira (por exemplo, uma pasta chamada
+  igual a um nome excluído por outro motivo), e a suíte roda verde só porque boa parte dela nunca
+  foi coletada. Só a contagem de coleta denuncia — conferir sempre quantos testes rodaram.
+- **`git clean -fdq` apaga dado que ainda não está no `.gitignore`** — mover um diretório de dados
+  para um lugar novo sem atualizar o ignore primeiro deixa o destino sem proteção nenhuma.
+
+## Onde está no código
+
+Cada linha deste documento aponta para o mesmo código descrito em detalhe nos documentos por
+formato/algoritmo listados em "Ver também" — este arquivo é um índice de sintomas, não a fonte da
+explicação.
+
+## Ver também
+
+- `docs/conhecimento/oq3d.md`, `docs/conhecimento/aq-formato.md`, `docs/conhecimento/aq-escrita.md`
+- `docs/conhecimento/ifc.md`, `docs/conhecimento/ifc.md`, `docs/conhecimento/step-iges.md`
+- `docs/conhecimento/geometria.md`, `docs/conhecimento/miniaturas.md`,
+  `docs/conhecimento/catalogo-modelo.md`, `docs/conhecimento/zip-bilds-formato.md`
+- `docs/conhecimento/processos-filhos.md`, `docs/conhecimento/servicos-web.md`

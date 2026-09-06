@@ -1,15 +1,29 @@
-# docs/conhecimento — o que era o "Conhecimento crítico" do CLAUDE.md
+# Conhecimento do projeto
 
-Movido do `CLAUDE.md` em 2026-09-04 (S7.8, I22). Cada arquivo é a **fonte única** do seu assunto
-dentro do repositório; as skills em `docs/skills/` repetem o que serve a outros projetos.
+O que se sabe sobre os formatos, os algoritmos e os padrões — sem fabricantes, arquivos ou caminhos da
+POC (ADR-016; a guarda `tests/arquitetura/test_sem_empresas.py` cobre esta pasta). Censos de uma
+biblioteca específica viram proporções; a evidência mora em `docs/historico/`. Modelo de escrita:
+introdução de um parágrafo, seções curtas, tabelas, e ao fim "Onde está no código" e "Ver também".
+**Conhecimento novo entra aqui**, no documento certo; `CLAUDE.md` só aponta.
 
-| Arquivo | Assunto |
+| Documento | Assunto |
 |---|---|
-| `pipeline-estatico.md` | fluxo do usuário, os dois modos, inferência de fabricante/título/layout, `config.json`, `catalog.json`, layouts e padrão dos templates, conteúdo do ZIP, miniaturas pré-renderizadas (por quê, como, dependências, `page.evaluate`), matching IFC → `.aq`, integração com a bilds.com |
-| `oq3d.md` | o formato binário dentro do `.aq`: cabeçalho de 37 bytes, classes, instâncias por referência, unidades (cm), escrever OQ3D, API do `oq3d.py`, como conferir contra o IFC |
-| `read-aq.md` | schema do `.aq`: cp1252 (não latin-1), ZIP ou SQLite, tabelas de produto e de geometria, `DIAMETRO_PECA` é código, sentinelas, peças sem geometria, escrever um `.aq`, diferenças entre versões de schema |
-| `parse-ifc.md` | IFC4 → geometria: `IFCLOCALPLACEMENT`, caminhos A e B, matriz 4×4, Z-up → Y-up, `split_top()`, `IFCINDEXEDCOLOURMAP`, unidades, outliers |
-| `templates-html.md` | Three.js self-hosted, miniatura estática + click-to-3D, cache de geometria, `vertexColors`, escape, design tokens |
-| `diagnostico.md` | tabela sintoma → causa provável, do parser ao editor |
+| `aq-formato.md` | o `.aq` (SQLite/ZIP), cp1252, sentinelas, código de diâmetro, enums, versões de schema, leitura |
+| `aq-escrita.md` | escrever `.aq`: DDL 607, `EscritorAq`, uma peça, catálogo inteiro (cinco regras), erros que abortam, validação |
+| `oq3d.md` | o binário OQ3D: cabeçalho, árvore, instâncias, rotação, leitura tolerante, escrita |
+| `geometria.md` | o contrato `{pos,col,idx}`, eixos, dedup, malhas por cor, partes, bocais |
+| `ifc.md` | IFC4: leitura, escrita (exportador do editor), verificação de ida e volta a 2 µm |
+| `step-iges.md` | STEP/IGES com OpenCASCADE; costura de faces soltas e orientação pelo volume |
+| `plugin-cad-catalogo-web.md` | plugin de CAD que é casca de um catálogo web: DLL, API, lead, IGES/RFA, termos de uso |
+| `pdf-catalogo.md` | tabelas de um catálogo comercial em PDF; o que um PDF nunca determina |
+| `formas-representativas.md` | geometria por parâmetro: dado × norma × invenção; os defeitos que passam em teste |
+| `inferencia.md` | fabricante, título, slug e layout inferidos do `.aq` e do caminho |
+| `miniaturas.md` | a mesma cena do viewer no Chromium; `page.evaluate` com string; harness por `http://` |
+| `catalogo-modelo.md` | Import como máquina de estados, ponteiro de geometria, copy-on-write, remoção em cascata |
+| `processos-filhos.md` | filho morre com o pai (stdin EOF), stdout × stderr, timeouts, códigos |
+| `servicos-web.md` | armadilhas de Nest/Next e de ferramentas (201, Ajv 2020, tsbuildinfo, git clean…) |
+| `zip-bilds-formato.md` | o formato genérico do pacote ZIP (o lado consumidor está em `docs/integracoes/bilds-com.md`) |
+| `diagnostico.md` | sintoma → causa → o que fazer, para formatos e biblioteca |
 
-Regra: conhecimento novo entra **aqui** (no arquivo do assunto), com data; o `CLAUDE.md` só aponta.
+Skills de agente (`docs/skills/`) são how-tos que apontam para cá; em cada uma, `referencias/` é um
+symlink para esta pasta, para que a skill leve o conhecimento junto quando é usada de fora.

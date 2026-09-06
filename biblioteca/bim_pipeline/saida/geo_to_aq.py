@@ -31,9 +31,9 @@ UNIDADES E EIXOS. O OQ3D é centímetros, Z-up. Do viewer (metros, Y-up):
 `oq3d = (x·100, −z·100, y·100)` — a conversão documentada no CLAUDE.md,
 seção "Unidades" do OQ3D.
 
-O QUE FICA DE FORA. `ENTRADA_PECA` (bocais e comprimentos equivalentes),
-`ITEM` (insumo de orçamento) e simbologia 2D: não há de onde tirar isso de uma
-malha. A peça entra como equipamento genérico (`TIPO_APLICACAO_PECA = 2`,
+O QUE FICA DE FORA. `ENTRADA_PECA` (bocais e comprimentos equivalentes) e a simbologia
+2D: não há de onde tirar isso de uma malha. (`ITEM`/`ITEM_ASSOCIADO` entram, com o código
+comercial de `info.codigo` ou o nome da peça.) A peça entra como equipamento genérico (`TIPO_APLICACAO_PECA = 2`,
 conexão), sem código de diâmetro (sentinela `-DBL_MAX`, como as 700 conexões
 de uma biblioteca real). A origem fica gravada numa propriedade personalizada "Geometria
 3D", como se faz com uma forma representativa (`docs/conhecimento/formas-representativas.md`).
