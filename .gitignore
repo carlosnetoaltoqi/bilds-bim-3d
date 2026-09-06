@@ -42,6 +42,12 @@ www/storage/
 **/.venv/
 *.tsbuildinfo
 
+# eng-reversa/tupy — arquivos baixados do Catálogo Eletrônico Tupy (IGES/RFA/DXF, dezenas de MB,
+# regeráveis com tupy_baixar.py) e os dados pessoais usados no formulário de download
+eng-reversa/tupy/downloads/
+eng-reversa/tupy/saida/
+eng-reversa/tupy/dados/lead.local.json
+
 # Saída descartável da suíte de testes (tests/conftest.py)
 output/.pytest-tmp/
 .pytest_cache/

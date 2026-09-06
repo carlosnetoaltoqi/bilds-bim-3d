@@ -72,6 +72,15 @@ arquivo, no nome do grupo de simbologia e numa propriedade de cada peça. Ver
 
 ---
 
+## Segundo estudo — `tupy/` (S7.17, 2026-09-05)
+
+A pergunta era outra: **um plugin de AutoCAD** (TupyCAD, plataforma Catallog) pode virar `.aq`?
+A DLL é uma casca que abre um catálogo web; a geometria é IGES do SolidWorks, servida por uma API
+pública depois de um formulário de lead. IGES → `step_to_geo.py` (costura + orientação pelo
+volume) → `catalogo_to_aq.py` → `tupy/saida/Tupy-TupyGrooved.aq` (10 peças). O que virou produto:
+`www/apps/ingestao/pipeline/catallog.py` e o botão "Importar plugin do AutoCAD". Tudo em
+[`tupy/README.md`](tupy/README.md) e [`tupy/estudo/01-plugin-tupycad-e-catalogo-web.md`](tupy/estudo/01-plugin-tupycad-e-catalogo-web.md).
+
 ## O estudo
 
 | Documento | Assunto |
