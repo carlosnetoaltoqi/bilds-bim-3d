@@ -134,7 +134,15 @@ como peça CAD. Estudo e ferramentas em `eng-reversa/tupy/` (22 arquivos baixado
 `Tupy-TupyGrooved.aq` (10 peças) validado pelos leitores; ponta a ponta pelo serviço em 294 s, `.aq` exportado relido.
 O usuário testou o botão na interface ao fim da sessão: "tudo funcionando". **O `.aq` da Tupy não foi aberto no AltoQi Builder ainda.** Registro: `docs/sessoes/S7.17-plugin-autocad-tupy.md`. Suíte **136**.
 
-**Próxima sessão:** abrir o `.aq` da Tupy no AltoQi Builder (aceitação, como a Amanco na S7.16); depois
+**S7.18 (2026-09-05 noite / 06 manhã) — a pedido: botão "Gerar ZIP bilds.com" na home.** `.aq`/`.zip` → `POST /exportar/zip-bilds`
+no serviço → `zip_bilds.py` (mesmo pipeline do `build.py` + miniaturas no Chromium, em diretório temporário) → ZIP do contrato
+`docs/bilds-bim-3d-zip-spec.md` como download. **Não cria catálogo, não toca o Mongo, nada fica no servidor.** Dois fixes
+achados na interface: botão duplicado no estado de erro e **`@Post` do Nest responde 201** (o download exige `res.status(200)`).
+Verificado ao fechar: Dancor 13 peças/13 miniaturas, 9 MB em 11 s, `/tmp` limpo. Deixou duas pendências em
+`docs/arquitetura-www-servico-de-ingestao.md` §4: `build_zip_bilds` duplica o `build_zip` do `build.py`, e `test_cli_akato`
+aponta para um `.aq` que não existe (pula sempre). Registro: `docs/sessoes/S7.18-botao-gerar-zip-bilds.md`. Suíte **141** (140 passam; `test_cli_akato` pula).
+
+**Próxima sessão:** as duas pendências da S7.18 (fixture da Akato; `build.py` importar `zip_bilds.build_zip_bilds`); abrir o `.aq` da Tupy no AltoQi Builder (aceitação, como a Amanco na S7.16); depois
 `docs/sessoes/S7.14-www-servico-de-ingestao.md`, seção 7 — build do `dist/` com o `@bim/dominio`, e2e reexecutados,
 aceitação automatizada, Nest 11; depois o isolamento do serviço. Decisão antiga ainda em aberto: LICENSE.
 
@@ -208,7 +216,7 @@ bilds-bim-3d/
 │   ├── apps/ingestao/pipeline/  ← ★ O PIPELINE PYTHON: read_aq.py, oq3d.py, dedup.py, catalogo.py, inferencia.py, miniaturas.py,
 │   │                               catalogo_de_aq.py (CLI), step_to_geo.py (STEP+IGES), ifc_to_geo.py, parse_ifc.py, geo_to_aq.py, aq_writer.py,
 │   │                               oq3d_writer.py, catalogo_to_aq.py (catálogo salvo → .aq novo), catallog.py (plugin de AutoCAD → catálogo),
-│   │                               rfa_partatom.py, schema-aq-607.sql, thumbs.mjs + harness.html
+│   │                               rfa_partatom.py, zip_bilds.py (.aq/.zip → ZIP bilds.com, S7.18), schema-aq-607.sql, thumbs.mjs + harness.html
 │   ├── apps/api (Nest :4000) · apps/web (Next :3000) · tools/ (testes do editor)
 ├── input/                       ← .aq do usuário — gitignored
 └── output/                      ← gerado; só preview/index.html (landing feita à mão) é versionado
@@ -255,7 +263,7 @@ esperadas estão **nos arquivos**, não em texto: `.python-version`, `.nvmrc`, `
 ## Testes — `tests/`
 
 ```bash
-python3 -m pytest                                   # 136 testes, 1–4 min (abre o Chromium duas vezes; ida e volta da Akato; IGES da Tupy se baixados)
+python3 -m pytest                                   # 141 testes, 1–4 min (abre o Chromium duas vezes; ida e volta da Akato; IGES da Tupy se baixados)
 python3 -m pytest -m "not thumbs"                   # sem Chromium — é o que o CI roda
 python3 -m pytest -m "not thumbs and not paridade"  # só Python, sem Node
 ```
@@ -268,6 +276,7 @@ python3 -m pytest -m "not thumbs and not paridade"  # só Python, sem Node
 | `test_geo_to_aq.py` | I4: o pipeline não importa nada de fora do próprio diretório; `geo_to_aq.py` gera um `.aq` de uma malha que `read_aq.py` e `oq3d.py` leem de volta (nome com acento em cp1252, specs, um triângulo, cores) |
 | `test_step_to_geo.py` | S7.17: IGES de uma caixa escrita pelo próprio OCC (6 faces soltas) → `costurado`, volume igual ao da caixa, 12 △ com as normais para fora (volume assinado da malha positivo); o STEP da mesma caixa não costura; CLI; IGES da Tupy (se baixados): sólido fechado, volume > 0, cor preservada. Pula sem OCP |
 | `test_catallog.py` | S7.17, sem rede: `inspecionar_dll` numa DLL sintética (host, plugin, versão) e na TupyCAD.dll real (se instalada); não-PE/sem URL acusam; `validar_lead`; `specs_do_produto` (tabela Dimensionais com cabeçalho `colspan`/`rowspan`, Tipos Revit); `catalogo_de_downloads` com um IGES real → JSON do `catalogo_de_aq.py`, avisos de grupo sem IGES, idempotente; manifesto real da Tupy |
+| `test_zip_bilds.py` | S7.18: `zip_bilds.build_zip_bilds` — `manifest.json` com os campos do contrato, `catalog.json`, geometria compartilhada entra uma vez, `thumbs/` só com as que existem, geometria ausente não quebra; CLI com a Akato (marca `aq`, precisa de `input/` — **hoje pula sempre**: caminho errado, §4 da arquitetura) |
 | `test_catalogo_to_aq.py` | S7.16: `catalogo_to_aq.py` — manifesto com geometria compartilhada, cores, acentos, curva Q-H → relido por `read_aq`/`oq3d`/`catalogo.py` (uma simbologia por geometria, uma propriedade por chave, bomba 2075, cp1252 nos bytes); `--manter-prefixo-serie`; geometria ausente, caractere fora do cp1252 e catálogo vazio → exit 1 sem arquivo parcial; **ida e volta com a Akato inteira** (262 peças: nomes, séries, specs, bbox e triângulos iguais) |
 | `test_oq3d_roundtrip.py` | `eng-reversa/tools/oq3d_roundtrip.py` como processo: caminho padrão da Amanco, seis casos, `.aq` ausente → exit 1, `--sem-real` |
 | `test_editor_roundtrips.py` | `www/tools/testes-editor.sh`: round-trip do `mesh-model` por agrupamento a 2 µm; IFC exportado → `parse_ifc.py` com todo vértice pareado a ≤ 2 µm nos dois sentidos; `ROUNDTRIP_SABOTAR=1` e `ROUNDTRIP_SABOTAR_IFC=1` têm de falhar |
