@@ -24,11 +24,10 @@ www/storage/
 **/.venv/
 *.tsbuildinfo
 
-# eng-reversa/tupy — arquivos baixados do Catálogo Eletrônico Tupy (IGES/RFA/DXF, dezenas de MB,
-# regeráveis com tupy_baixar.py) e os dados pessoais usados no formulário de download
-eng-reversa/tupy/downloads/
-eng-reversa/tupy/saida/
-eng-reversa/tupy/dados/lead.local.json
+# Estudos arquivados: downloads de catálogo web (dezenas de MB), saídas geradas e o formulário de lead (dados pessoais)
+docs/historico/estudos/*/downloads/
+docs/historico/estudos/*/saida/
+**/lead.local.json
 
 .pytest_cache/
 

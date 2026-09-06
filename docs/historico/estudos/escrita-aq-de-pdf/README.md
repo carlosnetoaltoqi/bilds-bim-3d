@@ -1,3 +1,11 @@
+> **HISTÓRICO — arquivado em 2026-09-06 (S8/F1, ADR-009).** Estudo de 2026-09-02 sobre escrever um `.aq`
+> a partir de um catálogo comercial em PDF. O conhecimento técnico foi promovido para `docs/conhecimento/`
+> (`aq-escrita.md`, `oq3d.md`, `pdf-catalogo.md`, `formas-representativas.md`); as ferramentas genéricas
+> (`oq3d_anatomy`, `aq_referencia`, `validar_aq`, `oq3d_roundtrip`) vivem em `bim_pipeline.cli.ferramentas`
+> e as formas paramétricas em `bim_pipeline.aq.formas_parametricas`. O que fica aqui é o registro do estudo
+> e os geradores específicos do catálogo estudado (`exemplos/`), **não executados** por nada. Os caminhos
+> citados abaixo são os da época.
+
 # eng-reversa — escrever um `.aq` a partir de um catálogo em PDF
 
 Estudo de engenharia reversa do formato de biblioteca BIM do AltoQi Builder

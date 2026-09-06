@@ -2,8 +2,7 @@
 """
 aq_referencia.py — extrai de um `.aq` real os valores que um GERADOR precisa.
 
-O `CLAUDE.md` e a skill `leitor-biblioteca-aq` documentam o schema para
-**ler**. Para **escrever** falta outra coisa: os valores concretos que o AltoQi
+`docs/conhecimento/aq-formato.md` documenta o schema para **ler**. Para **escrever** falta outra coisa: os valores concretos que o AltoQi
 Builder põe nas colunas de enum e de configuração — `PROJETO_APLICACAO`,
 `TIPO_APLICACAO_PECA`, `ENTIDADE_IFC`, `TIPO_SECAO_GP` — e quais tabelas ficam
 de fato preenchidas numa biblioteca de fabricante.
@@ -11,7 +10,7 @@ de fato preenchidas numa biblioteca de fabricante.
 Somente leitura: abre o `.aq` e imprime. Nunca escreve no arquivo.
 
 Uso:
-    python3 aq_referencia.py <arquivo.aq> [--tabela NOME] [--limite N]
+    python3 -m bim_pipeline.cli.ferramentas.aq_referencia <arquivo.aq> [--tabela NOME] [--limite N]
 """
 import argparse
 import sqlite3

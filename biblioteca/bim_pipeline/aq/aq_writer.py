@@ -3,7 +3,7 @@ aq_writer.py — ESCREVE uma biblioteca `.aq` do AltoQi Builder: o schema comple
 constantes do AltoQi (sentinelas, códigos IFC, aplicações, unidades) e um escritor que
 grava texto em cp1252 como o Builder faz. É o inverso do `read_aq.py`.
 
-Era a parte genérica do `eng-reversa/tools/gerar_aq.py` (estudo da Akato, 2026-09-02);
+Era a parte genérica do gerador do estudo de escrita de `.aq` a partir de PDF (2026-09-02, `docs/historico/estudos/escrita-aq-de-pdf/`);
 promovida para o pipeline do serviço de ingestão em 2026-09-05 (I4) para que o `geo_to_aq.py`
 — o "Exportar .aq" do editor — não dependa de uma pasta de estudo. O que é da Akato
 (classificação de famílias, dimensões do PDF, formas representativas) continua lá, como
@@ -103,7 +103,7 @@ def _sem_acento(texto):
 # Classificação de um grupo de peças pelo nome — (ENTIDADE_IFC…, SUBTIPO_IFC, TIPO_APLICACAO_PECA).
 # É o vocabulário de um catálogo hidráulico em PVC; a primeira regra que casa (palavra
 # inteira) vence, e sem regra a peça entra como conexão genérica (luva), que é o caso mais
-# comum e o mais inofensivo. Nasceu da tabela `REGRAS_TIPO` do `eng-reversa/tools/gerar_aq.py`
+# comum e o mais inofensivo. Nasceu da tabela `REGRAS_TIPO` do gerador daquele estudo
 # (Akato) e foi AJUSTADA contra os 192 grupos com 3D da Amanco (2026-09-05): reproduz 189 deles
 # ("Junção … com Joelho" é tê, não curva; caixa sifonada é 2085/1/9; terminal de ventilação é
 # 2079; ralo pluvial é 2085/0/10; adaptador é luva; sifão é cap). Os 3 restantes são

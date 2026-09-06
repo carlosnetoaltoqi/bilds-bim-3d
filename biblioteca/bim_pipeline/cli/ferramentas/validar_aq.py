@@ -3,9 +3,9 @@
 validar_aq.py — valida um `.aq` gerado usando o LEITOR DO PRÓPRIO PROJETO.
 
 A prova de que a engenharia reversa fechou não é o arquivo abrir no SQLite: é
-o `www/apps/ingestao/pipeline/read_aq.py` e o `www/apps/ingestao/pipeline/oq3d.py` do bilds-bim-3d — escritos para
-ler bibliotecas do AltoQi, validados em 12 bibliotecas e 6 versões de schema —
-lerem o arquivo gerado sem saber que ele não veio do AltoQi.
+o `bim_pipeline.aq.read_aq` e o `bim_pipeline.aq.oq3d` — escritos para ler bibliotecas do
+AltoQi, validados em bibliotecas de vários fabricantes e seis versões de schema — lerem o
+arquivo gerado sem saber que ele não veio do AltoQi.
 
 Os dois módulos são importados sem modificação nenhuma. O que se confere:
 
@@ -15,7 +15,7 @@ Os dois módulos são importados sem modificação nenhuma. O que se confere:
 4. `peek_metadata` infere fabricante e título — a cascata que alimenta o
    cabeçalho da página publicada, e que **não pode** sair vazia nem em forma
    de slug
-5. `build_product_map` monta o mapa que o `build.py` consome
+5. `build_product_map` monta o mapa peça → grupo
 6. `extract_simbologias` lê as geometrias, e o `oq3d.py` parseia cada blob,
    confere unidades e bounding box
 7. o texto acentuado está em cp1252, não em UTF-8 — o erro de escrita mais
@@ -24,18 +24,20 @@ Os dois módulos são importados sem modificação nenhuma. O que se confere:
    controle
 
 Uso:
-    python3 validar_aq.py <arquivo.aq>
+    python3 -m bim_pipeline.cli.ferramentas.validar_aq <arquivo.aq> [--tubo-cm 600] [--max-conexao-cm 120]
+
+`--tubo-cm` e `--max-conexao-cm` ligam duas conferências de tamanho que dependem do catálogo
+(comprimento das barras de tubo; maior conexão plausível) — sem as flags elas não rodam.
 """
 import os
 import sqlite3
 import sys
 
-AQUI = os.path.dirname(os.path.abspath(__file__))
-RAIZ = os.path.dirname(os.path.dirname(AQUI))
-sys.path.insert(0, os.path.join(RAIZ, 'biblioteca'))
+import argparse
 
-from bim_pipeline.aq import oq3d        # noqa: E402   leitor do projeto, intocado
-from bim_pipeline.aq import read_aq     # noqa: E402   leitor do projeto, intocado
+from bim_pipeline.aq import oq3d
+from bim_pipeline.aq import read_aq
+from bim_pipeline.catalogo.inferencia import peek_aq
 
 falhas = []
 
@@ -147,10 +149,13 @@ def texto_limpo(caminho):
     con.close()
 
 
-def main():
-    if len(sys.argv) < 2:
-        sys.exit('Uso: validar_aq.py <arquivo.aq>')
-    caminho = sys.argv[1]
+def main(argv=None):
+    ap = argparse.ArgumentParser(description='valida um .aq com os leitores da biblioteca')
+    ap.add_argument('aq')
+    ap.add_argument('--tubo-cm', type=float, default=None, help='comprimento esperado das barras de tubo (cm)')
+    ap.add_argument('--max-conexao-cm', type=float, default=None, help='maior conexão plausível (cm)')
+    args = ap.parse_args(argv)
+    caminho = args.aq
 
     print(f'validar_aq — {caminho}')
     print(f'leitores: {read_aq.__file__}')
@@ -178,11 +183,10 @@ def main():
     checar('curvas de bomba ausentes (correto: não é bomba)',
            len(dados['curvas']) == 0, f"{len(dados['curvas'])}")
 
-    print('\n4. cascata de fabricante e título (peek_aq do build.py)')
-    # A inferência de fabricante e título é do `build.py`, não do
+    print('\n4. cascata de fabricante e título (bim_pipeline.catalogo.inferencia.peek_aq)')
+    # A inferência de fabricante e título é da biblioteca, não do
     # `read_aq.peek_metadata` — este último só devolve as classes crus.
-    import build
-    hints = build.peek_aq(caminho)
+    hints = peek_aq(caminho)
     fab, tit = hints.get('fabricante'), hints.get('titulo')
     checar('fabricante inferido', bool(fab), repr(fab))
     checar('fabricante não é slug',
@@ -239,16 +243,16 @@ def main():
         checar('vínculo peça → simbologia é chave estrangeira',
                len(por_peca) == len(simbs),
                f'{len(por_peca)} peças ligadas a {len(simbs)} simbologias')
-        # As duas famílias de tubo do catálogo são de 6 m: 600 cm no eixo Z.
-        checar('barras de tubo com 600 cm no eixo Z',
-               bool(tubos) and all(abs(b[2] - 600.0) < 0.01 for _, b in tubos),
-               f'{len(tubos)} tubos')
-        # Conexão nenhuma passa de 1,2 m — o maior é o sifão extensível.
-        grandes = [(n, b) for n, b in outras if max(b) > 120]
-        checar('nenhuma conexão maior que 120 cm', not grandes,
-               '; '.join(f'{n} {b}' for n, b in grandes[:3]) if grandes
-               else f'{len(outras)} conexões, maior '
-                    f'{max((max(b) for _, b in outras), default=0):.1f} cm')
+        if args.tubo_cm is not None:
+            checar(f'barras de tubo com {args.tubo_cm:g} cm no eixo Z',
+                   bool(tubos) and all(abs(b[2] - args.tubo_cm) < 0.01 for _, b in tubos),
+                   f'{len(tubos)} tubos')
+        if args.max_conexao_cm is not None:
+            grandes = [(n, b) for n, b in outras if max(b) > args.max_conexao_cm]
+            checar(f'nenhuma conexão maior que {args.max_conexao_cm:g} cm', not grandes,
+                   '; '.join(f'{n} {b}' for n, b in grandes[:3]) if grandes
+                   else f'{len(outras)} conexões, maior '
+                        f'{max((max(b) for _, b in outras), default=0):.1f} cm')
 
     encoding_cp1252(caminho)
     texto_limpo(caminho)
@@ -257,7 +261,7 @@ def main():
     if falhas:
         print(f'{len(falhas)} FALHA(S): ' + ', '.join(falhas))
         return 1
-    print('o .aq gerado é lido pelo pipeline do projeto sem ressalvas')
+    print('o .aq é lido pela biblioteca sem ressalvas')
     return 0
 
 

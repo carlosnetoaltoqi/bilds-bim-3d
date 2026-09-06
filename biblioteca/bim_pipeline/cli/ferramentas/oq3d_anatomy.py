@@ -2,7 +2,7 @@
 """
 oq3d_anatomy.py — dissecação byte a byte de um blob OQ3D.
 
-O `www/apps/ingestao/pipeline/oq3d.py` do projeto é um leitor TOLERANTE: ele varre à procura de
+O leitor `bim_pipeline.aq.oq3d` é TOLERANTE: ele varre à procura de
 0x5B/0x5D e consome por inteiro apenas os três blocos de tamanho conhecido
 (malha, cor, transform). Tudo o que fica entre um bloco e o próximo marcador é
 ignorado — e é exatamente esse resto que um ESCRITOR precisa reproduzir.
@@ -16,7 +16,7 @@ Esta ferramenta imprime, em ordem de documento:
     em hexadecimal. É o que falta documentar para escrever OQ3D.
 
 Uso:
-    python3 oq3d_anatomy.py <arquivo.aq> <ID_SIMBOLOGIA_3D> [--max-nos N]
+    python3 -m bim_pipeline.cli.ferramentas.oq3d_anatomy <arquivo.aq> <ID_SIMBOLOGIA_3D> [--max-nos N]
 
 Somente leitura. Não escreve nada e não toca no projeto.
 """

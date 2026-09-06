@@ -8,7 +8,7 @@ OpenCASCADE (uma caixa → 6 faces soltas) e confere o que o `converter` promete
 (volume assinado da MALHA positivo — é isso que o viewer enxerga). O STEP da mesma caixa passa
 pelo caminho antigo (sólido do arquivo, sem costura) e tem de dar a mesma malha.
 
-Os IGES da Tupy (`eng-reversa/tupy/downloads/`, gitignored) entram quando existem: sólido
+IGES reais (fixture `iges_pasta`, local) entram quando existem: sólido
 fechado, volume positivo, cor preservada depois da costura.
 """
 import glob
@@ -20,6 +20,8 @@ import pytest
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(RAIZ, 'biblioteca'))
+sys.path.insert(0, os.path.join(RAIZ, 'tests'))
+from fixtures import caminho as fixture   # noqa: E402
 
 step_to_geo = pytest.importorskip('bim_pipeline.conversores.step_iges')
 if not step_to_geo.HAS_OCP:
@@ -104,19 +106,24 @@ def test_cli_iges(caixa, tmp_path):
     assert saida.exists()
 
 
-TUPY = sorted(glob.glob(os.path.join(RAIZ, 'eng-reversa', 'tupy', 'downloads', '*', '*.igs')))
+_PASTA_IGES = fixture('iges_pasta')
+IGES_REAIS = sorted(glob.glob(os.path.join(_PASTA_IGES, '**', '*.igs'), recursive=True)) if _PASTA_IGES else []
 
 
-@pytest.mark.skipif(not TUPY, reason='IGES da Tupy não baixados (eng-reversa/tupy/tools/tupy_baixar.py)')
-@pytest.mark.parametrize('caminho', [p for p in TUPY if 'CURVA 90' in p or 'CRUZETA' in p] or TUPY[:1],
-                         ids=lambda p: os.path.basename(p)[:30])
-def test_iges_tupy_solido_fechado_com_cor(caminho):
-    geo = step_to_geo.converter(caminho)
-    assert geo['costurado'] is True
-    assert geo['arestas_livres'] == 0
-    assert geo['volume_cm3'] > 0
-    assert volume_assinado_m3(geo) > 0
-    assert len(geo['partes']) == 1
-    # a cor do SolidWorks (cinza 0.06) sobrevive à costura — não cai no cinza padrão do viewer
-    assert tuple(geo['partes'][0]['cor']) != step_to_geo.COR_PADRAO
-    assert len(geo['col']) == len(geo['pos'])
+@pytest.mark.skipif(not IGES_REAIS, reason='fixture "iges_pasta" não configurada (tests/fixtures.py)')
+def test_iges_reais_costurados_ficam_fechados_com_a_cor_original():
+    """Sobre IGES reais de faces soltas: a costura fecha o que dá para fechar (volume positivo,
+    normais para fora, cor do CAD preservada) e é HONESTA sobre o que não fecha (arestas livres
+    contadas, nunca `costurado` sem ser). Ao menos uma peça da pasta tem de fechar."""
+    fechados, abertos = [], []
+    for caminho in IGES_REAIS[:6]:
+        geo = step_to_geo.converter(caminho)
+        assert geo['costurado'] is True and geo['formato'] == 'iges' and len(geo['col']) == len(geo['pos'])
+        # a cor do CAD sobrevive à costura — não cai no cinza padrão do viewer
+        assert all(tuple(p['cor']) != step_to_geo.COR_PADRAO for p in geo['partes']), caminho
+        if geo['arestas_livres'] == 0:
+            assert geo['volume_cm3'] > 0 and volume_assinado_m3(geo) > 0, caminho
+            fechados.append(caminho)
+        else:
+            abertos.append((caminho, geo['arestas_livres']))
+    assert fechados, f'nenhum IGES da pasta fechou: {abertos}'

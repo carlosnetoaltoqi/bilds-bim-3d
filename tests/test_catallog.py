@@ -11,8 +11,8 @@ O que se prova aqui, offline:
     com UM IGES de verdade (uma caixa escrita pelo OpenCASCADE) — geometria em `geo/<codigo>.json`,
     produto com série = grupo, grupos sem IGES avisados, `hints.origem`;
   * `validar_lead` recusa lead incompleto e e-mail sem @.
-A parte com rede (API, formulário, download) foi exercitada à mão na sessão S7.17 e pelos scripts
-de `eng-reversa/tupy/tools/`.
+A parte com rede (API, formulário, download) foi exercitada à mão na sessão S7.17 (registro em
+`docs/historico/sessoes/`).
 """
 import glob
 import json
@@ -23,10 +23,13 @@ import pytest
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(RAIZ, 'biblioteca'))
+sys.path.insert(0, os.path.join(RAIZ, 'tests'))
 
 from bim_pipeline.catalogo.fontes import plugin_catalogo_web as catallog
+from fixtures import caminho as fixture
 
-DLL_REAL = '/mnt/c/Program Files/Autodesk/ApplicationPlugins/TupyCAD.bundle/TupyCAD.dll'
+DLL_REAL = fixture('dll_plugin')
+MANIFESTO_REAL = fixture('manifesto_plugin')
 
 
 def _utf16(*textos):
@@ -63,11 +66,11 @@ def test_inspecionar_dll_rejeita_nao_pe_e_sem_url(tmp_path):
         catallog.inspecionar_dll(str(p))
 
 
-@pytest.mark.skipif(not os.path.exists(DLL_REAL), reason='TupyCAD.dll não instalada nesta máquina')
-def test_inspecionar_tupycad_real():
+@pytest.mark.skipif(not DLL_REAL, reason='fixture "dll_plugin" não configurada (tests/fixtures.py)')
+def test_inspecionar_dll_real():
     info = catallog.inspecionar_dll(DLL_REAL)
-    assert info['host'] == 'https://tupycad.catallog.digital'
-    assert info['plugin'] == 'Tupy CAD' and info['versao'] == '2.0.0.0'
+    assert info['host'].startswith('https://') and info['plugin'] and info['versao']
+    assert isinstance(info['hosts'], list) and info['host'] in info['hosts']
 
 
 def test_validar_lead():
@@ -169,13 +172,10 @@ def test_catalogo_sem_manifesto_acusa(tmp_path):
         catallog.catalogo_de_downloads(str(tmp_path), str(tmp_path / 'geo'), progresso=lambda _m: None)
 
 
-TUPY = glob.glob(os.path.join(RAIZ, 'eng-reversa', 'tupy', 'downloads', 'manifesto.json'))
-
-
-@pytest.mark.skipif(not TUPY, reason='downloads da Tupy não estão nesta máquina (eng-reversa/tupy/tools/tupy_baixar.py)')
-def test_manifesto_real_da_tupy_tem_igs_e_rfa():
-    man = json.load(open(TUPY[0], encoding='utf-8'))
+@pytest.mark.skipif(not MANIFESTO_REAL, reason='fixture "manifesto_plugin" não configurada (tests/fixtures.py)')
+def test_manifesto_real_tem_igs_e_rfa():
+    man = json.load(open(MANIFESTO_REAL, encoding='utf-8'))
     tipos = {a['tipo'] for a in man['arquivos']}
     assert {'.igs', '.rfa'} <= tipos
     for a in man['arquivos']:
-        assert os.path.exists(os.path.join(os.path.dirname(TUPY[0]), a['arquivo'])), a['arquivo']
+        assert os.path.exists(os.path.join(os.path.dirname(MANIFESTO_REAL), a['arquivo'])), a['arquivo']

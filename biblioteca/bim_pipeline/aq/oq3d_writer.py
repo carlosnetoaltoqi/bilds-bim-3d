@@ -79,7 +79,7 @@ FECHA = b'\x5d'
 DISC_INLINE = b'\x02'
 
 # Blocos opacos do gabarito, na ordem em que aparecem. Cada um foi conferido
-# byte a byte contra a subárvore de origem — ver `eng-reversa/estudo/`.
+# byte a byte contra a subárvore de origem — ver `docs/conhecimento/oq3d.md` (escrita).
 #
 # TQi3DReusedObject: os 28 bytes antes do tamanho do GUID.
 REUSED_CABECA = bytes.fromhex(

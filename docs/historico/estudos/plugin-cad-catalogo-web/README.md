@@ -1,3 +1,10 @@
+> **HISTÓRICO — arquivado em 2026-09-06 (S8/F1, ADR-009).** Estudo da S7.17 (2026-09-05) sobre um plugin de
+> CAD que é casca de um catálogo web. O conhecimento técnico está em `docs/conhecimento/plugin-cad-catalogo-web.md`
+> e `step-iges.md`; o adaptador é `bim_pipeline.catalogo.fontes.plugin_catalogo_web`. Ficam aqui o registro,
+> os JSONs públicos capturados e as duas CLIs de conveniência da época (`exemplos/`, não executadas).
+> `downloads/`, `saida/` e `dados/lead.local.json` são locais e gitignored — a autorização de uso
+> cobre só o escopo registrado no estudo.
+
 # eng-reversa/tupy — do plugin TupyCAD (AutoCAD) a uma biblioteca `.aq`
 
 Estudo da S7.17 (2026-09-05): o plugin de AutoCAD da Tupy (plataforma Catallog) não carrega

@@ -1,7 +1,7 @@
 """I4 (2026-09-05): o "Exportar .aq" do editor não depende mais de uma pasta de estudo.
 
-`geo_to_aq.py` importava `gerar_aq.py`/`oq3d_writer.py` de `eng-reversa/tools/` e lia o DDL em
-`eng-reversa/dados/`. Agora o genérico mora no pipeline do serviço — `aq_writer.py` (schema 607,
+`geo_to_aq.py` importava o gerador e o escritor OQ3D do diretório de estudo e lia o DDL de lá.
+Agora o genérico mora na biblioteca — `aq_writer.py` (schema 607,
 constantes do AltoQi, escritor cp1252), `oq3d_writer.py`, `schema-aq-607.sql` — e o
 `gerar_aq.py` da Akato herda dele (`Gerador(EscritorAq)`). Dois guardas: o pipeline não importa
 nada de fora do próprio diretório, e um `.aq` gerado a partir de uma malha é lido de volta pelo

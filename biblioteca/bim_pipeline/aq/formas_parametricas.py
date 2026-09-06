@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-formas.py — geometria paramétrica REPRESENTATIVA para as peças do catálogo.
+formas_parametricas.py — geometria paramétrica REPRESENTATIVA para peças de catálogo (PVC hidráulico).
 
 ATENÇÃO — LEIA ANTES DE USAR EM PROJETO
 ---------------------------------------
-As malhas que este módulo gera **não são as cotas da Akato**. O catálogo
+As malhas que este módulo gera **não são cotas de fabricante**. Um catálogo
 comercial não traz nenhuma cota de forma: dá o diâmetro nominal, o código e a
 embalagem, e nada sobre raio de curva, profundidade de bolsa ou espessura de
 colar. O que está aqui é uma forma plausível, montada a partir de:
@@ -17,8 +17,7 @@ colar. O que está aqui é uma forma plausível, montada a partir de:
 
 Serve para visualizar, contar peça e detectar interferência grosseira. **Não
 serve** para conferir encaixe, folga de instalação ou colisão fina — para isso
-é preciso a cota do fabricante. Ver
-`estudo/04-lacunas-do-catalogo-comercial.md`.
+é preciso a cota do fabricante. Ver `docs/conhecimento/formas-representativas.md`.
 
 UNIDADES
 --------
@@ -28,7 +27,7 @@ catálogo vêm em milímetro e são convertidos na entrada.
 O QUE CADA GERADOR DEVOLVE
 --------------------------
 `[(verts, tris, rgba)]` — uma lista de malhas, não uma malha só. É como o
-próprio AltoQi guarda: a `SIMBOLOGIA_3D` 169 da Amanco tem 4 malhas. Não há
+próprio AltoQi guarda (uma simbologia real costuma ter várias malhas). Não há
 união booleana; sobreposição de sólidos é aceitável e é o que o formato faz.
 """
 import math

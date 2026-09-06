@@ -36,7 +36,7 @@ O QUE FICA DE FORA. `ENTRADA_PECA` (bocais e comprimentos equivalentes),
 malha. A peça entra como equipamento genérico (`TIPO_APLICACAO_PECA = 2`,
 conexão), sem código de diâmetro (sentinela `-DBL_MAX`, como as 700 conexões
 da Amanco). A origem fica gravada numa propriedade personalizada "Geometria
-3D", como o `eng-reversa` faz com a forma representativa.
+3D", como se faz com uma forma representativa (`docs/conhecimento/formas-representativas.md`).
 
 Uso:
     python3 -m bim_pipeline.cli.gerar_aq entrada.json saida.aq

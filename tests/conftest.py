@@ -31,7 +31,6 @@ PIPELINE = BIBLIOTECA / 'bim_pipeline'           # a pasta do pacote (para os te
 # subprocessos `python -m bim_pipeline.cli.*` a achem mesmo sem instalar.
 sys.path.insert(0, str(BIBLIOTECA))
 os.environ['PYTHONPATH'] = str(BIBLIOTECA) + (os.pathsep + os.environ['PYTHONPATH'] if os.environ.get('PYTHONPATH') else '')
-sys.path.insert(0, str(ROOT / 'eng-reversa' / 'tools'))   # até o passo D da F1 (oq3d_roundtrip.py)
 sys.path.insert(0, str(ROOT / 'tests'))
 
 from fixtures import exigir   # noqa: E402

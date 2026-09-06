@@ -24,7 +24,7 @@ Os casos cobrem o que separa um escritor certo de um quase certo:
    `SIMBOLOGIA_3D` de verdade e confere que a releitura bate com o original.
 
 Uso:
-    python3 oq3d_roundtrip.py [--aq <arquivo.aq> --sid <id>]
+    python3 -m bim_pipeline.cli.ferramentas.oq3d_roundtrip [--aq <arquivo.aq> [--sid <id>]] [--sem-real]
 """
 import argparse
 import math
@@ -32,23 +32,14 @@ import os
 import sqlite3
 import sys
 
-AQUI = os.path.dirname(os.path.abspath(__file__))
-RAIZ = os.path.dirname(os.path.dirname(AQUI))
-sys.path.insert(0, os.path.join(RAIZ, 'biblioteca'))   # o pacote bim_pipeline
-sys.path.insert(0, AQUI)
-
-from bim_pipeline.aq import oq3d   # noqa: E402  leitor do projeto, intocado
-from bim_pipeline.aq import oq3d_writer as w   # noqa: E402
+from bim_pipeline.aq import oq3d
+from bim_pipeline.aq import oq3d_writer as w
 
 TOL = 1e-9
 falhas = []
 
-# Caso 6 (blob real). Até 2026-09-04 o padrão apontava uma subpasta
-# `Amanco/PVC Esgoto SN, SR e Silentium/` que não existe: o caso era pulado em
-# silêncio e o script saía 0 dizendo "todos os casos passaram" (I8 da auditoria).
-PADRAO_AQ = os.path.join(RAIZ, 'input', 'Amanco',
-                         'pecas_Amanco_Esgoto_SN_SR_Silentium.aq')
-PADRAO_SID = 169   # 'DN150 - QUADRADA', 4 malhas, 676 triângulos
+# Caso 6 (blob real): só roda com `--aq`. Uma biblioteca apontada e ausente é FALHA (exit 1),
+# não "pulado" — o pulo tem de ser pedido com `--sem-real` (I8 da auditoria de 2026-09-04).
 
 
 def checar(nome, condicao, detalhe=''):
@@ -166,8 +157,25 @@ def caso_bbox():
            f"{st['malhas']} malha, {st['triangulos']} triângulos")
 
 
+def primeira_simbologia(aq):
+    """ID da primeira SIMBOLOGIA_3D com blob OQ3D, ou None."""
+    con = sqlite3.connect(f'file:{aq}?mode=ro', uri=True)
+    try:
+        for sid, blob in con.execute('SELECT ID_SIMBOLOGIA_3D, CAST(SIMBOLOGIA_3D AS BLOB) FROM SIMBOLOGIA_3D ORDER BY 1'):
+            if blob and oq3d.is_oq3d(blob):
+                return sid
+    finally:
+        con.close()
+    return None
+
+
 def caso_real(aq, sid):
+    if sid is None:
+        sid = primeira_simbologia(aq)
     print(f'\n6. reescrita de geometria real ({os.path.basename(aq)} sid={sid})')
+    if sid is None:
+        checar('biblioteca tem alguma simbologia OQ3D', False)
+        return
 
     def dec(b):
         try:
@@ -201,18 +209,18 @@ def caso_real(aq, sid):
           f'por referência)')
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument('--aq', default=PADRAO_AQ,
-                    help='biblioteca .aq do caso 6 (padrão: Amanco Esgoto)')
-    ap.add_argument('--sid', type=int, default=PADRAO_SID,
-                    help='ID_SIMBOLOGIA_3D a reescrever (padrão: 169)')
+def main(argv=None):
+    ap = argparse.ArgumentParser(description='escritor OQ3D contra o leitor da biblioteca')
+    ap.add_argument('--aq', default=None,
+                    help='biblioteca .aq real para o caso 6 (sem ela o caso 6 não roda)')
+    ap.add_argument('--sid', type=int, default=None,
+                    help='ID_SIMBOLOGIA_3D a reescrever (padrão: a primeira com blob OQ3D)')
     ap.add_argument('--sem-real', action='store_true',
-                    help='pula o caso 6 de propósito (máquina sem input/); '
-                         'sem esta flag, .aq ausente é FALHA, não "pulado"')
-    args = ap.parse_args()
+                    help='pula o caso 6 de propósito mesmo com --aq; '
+                         'com --aq apontando um arquivo ausente, sem esta flag é FALHA, não "pulado"')
+    args = ap.parse_args(argv)
 
-    print('oq3d_roundtrip — escritor OQ3D contra o leitor do projeto')
+    print('oq3d_roundtrip — escritor OQ3D contra o leitor da biblioteca')
     print(f'leitor: {oq3d.__file__}')
     caso_simples()
     caso_rotacao()
@@ -220,6 +228,8 @@ def main():
     caso_bbox()
     if args.sem_real:
         print('\n6. pulado de propósito (--sem-real)')
+    elif args.aq is None:
+        print('\n6. reescrita de geometria real: não pedido (informe --aq <biblioteca.aq>)')
     elif os.path.exists(args.aq):
         caso_real(args.aq, args.sid)
     else:

@@ -5,7 +5,7 @@ rfa_partatom.py — o que dá para tirar de uma família Revit (`.rfa`) SEM o Re
 O `.rfa` é um documento OLE2 (a mesma casca do .doc antigo). A geometria fica em
 `Partitions/<n>`, num formato binário proprietário da Autodesk que ninguém fora do Revit lê —
 por isso a geometria 3D das peças Tupy vem do IGES, não daqui. Quem usa: `catallog.py` (spec
-"Tipos Revit" de cada peça) e o estudo em `eng-reversa/tupy/`. O que É legível:
+"Tipos Revit" de cada peça) e `docs/conhecimento/plugin-cad-catalogo-web.md`. O que É legível:
 
     PartAtom          XML Atom (`urn:schemas-autodesk-com:partatom`) com o título da família, a
                       categoria Revit ("Conexões de tubo"), o OmniClass (23.60.30.11.14 Pipework

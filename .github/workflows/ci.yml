@@ -1,6 +1,6 @@
 # CI mínimo (I20 da auditoria, 2026-09-04). Dois jobs independentes:
 #
-#   pipeline-estatico — pip install -e biblioteca (o pacote bim_pipeline), py_compile de scripts/ e eng-reversa/tools/,
+#   pipeline-estatico — pip install -e biblioteca (o pacote bim_pipeline), py_compile da biblioteca,
 #     e a suíte tests/ sem o marcador
 #     `thumbs` (o Chromium do Playwright exige libs de sistema; fica para depois).
 #     Os `.aq` de input/ são gitignored, então os testes que dependem deles PULAM
@@ -44,8 +44,8 @@ jobs:
       - name: Dependências Python (requirements-dev.txt + a biblioteca bim_pipeline)
         run: python -m pip install --upgrade pip && python -m pip install -r requirements-dev.txt && python -m pip install -e biblioteca
 
-      - name: py_compile de scripts/, biblioteca/ e eng-reversa/tools/
-        run: python -m py_compile scripts/*.py biblioteca/bim_pipeline/*.py biblioteca/bim_pipeline/*/*.py biblioteca/bim_pipeline/*/*/*.py eng-reversa/tools/*.py
+      - name: py_compile da biblioteca
+        run: python -m py_compile biblioteca/bim_pipeline/*.py biblioteca/bim_pipeline/*/*.py biblioteca/bim_pipeline/*/*/*.py
 
       - name: pytest (sem Chromium; fixtures de input/ pulam com motivo)
         run: python -m pytest -m "not thumbs" -rs

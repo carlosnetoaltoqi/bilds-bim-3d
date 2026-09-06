@@ -65,7 +65,7 @@ def _format_titulo(tokens):
 
 
 # Pastas cujo nome não descreve o catálogo — não servem de título. As de saída
-# entraram em 2026-09-02: um .aq em `eng-reversa/saida/` publicava com o título
+# entraram em 2026-09-02: um .aq gerado numa pasta `saida/` publicava com o título
 # "Saida", e a validação não acusava, porque "Saida" de fato é diferente do
 # fabricante. As de upload entraram em 2026-09-05: o serviço recebe o arquivo em
 # `/tmp` com nome `bim-<uuid>.aq`, então o caminho não diz nada — use `nome_original`.

@@ -5,7 +5,7 @@ bilds-bim-3d: descobre o catálogo web que o plugin abre, baixa os arquivos 3D d
 (IGES) e os metadados dos produtos, tessela e devolve o catálogo no MESMO JSON que o
 `catalogo_de_aq.py` devolve — para o serviço de ingestão publicar como publica uma biblioteca.
 
-COMO O PLUGIN FUNCIONA (estudo em `eng-reversa/tupy/estudo/01-plugin-tupycad-e-catalogo-web.md`,
+COMO O PLUGIN FUNCIONA (`docs/conhecimento/plugin-cad-catalogo-web.md`,
 S7.17, com o TupyCAD 2.0.0): a DLL .NET (35 KB) é uma casca — abre uma paleta com a página web
 do catálogo (`PLUGIN_HOST`, ex. https://tupycad.catallog.digital) e expõe três callbacks
 JavaScript (`InsertBlockFromURL`, `RequestDownload`, `GetPluginVersion`). A geometria NÃO está
