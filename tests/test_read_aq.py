@@ -21,8 +21,8 @@ def test_open_aq_nem_sqlite_nem_zip(tmp_path):
         read_aq.open_aq(str(lixo))
 
 
-def test_open_aq_abre_somente_leitura(akato_aq):
-    con, tmp = read_aq.open_aq(akato_aq)
+def test_open_aq_abre_somente_leitura(aq_pequena):
+    con, tmp = read_aq.open_aq(aq_pequena)
     try:
         assert tmp is None                   # SQLite direto, sem extração
         with pytest.raises(sqlite3.OperationalError, match='readonly'):
@@ -31,8 +31,8 @@ def test_open_aq_abre_somente_leitura(akato_aq):
         con.close()
 
 
-def test_extract_akato_contagens_e_cp1252(akato_aq):
-    data = read_aq.extract(akato_aq)
+def test_extract_akato_contagens_e_cp1252(aq_pequena):
+    data = read_aq.extract(aq_pequena)
     assert len(data['grupos']) == 83
     assert len(data['pecas']) == 262
     assert len(data['propriedades']) == 1756
@@ -49,8 +49,8 @@ def test_extract_akato_contagens_e_cp1252(akato_aq):
         assert '�' not in t, repr(t)
 
 
-def test_extract_simbologias_akato(akato_aq):
-    sims, por_peca = read_aq.extract_simbologias(akato_aq)
+def test_extract_simbologias_akato(aq_pequena):
+    sims, por_peca = read_aq.extract_simbologias(aq_pequena)
     assert len(sims) == 262 and len(por_peca) == 262
     assert set(por_peca.values()) <= set(sims)
     for s in sims.values():
@@ -59,8 +59,8 @@ def test_extract_simbologias_akato(akato_aq):
     assert any(s['classe'].startswith('AKATO - ') for s in sims.values())
 
 
-def test_build_product_map_akato(akato_aq):
-    data = read_aq.extract(akato_aq)
+def test_build_product_map_akato(aq_pequena):
+    data = read_aq.extract(aq_pequena)
     pm = read_aq.build_product_map(data)
     assert len(pm) == 83
     assert sum(len(g['pecas']) for g in pm.values()) == 262

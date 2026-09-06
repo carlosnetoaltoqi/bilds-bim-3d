@@ -1,0 +1,10 @@
+{
+  "aq_pequena":  {"caminho": "input/<pasta>/<biblioteca>.aq", "pecas": 262, "fabricante": "…", "titulo": "…", "slug": "…", "layout": "catalog-grid"},
+  "aq_grande":   {"caminho": "input/<pasta>/<biblioteca>.aq", "pecas": 1168, "simbologias": 457},
+  "aq_schema_antigo": {"caminho": "input/<pasta>/<biblioteca>.aq"},
+  "aq_malha_v3": {"caminho": "input/<pasta>/<biblioteca>.aq"},
+  "step_peca":   {"caminho": "input/<pasta>/<peca>.stp", "bbox_mm": [152, 107, 152]},
+  "iges_pasta":  {"caminho": "<pasta com .igs de faces soltas>"},
+  "dll_plugin":  {"caminho": "/mnt/c/Program Files/Autodesk/ApplicationPlugins/<plugin>.bundle/<plugin>.dll"},
+  "manifesto_plugin": {"caminho": "<pasta de downloads>/manifesto.json"}
+}

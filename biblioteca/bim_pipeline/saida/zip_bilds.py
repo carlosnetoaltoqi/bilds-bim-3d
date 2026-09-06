@@ -1,34 +1,47 @@
-#!/usr/bin/env python3
 """
-zip_bilds.py — .aq ou .zip → ZIP para upload em bilds.com
+zip_bilds.py — o ÚNICO escritor do pacote ZIP que a bilds.com consome (`docs/conhecimento/zip-bilds-formato.md`):
 
-Usado pelo serviço de ingestão em POST /exportar/zip-bilds.
-Geometria e miniaturas ficam num diretório temporário apagado no final.
-Nada fica no servidor: o arquivo de entrada é responsabilidade de quem chama;
-o ZIP de saída é servido como download e apagado pelo controlador.
+    manifest.json      slug, title, manufacturer, description, layout, filters, productCount, thumbCount
+    catalog.json       o catálogo inteiro (campos em português)
+    geo/<stem>.json    uma geometria por simbologia (produtos que compartilham entram uma vez)
+    thumbs/<stem>.webp uma miniatura por geometria, quando houver
 
-Uso:
-  python3 zip_bilds.py <input.aq|input.zip> --saida <saida.zip> [--nome-original <nome>]
-                       [--skip-thumbs] [--sair-com-stdin]
+`thumbCount == 0` num catálogo com produtos é o sinal de que as miniaturas foram puladas ou
+falharam — a página renderiza no browser. Geometria referenciada e ausente em disco fica fora do
+ZIP e é avisada (quem chama decide se isso é erro).
+
+`gerar_zip()` faz o caminho inteiro a partir de um `.aq`/`.zip` num diretório temporário: é o que o
+serviço gerador de ZIP e o modo lote da CLI (`bim_pipeline.cli.zip_bilds`) consomem — as mesmas
+funções do criador de catálogos (`catalogo.build_catalog_from_aq`, `miniaturas.render.build_thumbs`),
+sem gravar nada além do ZIP pedido (ADR-012).
 """
-import argparse
+import datetime
 import json
 import os
 import shutil
-import sys
 import tempfile
 import zipfile
 
-AQUI = os.path.dirname(os.path.abspath(__file__))
-
-from bim_pipeline.catalogo.catalogo import build_catalog_from_aq  # noqa: E402
-from bim_pipeline.catalogo.inferencia import auto_config           # noqa: E402
-from bim_pipeline.miniaturas.render import ThumbsError, build_thumbs  # noqa: E402
-from bim_pipeline.processo import vigiar_stdin  # noqa: E402
+from bim_pipeline.catalogo.catalogo import build_catalog_from_aq, resumo_diag
+from bim_pipeline.catalogo.inferencia import auto_config
+from bim_pipeline.miniaturas.render import ThumbsError, build_thumbs
 
 
-def build_zip_bilds(catalog, zip_path, geo_dir, thumbs_dir=None):
-    """Monta o ZIP no formato bilds.com (manifest.json + catalog.json + geo/ + thumbs/)."""
+class CatalogoVazio(RuntimeError):
+    """O `.aq` não tem nenhuma peça com geometria 3D — não há o que publicar."""
+
+
+def nome_zip(slug, quando=None):
+    """`<slug>-AAAAMMDDHHMM.zip` — o nome que o modo lote grava em `output/`."""
+    quando = quando or datetime.datetime.now()
+    return f"{slug}-{quando.strftime('%Y%m%d%H%M')}.zip"
+
+
+def build_zip_bilds(catalog, zip_path, geo_dir, thumbs_dir=None, avisar=None):
+    """
+    Monta o ZIP. Devolve `{'geometrias': n incluídas, 'ausentes': [stems], 'thumbs': n}`.
+    `avisar(msg)` recebe um aviso por geometria ausente (até 5, depois um resumo).
+    """
     thumbs = []
     if thumbs_dir and os.path.isdir(thumbs_dir):
         for produto in catalog['produtos']:
@@ -36,6 +49,8 @@ def build_zip_bilds(catalog, zip_path, geo_dir, thumbs_dir=None):
             if nome and nome not in thumbs and os.path.exists(os.path.join(thumbs_dir, nome)):
                 thumbs.append(nome)
 
+    incluidos, ausentes = set(), []
+    os.makedirs(os.path.dirname(os.path.abspath(zip_path)) or '.', exist_ok=True)
     with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
         manifest = {
             'slug':         catalog['slug'],
@@ -50,68 +65,69 @@ def build_zip_bilds(catalog, zip_path, geo_dir, thumbs_dir=None):
         zf.writestr('manifest.json', json.dumps(manifest, ensure_ascii=False, indent=2))
         zf.writestr('catalog.json', json.dumps(catalog, ensure_ascii=False, separators=(',', ':')))
 
-        incluidos = set()
         for produto in catalog['produtos']:
             geo_nome = produto.get('geo', '')
-            if not geo_nome or geo_nome in incluidos:
+            if not geo_nome or geo_nome in incluidos or geo_nome in ausentes:
                 continue
             geo_path = os.path.join(geo_dir, geo_nome)
             if os.path.exists(geo_path):
                 zf.write(geo_path, f'geo/{geo_nome}')
                 incluidos.add(geo_nome)
+            else:
+                ausentes.append(geo_nome)
+                if avisar and len(ausentes) <= 5:
+                    avisar(f'AVISO: geo/{geo_nome} não encontrado — fora do ZIP')
 
         for nome in thumbs:
             zf.write(os.path.join(thumbs_dir, nome), f'thumbs/{nome}')
+    if avisar and len(ausentes) > 5:
+        avisar(f'AVISO: +{len(ausentes) - 5} geometrias ausentes')
+    return {'geometrias': len(incluidos), 'ausentes': ausentes, 'thumbs': len(thumbs)}
 
 
-def main():
-    ap = argparse.ArgumentParser(description='zip_bilds.py — .aq/.zip → ZIP bilds.com')
-    ap.add_argument('input', help='arquivo .aq ou .zip de entrada')
-    ap.add_argument('--saida', required=True, help='caminho do ZIP gerado')
-    ap.add_argument('--nome-original', help='nome exibido nos logs (padrão: basename do input)')
-    ap.add_argument('--skip-thumbs', action='store_true', help='não gerar miniaturas')
-    ap.add_argument('--sair-com-stdin', action='store_true',
-                    help='encerra quando stdin fechar (serviço de ingestão)')
-    args = ap.parse_args()
+def gerar_zip(entrada, saida, nome_original=None, miniaturas='obrigatorias', progresso=None,
+              config=None, work_dir=None):
+    """
+    `.aq`/`.zip` → ZIP em `saida`. Tudo o mais fica num diretório temporário apagado no fim
+    (ou em `work_dir`, se quem chama quiser guardar geometria e miniaturas).
 
-    if args.sair_com_stdin:
-        vigiar_stdin()
-
-    nome_original = args.nome_original or os.path.basename(args.input)
-    config, _hints = auto_config(args.input, nome_original=nome_original)
-
-    def progresso(msg):
-        print(msg, file=sys.stderr, flush=True)
-
-    work = tempfile.mkdtemp(prefix='bilds-zip-')
+    `miniaturas`: 'obrigatorias' (falha de render → `ThumbsError`, sem ZIP), 'opcionais'
+    (falha → aviso, ZIP sem `thumbs/`), 'nao' (nem tenta).
+    Devolve `{'catalog', 'n_geometrias', 'diag', 'zip', 'thumbs', 'bytes'}`.
+    Lança `CatalogoVazio` se não há peça com geometria; erros de leitura sobem como vieram.
+    """
+    avisar = progresso or (lambda m: None)
+    config = config or auto_config(entrada, nome_original=nome_original or os.path.basename(entrada))[0]
+    work = work_dir or tempfile.mkdtemp(prefix='bilds-zip-')
     try:
         geo_dir = os.path.join(work, 'geo')
         thumbs_dir = os.path.join(work, 'thumbs')
-        os.makedirs(geo_dir)
+        os.makedirs(geo_dir, exist_ok=True)
 
-        catalog, n_geo, _diag = build_catalog_from_aq(config, args.input, geo_dir, progresso=progresso)
-
+        catalog, n_geo, diag = build_catalog_from_aq(config, entrada, geo_dir, progresso=avisar)
+        resumo_diag(diag, indent='', out=avisar)
         if not catalog['produtos']:
-            print('ERRO: catálogo vazio — nenhuma peça com geometria 3D', file=sys.stderr)
-            sys.exit(1)
+            raise CatalogoVazio('catálogo vazio — nenhuma peça com geometria 3D')
+        avisar(f'catálogo: {len(catalog["produtos"])} produto(s), {n_geo} geometria(s)')
 
-        print(f'catálogo: {len(catalog["produtos"])} produto(s), {n_geo} geometria(s)', file=sys.stderr, flush=True)
-
-        thumbs_dir_real = None
-        if not args.skip_thumbs:
+        thumbs_dir_real, n_thumbs = None, 0
+        if miniaturas == 'nao':
+            avisar('miniaturas puladas: a página renderiza no browser')
+        else:
             try:
-                n = build_thumbs(catalog, geo_dir, thumbs_dir, progresso=progresso)
-                thumbs_dir_real = thumbs_dir if n > 0 else None
-                print(f'miniaturas: {n} gerada(s)', file=sys.stderr, flush=True)
+                n_thumbs = build_thumbs(catalog, geo_dir, thumbs_dir, progresso=avisar)
+                thumbs_dir_real = thumbs_dir if n_thumbs > 0 else None
+                avisar(f'miniaturas: {n_thumbs} gerada(s)')
             except ThumbsError as e:
-                print(f'AVISO: miniaturas não geradas — {e}', file=sys.stderr, flush=True)
+                if miniaturas == 'obrigatorias':
+                    raise
+                avisar(f'AVISO: miniaturas não geradas — {e}')
 
-        build_zip_bilds(catalog, args.saida, geo_dir, thumbs_dir_real)
-        kb = os.path.getsize(args.saida) / 1024
-        print(f'zip: {kb:.0f} KB', file=sys.stderr, flush=True)
+        r = build_zip_bilds(catalog, saida, geo_dir, thumbs_dir_real, avisar=avisar)
+        kb = os.path.getsize(saida) / 1024
+        avisar(f'zip: {kb:.0f} KB')
+        return {'catalog': catalog, 'n_geometrias': n_geo, 'diag': diag, 'zip': saida,
+                'thumbs': r['thumbs'], 'bytes': os.path.getsize(saida)}
     finally:
-        shutil.rmtree(work, ignore_errors=True)
-
-
-if __name__ == '__main__':
-    main()
+        if work_dir is None:
+            shutil.rmtree(work, ignore_errors=True)

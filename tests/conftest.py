@@ -1,24 +1,20 @@
 """
-Suíte de testes do pipeline (www/apps/ingestao/pipeline/ e scripts/build.py) e da
-POC www/ — criada em 2026-09-03 (I9 da auditoria). Antes dela não havia nenhum teste; a "geração acusa erro" era
-verificada rodando o build inteiro à mão.
+Suíte de testes da biblioteca `bim_pipeline` (biblioteca/) e dos serviços (www/, harnesses em tests/paridade/).
+Criada em 2026-09-03 (I9 da auditoria); reorganizada em 2026-09-06 (S8/F1).
 
 Como rodar, na raiz do repositório:
 
-    python3 -m pytest                 # tudo (≈ 30 s com a Akato e o Chromium)
+    python3 -m pytest                 # tudo (≈ 3 min com as fixtures reais e o Chromium)
     python3 -m pytest -m "not thumbs" # sem abrir o Chromium
     python3 -m pytest -m "not paridade and not thumbs"   # só Python
 
-Fixtures reais: os `.aq` de `input/` (gitignored, 15 bibliotecas nesta máquina).
-Testes que precisam de um deles usam `akato_aq` (7 MB, gerado pelo próprio
-projeto na S6/S7, 262 peças com 262 geometrias, sem tubos/kits) e pulam com
-motivo claro se o arquivo não existir. Os testes de formato usam blobs OQ3D
-sintéticos escritos por `www/apps/ingestao/pipeline/oq3d_writer.py`, então rodam em
+Fixtures reais são referenciadas por PAPEL em `tests/fixtures.local.json` (gitignored; modelo em
+`tests/fixtures.example.json`; papéis em `tests/fixtures.py`) — nenhum nome de fabricante ou
+caminho de arquivo mora nos testes (ADR-016). Sem o arquivo, esses testes pulam com motivo.
+Os testes de formato usam blobs OQ3D sintéticos escritos pela própria biblioteca e rodam em
 qualquer máquina.
 
-Saída: `output/.pytest-tmp/<aleatório>/` (apagado ao fim), dentro da raiz para
-ficar coberta pelo .gitignore (desde a E2 o `thumbs.mjs` monta a pasta de geometria
-por caminho absoluto, então a raiz não é mais uma exigência técnica).
+Saída: `output/.pytest-tmp/<aleatório>/` (apagado ao fim).
 """
 import os
 import shutil
@@ -35,60 +31,35 @@ PIPELINE = BIBLIOTECA / 'bim_pipeline'           # a pasta do pacote (para os te
 # subprocessos `python -m bim_pipeline.cli.*` a achem mesmo sem instalar.
 sys.path.insert(0, str(BIBLIOTECA))
 os.environ['PYTHONPATH'] = str(BIBLIOTECA) + (os.pathsep + os.environ['PYTHONPATH'] if os.environ.get('PYTHONPATH') else '')
-sys.path.insert(0, str(ROOT / 'scripts'))
-sys.path.insert(0, str(ROOT / 'eng-reversa' / 'tools'))
+sys.path.insert(0, str(ROOT / 'eng-reversa' / 'tools'))   # até o passo D da F1 (oq3d_roundtrip.py)
+sys.path.insert(0, str(ROOT / 'tests'))
 
-AKATO_AQ = ROOT / 'input' / 'Akato' / 'PVC Construção Civil' / 'pecas_akato_construcao_civil.aq'
-MAXBAR_AQ = ROOT / 'input' / 'Maxbar' / 'pecas_maxbar_barramentoblindado.aq'
-DANCOR_AQ = ROOT / 'input' / 'Dancor' / 'pecas_dancor_bombas_incendio_2026_04.1.aq'
-AMANCO_AQ = ROOT / 'input' / 'Amanco' / 'pecas_Amanco_Esgoto_SN_SR_Silentium.aq'
-
-
-def _fixture_aq(caminho):
-    if not caminho.is_file():
-        pytest.skip(f'fixture ausente: {caminho.relative_to(ROOT)} (input/ é gitignored)')
-    return str(caminho)
+from fixtures import exigir   # noqa: E402
 
 
 @pytest.fixture(scope='session')
-def akato_aq():
-    return _fixture_aq(AKATO_AQ)
+def aq_pequena():
+    return exigir('aq_pequena')
 
 
 @pytest.fixture(scope='session')
-def maxbar_aq():
-    return _fixture_aq(MAXBAR_AQ)
+def aq_grande():
+    return exigir('aq_grande')
 
 
 @pytest.fixture(scope='session')
-def dancor_aq():
-    return _fixture_aq(DANCOR_AQ)
-
-
-@pytest.fixture(scope='session')
-def amanco_aq():
-    return _fixture_aq(AMANCO_AQ)
+def aq_malha_v3():
+    return exigir('aq_malha_v3')
 
 
 @pytest.fixture
-def saida(monkeypatch):
-    """Redireciona toda a saída do build.py para uma pasta descartável."""
-    import build
+def saida():
+    """Pasta descartável dentro da raiz (output/.pytest-tmp/) para o que um teste gravar."""
     base = ROOT / 'output' / '.pytest-tmp'
     base.mkdir(parents=True, exist_ok=True)
     d = Path(tempfile.mkdtemp(dir=base))
-    monkeypatch.setattr(build, 'OUTPUT_DIR', str(d))
-    monkeypatch.setattr(build, 'PREVIEW_DIR', str(d / 'preview'))
-    monkeypatch.setattr(build, 'GEO_DIR', str(d / 'geo'))
-    monkeypatch.setattr(build, 'THUMBS_DIR', str(d / 'thumbs'))
     yield d
     shutil.rmtree(d, ignore_errors=True)
-
-
-def args_build(*flags):
-    """Namespace igual ao da linha de comando do build.py."""
-    import build
-    return build.build_parser().parse_args(list(flags))
 
 
 def node_para_ts():
@@ -96,8 +67,8 @@ def node_para_ts():
 
     Node >= 22.6 remove tipos sem flag (>= 23.6 sem aviso). Nesta máquina há v24 via nvm.
     """
-    import build
-    node = build._find_node()
+    from bim_pipeline.miniaturas.render import find_node, node_versao
+    node = find_node()
     if not node:
         return None
-    return node if (build._node_versao(node) or 0) >= 22 else None
+    return node if (node_versao(node) or 0) >= 22 else None

@@ -166,10 +166,10 @@ def test_catalogo_vazio_acusa_erro(tmp_path):
     assert proc.returncode == 1 and 'sem produtos' in proc.stderr
 
 
-def test_ida_e_volta_com_a_akato_inteira(akato_aq, tmp_path):
+def test_ida_e_volta_com_a_akato_inteira(aq_pequena, tmp_path):
     """.aq real → catálogo (catalogo.py) → .aq exportado → catálogo: mesmas peças, séries, specs e bbox."""
     cfg = {'slug': 'akato', 'titulo': 'PVC Construção Civil', 'fabricante': 'Akato'}
-    cat1, n1, _ = catalogo.build_catalog_from_aq(cfg, akato_aq, str(tmp_path / 'geo1'))
+    cat1, n1, _ = catalogo.build_catalog_from_aq(cfg, aq_pequena, str(tmp_path / 'geo1'))
     manifesto = {
         'catalogo': {'fabricante': cat1['fabricante'], 'titulo': cat1['titulo'], 'slug': cat1['slug']},
         'geo_dir': str(tmp_path / 'geo1'),

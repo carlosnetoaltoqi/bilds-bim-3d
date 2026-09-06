@@ -301,7 +301,7 @@ export class PipelineService {
     const outZip = path.join(os.tmpdir(), `bilds-zip-${crypto.randomUUID()}.zip`);
     const args = [...this.script('zip_bilds'), opts.aqPath, '--saida', outZip, '--sair-com-stdin'];
     if (opts.nomeOriginal) args.push('--nome-original', opts.nomeOriginal);
-    if (opts.skipThumbs) args.push('--skip-thumbs');
+    args.push(opts.skipThumbs ? '--skip-thumbs' : '--allow-no-thumbs');   // quem pediu está esperando um download
     try {
       await executar(PYTHON, args, {
         nome: 'zip_bilds.py', cwd: this.dir, env: this.env, timeoutMs: TIMEOUT_MS, ociosoMs: OCIOSO_PYTHON_MS,

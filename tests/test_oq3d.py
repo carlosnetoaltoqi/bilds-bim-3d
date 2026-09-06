@@ -139,8 +139,8 @@ def test_raizes_divergentes_avisam_mas_devolvem_geometria():
 
 # ── bibliotecas reais ─────────────────────────────────────────────────────────
 
-def test_akato_todas_as_simbologias_legiveis_e_sem_aviso(akato_aq):
-    sims, por_peca = read_aq.extract_simbologias(akato_aq)
+def test_akato_todas_as_simbologias_legiveis_e_sem_aviso(aq_pequena):
+    sims, por_peca = read_aq.extract_simbologias(aq_pequena)
     assert len(sims) == 262 and len(por_peca) == 262
     for sid, s in sims.items():
         assert oq3d.is_oq3d(s['blob']), sid
@@ -151,9 +151,9 @@ def test_akato_todas_as_simbologias_legiveis_e_sem_aviso(akato_aq):
         assert len(data['idx']) % 3 == 0 and max(data['idx']) < n_v, sid
 
 
-def test_maxbar_malhas_versao_3_agora_tem_geometria(maxbar_aq):
+def test_maxbar_malhas_versao_3_agora_tem_geometria(aq_malha_v3):
     """Regressão do achado de 2026-09-03: 31 simbologias (56 peças) saíam vazias."""
-    sims, por_peca = read_aq.extract_simbologias(maxbar_aq)
+    sims, por_peca = read_aq.extract_simbologias(aq_malha_v3)
     v3 = {sid for sid, s in sims.items() if s['blob'][25] == 3}
     assert len(v3) == 31
     assert sum(1 for sid in por_peca.values() if sid in v3) == 56

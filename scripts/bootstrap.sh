@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # bootstrap.sh — prepara (ou só confere) o ambiente do bilds-bim-3d numa máquina.
 #
-#   bash scripts/bootstrap.sh            # instala o que falta para o pipeline padrão + miniaturas
+#   bash scripts/bootstrap.sh            # instala o que falta para a biblioteca + miniaturas
 #   bash scripts/bootstrap.sh --check    # só confere e imprime a tabela; exit 1 se algo OBRIGATÓRIO falta
 #   bash scripts/bootstrap.sh --www      # também `pnpm install` em www/ (POC dinâmica + edição)
 #   bash scripts/bootstrap.sh --cad      # também requirements-cad.txt (ifcopenshell, OpenCASCADE, pypdf)
@@ -53,9 +53,9 @@ else linha FALTA "Python" "python3 não está no PATH" "python3 --version"; fi
 pip_install() { # tenta sem flag; no Ubuntu (PEP 668) repete com --user --break-system-packages
   python3 -m pip install -q "$@" 2>/dev/null || python3 -m pip install -q --user --break-system-packages "$@"
 }
-if python3 -c 'import jinja2, numpy' 2>/dev/null; then linha ok "requirements.txt" "jinja2 e numpy importam" "python3 -c 'import jinja2, numpy'"
-elif [ $CHECK = 1 ]; then linha FALTA "requirements.txt" "jinja2/numpy não importam" "pip install -r requirements.txt"
-else echo ">> pip install -r requirements-dev.txt"; pip_install -r requirements-dev.txt && linha ok "requirements.txt" "instalado agora" "python3 -c 'import jinja2, numpy'" || linha FALTA "requirements.txt" "pip falhou" "pip install -r requirements.txt"; fi
+if python3 -c 'import bim_pipeline, numpy' 2>/dev/null; then linha ok "biblioteca (bim_pipeline)" "importa" "python3 -c 'import bim_pipeline, numpy'"
+elif [ $CHECK = 1 ]; then linha FALTA "biblioteca (bim_pipeline)" "não importa" "pip install -r requirements.txt   (pip install -e biblioteca)"
+else echo ">> pip install -r requirements-dev.txt"; pip_install -r requirements-dev.txt && linha ok "biblioteca (bim_pipeline)" "instalada agora" "python3 -c 'import bim_pipeline, numpy'" || linha FALTA "biblioteca (bim_pipeline)" "pip falhou" "pip install -r requirements.txt"; fi
 if python3 -c 'import pytest' 2>/dev/null; then linha ok "pytest (dev)" "importa" "python3 -m pytest -q"
 elif [ $CHECK = 1 ]; then linha opcional "pytest (dev)" "ausente — só para a suíte tests/" "pip install -r requirements-dev.txt"
 else pip_install -r requirements-dev.txt && linha ok "pytest (dev)" "instalado agora" "python3 -m pytest -q" || linha opcional "pytest (dev)" "pip falhou" "pip install -r requirements-dev.txt"; fi
@@ -74,7 +74,7 @@ if [ -z "$NODE_BIN" ] && [ -d "$HOME/.nvm/versions/node" ]; then
 fi
 if [ -n "$NODE_BIN" ]; then
   if [ "$NODE_BIN" = node ]; then linha ok "Node" "$NODE_V no PATH (>= $NODE_MIN; .nvmrc pede $NODE_MAJOR_ESPERADO)" "node -v"
-  else linha ok "Node" "$NODE_V em $NODE_BIN — NÃO está no PATH deste shell; build.py acha sozinho, ou exporte BILDS_NODE=$NODE_BIN" "node -v; ls ~/.nvm/versions/node"; fi
+  else linha ok "Node" "$NODE_V em $NODE_BIN — NÃO está no PATH deste shell; a biblioteca acha sozinha, ou exporte BILDS_NODE=$NODE_BIN" "node -v; ls ~/.nvm/versions/node"; fi
 else
   linha FALTA "Node" "nenhum Node >= $NODE_MIN no PATH nem em ~/.nvm (o do apt costuma ser 18) — nvm install $NODE_MAJOR_ESPERADO" "node -v"
 fi
@@ -85,14 +85,10 @@ if command -v pnpm >/dev/null; then
 else linha FALTA "pnpm" "não está no PATH — corepack enable && corepack prepare pnpm@$PNPM_ESPERADO --activate" "pnpm -v"; fi
 
 # ── Three.js self-hosted ──────────────────────────────────────────────────────
-if [ -s templates/vendor/three.module.js ] && [ -s templates/vendor/OrbitControls.js ]; then linha ok "templates/vendor (Three.js)" "presente" "ls templates/vendor"
-elif [ $CHECK = 1 ]; then linha FALTA "templates/vendor (Three.js)" "vazio — o preview não abre sem ele" "bash scripts/setup_vendor.sh"
-else echo ">> bash scripts/setup_vendor.sh"; bash scripts/setup_vendor.sh >/dev/null && linha ok "templates/vendor (Three.js)" "baixado agora" "ls templates/vendor" || linha FALTA "templates/vendor (Three.js)" "setup_vendor.sh falhou (rede?)" "bash scripts/setup_vendor.sh"; fi
-
-# ── Miniaturas: Playwright + Chromium + libs ──────────────────────────────────
-if [ -f node_modules/playwright/package.json ]; then linha ok "Playwright (raiz)" "node_modules/playwright presente" "ls node_modules/playwright"
-elif [ $CHECK = 1 ] || [ -z "$NODE_BIN" ] || ! command -v pnpm >/dev/null; then linha FALTA "Playwright (raiz)" "ausente — sem ele o build FALHA nas miniaturas (ou use --skip-thumbs/--allow-no-thumbs)" "pnpm install"
-else echo ">> pnpm install (raiz: playwright + chromium)"; pnpm install --frozen-lockfile >/dev/null && linha ok "Playwright (raiz)" "instalado agora" "ls node_modules/playwright" || linha FALTA "Playwright (raiz)" "pnpm install falhou" "pnpm install"; fi
+MINI=biblioteca/bim_pipeline/miniaturas
+if [ -f $MINI/node_modules/playwright/package.json ] && [ -s $MINI/node_modules/three/build/three.module.js ]; then linha ok "miniaturas (playwright + three)" "$MINI/node_modules presente" "ls $MINI/node_modules"
+elif [ $CHECK = 1 ]; then linha FALTA "miniaturas (playwright + three)" "sem node_modules — o passo de miniaturas não roda" "(cd $MINI && pnpm install)"
+else echo ">> pnpm install em $MINI (playwright + chromium + three)"; (cd $MINI && pnpm install --frozen-lockfile >/dev/null) && linha ok "miniaturas (playwright + three)" "instalado agora" "ls $MINI/node_modules" || linha FALTA "miniaturas (playwright + three)" "pnpm install falhou" "(cd $MINI && pnpm install)"; fi
 if ls "${PLAYWRIGHT_BROWSERS_PATH:-$HOME/.cache/ms-playwright}"/chromium-* >/dev/null 2>&1; then linha ok "Chromium do Playwright" "em ${PLAYWRIGHT_BROWSERS_PATH:-~/.cache/ms-playwright}" "ls ~/.cache/ms-playwright"
 else linha FALTA "Chromium do Playwright" "não baixado — o postinstall do pnpm install faz isso; manual: npx playwright install chromium" "ls ~/.cache/ms-playwright"; fi
 NLIBS="$(ldconfig -p 2>/dev/null | grep -c -E 'libnss3\.so|libnspr4\.so|libasound\.so')"
@@ -119,7 +115,7 @@ echo "|---|---|---|"
 printf '%s\n' "${LINHAS[@]}"
 echo
 if [ $FALTA_OBRIG = 1 ]; then
-  echo "FALTA algo obrigatório (linhas 'FALTA'). Obrigatório = pipeline padrão com miniaturas; 'opcional' = POC www/ e CAD."
+  echo "FALTA algo obrigatório (linhas 'FALTA'). Obrigatório = biblioteca com miniaturas; 'opcional' = serviços www/ e CAD."
   exit 1
 fi
-echo "Ambiente OK para o pipeline padrão. Próximo passo: python3 scripts/build.py --all   (ou python3 -m pytest -q)"
+echo "Ambiente OK. Próximo passo: python3 -m bim_pipeline.cli.zip_bilds --all   (ou python3 -m pytest -q)"

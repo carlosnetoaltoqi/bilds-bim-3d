@@ -1,28 +1,10 @@
 input/
 
-# Artefatos de build — o ZIP e a geometria são regeráveis a partir do .aq.
-# Os padrões usam ** porque a saída espelha a estrutura de input/
-# (output/Amanco/linha/<slug>-<ts>.zip), não fica só na raiz.
-output/geo/
-output/thumbs/
-output/**/*.zip
-output/**/*-catalog.json
-output/*.json
+# Saída do modo lote (`python3 -m bim_pipeline.cli.zip_bilds --all`) e da suíte — tudo regerável a partir do .aq.
+output/**
+!output/.gitkeep
 
 node_modules/
-
-# Three.js baixado por setup_vendor.sh — nenhuma cópia é versionada.
-# Rode scripts/setup_vendor.sh depois de clonar.
-templates/vendor/*
-!templates/vendor/.gitkeep
-
-# O preview é build: 511 MB em 705 JSONs de geometria nos 10 catálogos, e volta
-# inteiro com `build.py --all --force`. Só a landing (index.html) é feita à mão e
-# não tem script que a gere — por isso é a única coisa aqui que fica no git.
-output/preview/*
-!output/preview/.gitignore
-!output/preview/.gitkeep
-!output/preview/index.html
 
 __pycache__/
 *.pyc
@@ -48,6 +30,7 @@ eng-reversa/tupy/downloads/
 eng-reversa/tupy/saida/
 eng-reversa/tupy/dados/lead.local.json
 
-# Saída descartável da suíte de testes (tests/conftest.py)
-output/.pytest-tmp/
 .pytest_cache/
+
+# Fixtures reais por papel (ADR-016): quais arquivos desta máquina fazem cada papel
+tests/fixtures.local.json

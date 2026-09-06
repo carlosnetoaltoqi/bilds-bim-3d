@@ -178,12 +178,11 @@ miniaturas) mora em `www/apps/ingestao/pipeline/` e o `build.py` da linha (1) o 
 
 ```
 1. git clone … && cd bilds-bim-3d
-2. bash scripts/bootstrap.sh            # pip, Three.js (templates/vendor/), Playwright; --check só confere
+2. bash scripts/bootstrap.sh            # pip install -e biblioteca, Playwright + three das miniaturas; --check só confere
    sudo apt-get install -y libnss3 libnspr4 libasound2t64    # libs do Chromium — único passo com sudo
 3. copiar as bibliotecas para input/<Fabricante>/[<Linha>/]<pecas>.aq   (input/ é gitignored)
-4. python3 scripts/build.py --all       # um ZIP por .aq, sem perguntas (build.py sem --all pergunta)
-5. python3 -m http.server 8080 --directory output/preview      # preview local
-6. subir output/<origem>/<slug>-<ts>.zip no dashboard.bilds.com → BIM 3D
+4. python3 -m bim_pipeline.cli.zip_bilds --all   # um ZIP por .aq em output/, espelhando input/ (S8/F1: era o scripts/build.py)
+5. subir output/<origem>/<slug>-<ts>.zip no dashboard.bilds.com → BIM 3D (ou ver pelo web: importar no criador de catálogos)
 ```
 
 Fabricante, título, slug e layout são inferidos do `.aq` e da pasta (cascata em

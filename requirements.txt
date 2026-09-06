@@ -1,5 +1,3 @@
-# A biblioteca comum (pacote bim_pipeline, em biblioteca/) instalada em modo editável, mais o que o
-# build estático ainda precisa (jinja2 — sai com o preview, S8/F1). Testes: requirements-dev.txt.
+# A biblioteca comum (pacote bim_pipeline, em biblioteca/) em modo editável. Testes: requirements-dev.txt.
 # STEP/IGES/IFC/PDF/RFA: requirements-cad.txt (ou `pip install -e 'biblioteca[cad]'`).
 -e ./biblioteca
-jinja2>=3.1,<4

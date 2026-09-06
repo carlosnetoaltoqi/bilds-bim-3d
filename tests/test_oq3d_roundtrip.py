@@ -30,7 +30,7 @@ def test_caminho_padrao_e_o_da_amanco_nesta_arvore():
     assert '/PVC Esgoto' not in oq3d_roundtrip.PADRAO_AQ   # a subpasta que não existia
 
 
-def test_padrao_roda_os_seis_casos_e_passa(amanco_aq):
+def test_padrao_roda_os_seis_casos_e_passa(aq_grande):
     codigo, out = _roda()
     assert codigo == 0, out
     assert '6. reescrita de geometria real' in out and 'DN150 - QUADRADA' in out

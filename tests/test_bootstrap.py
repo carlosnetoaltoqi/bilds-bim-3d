@@ -25,8 +25,8 @@ def test_sintaxe_bash():
 def test_check_imprime_a_tabela_e_sai_0_ou_1():
     codigo, out = _check()
     assert codigo in (0, 1), out
-    for item in ('| Python |', '| requirements.txt |', '| Node |', '| pnpm |',
-                 '| templates/vendor (Three.js) |', '| Playwright (raiz) |', '| libs do Chromium |'):
+    for item in ('| Python |', '| biblioteca (bim_pipeline) |', '| Node |', '| pnpm |',
+                 '| miniaturas (playwright + three) |', '| libs do Chromium |'):
         assert item in out, item
     assert '| Item | Estado | Como conferir |' in out
 

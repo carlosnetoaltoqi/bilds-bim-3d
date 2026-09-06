@@ -18,7 +18,7 @@ sudo apt-get install -y libnss3 libnspr4 libasound2t64   # libs do Chromium — 
 #   input/Dancor/pecas_dancor_bombas.aq
 #   input/Amanco/PVC Esgoto SN, SR e Silentium/pecas_amanco.aq
 
-python3 scripts/build.py --all        # gera um ZIP por biblioteca
+python3 -m bim_pipeline.cli.zip_bilds --all        # gera um ZIP por biblioteca em output/
 
 python3 -m http.server 8080 --directory output/preview
 # abrir http://localhost:8080
@@ -29,8 +29,8 @@ python3 -m http.server 8080 --directory output/preview
 ### Padrão — só o `.aq`
 
 ```bash
-python3 scripts/build.py              # uma biblioteca, com perguntas
-python3 scripts/build.py --all        # todas as bibliotecas, sem perguntar
+python3 -m bim_pipeline.cli.zip_bilds biblioteca.aq --saida saida.zip   # uma biblioteca
+python3 -m bim_pipeline.cli.zip_bilds --all                                 # todas as bibliotecas de input/
 ```
 
 Forma, cor e dados saem todos do `.aq`. É o caminho normal: mais rápido (85× a 421×), um único arquivo de entrada, e sem o matching por nome que os IFCs exigem.
@@ -69,13 +69,11 @@ ZIPs, geometria e catálogos soltos são gitignored — sempre regeráveis a par
 ## Opções
 
 ```bash
-python3 scripts/build.py --all              # todas as bibliotecas de input/
-python3 scripts/build.py --all --force      # refaz também as que já têm ZIP
-python3 scripts/build.py --input-dir PASTA  # varre outra pasta
-python3 scripts/build.py --skip-preview     # só catalog.json e ZIP
-python3 scripts/build.py --skip-zip         # só preview
-python3 scripts/build.py --skip-thumbs      # nem tenta renderizar as miniaturas
-python3 scripts/build.py --allow-no-thumbs  # tenta; se falhar, avisa e segue em vez de parar
+python3 -m bim_pipeline.cli.zip_bilds --all                    # todas as bibliotecas de input/ → output/
+python3 -m bim_pipeline.cli.zip_bilds --all --force            # refaz também as que já têm ZIP
+python3 -m bim_pipeline.cli.zip_bilds --all --input-dir PASTA  # varre outra pasta (--output-dir para a saída)
+python3 -m bim_pipeline.cli.zip_bilds --all --skip-thumbs      # nem tenta renderizar as miniaturas
+python3 -m bim_pipeline.cli.zip_bilds --all --allow-no-thumbs  # tenta; se falhar, avisa e segue em vez de parar
 ```
 
 **Sem miniaturas o build falha** (exit 1) — é o cenário que custa 39,9 s de LCP na página
@@ -175,7 +173,7 @@ procura sozinho um Node >= 20 em `~/.nvm/versions/node/`, mas se você tiver o N
 em outro lugar, aponte:
 
 ```bash
-BILDS_NODE=/caminho/para/node python3 scripts/build.py --all
+BILDS_NODE=/caminho/para/node python3 -m bim_pipeline.cli.zip_bilds --all
 ```
 
 **Sem sudo?** Dá para resolver as libs de sistema sem root, baixando os `.deb` e
