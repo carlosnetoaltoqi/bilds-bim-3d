@@ -109,7 +109,7 @@ export class ImportacoesService {
   // ── plugin de CAD que é casca de um catálogo web ─────────────────────────
 
   /**
-   * DLL + categoria + dados do formulário → uma importação `plugin` na fila: `catallog.py` baixa os
+   * DLL + categoria + dados do formulário → uma importação `plugin` na fila: a biblioteca baixa os
    * arquivos da categoria para `catallog/<importId>/` e devolve o catálogo, que é publicado como
    * uma biblioteca. O lead só existe no processo filho (JSON temporário) — nunca no Mongo.
    */
@@ -145,7 +145,7 @@ export class ImportacoesService {
     const lead = { full_name: body.fullName, email: body.email, mobile: body.mobile, company: body.company, position: body.position };
     const downloads = path.join(storagePath(), 'catallog', importId);
     const trabalho = () => this.publicacao.processarCatalogo(importId, company, {
-      rotulo: 'catallog.py importar',
+      rotulo: 'plugin_catalogo_web importar',
       produzir: (geoDir, onProgresso) => this.pipeline.catalogoDePlugin({
         host, categoria: body.categoria, lead, downloads, geoDir, igsPorGrupo: body.igsPorGrupo ?? 1, deflexao: body.deflexao ?? 0.2, plugin: info, onProgresso,
       }),

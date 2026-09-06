@@ -17,7 +17,7 @@
  *   7. falha se houver qualquer erro de console ou de página
  *
  * Uso (da raiz do repo, com `node_modules/playwright` instalado pelo `npm install`):
- *   node tests/e2e/e2e-editor.mjs [--empresa poc-edicao] [--catalogo bomba-de-combate-a-incencio]
+ *   node tests/e2e/e2e-editor.mjs --empresa <customUrl> --catalogo <slug>
  *        [--produto 1] [--out /tmp/e2e] [--validar] [--so-exportar]
  */
 import { execFileSync } from 'node:child_process'
@@ -34,8 +34,9 @@ const arg = (nome, padrao) => {
 }
 const API = process.env.API_URL ?? 'http://localhost:4000'
 const WEB = process.env.WEB_URL ?? 'http://localhost:3000'
-const EMPRESA = arg('empresa', 'poc-edicao')
-const CATALOGO = arg('catalogo', 'bomba-de-combate-a-incencio')
+const EMPRESA = arg('empresa')
+const CATALOGO = arg('catalogo')
+if (!EMPRESA || !CATALOGO) { console.error('uso: node tests/e2e/e2e-editor.mjs --empresa <customUrl> --catalogo <slug>'); process.exit(2) }
 const IDX = Number(arg('produto', 1))
 const OUT = resolve(arg('out', '/tmp/e2e-editor'))
 const VALIDAR = process.argv.includes('--validar')
@@ -139,10 +140,10 @@ await browser.close()
 if (VALIDAR) {
   const py = (code) => execFileSync('python3', ['-c', code], { cwd: REPO, encoding: 'utf8' }).trim()
   console.log('parse_ifc.py →', py(`import sys;sys.path.insert(0,'scripts');import parse_ifc;r=parse_ifc.parse_ifc_file(${JSON.stringify(baixados.ifc)});print(len(r['pos'])//9,'triângulos')`))
-  // validar_aq.py sai com código != 0 na regra "barras de tubo com 600 cm", que é da Akato e
+  // validar_aq só confere tamanhos com --tubo-cm/--max-conexao-cm; sem as flags é genérico e
   // não se aplica a uma peça só — o que interessa está no stdout, com ou sem erro.
   let saidaAq = ''
-  try { saidaAq = execFileSync('python3', ['eng-reversa/tools/validar_aq.py', baixados.aq], { cwd: REPO, encoding: 'utf8' }) } catch (e) { saidaAq = e.stdout ?? String(e) }
+  try { saidaAq = execFileSync('python3', ['-m', 'bim_pipeline.cli.ferramentas.validar_aq', baixados.aq], { cwd: REPO, encoding: 'utf8' }) } catch (e) { saidaAq = e.stdout ?? String(e) }
   console.log('validar_aq.py →', saidaAq.split('\n').filter((l) => /FALHA\(S\)|blobs são OQ3D|triângulos  bbox/.test(l)).map((l) => l.trim()).join(' | '))
 }
 

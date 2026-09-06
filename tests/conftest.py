@@ -1,5 +1,7 @@
 """
-Suíte de testes da biblioteca `bim_pipeline` (biblioteca/) e dos serviços (www/, harnesses em tests/paridade/).
+Suíte em três camadas (docs/arquitetura.md): `tests/biblioteca/` (Python puro + fixtures por papel), `tests/servicos/`
+(harnesses Node em tests/paridade/ e round-trips do editor), `tests/arquitetura/` (as sete regras de fronteira,
+termos da POC, contratos, dependências).
 Criada em 2026-09-03 (I9 da auditoria); reorganizada em 2026-09-06 (S8/F1).
 
 Como rodar, na raiz do repositório:

@@ -8,7 +8,7 @@
  * o tipo aceito. Sem login (A7). A empresa vem de `?empresa=` (link "importar para esta
  * empresa" na home) ou do seletor.
  *
- * XHR em vez de fetch só para ter progresso real de upload — Maxbar tem 618 MB.
+ * XHR em vez de fetch só para ter progresso real de upload — uma biblioteca chega a 600 MB.
  */
 
 import { FormEvent, Suspense, useEffect, useRef, useState } from 'react'

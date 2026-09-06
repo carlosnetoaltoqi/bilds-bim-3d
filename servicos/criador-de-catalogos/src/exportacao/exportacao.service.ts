@@ -54,7 +54,7 @@ export class ExportacaoService {
   }
 }
 
-/** `pecas_Amanco_Esgoto_SN_SR_Silentium.aq` — o padrão dos arquivos do AltoQi, só ASCII (vai num header). */
+/** `pecas_<Fabricante>_<Titulo>.aq` — o padrão dos arquivos do AltoQi, só ASCII (vai num header). */
 export function nomeDoArquivoAq(fabricante: string, titulo: string): string {
   const limpo = (s: string) => (s ?? '')
     .normalize('NFD').replace(/[̀-ͯ]/g, '')

@@ -7,7 +7,7 @@ personalizadas que vierem junto.
 
 É o inverso de `read_aq.py` + `oq3d.py`, para geometria que NÃO nasceu no
 AltoQi — um STEP tesselado pelo `step_to_geo.py`, ou uma peça editada no editor
-3D da POC (`www/apps/web/src/components/bim-editor/`). Reaproveita, sem
+3D da POC (`web/src/components/bim-editor/`). Reaproveita, sem
 modificar, o que o estudo de escrita de `.aq` deixou pronto em
 este diretório: o schema 607 completo (`schema-aq-607.sql`), o
 escritor OQ3D (`oq3d_writer.py`) e o `Gerador` do `aq_writer.py`, que grava

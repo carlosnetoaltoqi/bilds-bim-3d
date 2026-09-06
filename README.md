@@ -1,250 +1,126 @@
 # bilds-bim-3d
 
-Gera catálogos BIM com viewer 3D a partir de bibliotecas `.aq` do AltoQi Builder.
+Catálogos BIM com viewer 3D a partir de bibliotecas `.aq` do AltoQi Builder — e o caminho de volta:
+escrever `.aq`, converter STEP/IGES/IFC, ler catálogos de plugins de CAD, gerar o ZIP que a bilds.com consome.
 
-**Você só precisa do arquivo `.aq`.** Ele carrega a malha 3D, a cor e a miniatura de cada peça — não é preciso ter os IFCs.
+**Você só precisa do arquivo `.aq`.** Ele carrega a malha 3D, a cor e os dados de cada peça — não é
+preciso ter os IFCs.
+
+## Como o projeto é organizado
+
+Uma **biblioteca Python comum** e **um serviço por contexto** (docs/arquitetura.md):
+
+| Camada | O quê | Porta |
+|---|---|---|
+| `biblioteca/` — pacote `bim_pipeline` | ler/escrever `.aq` e OQ3D, geometria `{pos,col,idx}`, catálogo, miniaturas (Chromium), conversores CAD, escritor do ZIP. Stateless: arquivo entra, arquivo/JSON sai | — |
+| `servicos/criador-de-catalogos` | importa `.aq`/`.zip`, peça CAD ou plugin de CAD; publica catálogo e produtos no Mongo, geometria e miniaturas no storage; exporta catálogo salvo → `.aq` | 4100 |
+| `servicos/catalogo-api` | leitura: empresas, catálogos, produtos, geometria, miniaturas; remoção em cascata | 4000 |
+| `servicos/editor-de-pecas` | edição: informações do produto, geometria (copy-on-write), restaurar | 4400 |
+| `servicos/gerador-zip` | `.aq` → ZIP da bilds.com, stateless | 4200 |
+| `servicos/conversores` | STEP/IGES/IFC → geometria; geometria → `.aq` de uma peça; DLL de plugin → catálogo web; stateless | 4300 |
+| `web/` | páginas de catálogo, importação, `/cad` e o editor 3D — um cliente por serviço | 3000 |
+| `pacotes/base`, `pacotes/dominio` | o que os serviços Nest compartilham (processo filho, porta para o Python, upload, validação, download; schemas Mongoose, storage, remoção) | — |
+
+Cada serviço tem README próprio com as rotas. Decisões em `docs/decisoes/`; conhecimento sobre os
+formatos em `docs/conhecimento/`; mapa para agentes em `CLAUDE.md`.
 
 ## Início rápido
 
 ```bash
-git clone https://github.com/carlosnetoaltoqi/bilds-bim-3d.git
-cd bilds-bim-3d
-
-bash scripts/bootstrap.sh             # instala o que falta (pip, Three.js, Playwright) e imprime a tabela
-bash scripts/bootstrap.sh --check     # só confere: exit 1 se falta algo obrigatório
+git clone https://github.com/carlosnetoaltoqi/bilds-bim-3d.git && cd bilds-bim-3d
+bash scripts/bootstrap.sh                 # pip install -e biblioteca, pnpm install, Playwright + three das miniaturas; --check só confere
 sudo apt-get install -y libnss3 libnspr4 libasound2t64   # libs do Chromium — o único passo com sudo
-
-# copie as bibliotecas .aq para input/, organizadas por fabricante:
-#   input/Dancor/pecas_dancor_bombas.aq
-#   input/Amanco/PVC Esgoto SN, SR e Silentium/pecas_amanco.aq
-
-python3 -m bim_pipeline.cli.zip_bilds --all        # gera um ZIP por biblioteca em output/
-
-python3 -m http.server 8080 --directory output/preview
-# abrir http://localhost:8080
 ```
 
-## Os dois modos
-
-### Padrão — só o `.aq`
+### Só o ZIP para a bilds.com (sem serviços)
 
 ```bash
 python3 -m bim_pipeline.cli.zip_bilds biblioteca.aq --saida saida.zip   # uma biblioteca
-python3 -m bim_pipeline.cli.zip_bilds --all                                 # todas as bibliotecas de input/
+python3 -m bim_pipeline.cli.zip_bilds --all                                 # todas as de input/ → output/, espelhando as subpastas
+python3 -m bim_pipeline.cli.zip_bilds --all --force                         # refaz as que já têm ZIP
+python3 -m bim_pipeline.cli.zip_bilds --all --skip-thumbs                   # nem tenta miniaturas
+python3 -m bim_pipeline.cli.zip_bilds --all --allow-no-thumbs               # tenta; se falhar, avisa e segue
 ```
 
-Forma, cor e dados saem todos do `.aq`. É o caminho normal: mais rápido (85× a 421×), um único arquivo de entrada, e sem o matching por nome que os IFCs exigem.
+Fabricante, título, slug e layout são inferidos do `.aq` e da pasta (`bim_pipeline.catalogo.inferencia`).
+**Sem miniaturas a geração falha** (exit 1) — um ZIP sem `thumbs/` faz a página renderizar no browser
+do visitante, dezenas de segundos de LCP. As duas flags são as saídas explícitas; `thumbCount` no
+`manifest.json` registra o que saiu. `input/` e `output/` são gitignored.
 
-### Peça que existe só como IFC
-
-O modo `--ifc` — geometria lida dos arquivos `.IFC` da pasta, com matching por nome de arquivo —
-foi **removido em 2026-09-05** (I6 da auditoria): ~440 linhas sem fixture nem teste, que só
-serviam a dois casos raros. Se uma peça existe como IFC mas não está cadastrada no `.aq`, o build
-não a inclui; o caminho é cadastrá-la na biblioteca ou importar o IFC pela POC
-(`www/apps/ingestao/pipeline/ifc_to_geo.py`). `www/apps/ingestao/pipeline/parse_ifc.py` continua no repositório para esse conversor.
-
-## Como a saída é organizada
-
-A estrutura de `output/` espelha a de `input/`:
-
-```
-input/Amanco/PVC Esgoto SN, SR e Silentium/pecas.aq
-  → output/Amanco/PVC Esgoto SN, SR e Silentium/pvc-esgoto-sn-sr-e-silentium-202608241730.zip
-
-input/Dancor/pecas_dancor_bombas.aq
-  → output/Dancor/bombas-incendio-202608241730.zip
-```
-
-| Caminho | O que é |
-|---|---|
-| `output/<origem>/<slug>-<timestamp>.zip` | **o pacote para subir no dashboard.bilds.com** |
-| `output/<origem>/<slug>-catalog.json` | catálogo solto, para inspeção |
-| `output/geo/<origem>/<slug>/*.json` | geometria por produto |
-| `output/thumbs/<origem>/<slug>/*.webp` | miniatura por geometria, embutida no ZIP |
-| `output/preview/<slug>/index.html` | preview navegável do catálogo |
-| `output/preview/catalogs.json` | índice dos catálogos gerados |
-
-ZIPs, geometria e catálogos soltos são gitignored — sempre regeráveis a partir do `.aq`.
-
-## Opções
+### Os serviços e o web
 
 ```bash
-python3 -m bim_pipeline.cli.zip_bilds --all                    # todas as bibliotecas de input/ → output/
-python3 -m bim_pipeline.cli.zip_bilds --all --force            # refaz também as que já têm ZIP
-python3 -m bim_pipeline.cli.zip_bilds --all --input-dir PASTA  # varre outra pasta (--output-dir para a saída)
-python3 -m bim_pipeline.cli.zip_bilds --all --skip-thumbs      # nem tenta renderizar as miniaturas
-python3 -m bim_pipeline.cli.zip_bilds --all --allow-no-thumbs  # tenta; se falhar, avisa e segue em vez de parar
+cp .env.example .env                      # Mongo (qualquer MongoDB; Atlas tem whitelist de IP), STORAGE_PATH
+pnpm dev                                  # compila os pacotes e sobe os cinco serviços + web
+# ou um por vez: pnpm dev:criador | dev:catalogo | dev:editor | dev:zip | dev:conversores | dev:web
+pnpm -r build && pnpm start:criador       # o mesmo, do dist/ (cada serviço tem start:<nome>)
 ```
 
-**Sem miniaturas o build falha** (exit 1) — é o cenário que custa 39,9 s de LCP na página
-publicada, e até 2026-09-03 saía como aviso. As duas flags acima são as saídas explícitas;
-nos dois casos o `manifest.json` do ZIP registra `thumbCount` para quem consome ver que
-faltam.
+Abrir http://localhost:3000 → importar uma biblioteca → ver o catálogo → editar uma peça →
+**Gerar ZIP bilds.com** na home. Os serviços stateless (`gerador-zip`, `conversores`) sobem sem
+`MONGODB_URI`. `dev:*` dos serviços Nest não tem watch — mudou TypeScript, reinicie o serviço.
 
-Sem `--all`, o build pergunta fabricante, título, descrição e layout — com tudo pré-preenchido a partir do `.aq`. Basta ir dando Enter. Com `--all` nada é perguntado: os campos são inferidos.
-
-`--all` **pula bibliotecas que já têm ZIP** na pasta de destino. Use `--force` para refazer.
-
-## Layouts
-
-| Layout | Quando usar |
-|---|---|
-| `series-rows` | Poucas famílias, muitas variantes; ideal com curva Q-H. Ex: bombas |
-| `catalog-grid` | Muitos itens heterogêneos, com filtros por categoria. Ex: conexões |
-
-Escolhido automaticamente: `series-rows` se a biblioteca tem curvas Q-H, `catalog-grid` acima de 6 peças. Ajustável na pergunta do modo interativo ou no `config.json`.
-
-## Preview
-
-O preview é **só local** (decisão C7, 2026-09-05): `python3 -m http.server 8080 --directory output/preview`
-depois do build. Ninguém consome o preview publicado — a bilds.com consome o ZIP —, e o deploy na
-Vercel era irreproduzível (servia o `output/preview` desta máquina, 2 GB gitignored, com a integração
-git desligada). `vercel.json` e `.vercelignore` saíram do repositório; o projeto `bilds/bilds-bim-3d`
-na Vercel pode ser apagado.
-
-## Ferramentas auxiliares
+## Ferramentas da biblioteca
 
 ```bash
-# Inspecionar uma biblioteca sem gerar nada
-python3 www/apps/ingestao/pipeline/read_aq.py caminho/para/pecas.aq --meta
-# → fabricante, linhas, nº de peças, nº de geometrias, curvas Q-H, versão do schema
-
-# O pipeline sem o ZIP/preview: geometria + catálogo em JSON (+ miniaturas) — é o que o serviço de ingestão roda
-python3 www/apps/ingestao/pipeline/catalogo_de_aq.py caminho/para/pecas.aq --geo-dir /tmp/geo --saida /tmp/cat.json --thumbs-dir /tmp/thumbs
+python3 -m bim_pipeline.cli.read_aq pecas.aq --meta               # fabricante, linhas, peças, geometrias, schema
+python3 -m bim_pipeline.cli.catalogo_de_aq pecas.aq --geo-dir /tmp/geo --saida /tmp/cat.json [--thumbs-dir /tmp/thumbs]
+python3 -m bim_pipeline.cli.step_iges peca.stp saida.json          # CAD → geometria do viewer
+python3 -m bim_pipeline.cli.ferramentas.validar_aq gerado.aq      # um .aq gerado passa pelos leitores da biblioteca?
+python3 -m bim_pipeline.cli.ferramentas.oq3d_anatomy pecas.aq 12  # dissecar um blob OQ3D byte a byte
 ```
 
-O código que lê o `.aq` e gera catálogo, geometria e miniaturas mora em `www/apps/ingestao/pipeline/`
-(README lá); `scripts/build.py` só faz o que é do preview e do ZIP.
+Lista completa em `biblioteca/README.md`.
 
 ## Testes
 
 ```bash
-python3 -m pytest                                   # ~170 testes
+python3 -m pytest                                   # ~170 testes, ≈ 4 min com Chromium
 python3 -m pytest -m "not thumbs"                   # sem abrir o Chromium
-python3 -m pytest -m "not thumbs and not paridade"  # só Python, sem Node
+python3 -m pytest tests/biblioteca                  # só a biblioteca (Python)
+python3 -m pytest tests/arquitetura                 # as regras de fronteira, contratos, dependências, termos da POC
+python3 -m pytest tests/servicos                    # harnesses Node dos serviços (ts-node), round-trips do editor
 ```
 
-Cobrem o parser OQ3D (inclusive blobs truncados e de versão desconhecida), a leitura do
-`.aq`, o diagnóstico do build, o escape dos templates, o ZIP, o comportamento sem
-miniaturas e a **paridade com o port TypeScript** de `www/tools` (rodado direto no Node
-24). Os testes que usam bibliotecas reais de `input/` pulam com motivo quando o arquivo não
-está na máquina. Detalhes em `CLAUDE.md`, seção "Testes".
+Fixtures reais são referenciadas por **papel** em `tests/fixtures.local.json` (gitignored; modelo em
+`tests/fixtures.example.json`); sem elas os testes pulam com motivo. Roteiro de aceitação com os
+serviços de pé em `docs/aceitacao.md`.
 
 ## Requisitos
 
-`bash scripts/bootstrap.sh --check` confere tudo abaixo e diz como corrigir cada linha
-(`--www` e `--cad` instalam os opcionais). O que ele confere:
+`bash scripts/bootstrap.sh --check` confere e diz como corrigir cada linha (`--www` e `--cad` instalam os opcionais):
 
-- Python 3.12 (`.python-version`); `pip install -r requirements.txt` — Jinja2 e numpy
-- Node 24 (`.nvmrc`) e pnpm 11 (`packageManager` no `package.json`) — só para as miniaturas e para `www/`
-- bash e curl, para o `setup_vendor.sh`
-- testes: `pip install -r requirements-dev.txt`
+- Python 3.12 (`.python-version`): `pip install -r requirements.txt` (a biblioteca, em modo editável) e `requirements-dev.txt` (pytest, jsonschema)
+- Node 24 (`.nvmrc`) e pnpm 11 (`packageManager`): `pnpm install` na raiz — **só pnpm**, `npm install` gera um lockfile que não é versionado
+- miniaturas: `biblioteca/bim_pipeline/miniaturas/node_modules` (Playwright + three, instalado pelo workspace) + Chromium + `libnss3 libnspr4 libasound2t64`
+- opcional (`requirements-cad.txt` ou `pip install -e 'biblioteca[cad]'`): `cadquery-ocp` (STEP/IGES), `ifcopenshell` (IFC B-rep e IFC grande), `pypdf`, `olefile`
 
-`ifcopenshell`, `cadquery-ocp` e `pypdf` são opcionais e estão pinados em `requirements-cad.txt`:
-IFC B-rep (`IFCADVANCEDBREP`) e IFC grande no conversor da POC (`www/apps/ingestao/pipeline/ifc_to_geo.py`), STEP
-no editor e extração de PDF. O pipeline estático não usa nenhum deles. O repositório é **pnpm só** — não use `npm install` (gera um
-`package-lock.json` que não é versionado).
+⚠️ **Não use `sudo npx playwright install-deps`**: o `sudo` descarta o PATH do nvm e cai no Node do apt.
+Use o `apt-get` acima, ou `sudo env "PATH=$PATH" npx playwright install-deps chromium`.
 
-### Miniaturas (opcional, mas recomendado)
+⚠️ **Dois Node na máquina** (apt e nvm): um subprocess pega o do apt e o Playwright recusa. A biblioteca
+procura sozinha um Node ≥ 20 em `~/.nvm`; em outro lugar, `BILDS_NODE=/caminho/node`.
 
-O passo que pré-renderiza as miniaturas precisa de **Node 20+** (exigência do
-Playwright) e do Chromium:
-
-```bash
-pnpm install                                           # playwright + Chromium (postinstall)
-sudo apt-get install -y libnss3 libnspr4 libasound2t64  # libs de sistema
-```
-
-⚠️ **Não use `sudo npx playwright install-deps chromium`.** É o comando que a
-documentação do Playwright manda, e ele falha em qualquer máquina com nvm: o `sudo` do
-Ubuntu usa `secure_path` e **descarta o PATH do usuário**, então o `npx` cai no Node do
-apt (v18 aqui) e o Playwright recusa com _"requires Node.js 20 or higher"_ — mesmo com
-o `nvm default` apontando para uma versão nova. O `apt-get` acima instala exatamente as
-mesmas libs sem envolver Node. Se preferir o comando do Playwright, repasse o PATH:
-
-```bash
-sudo env "PATH=$PATH" npx playwright install-deps chromium
-```
-
-⚠️ **Duas versões de Node na mesma máquina** é a outra armadilha. O Node do
-apt (`/usr/bin/node`) costuma ser antigo, e o do nvm só entra no PATH em shell
-interativo — um subprocess do `build.py` pega o do apt e o Playwright recusa. O build
-procura sozinho um Node >= 20 em `~/.nvm/versions/node/`, mas se você tiver o Node novo
-em outro lugar, aponte:
-
-```bash
-BILDS_NODE=/caminho/para/node python3 -m bim_pipeline.cli.zip_bilds --all
-```
-
-**Sem sudo?** Dá para resolver as libs de sistema sem root, baixando os `.deb` e
-extraindo num diretório local:
-
-```bash
-mkdir -p ~/.local/chromium-libs && cd ~/.local/chromium-libs
-apt-get download libnspr4 libnss3 libasound2t64
-for d in *.deb; do dpkg-deb -x "$d" root/; done
-export LD_LIBRARY_PATH=~/.local/chromium-libs/root/usr/lib/x86_64-linux-gnu
-```
-
-**Não instalar quebra o build** (desde 2026-09-03): o passo de miniaturas falha com
-`ERRO: miniaturas — …` e o processo sai com código 1, porque um ZIP sem `thumbs/` faz a
-página gerar as miniaturas no browser do visitante — 39,9 s de LCP nos catálogos com
-geometria pesada. Se for de propósito, `--allow-no-thumbs` (tenta e segue) ou
-`--skip-thumbs` (nem tenta).
+**Sem sudo?** Baixe os `.deb` (`apt-get download libnspr4 libnss3 libasound2t64`), extraia com
+`dpkg-deb -x` numa pasta local e aponte `LD_LIBRARY_PATH` para `…/usr/lib/x86_64-linux-gnu`.
 
 ## Uma peça não apareceu no catálogo
 
-Peças sem geometria no banco são puladas, e o build informa quantas. Normalmente são **tubos** (que o AltoQi gera como cilindro a partir do diâmetro e do comprimento) e **kits de aparelho sanitário** — entradas de projeto, não peças com forma fixa. Na biblioteca de esgoto da Amanco são 312 de 1.168 peças, e é o comportamento correto. Essa linha sai como `N peça(s) sem simbologia 3D (tubos/kits) puladas — esperado`.
+Peças sem geometria no banco são puladas e a geração informa quantas: normalmente **tubos** (o AltoQi os
+gera como cilindro a partir do diâmetro e do comprimento) e **kits** — entradas de projeto, não peças com
+forma. Sai como `N peça(s) sem simbologia 3D (tubos/kits) puladas — esperado`.
 
-Se em vez disso aparecer `AVISO: N simbologia(s) descartada(s)` ou `AVISO: N simbologia(s) com aviso de parse`, **não é tubo**: a peça tem geometria no banco e o parser não conseguiu lê-la (blob nulo, sem assinatura OQ3D, truncado, sem malha, ou com layout que o `oq3d.py` não conhece). O aviso traz o id e o nome da simbologia. Foi assim que se descobriu, em 2026-09-03, que 56 peças da Maxbar estavam sem 3D por usarem uma versão de malha que o parser rejeitava.
-
-Se faltar uma peça que deveria ter forma e ela só existe como IFC, não no `.aq`, o build não a inclui — o modo `--ifc` foi removido em 2026-09-05 (ver "Peça que existe só como IFC").
-
-## `www/` — serviço de ingestão, API de catálogo e web (POC, local)
-
-O `www/` é o que vai para o repositório limpo (2026-09-05, `docs/historico/planos/arquitetura-www-servico-de-ingestao.md`):
-três apps sem login. O **serviço de ingestão** (`:4100`) recebe uma biblioteca `.aq`/`.zip` ou uma peça `.stp`/`.step`/`.igs`/`.ifc`, roda **a biblioteca Python** (`biblioteca/`) e o Chromium como processos filhos, e grava tudo no Mongo e no storage. A **API de catálogo** (`:4000`) serve e edita. O **web** (`:3000`) mostra o catálogo, o editor 3D e a página `/importar`. Desde a S8/F2 o workspace pnpm é a **raiz**: `pnpm install && pnpm dev` sobe os três; `pnpm -r build && pnpm start:ingestao` etc. rodam do `dist/` (os pacotes `@bim/base` e `@bim/dominio` compilam antes). A arquitetura-alvo está em `docs/arquitetura.md`.
-
-```bash
-cd www && cp .env.example .env      # preencher Mongo e STORAGE_PATH
-pnpm install
-pnpm dev:ingestao                   # :4100
-pnpm dev:api                        # :4000  (outro terminal)
-pnpm dev:web                        # :3000  (outro terminal)
-# abrir http://localhost:3000 → importar → ver catálogo → editar
-```
-
-No editor: selecionar partes do modelo (o JSON plano é re-segmentado em componentes
-conexos), mover/girar/escalar com gizmo ou campos em cm, recolorir, espelhar, fundir,
-excluir, adicionar cilindro/tubo/caixa ou STL/OBJ, corte em Y, fantasma do original (peça STEP/IFC
-entra como produto pelo menu da página inicial, não pelo editor). **Salvar** grava de volta o `{pos, col, idx}` que o viewer
-público lê (copy-on-write quando a geometria é compartilhada entre produtos) e o serviço regera a
-miniatura. **Exportar IFC** baixa um IFC4 do que está na tela, lido de volta pelo `parse_ifc.py`
-com os mesmos triângulos; **Exportar .aq** gera uma biblioteca AltoQi com a peça (`geo_to_aq.py`,
-sobre o escritor OQ3D do `eng-reversa/`). A aba **Informações** edita nome, série, specs, curva Q-H,
-potência e conexões, com "voltar" por campo. Tudo em `www/README.md`.
+Se em vez disso aparecer `AVISO: N simbologia(s) descartada(s)` ou `… com aviso de parse`, **não é tubo**:
+a peça tem geometria e o leitor não conseguiu lê-la (blob nulo, sem assinatura OQ3D, truncado, sem malha,
+ou layout que o `oq3d` não conhece). O aviso traz o id e o nome da simbologia — é a pista para corrigir o
+leitor, não para ignorar. `docs/conhecimento/diagnostico.md` tem a tabela sintoma → causa.
 
 ## Documentação
 
-- `CLAUDE.md` — mapa do projeto: onde está cada conhecimento, fase atual, testes
-- `docs/historico/planos/arquitetura-www-servico-de-ingestao.md` — o `www/` em três apps: decisões, contratos, etapas, pendências
-- `www/README.md` — subir os três apps, rotas, estado da base, `.env`, Atlas
+- `docs/arquitetura.md` — as camadas, as sete regras de fronteira, quem grava o quê, o que cada contexto leva ao ser portado
+- `docs/decisoes/` — ADR-001 a ADR-017
+- `docs/conhecimento/` — formatos (`.aq`, OQ3D, IFC, STEP/IGES), geometria, catálogo, miniaturas, ZIP, processos filhos, diagnóstico
 - `docs/bilds-bim-3d-zip-spec.md` — contrato do ZIP consumido pela bilds.com
-- `docs/plano-integracao-bilds.md` — plano original da integração (**histórico**: o módulo já está em produção; não use como guia)
-- `docs/estudo-oq3d/` — como a geometria dentro do `.aq` foi descoberta e validada
-- `docs/skills/` — skills de agente sobre `.aq`, IFC e páginas de catálogo
-- `eng-reversa/` — como **escrever** um `.aq` e OQ3D, e extrair catálogo de um PDF comercial (o caminho inverso do pipeline)
-- `docs/sessoes/S7.1-poc-edicao.md` — a POC de edição: o que faz, como foi verificada, o que ficou pendente
-- `docs/sessoes/S7.2-step-e-aq.md` — STEP tesselado no editor e exportação em `.aq`
-
-## Skills de agente
-
-As quatro skills que cobrem o terreno técnico do projeto (`.aq`, IFC, STEP e páginas de
-catálogo) são versionadas em `docs/skills/`. Para usá-las com o Claude Code:
-
-```bash
-bash scripts/link_skills.sh
-```
-
-Cria symlinks de `~/.claude/skills/` para cá — uma cópia só, versionada no git.
-Idempotente: pode rodar quantas vezes quiser.
+- `docs/skills/` — skills de agente sobre `.aq`, IFC, STEP e páginas de catálogo (`bash scripts/link_skills.sh` cria os symlinks em `~/.claude/skills/`)
+- `docs/historico/` — sessões, estudos e planos antigos (registro; não guia nada)
+- `CLAUDE.md` — mapa para quem trabalha no projeto

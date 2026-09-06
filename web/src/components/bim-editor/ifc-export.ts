@@ -2,7 +2,7 @@
  * ifc-export.ts — escreve o modelo editado como IFC4 (STEP / ISO-10303-21).
  *
  * É o caminho inverso do `www/apps/ingestao/pipeline/parse_ifc.py` e da skill `leitor-ifc`, e segue
- * a estrutura que o exportador do AltoQi produz para a Dancor — a que aquele parser
+ * a estrutura que o exportador do AltoQi produz — a que aquele parser
  * já sabe ler:
  *
  *   IFCPROJECT → IFCSITE → IFCBUILDING → IFCBUILDINGSTOREY
@@ -302,7 +302,7 @@ export function exportIfc(parts: Part[], info: IfcExportInfo, opts: IfcExportOpt
     prop('Catalogo', info.catalogo),
     prop('Potencia_cv', info.potencia, 'IFCREAL'),
     prop('Conexoes', info.conexoes),
-    prop('Origem', info.produtoId ? `bilds-bim-3d poc-edicao · produto ${info.produtoId}` : 'bilds-bim-3d poc-edicao'),
+    prop('Origem', info.produtoId ? `bilds-bim-3d editor · produto ${info.produtoId}` : 'bilds-bim-3d editor'),
   ].filter((x): x is number => x !== null)
   if (produtoProps.length) {
     const pset = add(`IFCPROPERTYSET('${ifcGuid()}',$,'bilds_Produto',$,${list(produtoProps)})`)
@@ -323,7 +323,7 @@ export function exportIfc(parts: Part[], info: IfcExportInfo, opts: IfcExportOpt
     'ISO-10303-21;',
     'HEADER;',
     "FILE_DESCRIPTION(('ViewDefinition [ReferenceView_V1.2]'),'2;1');",
-    `FILE_NAME(${str(fileName)},'${ts}',('bilds'),('bilds.com'),'bilds-bim-3d poc-edicao','bilds-bim-3d editor 3D','');`,
+    `FILE_NAME(${str(fileName)},'${ts}',('bilds'),('bilds.com'),'bilds-bim-3d editor','bilds-bim-3d editor 3D','');`,
     "FILE_SCHEMA(('IFC4'));",
     'ENDSEC;',
     'DATA;',

@@ -4,7 +4,7 @@
  * O `@nestjs/platform-express` 10 embute o **seu** multer (2.0.2 — o `multer@2.3` do
  * `package.json` só fornece o `diskStorage`; são duas cópias). O busboy dessa versão
  * decodifica o `filename` do multipart como latin1 e ela ainda não conhece
- * `defParamCharset`: `pecas_komeco_aquecimento_agua_a_gás.aq` chegava como `…a_gÃ¡s.aq`
+ * `defParamCharset`: `pecas_fabricante_aquecimento_agua_a_gás.aq` chegava como `…a_gÃ¡s.aq`
  * no log, no `fileName` do import e — no CAD — no nome do produto derivado do arquivo.
  *
  * Refazemos a decodificação aqui: os bytes latin1 do nome recebido, lidos como UTF-8. A

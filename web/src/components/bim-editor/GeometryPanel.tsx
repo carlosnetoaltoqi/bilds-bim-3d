@@ -74,7 +74,7 @@ export interface GeometryPanelProps {
     exportIfc: (opts: { incluirBocais: boolean }) => void
     /** grava o JSON no storage e em seguida baixa o IFC */
     saveAndExportIfc: (opts: { incluirBocais: boolean }) => void
-    /** gera um .aq (AltoQi) com as partes visíveis, via API + eng-reversa, e baixa */
+    /** gera um .aq (AltoQi) com as partes visíveis, pelos conversores, e baixa */
     exportAq: (opts: { incluirBocais: boolean }) => void
   }
 }
@@ -313,7 +313,7 @@ export function GeometryPanel(p: GeometryPanelProps) {
         </p>
         <p className="text-[11px] text-gray-400 mt-1">
           <em>ab.</em> = arestas de borda (com um só triângulo). Malha de fabricante costuma vir como sopa de triângulos
-          — na Dancor, 25–32% das arestas — então o número só é um alarme em partes geradas ou importadas, que devem dar 0.
+          — numa biblioteca real, 25–32% das arestas — então o número só é um alarme em partes geradas ou importadas, que devem dar 0.
         </p>
       </Section>
 

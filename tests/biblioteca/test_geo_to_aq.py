@@ -3,31 +3,17 @@
 `geo_to_aq.py` importava o gerador e o escritor OQ3D do diretório de estudo e lia o DDL de lá.
 Agora o genérico mora na biblioteca — `aq_writer.py` (schema 607,
 constantes do AltoQi, escritor cp1252), `oq3d_writer.py`, `schema-aq-607.sql` — e o
-`gerar_aq.py` da Akato herda dele (`Gerador(EscritorAq)`). Dois guardas: o pipeline não importa
+o gerador do estudo de PDF herda dele (`Gerador(EscritorAq)`). Dois guardas: a biblioteca não importa
 nada de fora do próprio diretório, e um `.aq` gerado a partir de uma malha é lido de volta pelo
 `read_aq.py` e pelo `oq3d.py` com a mesma geometria.
 """
 import json
-import re
 import subprocess
 import sys
 
 from bim_pipeline.aq import oq3d
 from bim_pipeline.aq import read_aq
 from conftest import PIPELINE, ROOT
-
-
-def test_pipeline_nao_importa_de_fora_do_proprio_diretorio():
-    culpados = []
-    for p in sorted(PIPELINE.rglob('*.py')):
-        for n, linha in enumerate(p.read_text(encoding='utf8').splitlines(), 1):
-            linha = linha.split('#', 1)[0]      # só o código: comentários podem citar a origem
-            if re.match(r'\s*(import|from)\s+\w', linha) and 'eng-reversa' in linha:
-                culpados.append(f'{p.name}:{n}: {linha.strip()}')
-            if 'sys.path.insert' in linha and ('eng-reversa' in linha or "'..'" in linha):
-                culpados.append(f'{p.name}:{n}: {linha.strip()}')
-    assert culpados == [], culpados
-    assert (PIPELINE / 'aq' / 'schema-aq-607.sql').is_file() and (PIPELINE / 'aq' / 'aq_writer.py').is_file() and (PIPELINE / 'aq' / 'oq3d_writer.py').is_file()
 
 
 def test_geo_to_aq_gera_um_aq_que_o_leitor_do_projeto_le(tmp_path):

@@ -6,7 +6,7 @@ geometria (compartilhada entre as peças que a compartilham), uma propriedade po
 curva Q-H em `MODELO_BOMBA`/`ITEM_CURVA_BOMBA`. O que prova aqui: o `read_aq.py`, o `oq3d.py` e o
 `catalogo.py` do projeto leem o arquivo de volta com as mesmas peças, séries, specs e geometria;
 texto em cp1252; erro alto para geometria ausente e caractere fora do cp1252; ida e volta com
-a Akato inteira (262 peças) sem perder nada.
+a fixture `aq_pequena` inteira sem perder nada.
 """
 import json
 import sqlite3
@@ -19,6 +19,7 @@ from bim_pipeline.catalogo import catalogo
 from bim_pipeline.aq import oq3d
 from bim_pipeline.aq import read_aq
 from conftest import PIPELINE, ROOT
+from fixtures import FIXTURAS
 
 SCRIPT = ['-m', 'bim_pipeline.cli.catalogo_para_aq']
 
@@ -76,7 +77,7 @@ def test_exporta_catalogo_e_o_leitor_do_projeto_le_de_volta(tmp_path):
     assert resumo['curvas'] == 2 and resumo['bytes'] == saida.stat().st_size
 
     dados = read_aq.extract(str(saida))
-    # o prefixo da série sai do nome ('Cap 50mm' → '50mm', como a Amanco grava); o da bomba não tinha
+    # o prefixo da série sai do nome ('Cap 50mm' → '50mm', como o Builder grava); o da bomba não tinha
     assert [p['NOME_PECA'] for p in dados['pecas']] == ['50mm', '75mm', 'Bomba X 3CV']
     assert [g['NOME_GP'] for g in dados['grupos']] == ['Cap', 'Junção Ímpar']
     por_nome = {g['NOME_GP']: g for g in dados['grupos']}
@@ -166,9 +167,9 @@ def test_catalogo_vazio_acusa_erro(tmp_path):
     assert proc.returncode == 1 and 'sem produtos' in proc.stderr
 
 
-def test_ida_e_volta_com_a_akato_inteira(aq_pequena, tmp_path):
+def test_ida_e_volta_com_a_biblioteca_inteira(aq_pequena, tmp_path):
     """.aq real → catálogo (catalogo.py) → .aq exportado → catálogo: mesmas peças, séries, specs e bbox."""
-    cfg = {'slug': 'akato', 'titulo': 'PVC Construção Civil', 'fabricante': 'Akato'}
+    cfg = {'slug': FIXTURAS['aq_pequena']['slug'], 'titulo': FIXTURAS['aq_pequena']['titulo'], 'fabricante': FIXTURAS['aq_pequena']['fabricante']}
     cat1, n1, _ = catalogo.build_catalog_from_aq(cfg, aq_pequena, str(tmp_path / 'geo1'))
     manifesto = {
         'catalogo': {'fabricante': cat1['fabricante'], 'titulo': cat1['titulo'], 'slug': cat1['slug']},
@@ -177,7 +178,7 @@ def test_ida_e_volta_com_a_akato_inteira(aq_pequena, tmp_path):
                       'specs': p['specs'], 'curva': p['curva'], 'potencia': p['potencia'], 'geo': p['geo']}
                      for p in cat1['produtos']],
     }
-    saida = tmp_path / 'akato-exportado.aq'
+    saida = tmp_path / 'exportado.aq'
     # com o prefixo mantido, o nome da tela é estável na ida e volta
     proc = _rodar(manifesto, saida, '--manter-prefixo-serie')
     assert proc.returncode == 0, proc.stderr[-3000:]

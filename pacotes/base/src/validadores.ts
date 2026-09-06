@@ -13,7 +13,7 @@
  * num loop simples; o class-validator por elemento seria lento demais). Corpos tipados
  * como `unknown`/`Record` não têm metatype de classe e o Nest pula a validação.
  *
- * Os limites abaixo são de POC: generosos para a Dancor/Maxbar, apertados o bastante
+ * Os limites são de POC: generosos para bibliotecas grandes, apertados o bastante
  * para um corpo malicioso ou um bug do editor não virar documento de MB no Mongo.
  */
 import { registerDecorator, ValidationArguments, ValidationOptions } from 'class-validator';

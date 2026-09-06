@@ -155,8 +155,8 @@ def test_nome_do_arquivo_enviado_volta_a_utf8():
     assert proc.returncode == 0, proc.stderr[-2000:]
     r = json.loads(proc.stdout)
     assert r == {
-        'mojibake_corrigido': 'pecas_komeco_aquecimento_agua_a_gás.aq',
-        'ascii_intacto': 'pecas_dancor_bombas_incendio_2026_04.1.aq',
+        'mojibake_corrigido': 'pecas_fabricante_aquecimento_agua_a_gás.aq',
+        'ascii_intacto': 'pecas_fabricante_bombas_incendio_2026_04.1.aq',
         'ja_correto_intacto': 'peça — gás.stp',
         'fora_do_latin1_intacto': 'peça — x.ifc',
         'ausente_usa_padrao': 'upload.aq',

@@ -47,7 +47,7 @@ function store(chaves: string[]) {
 function cenario() {
   const companies = modelo([{ _id: 'emp', customUrl: 'poc', logoKey: 'logos/emp.png' }]);
   const catalogs = modelo([
-    { _id: 'cat1', companyId: 'emp', slug: 'amanco', productCount: 3, filters: ['Joelhos', 'Luvas'] },
+    { _id: 'cat1', companyId: 'emp', slug: 'esgoto', productCount: 3, filters: ['Joelhos', 'Luvas'] },
     { _id: 'cat2', companyId: 'emp', slug: 'pecas-step', productCount: 1, filters: ['STEP'] },
   ]);
   const products = modelo([

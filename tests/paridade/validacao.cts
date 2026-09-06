@@ -59,14 +59,14 @@ async function main() {
   s.produto_vazio = await valida(PatchProdutoDto, {});
 
   // ── PATCH /catalogos/:id ─────────────────────────────────────────────────────
-  s.catalogo_ok = await valida(PatchCatalogoDto, { title: ' Bombas ', manufacturer: 'Dancor', layout: 'series-rows' });
+  s.catalogo_ok = await valida(PatchCatalogoDto, { title: ' Bombas ', manufacturer: 'Fabricante', layout: 'series-rows' });
   s.catalogo_layout_invalido = await valida(PatchCatalogoDto, { layout: 'grid' });
   s.catalogo_title_vazio = await valida(PatchCatalogoDto, { title: '' });
 
   // ── POST /exportar/aq ────────────────────────────────────────────────────────
   const parte = { nome: 'corpo', pos: [0, 0, 0, 1, 0, 0, 0, 1, 0], col: null, idx: [0, 1, 2] };
   s.exportar_ok = await valida(ExportarAqDto, {
-    info: { fabricante: 'Dancor', nome: ' 20cv ', specs: { Peso: 12 }, origem: 'poc' },
+    info: { fabricante: 'Fabricante', nome: ' 20cv ', specs: { Peso: 12 }, origem: 'poc' },
     partes: [parte, { ...parte, nome: 'bocal', col: [1, 0, 0, 1, 0, 0, 1, 0, 0] }],
   });
   s.exportar_partes_excesso = await valida(ExportarAqDto, { partes: Array.from({ length: 501 }, () => parte) });
@@ -93,12 +93,12 @@ async function main() {
 
   // ── POST /importacoes/plugin-autocad (multipart → tudo texto) — S7.17 ────────
   const lead = { fullName: ' Carlos ', email: 'c@x.com', mobile: '48 9', company: 'educa', position: 'Consultor' };
-  s.plugin_ok = await valida(ImportarPluginDto, { empresa: ' poc ', categoria: 'tupygrooved-173', igsPorGrupo: '3', deflexao: '0.5', host: 'https://conexoes.tupy.com.br', ...lead });
-  s.plugin_minimo = await valida(ImportarPluginDto, { categoria: 'tupygrooved-173', ...lead });
-  s.plugin_sem_lead = await valida(ImportarPluginDto, { categoria: 'tupygrooved-173' });
+  s.plugin_ok = await valida(ImportarPluginDto, { empresa: ' poc ', categoria: 'conexoes-ranhuradas-17', igsPorGrupo: '3', deflexao: '0.5', host: 'https://catalogo.exemplo.com.br', ...lead });
+  s.plugin_minimo = await valida(ImportarPluginDto, { categoria: 'conexoes-ranhuradas-17', ...lead });
+  s.plugin_sem_lead = await valida(ImportarPluginDto, { categoria: 'conexoes-ranhuradas-17' });
   s.plugin_email_invalido = await valida(ImportarPluginDto, { categoria: 'x', ...lead, email: 'carlos' });
-  s.plugin_host_http = await valida(ImportarPluginDto, { categoria: 'x', host: 'http://conexoes.tupy.com.br', ...lead });
-  s.plugin_categoria_invalida = await valida(ImportarPluginDto, { categoria: 'Tupy Grooved!', ...lead });
+  s.plugin_host_http = await valida(ImportarPluginDto, { categoria: 'x', host: 'http://catalogo.exemplo.com.br', ...lead });
+  s.plugin_categoria_invalida = await valida(ImportarPluginDto, { categoria: 'Conexões Ranhuradas!', ...lead });
   s.plugin_sem_categoria = await valida(ImportarPluginDto, { ...lead });
   s.plugin_igs_fora = await valida(ImportarPluginDto, { categoria: 'x', igsPorGrupo: '-2', ...lead });
   s.plugin_igs_fracao = await valida(ImportarPluginDto, { categoria: 'x', igsPorGrupo: '1.5', ...lead });

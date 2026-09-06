@@ -14,7 +14,7 @@ const IMPORT_STATUSES = [
 
 export type ImportStatus = (typeof IMPORT_STATUSES)[number];
 
-/** 'aq' biblioteca .aq/.zip · 'cad' uma peça STEP/IFC · 'plugin' catálogo web de um plugin de AutoCAD (Catallog) — S7.17 */
+/** 'aq' biblioteca .aq/.zip · 'cad' uma peça STEP/IGES/IFC · 'plugin' catálogo web de um plugin de CAD */
 const IMPORT_TIPOS = ['aq', 'cad', 'plugin'] as const;
 export type ImportTipo = (typeof IMPORT_TIPOS)[number];
 

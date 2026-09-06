@@ -2,7 +2,7 @@
 """
 oq3d_roundtrip.py — prova que o `oq3d_writer.py` grava OQ3D que se lê de volta.
 
-Escreve blobs com o escritor e lê com o `www/apps/ingestao/pipeline/oq3d.py` DO PRÓPRIO PROJETO,
+Escreve blobs com o escritor e lê com o `bim_pipeline/oq3d.py` DO PRÓPRIO PROJETO,
 importado sem modificação, comparando vértice a vértice, triângulo a triângulo e
 cor a cor. É a única aferição possível aqui: não há AltoQi Builder nesta
 máquina, então o que se pode garantir é que o blob é consistente com o leitor

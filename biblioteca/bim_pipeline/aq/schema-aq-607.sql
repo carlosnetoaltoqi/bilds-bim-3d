@@ -1,5 +1,5 @@
 -- Schema de um .aq do AltoQi Builder, VERSAO_BANCO_CADASTRO.VERSAO = 607.
--- Extraído de input/Dancor/pecas_dancor_bombas_incendio_2026_04.1.aq (somente DDL).
+-- Extraído de uma biblioteca real de fabricante, schema 607 (somente DDL: tabelas e índices).
 -- Guardado aqui para que o estudo não dependa de ter um .aq à mão.
 
 CREATE TABLE BARRAMENTO_QUADRO_EXECUTIVO ( ID_BARRAMENTO                      INTEGER PRIMARY KEY, ID_DADOS_QUADRO                    INTEGER DEFAULT 0, ID_DADOS_ELETRICOS                 INTEGER DEFAULT 0, QUANTIDADE_FUROS                   INTEGER DEFAULT 10 NOT NULL, LARGURA_BARRAMENTO                 REAL DEFAULT 1 NOT NULL, TIPO_BARRAMENTO                    INTEGER, POSICAO_BARRAMENTO                 INTEGER DEFAULT 0, LOCALIZACAO_VERTICAL_BARRAMENTO    INTEGER DEFAULT 0, LOCALIZACAO_HORIZONTAL_BARRAMENTO  INTEGER DEFAULT 0, FOREIGN KEY                        ( ID_DADOS_QUADRO ) REFERENCES DADOS_QUADRO            ( ID_DADOS_QUADRO ) ON DELETE CASCADE ON UPDATE CASCADE FOREIGN KEY                        ( ID_DADOS_ELETRICOS ) REFERENCES DADOS_ELETRICOS         ( ID_DADOS_ELETRICOS ) ON DELETE CASCADE ON UPDATE CASCADE );

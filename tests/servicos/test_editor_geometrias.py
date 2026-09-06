@@ -4,7 +4,7 @@ Até 2026-09-05 o `PUT /geometrias/:id` gravava a geometria nova e o `thumbKey` 
 apontando para a imagem do import — o catálogo mostrava a peça antiga. Desde a E3 a API não
 tem Chromium: PUT e restaurar pedem a miniatura ao serviço de ingestão (`IngestaoClient`) e,
 se ele não responder, gravam `thumbErro` no produto. E como o pipeline grava UMA geometria
-por simbologia (Amanco: 856 produtos em 448 geometrias), editar um produto que compartilha
+por simbologia (numa biblioteca real, 856 produtos em 448 geometrias), editar um produto que compartilha
 geometria faz copy-on-write: arquivo próprio em `geoKey`, chave compartilhada em
 `geoKeyCompartilhada`; restaurar desfaz. O harness `tests/paridade/geometrias_thumb.cts`
 instancia os controllers sem Nest nem Mongo (ts-node de `servicos/catalogo-api`). Marcador `paridade`.

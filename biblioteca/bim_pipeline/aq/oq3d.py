@@ -309,7 +309,7 @@ def _read_mesh(buf, off, node, n):
     """
     Preenche node.mesh e devolve a posição logo após o bloco.
 
-    Espelha o `readMesh` do port TS (`www/tools/oq3d-parser.ts`), que é o
+    Espelha o `readMesh` do port TS (o port TypeScript, removido em 2026-09-05), que é o
     contrato entre os dois parsers:
 
     - contagem declarada que **excede o buffer** é blob truncado ou corrompido

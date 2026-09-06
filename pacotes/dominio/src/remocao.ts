@@ -123,7 +123,7 @@ export async function apagarCatalogo(m: Modelos, store: IGeometryStore, catalogI
   for (const id of importIds) {
     await apagarPrefixo(store, `geo/${id}`, r);
     await apagarPrefixo(store, `thumbs/${id}`, r);
-    await apagarPrefixo(store, `catallog/${id}`, r);   // arquivos baixados de um plugin de AutoCAD (S7.17)
+    await apagarPrefixo(store, `catallog/${id}`, r);   // arquivos baixados do catálogo web de um plugin de CAD
   }
   const imps = await m.imports.deleteMany({ catalogId }).exec();
   r.imports = imps.deletedCount ?? 0;

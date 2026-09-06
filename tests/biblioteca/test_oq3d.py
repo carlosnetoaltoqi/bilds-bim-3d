@@ -87,7 +87,7 @@ def test_contagem_de_raizes_confere_no_sintetico():
     assert len(oq3d.parse(blob)) == 2
 
 
-# ── versões de malha (Maxbar usa a 3) ─────────────────────────────────────────
+# ── versões de malha (a fixture `aq_malha_v3` usa a 3) ────────────────────────
 
 def test_malha_versao_3_tem_o_mesmo_layout_da_2():
     assert oq3d.MESH_VERSOES == (2, 3)
@@ -139,7 +139,7 @@ def test_raizes_divergentes_avisam_mas_devolvem_geometria():
 
 # ── bibliotecas reais ─────────────────────────────────────────────────────────
 
-def test_akato_todas_as_simbologias_legiveis_e_sem_aviso(aq_pequena):
+def test_fixture_pequena_todas_as_simbologias_legiveis_e_sem_aviso(aq_pequena):
     sims, por_peca = read_aq.extract_simbologias(aq_pequena)
     assert len(sims) == 262 and len(por_peca) == 262
     for sid, s in sims.items():
@@ -151,7 +151,7 @@ def test_akato_todas_as_simbologias_legiveis_e_sem_aviso(aq_pequena):
         assert len(data['idx']) % 3 == 0 and max(data['idx']) < n_v, sid
 
 
-def test_maxbar_malhas_versao_3_agora_tem_geometria(aq_malha_v3):
+def test_malhas_versao_3_tem_geometria(aq_malha_v3):
     """Regressão do achado de 2026-09-03: 31 simbologias (56 peças) saíam vazias."""
     sims, por_peca = read_aq.extract_simbologias(aq_malha_v3)
     v3 = {sid for sid, s in sims.items() if s['blob'][25] == 3}

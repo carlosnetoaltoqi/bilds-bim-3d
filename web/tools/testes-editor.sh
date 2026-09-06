@@ -54,7 +54,7 @@ check(ntri == len(exp['idx'])//3, f"parse_ifc.py devolve os mesmos triângulos �
 
 # Pontos: cada vértice do bake esperado tem de ter um par no IFC lido a <= TOL, e vice-versa.
 # O exportador escreve REAL com 6 decimais em metros (0,5 µm por eixo) e o IFCLOCALPLACEMENT
-# idem, então o pior caso teórico é ~1,7 µm (medido: 1,37 µm na 20cv da Dancor). Até S7.9 isto
+# idem, então o pior caso teórico é ~1,7 µm (medido: 1,37 µm numa bomba real). Até S7.9 isto
 # comparava conjuntos de coordenadas arredondadas a 10 µm com um limite de 2% — acusava
 # fronteira de arredondamento (2,2% na 20cv), não erro. Mesma armadilha do I13.
 TOL = 2e-6

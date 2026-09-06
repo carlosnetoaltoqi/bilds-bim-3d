@@ -6,13 +6,13 @@ const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? val
 
 /**
  * Campos do `POST /importacoes/plugin-autocad` (multipart — tudo chega como texto). O arquivo é a
- * DLL do plugin (`@UploadedFile()`); dela sai o host do catálogo web (`catallog.py inspecionar`),
- * que `host` pode sobrepor quando o mesmo catálogo vive em outro domínio (a Tupy tem
- * `tupycad.catallog.digital` na DLL e `conexoes.tupy.com.br` com mais grupos).
+ * DLL do plugin (`@UploadedFile()`); dela sai o host do catálogo web (`plugin_catalogo_web inspecionar`),
+ * que `host` pode sobrepor quando o mesmo catálogo vive em outro domínio (viu-se um fabricante com o
+ * host da DLL e um segundo host com mais grupos).
  *
  * Os cinco campos do lead são os do formulário de download do site (nome, e-mail, telefone,
  * empresa, cargo): são enviados ao catálogo uma vez por arquivo, como o navegador faz, e NÃO são
- * gravados no Mongo — vão num JSON temporário para o `catallog.py` e o arquivo é apagado.
+ * gravados no Mongo — vão num JSON temporário para a biblioteca e o arquivo é apagado.
  */
 export class ImportarPluginDto {
   /** customUrl da empresa dona do catálogo; vazio = a primeira cadastrada */
@@ -23,7 +23,7 @@ export class ImportarPluginDto {
   @IsUrl({ protocols: ['https'], require_protocol: true }, { message: '"host" deve ser uma URL https' })
   host?: string;
 
-  /** slug da categoria do catálogo (ex. tupygrooved-173) — `inspecionar` lista as opções */
+  /** slug da categoria do catálogo (ex. conexoes-ranhuradas-17) — `inspecionar` lista as opções */
   @IsString() @Transform(trim) @IsNotEmpty({ message: '"categoria" é obrigatória' }) @MaxLength(LIMITES.texto)
   @Matches(/^[a-z0-9][a-z0-9-]*$/i, { message: '"categoria" deve ser o slug (letras, números e hífen)' })
   categoria: string;

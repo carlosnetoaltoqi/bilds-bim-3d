@@ -1,0 +1,15 @@
+# Termos que não podem aparecer em código, contratos e conhecimento (ADR-016): fabricantes cujas bibliotecas
+# serviram de fixture na POC, domínios deles, e os diretórios de estudo já arquivados. Um por linha; `#` comenta.
+# A lista mora aqui (e não no teste) porque É um dado da POC — o único lugar onde os nomes podem estar em texto
+# é este arquivo, `docs/historico/`, `docs/integracoes/` e `tests/fixtures.local.json`.
+amanco
+tupy
+akato
+dancor
+maxbar
+intelbras
+komeco
+conexoes.tupy
+tupycad
+eng-reversa
+poc-edicao

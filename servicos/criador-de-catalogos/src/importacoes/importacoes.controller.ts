@@ -30,15 +30,15 @@ import { ImportarPluginDto } from './importar-plugin.dto';
  * GET  /importacoes?empresa=&limite= — últimas importações (da empresa, ou de todas)
  * DELETE /importacoes/:importId    — apaga a importação terminada com produtos e storage (409 se em andamento)
  *
- * Sem auth (A7). O arquivo vai direto para o disco (`os.tmpdir()`): Dancor ~153 MB, Amanco
- * ~394 MB, Maxbar ~618 MB — nada disso cabe em RAM. O nome temporário preserva a extensão e o
+ * Sem auth (ADR-007). O arquivo vai direto para o disco (`os.tmpdir()`): uma biblioteca real tem de
+ * 150 a 600 MB — nada disso cabe em RAM. O nome temporário preserva a extensão e o
  * prefixo (`bim-` biblioteca, `cad-` peça) que a recuperação no boot reconhece.
  */
-const MAX_FILE_BYTES = 1024 * 1024 * 1024;   // 1 GB: um Revit exportado passa fácil de 100 MB; Maxbar 618 MB
+const MAX_FILE_BYTES = 1024 * 1024 * 1024;   // 1 GB: um IFC exportado do Revit passa fácil de 100 MB; bibliotecas chegam a 600 MB
 
 const storage = armazenamentoTemporario((ext) => (tipoDe(ext) === 'cad' ? 'cad' : 'bim'), '.aq');
 
-// A DLL de um plugin (TupyCAD.dll tem 35 KB); prefixo `plugin-` reconhecido pela recuperação no boot
+// A DLL de um plugin tem dezenas de KB; prefixo `plugin-` reconhecido pela recuperação no boot
 const MAX_DLL_BYTES = 64 * 1024 * 1024;
 const storagePlugin = armazenamentoTemporario('plugin', '.dll');
 

@@ -1,9 +1,9 @@
 """
-catallog.py (S7.17) — plugin de AutoCAD da plataforma Catallog → catálogo do bilds-bim-3d, SEM rede.
+plugin_catalogo_web (S7.17) — plugin de AutoCAD que é casca de um catálogo web → catálogo, SEM rede.
 
 O que se prova aqui, offline:
   * `strings_utf16`/`inspecionar_dll` leem o host, o nome e a versão do plugin de um "PE" sintético
-    com as strings UTF-16 que a DLL .NET tem (e a TupyCAD.dll real, quando está na máquina);
+    com as strings UTF-16 que a DLL .NET tem (e uma DLL real, fixture `dll_plugin`, quando está na máquina);
     arquivo que não é PE ou não tem URL → `SystemExit` com a causa;
   * `specs_do_produto` tira do JSON da API e do HTML `details` o que vira spec: código, tamanhos,
     atributos do grupo, dimensões e peso da tabela "Dimensionais", material/normas, Tipos Revit;
@@ -95,10 +95,10 @@ PRODUTO = {
         {'attribute': {'name': 'Tamanho (imperial)'}, 'values': [{'value': '2.1/2"'}]},
         {'attribute': {'name': 'Tamanho (métrico)'}, 'values': [{'value': '65mm'}]},
     ],
-    'brand': {'name': 'Tupy'},
+    'brand': {'name': 'Fabricante'},
 }
 GRUPO = {'name': 'ADAPTADOR', 'slug': 'adaptador-1', 'description': 'Conexões grooved classe 150.',
-         'hierarchy': [[{'type': 'category', 'name': 'TupyGrooved', 'slug': 'tupygrooved-173'}]],
+         'hierarchy': [[{'type': 'category', 'name': 'Ranhuradas', 'slug': 'ranhuradas-17'}]],
          'attributes': [{'attribute': {'name': 'Acabamento'}, 'values': [{'value': 'Pintado'}]},
                         {'attribute': {'name': 'Diâmetro nominal'}, 'values': [{'value': '1"'}, {'value': '2"'}]}]}
 PARTATOM = {'revit': 'Autodesk Revit 2017', 'partatom': {'titulo': 'Adaptador', 'tipos': [{'titulo': 'Adaptador - DN65'}, {'titulo': 'Adaptador - DN80'}]}}
@@ -148,8 +148,8 @@ def downloads(tmp_path):
 def test_catalogo_de_downloads(downloads, tmp_path):
     geo_dir = tmp_path / 'geo'
     r = catallog.catalogo_de_downloads(str(downloads), str(geo_dir), progresso=lambda _m: None,
-                                       extra_specs={'Plugin AutoCAD': 'Exemplo CAD 2.0.0.0'}, origem={'categoria': 'tupygrooved-173'})
-    assert r['config'] == {'slug': 'tupygrooved', 'titulo': 'TupyGrooved', 'fabricante': 'Tupy',
+                                       extra_specs={'Plugin AutoCAD': 'Exemplo CAD 2.0.0.0'}, origem={'categoria': 'ranhuradas-17'})
+    assert r['config'] == {'slug': 'ranhuradas', 'titulo': 'Ranhuradas', 'fabricante': 'Fabricante',
                            'descricao': 'Conexões grooved classe 150.', 'layout': 'catalog-grid'}
     assert r['n_geometrias'] == 1 and r['catalog']['filtros'] == ['ADAPTADOR']
     p = r['catalog']['produtos'][0]
@@ -161,7 +161,7 @@ def test_catalogo_de_downloads(downloads, tmp_path):
     assert p['specs']['URL'] == 'https://exemplo.catallog.digital/pt/product/adaptador-x'
     assert any('CRUZETA' in a and 'sem IGES' in a for a in r['diag']['avisos'])
     o = r['hints']['origem']
-    assert o['host'] == 'https://exemplo.catallog.digital' and o['grupos'] == 2 and o['grupos_sem_igs'] == ['CRUZETA'] and o['categoria'] == 'tupygrooved-173'
+    assert o['host'] == 'https://exemplo.catallog.digital' and o['grupos'] == 2 and o['grupos_sem_igs'] == ['CRUZETA'] and o['categoria'] == 'ranhuradas-17'
     # segunda chamada reaproveita a geometria (não tessela de novo) e dá o mesmo catálogo
     r2 = catallog.catalogo_de_downloads(str(downloads), str(geo_dir), progresso=lambda _m: None)
     assert r2['catalog']['produtos'][0]['geo'] == p['geo']

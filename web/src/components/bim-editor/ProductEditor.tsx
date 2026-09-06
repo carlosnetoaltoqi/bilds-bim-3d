@@ -182,7 +182,7 @@ export function ProductEditor(props: Props) {
       .map((p) => ({ nome: p.nome, pos: Array.from(p.pos), col: p.col ? Array.from(p.col) : null, idx: Array.from(p.idx) }))
   }
 
-  /** Gera o .aq no servidor (OQ3D + schema 607 do eng-reversa) e baixa. */
+  /** Gera o .aq pelos conversores (OQ3D + schema 607 da biblioteca) e baixa. */
   async function exportAq(opts: { incluirBocais: boolean }) {
     if (!hist) return
     const partes = partesParaExportar(hist.present.parts, opts.incluirBocais)
@@ -198,7 +198,7 @@ export function ProductEditor(props: Props) {
             descricao: produto.nome,
             codigo: produto.id,
             specs: produto.specs,
-            origem: `bilds-bim-3d poc-edicao · produto ${produto._id}`,
+            origem: `bilds-bim-3d editor · produto ${produto._id}`,
           },
           partes,
         })

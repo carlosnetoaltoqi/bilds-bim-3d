@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * /importar/plugin — um plugin de AutoCAD da plataforma Catallog (ex. TupyCAD) vira um catálogo
+ * /importar/plugin — um plugin de AutoCAD que é casca de um catálogo web vira um catálogo
  * do bilds-bim-3d, editável e exportável para o AltoQi Builder como qualquer outro (S7.17).
  *
  * A DLL do plugin não tem geometria: é uma casca que abre o catálogo web do fabricante. O
@@ -119,7 +119,7 @@ export default function ImportarPluginPage() {
         <p className="text-[12px] text-gray-500 mb-1"><a href="/" className="hover:underline">← empresas e catálogos</a></p>
         <h1 className="text-2xl font-bold mb-1" style={{ fontFamily: 'Fira Sans, Inter, system-ui, sans-serif' }}>Importar plugin do AutoCAD</h1>
         <p className="text-[13px] text-gray-600 mb-6">
-          Plugins de fabricante feitos na plataforma <strong>Catallog</strong> (ex. <code>TupyCAD.dll</code>, em
+          Plugins de fabricante que abrem um <strong>catálogo web</strong> dentro do AutoCAD (a DLL <code>.dll</code> do bundle, em
           <code> C:\Program Files\Autodesk\ApplicationPlugins\&lt;nome&gt;.bundle\</code>) não trazem geometria: abrem o catálogo web
           do fabricante. Aqui a DLL diz qual catálogo é; você escolhe a categoria; o serviço baixa os arquivos 3D (IGES) e as
           famílias Revit, tessela e publica um catálogo — que depois se edita e se exporta para o AltoQi Builder como <code>.aq</code>.

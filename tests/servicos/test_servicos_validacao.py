@@ -81,7 +81,7 @@ def test_produto_campo_fora_do_dto_e_400_nao_descartado(c):
 # ── PATCH /catalogos/:id ─────────────────────────────────────────────────────
 
 def test_catalogo(c):
-    assert c['catalogo_ok'] == {'ok': {'title': 'Bombas', 'manufacturer': 'Dancor', 'layout': 'series-rows'}}
+    assert c['catalogo_ok'] == {'ok': {'title': 'Bombas', 'manufacturer': 'Fabricante', 'layout': 'series-rows'}}
     assert '"series-rows" ou "catalog-grid"' in _erros(c['catalogo_layout_invalido'])
     assert '"title" não pode ser vazio' in _erros(c['catalogo_title_vazio'])
 
@@ -90,7 +90,7 @@ def test_catalogo(c):
 
 def test_exportar_aq_partes_e_info(c):
     ok = c['exportar_ok']['ok']
-    assert ok['info'] == {'fabricante': 'Dancor', 'nome': '20cv', 'specs': {'Peso': 12}, 'origem': 'poc'}
+    assert ok['info'] == {'fabricante': 'Fabricante', 'nome': '20cv', 'specs': {'Peso': 12}, 'origem': 'poc'}
     assert [p['nome'] for p in ok['partes']] == ['corpo', 'bocal']
     assert ok['partes'][0]['col'] is None and len(ok['partes'][1]['col']) == 9
     assert c['exportar_so_geo']['ok'] == {'pos': [0, 0, 0, 1, 0, 0, 0, 1, 0], 'col': [], 'idx': [0, 1, 2]}
@@ -130,7 +130,7 @@ def test_empresa_e_importar_aq(c):
 
 def test_importar_plugin_lead_categoria_e_limites(c):
     ok = c['plugin_ok']['ok']
-    assert ok['empresa'] == 'poc' and ok['categoria'] == 'tupygrooved-173' and ok['host'] == 'https://conexoes.tupy.com.br'
+    assert ok['empresa'] == 'poc' and ok['categoria'] == 'conexoes-ranhuradas-17' and ok['host'] == 'https://catalogo.exemplo.com.br'
     assert ok['igsPorGrupo'] == 3 and ok['deflexao'] == 0.5          # texto do multipart → número
     assert ok['fullName'] == 'Carlos' and ok['email'] == 'c@x.com'  # trim
     assert set(c['plugin_minimo']['ok']) == {'categoria', 'fullName', 'email', 'mobile', 'company', 'position'}

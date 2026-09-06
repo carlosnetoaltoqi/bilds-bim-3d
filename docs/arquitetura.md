@@ -60,7 +60,7 @@ bilds-bim-3d/
 3. **Stateless de verdade**: `gerador-zip` e `conversores` não importam `pacotes/dominio`, não têm `MongooseModule`, não leem `STORAGE_PATH`; o `/health` deles só confere a biblioteca (ADR-012, ADR-013).
 4. **Dados**: só `criador-de-catalogos`, `catalogo-api` e `editor-de-pecas` importam `dominio`. Quem grava o quê está na seção 5. Mongo e storage compartilhados são **acoplamento aceito e documentado da POC**; `IGeometryStore` e os schemas são a costura de porte (ADR-004, ADR-014).
 5. **Web**: um cliente por serviço em `web/src/servicos/`; nenhuma URL fixa fora deles; componente de um contexto não importa cliente de outro (o editor usa `editor` + `conversores`; a home usa `catalogo` + `zip`; importar usa `criador` + `catalogo`).
-6. **Sem empresas**: nomes de fabricante, domínios e caminhos `input/` não aparecem em `biblioteca/`, `servicos/`, `pacotes/`, `web/`, `contratos/`, `docs/conhecimento/` nem `docs/skills/` — só em `docs/historico/`, `docs/integracoes/` e `tests/fixtures.local.*` (ADR-016).
+6. **Sem empresas**: nomes de fabricante, domínios e caminhos efêmeros da POC (lista em `tests/arquitetura/termos_efemeros.txt`) não aparecem em `biblioteca/`, `servicos/`, `pacotes/`, `web/`, `tests/` — e, a partir da F6, em `docs/conhecimento/` e `docs/skills/`; só em `docs/historico/`, `docs/integracoes/` e `tests/fixtures.local.*` (ADR-016).
 7. **Contratos** entre biblioteca e serviços têm JSON Schema em `biblioteca/bim_pipeline/contratos/` — a biblioteca os define porque é quem emite; ela prova em teste que emite conforme (`tests/test_contratos.py`) e `@bim/base` valida o que lê (`validarContrato`, ajv) (ADR-015).
 
 ## 4. O que cada contexto leva consigo ao ser portado
@@ -97,7 +97,7 @@ Nenhum dado de fabricante fica no repositório: `input/`, `storage/` e as fixtur
 | **F2** | Workspace pnpm na raiz; `pacotes/base` e `pacotes/dominio` compilados com project references (`pnpm -r start` funciona); contratos em JSON Schema validados nos dois lados | ✅ 2026-09-06 (S8.2) |
 | **F3** | `servicos/gerador-zip` e `servicos/conversores` (stateless); web com um cliente por serviço para eles; cliente tipado da biblioteca em `@bim/base` | ✅ 2026-09-06 (S8.3) |
 | **F4** | `servicos/criador-de-catalogos` (importação/publicação/miniaturas divididas), `servicos/catalogo-api` (só leitura), `servicos/editor-de-pecas`; `web/` na raiz com um cliente por serviço; `www/` deixa de existir | ✅ 2026-09-06 (S8.4) |
-| **F5** | Guardas de arquitetura, CI, `pnpm dev` único, `README.md`, roteiro `docs/aceitacao.md` | ⬜ |
+| **F5** | `tests/{biblioteca,servicos,arquitetura}`; as sete regras como testes (+ termos da POC, contratos, dependências); CI por camada; `README.md`; `docs/aceitacao.md`; código e testes sem termos da POC | ✅ 2026-09-06 (S8.5) |
 | **F6** | `docs/conhecimento/` reescrito por formato/algoritmo sem empresas; skills apontando para lá; `docs/historico/`; `CLAUDE.md`, `CONCEPTS.md` | ⬜ |
 
 Regras de execução: um commit por item; cada fase termina com `python3 -m pytest -m "not thumbs"`

@@ -1,13 +1,11 @@
 # CI mínimo (I20 da auditoria, 2026-09-04). Dois jobs independentes:
 #
-#   pipeline-estatico — pip install -e biblioteca (o pacote bim_pipeline), py_compile da biblioteca,
-#     e a suíte tests/ sem o marcador
-#     `thumbs` (o Chromium do Playwright exige libs de sistema; fica para depois).
-#     Os `.aq` de input/ são gitignored, então os testes que dependem deles PULAM
-#     aqui com motivo — o que roda são os blobs OQ3D sintéticos, o contrato do
-#     parser, o render dos templates e os harnesses Node de www/ (Node 24 roda .ts direto).
-#   servicos — `pnpm install --frozen-lockfile` + `pnpm -r build` na raiz (pacotes/base e pacotes/dominio para dist/
-#     com project references, depois os serviços e o web). Não sobe Mongo nem Chromium; só prova que compila.
+#   biblioteca — pip install -e biblioteca, py_compile e `pytest tests/biblioteca tests/arquitetura` sem o marcador
+#     `thumbs` (o Chromium exige libs de sistema). As fixtures reais são locais (tests/fixtures.local.json,
+#     gitignored), então os testes que dependem delas PULAM aqui com motivo — o que roda são os sintéticos,
+#     os contratos e as sete regras de fronteira (docs/arquitetura.md §3).
+#   servicos — `pnpm install --frozen-lockfile` + `pnpm -r build` na raiz (pacotes para dist/ com project references,
+#     depois os cinco serviços e o web) e `pytest tests/servicos` (harnesses Node sem Mongo). Não sobe Chromium.
 #   Versões: Node em .nvmrc, pnpm em packageManager (package.json), Python em .python-version.
 #
 # Localmente a mesma coisa é: python3 -m pytest -m "not thumbs"  e  pnpm -r build
@@ -24,7 +22,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  pipeline-estatico:
+  biblioteca:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -46,8 +44,8 @@ jobs:
       - name: py_compile da biblioteca
         run: python -m py_compile biblioteca/bim_pipeline/*.py biblioteca/bim_pipeline/*/*.py biblioteca/bim_pipeline/*/*/*.py
 
-      - name: pytest (sem Chromium; fixtures de input/ pulam com motivo)
-        run: python -m pytest -m "not thumbs" -rs
+      - name: pytest — biblioteca e arquitetura (sem Chromium; fixtures reais pulam com motivo)
+        run: python -m pytest tests/biblioteca tests/arquitetura -m "not thumbs" -rs
 
   servicos:
     runs-on: ubuntu-latest
@@ -66,3 +64,10 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - run: pnpm -r build
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: pytest — serviços (harnesses Node com ts-node; sem Mongo nem Chromium)
+        run: python -m pip install -r requirements-dev.txt && python -m pytest tests/servicos -m "not thumbs" -rs

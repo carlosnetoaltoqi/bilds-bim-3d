@@ -85,7 +85,7 @@ export interface ResumoMiniaturas {
   falhas: Array<{ geo: string; message: string }>;
 }
 
-/** O que `catallog.py inspecionar` tira da DLL (e, com rede, do catálogo web). */
+/** O que `plugin_catalogo_web inspecionar` tira da DLL (e, com rede, do catálogo web). */
 export interface PluginInfo {
   arquivo: string;
   bytes: number;
@@ -100,7 +100,7 @@ export interface PluginInfo {
   categorias?: Array<{ slug: string; name: string; grupos: number; grupos_nomes: string[] }>;
 }
 
-/** Os cinco campos do formulário de download do catálogo Catallog — nunca persistidos. */
+/** Os cinco campos do formulário de download do catálogo web — nunca persistidos. */
 export interface LeadDownload { full_name: string; email: string; mobile: string; company: string; position: string }
 
 export function formatoDe(nome: string): 'step' | 'iges' | 'ifc' {
@@ -135,12 +135,12 @@ export class Biblioteca extends BibliotecaCli {
     if (opts.semRede) args.push('--sem-rede');
     const { stdout } = await this.rodar('plugin_catalogo_web', args, { timeoutMs: 5 * 60 * 1000 });
     const linha = stdout.trim().split('\n').reverse().find((l) => l.startsWith('{'));
-    if (!linha) throw new Error('catallog.py inspecionar terminou sem o JSON');
+    if (!linha) throw new Error('plugin_catalogo_web inspecionar terminou sem o JSON');
     return validarContrato<PluginInfo>('info-plugin', JSON.parse(linha));
   }
 
   /**
-   * Categoria de um catálogo Catallog → arquivos baixados em `downloads` (IGES/RFA + manifesto) e
+   * Categoria de um catálogo web → arquivos baixados em `downloads` (IGES/RFA + manifesto) e
    * geometrias em `geoDir`, devolvendo o mesmo `ResultadoCatalogo` do `catalogo_de_aq.py`. O lead
    * vai num JSON temporário apagado no `finally` — não fica em disco nem no log.
    */
@@ -149,9 +149,9 @@ export class Biblioteca extends BibliotecaCli {
     igsPorGrupo?: number; deflexao?: number; plugin?: PluginInfo | null; onProgresso?: (linha: string) => void;
   }): Promise<ResultadoCatalogo> {
     const id = crypto.randomUUID();
-    const leadPath = path.join(os.tmpdir(), `catallog-lead-${id}.json`);
-    const pluginPath = path.join(os.tmpdir(), `catallog-plugin-${id}.json`);
-    const saida = path.join(os.tmpdir(), `catallog-catalogo-${id}.json`);
+    const leadPath = path.join(os.tmpdir(), `plugin-lead-${id}.json`);
+    const pluginPath = path.join(os.tmpdir(), `plugin-info-${id}.json`);
+    const saida = path.join(os.tmpdir(), `plugin-catalogo-${id}.json`);
     await fsp.writeFile(leadPath, JSON.stringify(opts.lead), { mode: 0o600 });
     const args = [
       'importar', '--host', opts.host, '--categoria', opts.categoria, '--lead', leadPath,
