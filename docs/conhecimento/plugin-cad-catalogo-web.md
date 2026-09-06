@@ -126,7 +126,9 @@ instalado, três streams são legíveis com uma biblioteca OLE2 genérica:
 
 O que **não** dá para ler: a geometria em si, num stream de nome numérico (`Partitions/<n>`)
 em formato binário proprietário da Autodesk — não há leitor fora do próprio Revit. Por isso a
-malha 3D de uma peça vem do IGES, nunca do `.rfa`; o `.rfa` só contribui especificação.
+malha 3D de uma peça vem do IGES, nunca do `.rfa`; o `.rfa` só contribui especificação. O formato
+por inteiro (inclusive o type catalog `.txt` e o `BasicFileInfo` de 2020 em diante) está em
+`revit-familias.md`, que é a base do importador de famílias Revit.
 
 ## Specs derivadas: a tabela dimensional e os "Tipos Revit"
 

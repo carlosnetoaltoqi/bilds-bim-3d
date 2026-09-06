@@ -26,6 +26,18 @@ geometria; `thumbCount` preenchido depois (as miniaturas rodam ainda na vaga da 
 para a fixture pequena. Falha esperada: um arquivo que não é `.aq` → `400`; extensão errada é recusada
 antes de entrar na fila.
 
+**Famílias Revit** (fixture `rfa_familias`, um `.zip` de `.rfa` com type catalogs):
+
+```bash
+RFA="<caminho do rfa_familias>"
+R=$(curl -s -F "file=@$RFA" -F "empresa=$EMP" -F "catalogo=Famílias" localhost:4100/importacoes/familias-revit); echo $R   # 202 tipo:'revit' + resumo da inspeção
+```
+Esperado: a resposta já traz `familias.n_familias`/`n_tipos`; `publicado` com `productCount` = tipos
+menos os sem cota; `note` diz quantos vieram de geometria irmã e quantos de forma representativa; a série
+dos representativos termina em "(forma representativa)" e cada produto tem a spec "Geometria 3D". O `.aq`
+exportado (§4) passa em `validar_aq`. Falha esperada: um `.rvt` ou um `.zip` sem `.rfa` → `400` na hora,
+com a explicação.
+
 ## 2. API de catálogo — a página lê
 
 ```bash

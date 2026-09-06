@@ -35,7 +35,7 @@ skills fora do repo são auxiliares. O que vale é o **estado atual**, não a tr
 ## O que é este projeto
 
 Catálogos BIM com viewer 3D a partir de bibliotecas `.aq` do AltoQi Builder — e o caminho de volta
-(escrever `.aq`, converter CAD, ler catálogos de plugins, gerar o ZIP que a bilds.com consome).
+(escrever `.aq`, converter CAD, ler catálogos de plugins e famílias Revit, gerar o ZIP que a bilds.com consome).
 **A decisão central: a geometria vem do `.aq`, não do IFC** — o BLOB `SIMBOLOGIA_3D` guarda a malha
 completa, com cor, no formato OQ3D; vínculo peça → geometria por chave estrangeira, zero matching por nome.
 
@@ -53,7 +53,7 @@ bash scripts/bootstrap.sh --check        # a tabela do ambiente; sem --check ins
 sudo apt-get install -y libnss3 libnspr4 libasound2t64     # libs do Chromium — único passo com sudo
 python3 -m bim_pipeline.cli.zip_bilds biblioteca.aq --saida saida.zip   # só o ZIP, sem serviços
 cp .env.example .env && pnpm dev          # cinco serviços + web (compila os pacotes antes)
-python3 -m pytest                         # 173 testes, ≈ 4 min; -m "not thumbs" sem Chromium
+python3 -m pytest                         # 191 testes, ≈ 4 min; -m "not thumbs" sem Chromium
 ```
 
 Detalhes de uso em `README.md`; rotas e variáveis de cada serviço no `README.md` dele; roteiro de
@@ -71,6 +71,7 @@ aceitação com tudo de pé em `docs/aceitacao.md`.
 | IFC4 — leitura (placement, cores, unidades), escrita (o exportador do editor), verificação a 2 µm | `docs/conhecimento/ifc.md` |
 | STEP e IGES → malha (OpenCASCADE), costura de faces soltas, orientação pelo volume | `docs/conhecimento/step-iges.md` |
 | Plugin de CAD que é casca de um catálogo web (DLL, API, formulário de lead, IGES/RFA, termos de uso) | `docs/conhecimento/plugin-cad-catalogo-web.md` |
+| Famílias Revit `.rfa` (OLE2, PartAtom, BasicFileInfo, type catalog `.txt`; o que não se lê; geometria irmã ou forma representativa) | `docs/conhecimento/revit-familias.md`; decisão em ADR-018 |
 | Catálogo comercial em PDF → tabelas; o que um PDF nunca determina | `docs/conhecimento/pdf-catalogo.md` |
 | Forma representativa por parâmetro (dado × norma × invenção; os dois defeitos que passam em teste) | `docs/conhecimento/formas-representativas.md` |
 | Inferência de fabricante, título, slug e layout | `docs/conhecimento/inferencia.md` |
@@ -97,7 +98,7 @@ trabalhar aqui não são necessárias** — este mapa e `docs/` bastam.
 
 ```
 bilds-bim-3d/
-├── biblioteca/bim_pipeline/{aq,geometria,catalogo(/fontes),conversores,miniaturas,saida,cli(/ferramentas),contratos}
+├── biblioteca/bim_pipeline/{aq,geometria,catalogo(/fontes: plugin_catalogo_web, familias_revit),conversores,miniaturas,saida,cli(/ferramentas),contratos}
 │   ← ★ a biblioteca comum (README próprio); miniaturas/ tem package.json próprio (playwright + three)
 ├── pacotes/base (@bim/base) · pacotes/dominio (@bim/dominio)   ← TypeScript compilado para dist/ (project references)
 ├── servicos/{criador-de-catalogos :4100, catalogo-api :4000, editor-de-pecas :4400, gerador-zip :4200, conversores :4300}
@@ -136,7 +137,7 @@ com `termos_efemeros.txt`, `test_contratos`, `test_deps`). O que cada arquivo pr
 dele. Fixtures reais por **papel** em `tests/fixtures.local.json` (gitignored; modelo
 `fixtures.example.json`; papéis em `tests/fixtures.py`) — sem elas os testes pulam com motivo.
 **Regra:** comportamento novo entra em `tests/` no mesmo commit. Depois de mexer na configuração do
-pytest, confira a contagem de coleta (173).
+pytest, confira a contagem de coleta (191).
 
 ## CI — `.github/workflows/ci.yml`
 
@@ -154,15 +155,24 @@ Identidade `carlosnetoaltoqi`; branch `main`, histórico linear; nada de push se
 
 ## 👉 Estado atual e pendências
 
-**Estado (2026-09-06):** arquitetura de `docs/arquitetura.md` implementada por inteiro; suíte com 173
-testes verde; `pnpm -r build` e `pnpm start:*` funcionam do `dist/`. A base local tem quatro catálogos
-importados pelo criador; o `storage/` não tem os downloads do plugin web de CAD (`catallog/`) — refazê-los
-exige baixar do catálogo do fabricante, o que depende de autorização explícita (Termos de Uso). O remoto
-`origin/main` está em 2026-09-05; tudo desde então está só local (`git rev-list --count origin/main..HEAD`).
+**Estado (2026-09-06, tarde):** arquitetura de `docs/arquitetura.md` implementada por inteiro; suíte com
+191 testes (coleta) verde — nesta máquina 17 pulam porque as fixtures `.aq` de `tests/fixtures.local.json`
+não estão em `input/`; `pnpm -r build` e `pnpm start:*` funcionam do `dist/`. Fonte nova **famílias Revit**
+(ADR-018): `.rfa`/`.zip` → catálogo pelo criador (`POST /importacoes/familias-revit`, página
+`/importar/revit`), geometria do IFC/STEP/IGES irmão ou forma representativa; testado com um pacote real
+de fabricante (fixture `rfa_familias`, 27 famílias, 3.061 tipos) até a exportação `.aq` pelo caminho
+existente (`validar_aq` passa; a checagem "uma simbologia por peça" foi relaxada para geometria
+compartilhada). O `storage/` não tem os downloads do plugin web de CAD (`catallog/`) — refazê-los exige
+baixar do catálogo do fabricante, o que depende de autorização explícita (Termos de Uso). Commits desta
+sessão só locais (`git rev-list --count origin/main..HEAD`).
 
 **Pendências do usuário:**
-- Leitura humana dos 16 documentos de `docs/conhecimento/` e das quatro skills (escritos por agentes sob
+- Leitura humana dos 17 documentos de `docs/conhecimento/` e das quatro skills (escritos por agentes sob
   a guarda de termos; ninguém os leu de ponta a ponta ainda).
-- Abrir no AltoQi Builder o `.aq` exportado do catálogo de plugin web (aceitação final, `docs/aceitacao.md` §4).
+- Abrir no AltoQi Builder o `.aq` exportado do catálogo de plugin web e o do catálogo de famílias Revit
+  (aceitação final, `docs/aceitacao.md` §4).
+- Famílias Revit: decidir se a geometria fiel via APS Model Derivative (nuvem Autodesk) vale a
+  dependência externa; se as formas representativas de equipamentos (caixa) bastam; se o trecho padrão de
+  1000 mm é o desejado para o catálogo.
 - LICENSE (decisão em aberto).
 - Push, quando autorizado.

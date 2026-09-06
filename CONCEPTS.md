@@ -92,6 +92,19 @@ conferir encaixe. A ressalva vai gravada dentro do arquivo. (`docs/conhecimento/
 Arestas com um só triângulo. Em malha de fabricante são normais (um quarto a um terço das arestas);
 só são alarme em sólidos gerados ou costurados, que devem dar zero.
 
+### Família Revit
+O componente de biblioteca do Revit (`.rfa`): uma peça parametrizada com **tipos** (as variações). Fora
+do Revit lê-se o `PartAtom` (tipos e parâmetros), a versão e a miniatura — nunca a geometria, que é
+proprietária. Um `.rvt` é projeto, não família. (`docs/conhecimento/revit-familias.md`)
+
+### Type catalog
+O `.txt` de mesmo nome ao lado de um `.rfa`, com uma linha por tipo e colunas `NOME##TIPO##UNIDADE`.
+Quando existe, é a fonte dos tipos: o `.rfa` costuma guardar só um tipo-molde.
+
+### Geometria irmã
+O `.ifc`/`.stp`/`.igs` de mesmo nome que uma família Revit, de onde a geometria real vem quando a fonte
+não a entrega. Sem ele, a peça recebe uma forma representativa.
+
 ---
 
 ## Catálogo e edição (docs/conhecimento/catalogo-modelo.md)

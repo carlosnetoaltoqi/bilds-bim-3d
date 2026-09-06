@@ -21,3 +21,4 @@ Uma decisão por arquivo: decisão, por quê, consequências. Uma decisão super
 | [ADR-015](ADR-015-contratos-em-json-schema.md) | contratos em json schema | Aceita |
 | [ADR-016](ADR-016-sem-empresas-fora-do-historico.md) | sem empresas fora do historico | Aceita |
 | [ADR-017](ADR-017-preview-estatico-sai-do-produto.md) | preview estatico sai do produto | Aceita |
+| [ADR-018](ADR-018-familias-revit-hibrido.md) | famílias Revit: metadados do .rfa, geometria irmã ou forma representativa | Aceita |

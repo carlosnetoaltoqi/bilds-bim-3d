@@ -66,6 +66,8 @@ Abrir http://localhost:3000 → importar uma biblioteca → ver o catálogo → 
 python3 -m bim_pipeline.cli.read_aq pecas.aq --meta               # fabricante, linhas, peças, geometrias, schema
 python3 -m bim_pipeline.cli.catalogo_de_aq pecas.aq --geo-dir /tmp/geo --saida /tmp/cat.json [--thumbs-dir /tmp/thumbs]
 python3 -m bim_pipeline.cli.step_iges peca.stp saida.json          # CAD → geometria do viewer
+python3 -m bim_pipeline.cli.familias_revit inspecionar familias.zip   # famílias Revit .rfa: tipos, categorias, type catalogs, geometria irmã
+python3 -m bim_pipeline.cli.familias_revit importar familias.zip --geo-dir /tmp/geo --saida /tmp/cat.json   # → catálogo (geometria irmã ou forma representativa)
 python3 -m bim_pipeline.cli.ferramentas.validar_aq gerado.aq      # um .aq gerado passa pelos leitores da biblioteca?
 python3 -m bim_pipeline.cli.ferramentas.oq3d_anatomy pecas.aq 12  # dissecar um blob OQ3D byte a byte
 ```
@@ -93,7 +95,7 @@ serviços de pé em `docs/aceitacao.md`.
 - Python 3.12 (`.python-version`): `pip install -r requirements.txt` (a biblioteca, em modo editável) e `requirements-dev.txt` (pytest, jsonschema)
 - Node 24 (`.nvmrc`) e pnpm 11 (`packageManager`): `pnpm install` na raiz — **só pnpm**, `npm install` gera um lockfile que não é versionado
 - miniaturas: `biblioteca/bim_pipeline/miniaturas/node_modules` (Playwright + three, instalado pelo workspace) + Chromium + `libnss3 libnspr4 libasound2t64`
-- opcional (`requirements-cad.txt` ou `pip install -e 'biblioteca[cad]'`): `cadquery-ocp` (STEP/IGES), `ifcopenshell` (IFC B-rep e IFC grande), `pypdf`, `olefile`
+- opcional (`requirements-cad.txt` ou `pip install -e 'biblioteca[cad]'`): `cadquery-ocp` (STEP/IGES), `ifcopenshell` (IFC B-rep e IFC grande), `pypdf` (`olefile`, das famílias Revit, já vem com a biblioteca)
 
 ⚠️ **Não use `sudo npx playwright install-deps`**: o `sudo` descarta o PATH do nvm e cai no Node do apt.
 Use o `apt-get` acima, ou `sudo env "PATH=$PATH" npx playwright install-deps chromium`.
