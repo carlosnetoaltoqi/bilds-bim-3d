@@ -18,7 +18,7 @@
  *                (recontado — pode ficar com 0 produtos; apagá-lo é outra decisão)
  */
 import { IGeometryStore } from './geometry-store/geometry-store.interface';
-import { originalKeyFor } from './geo-buffers';
+import { originalKeyFor } from '@bim/base';
 
 /** O mínimo dos modelos Mongoose que usamos — para os harnesses passarem falsos. */
 export interface ConsultaMinima<T> {

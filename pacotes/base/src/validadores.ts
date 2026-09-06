@@ -17,7 +17,7 @@
  * para um corpo malicioso ou um bug do editor não virar documento de MB no Mongo.
  */
 import { registerDecorator, ValidationArguments, ValidationOptions } from 'class-validator';
-import { LIMITES } from '@bim/base';
+import { LIMITES } from './validacao';
 
 /**
  * `specs` é `{ chave: valor }` com valor texto (ou número/booleano, que viram texto no

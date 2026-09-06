@@ -11,3 +11,6 @@ export * from './validacao';
 export * from './download';
 export * from './servico';
 export * from './contratos';
+export * from './geo-buffers';
+export * from './validadores';
+export * from './biblioteca';

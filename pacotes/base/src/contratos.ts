@@ -4,7 +4,7 @@
  * emite conforme; aqui provamos que o que lemos é o que esperamos — um contrato quebrado vira
  * `ContratoInvalido` com o caminho do campo, não um `undefined` três camadas depois.
  */
-import Ajv, { ValidateFunction } from 'ajv';
+import Ajv2020, { ValidateFunction } from 'ajv/dist/2020';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { bibliotecaDir } from './biblioteca-cli';
@@ -18,7 +18,8 @@ export class ContratoInvalido extends Error {
   }
 }
 
-const ajv = new Ajv({ allErrors: false, strict: false });
+// os schemas são draft 2020-12 — o `Ajv` padrão só conhece o draft-07 e recusa o `$schema` deles
+const ajv = new Ajv2020({ allErrors: false, strict: false });
 const cache = new Map<string, ValidateFunction>();
 
 export function contratosDir(dir = bibliotecaDir()): string {

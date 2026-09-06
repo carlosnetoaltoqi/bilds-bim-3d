@@ -10,7 +10,7 @@
  */
 
 import { FormEvent, useEffect, useState } from 'react'
-import { INGESTAO_URL } from '@/lib/api'
+import { CONVERSORES_URL, gerarAq, tesselar } from '@/servicos/conversores'
 import { BimViewer } from '@/components/bim-catalog/BimViewer'
 import type { GeoData } from '@/components/bim-catalog/bim-viewer-engine'
 import { segment } from '@/components/bim-editor/mesh-model'
@@ -70,15 +70,12 @@ export default function CadPage() {
     if (!EXT_CAD.test(file.name)) { setErro('envie .stp, .step, .igs ou .ifc'); return }
     setConvertendo(true); setErro(null); setGeo(null); setMsg(null)
     try {
-      const fd = new FormData()
-      fd.append('file', file)
-      fd.append('deflexao', deflexao)
-      const r = await fetch(`${INGESTAO_URL}/cad/tesselar`, { method: 'POST', body: fd })
+      const r = await tesselar(file, deflexao)
       const data = await r.json().catch(() => ({}))
       if (!r.ok) throw new Error(data?.message ? (Array.isArray(data.message) ? data.message.join('; ') : String(data.message)) : `serviço respondeu ${r.status}`)
       setGeo(data as Tesselado)
     } catch (e: any) {
-      setErro(e?.message?.includes('fetch') ? `falha de rede — o serviço de ingestão está de pé em ${INGESTAO_URL}?` : (e?.message ?? String(e)))
+      setErro(e?.message?.includes('fetch') ? `falha de rede — o serviço de conversores está de pé em ${CONVERSORES_URL}?` : (e?.message ?? String(e)))
     } finally {
       setConvertendo(false)
     }
@@ -105,15 +102,11 @@ export default function CadPage() {
     if (!geo) return
     setOcupado(true); setErro(null)
     try {
-      const r = await fetch(`${INGESTAO_URL}/exportar/aq`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
+      const r = await gerarAq({
           info: { fabricante: geo.formato?.toUpperCase() ?? 'CAD', linha: 'Peças CAD', nome: nomeBase, descricao: geo.fonte, codigo: nomeBase,
                   specs: { Fonte: geo.fonte, 'Unidade do arquivo': geo.unidade, Triângulos: String(geo.idx.length / 3) }, origem: 'bilds-bim-3d /cad' },
           pos: geo.pos, col: geo.col, idx: geo.idx,
-        }),
-      })
+        })
       if (!r.ok) { const b = await r.json().catch(() => ({})); throw new Error(b?.message ? String(b.message) : `serviço respondeu ${r.status}`) }
       const resumoRaw = r.headers.get('X-Aq-Resumo')
       const resumo = resumoRaw ? JSON.parse(decodeURIComponent(resumoRaw)) : null

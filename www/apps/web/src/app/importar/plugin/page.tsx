@@ -17,6 +17,7 @@
 import { FormEvent, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { API_URL, INGESTAO_URL } from '@/lib/api'
+import { CONVERSORES_URL, inspecionarPlugin } from '@/servicos/conversores'
 
 interface Empresa { id: string; name: string; customUrl: string; catalogCount: number }
 interface Categoria { slug: string; name: string; grupos: number; grupos_nomes: string[] }
@@ -64,10 +65,8 @@ export default function ImportarPluginPage() {
   async function inspecionar() {
     if (!file) return
     setInspecionando(true); setErro(null); setInfo(null)
-    const fd = new FormData()
-    fd.append('file', file)
     try {
-      const r = await fetch(`${INGESTAO_URL}/importacoes/plugin-autocad/inspecionar`, { method: 'POST', body: fd })
+      const r = await inspecionarPlugin(file)
       let corpo: any = null
       try { corpo = await r.json() } catch { /* vazio */ }
       if (!r.ok) { setErro(lerErro(r, corpo)); return }
@@ -77,7 +76,7 @@ export default function ImportarPluginPage() {
       const cats = i.categorias ?? []
       setCategoria(cats[0]?.slug ?? '')
     } catch {
-      setErro(`falha de rede — o serviço de ingestão está de pé em ${INGESTAO_URL}?`)
+      setErro(`falha de rede — o serviço de conversores está de pé em ${CONVERSORES_URL}?`)
     } finally {
       setInspecionando(false)
     }

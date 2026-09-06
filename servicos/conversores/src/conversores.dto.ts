@@ -3,18 +3,20 @@ import {
   ArrayMaxSize,
   IsArray,
   IsNotEmpty,
+  IsNumber,
   IsOptional,
   IsString,
+  Max,
   MaxLength,
+  Min,
   ValidateIf,
   ValidateNested,
 } from 'class-validator';
-import { IsSpecs } from '@bim/dominio';
-import { LIMITES } from '@bim/base';
+import { IsSpecs, LIMITES } from '@bim/base';
 
 const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
 
-/** Metadados da peça para o `.aq` gerado (`POST /exportar/aq`). Tudo opcional. */
+/** Metadados da peça para o `.aq` gerado (`POST /aq`). Tudo opcional. */
 export class AqInfoDto {
   @IsOptional() @IsString() @Transform(trim) @MaxLength(LIMITES.texto) fabricante?: string;
   @IsOptional() @IsString() @Transform(trim) @MaxLength(LIMITES.texto) linha?: string;
@@ -48,7 +50,7 @@ export class AqParteDto {
   idx: number[];
 }
 
-/** Corpo do `POST /exportar/aq`: `info` + `partes`, ou `info` + um único `{pos,col,idx}`. */
+/** Corpo do `POST /aq`: `info` + `partes`, ou `info` + um único `{pos,col,idx}`. */
 export class ExportarAqDto {
   @IsOptional()
   @ValidateNested()
@@ -65,4 +67,16 @@ export class ExportarAqDto {
   @IsOptional() @IsArray() pos?: number[];
   @IsOptional() @IsArray() col?: number[];
   @IsOptional() @IsArray() idx?: number[];
+}
+
+
+/** Campos do `POST /tesselar` (multipart — chega como texto). */
+export class TesselarDto {
+  /** só STEP/IGES: deflexão da tesselação em mm (0 < x ≤ 10; padrão 0,2) */
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ allowNaN: false, allowInfinity: false }, { message: '"deflexao" deve ser um número em mm' })
+  @Min(0.0001, { message: '"deflexao" deve ser maior que 0' })
+  @Max(10, { message: '"deflexao" deve ser no máximo 10 mm' })
+  deflexao?: number;
 }

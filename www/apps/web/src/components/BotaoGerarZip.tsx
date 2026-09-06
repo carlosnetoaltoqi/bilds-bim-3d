@@ -1,13 +1,13 @@
 'use client'
 
 /**
- * BotaoGerarZip — envia um .aq ou .zip para POST /exportar/zip-bilds no serviço de ingestão
+ * BotaoGerarZip — envia um .aq ou .zip para POST /exportar/zip-bilds no serviço gerador de ZIP
  * e dispara o download do ZIP gerado. Mostra progresso de upload e estado de processamento.
  * Nada é armazenado no servidor: o arquivo enviado e o ZIP gerado são temporários.
  */
 
 import { useRef, useState } from 'react'
-import { INGESTAO_URL } from '@/lib/api'
+import { ROTA_ZIP } from '@/servicos/zip'
 
 type Estado = 'idle' | 'enviando' | 'processando' | 'erro'
 
@@ -88,7 +88,7 @@ export function BotaoGerarZip() {
 
     xhr.addEventListener('error', () => {
       xhrRef.current = null
-      setErro('falha de rede — verifique se o serviço de ingestão está no ar')
+      setErro('falha de rede — verifique se o serviço gerador de ZIP está no ar')
       setEstado('erro')
     })
 
@@ -98,7 +98,7 @@ export function BotaoGerarZip() {
       setProgresso(0)
     })
 
-    xhr.open('POST', `${INGESTAO_URL}/exportar/zip-bilds`)
+    xhr.open('POST', ROTA_ZIP)
     xhr.send(form)
   }
 

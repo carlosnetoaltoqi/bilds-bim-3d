@@ -143,7 +143,7 @@ Verificado ao fechar: Dancor 13 peças/13 miniaturas, 9 MB em 11 s, `/tmp` limpo
 `docs/historico/planos/arquitetura-www-servico-de-ingestao.md` §4: `build_zip_bilds` duplica o `build_zip` do `build.py`, e `test_cli_akato`
 aponta para um `.aq` que não existe (pula sempre). Registro: `docs/sessoes/S7.18-botao-gerar-zip-bilds.md`. Suíte **141** (140 passam; `test_cli_akato` pula).
 
-**S8 (2026-09-06) — reengenharia em contextos desacoplados.** O usuário aprovou o plano em `docs/arquitetura.md` (fases F0–F6, estado na §6) e `docs/decisoes/`. As pendências da S7.18 e da §4 antiga foram absorvidas pelas fases F1–F5. **F0, F1 (S8.1) e F2 (S8.2) feitas:** workspace pnpm na raiz, `pacotes/base` e `pacotes/dominio` compilados (o `pnpm start` do `dist/` voltou a funcionar), contratos em JSON Schema. **F1:** a biblioteca `bim_pipeline` em `biblioteca/` é um pacote instalável, sem duplicações, sem `build.py`/`templates/`/`eng-reversa/` (arquivados em `docs/historico/`), sem fabricantes em código; fixtures por papel; suíte **164**. Registro: `docs/sessoes/S8.1-f1-biblioteca-bim-pipeline.md`.
+**S8 (2026-09-06) — reengenharia em contextos desacoplados.** O usuário aprovou o plano em `docs/arquitetura.md` (fases F0–F6, estado na §6) e `docs/decisoes/`. As pendências da S7.18 e da §4 antiga foram absorvidas pelas fases F1–F5. **F0–F3 feitas.** F3 (S8.3): `servicos/gerador-zip` e `servicos/conversores`, stateless, sobem sem variáveis de Mongo; o cliente tipado da biblioteca (`Biblioteca`, ex-`PipelineService`) e os validadores de geometria/specs vivem em `@bim/base`; o web tem um cliente por serviço (`src/servicos/`). **F2 (S8.2):** workspace pnpm na raiz, `pacotes/base` e `pacotes/dominio` compilados (o `pnpm start` do `dist/` voltou a funcionar), contratos em JSON Schema. **F1:** a biblioteca `bim_pipeline` em `biblioteca/` é um pacote instalável, sem duplicações, sem `build.py`/`templates/`/`eng-reversa/` (arquivados em `docs/historico/`), sem fabricantes em código; fixtures por papel; suíte **164**. Registro: `docs/sessoes/S8.1-f1-biblioteca-bim-pipeline.md`.
 
 **Próxima sessão:** continuar pela primeira fase não marcada ✅ em `docs/arquitetura.md` §6. Antes: abrir o `.aq` da Tupy no AltoQi Builder (aceitação, como a Amanco na S7.16); depois
 `docs/sessoes/S7.14-www-servico-de-ingestao.md`, seção 7 — build do `dist/` com o `@bim/dominio`, e2e reexecutados,
@@ -215,7 +215,10 @@ bilds-bim-3d/
 ├── docs/
 │   ├── arquitetura.md · decisoes/ (ADR-001…017) · conhecimento/ · skills/ · sessoes/ · bilds-bim-3d-zip-spec.md
 │   └── historico/               ← planos/ (arquitetura anterior), estudos/ (escrita de .aq a partir de PDF; plugin de CAD → catálogo web), preview-estatico/
-├── www/                         ← serviços Nest (apps/ingestao :4100, apps/api :4000) e web Next (apps/web :3000) — README próprio; migram para servicos/ e web/ nas F3–F4
+├── servicos/                    ← UM DEPLOYABLE POR CONTEXTO (Nest; README próprio em cada um)
+│   ├── gerador-zip/ :4200       ← .aq → ZIP da bilds.com em stream; STATELESS (sem Mongo, sem storage) — ADR-012
+│   └── conversores/ :4300       ← STEP/IGES/IFC → geometria, geometria → .aq de uma peça, DLL de plugin → catálogo web; STATELESS — ADR-013
+├── www/                         ← ainda aqui: criador de catálogos (apps/ingestao :4100), API de catálogo (apps/api :4000), web (apps/web :3000) — README próprio; F4 os leva para servicos/ e web/
 ├── input/                       ← .aq do usuário — gitignored
 └── output/                      ← saída do lote (`zip_bilds --all`) e da suíte — gitignored
 ```
@@ -233,7 +236,7 @@ esperadas estão **nos arquivos**, não em texto: `.python-version`, `.nvmrc`, `
 | Node ≥ 22.6 (24 no `.nvmrc`) e pnpm 11 | miniaturas, `www/`, testes de paridade | `node -v; pnpm -v` |
 | `biblioteca/bim_pipeline/miniaturas/node_modules` (playwright + three) + Chromium + libs `libnss3 libnspr4 libasound2t64` | miniaturas (a geração **falha** sem, salvo `--allow-no-thumbs`) | `ls biblioteca/bim_pipeline/miniaturas/node_modules; ldconfig -p \| grep libnss3` |
 | `requirements-dev.txt` (pytest) | `tests/` | `python3 -m pytest -q` |
-| `pnpm install` **na raiz** (+ `pnpm build:pacotes`) e `www/.env` (Mongo, `STORAGE_PATH`) | serviços e web | `bash scripts/bootstrap.sh --www --check`; subir com `pnpm dev` (os três) ou `pnpm dev:ingestao`, `dev:api`, `dev:web`; `pnpm -r build` + `pnpm start:*` rodam do `dist/` |
+| `pnpm install` **na raiz** (+ `pnpm build:pacotes`) e `www/.env` (Mongo, `STORAGE_PATH`) | serviços e web | `bash scripts/bootstrap.sh --www --check`; subir com `pnpm dev` (os cinco) ou `pnpm dev:ingestao`, `dev:api`, `dev:zip`, `dev:conversores`, `dev:web`; `pnpm -r build` + `pnpm start:*` rodam do `dist/`. Os serviços em `servicos/` leem o `.env` da **raiz** |
 | `requirements-cad.txt` (ifcopenshell, cadquery-ocp, pypdf, olefile) | importar/tesselar STEP, IGES e IFC no serviço (`step_to_geo.py`, `ifc_to_geo.py`), plugin de AutoCAD (`catallog.py`; `olefile` só para os tipos do `.rfa`), PDF | `python3 -c 'import OCP, ifcopenshell, olefile'` |
 
 **Armadilhas de ambiente que já custaram tempo:**
@@ -253,7 +256,7 @@ esperadas estão **nos arquivos**, não em texto: `.python-version`, `.nvmrc`, `
 ## Testes — `tests/`
 
 ```bash
-python3 -m pytest                                   # 169 testes, ~4 min (Chromium, paridade, fixtures reais por papel)
+python3 -m pytest                                   # 170 testes, ~4 min (Chromium, paridade, fixtures reais por papel)
 python3 -m pytest -m "not thumbs"                   # sem Chromium — é o que o CI roda
 python3 -m pytest -m "not thumbs and not paridade"  # só Python, sem Node
 ```

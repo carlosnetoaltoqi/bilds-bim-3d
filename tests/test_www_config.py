@@ -33,15 +33,41 @@ def _fontes(raiz):
     return [p for p in raiz.rglob('*') if p.suffix in ('.ts', '.tsx', '.mts') and 'node_modules' not in p.parts]
 
 
-def test_web_so_lib_api_conhece_as_urls_dos_servicos():
+SERVICOS_WEB = WEB_SRC / 'servicos'
+
+
+def test_web_um_cliente_por_servico():
+    """Regra 5 de docs/arquitetura.md §3: cada serviço tem UM cliente no web (lib/api.ts para API e criador;
+    src/servicos/<nome>.ts para os demais) e nenhuma URL fixa mora fora deles."""
+    clientes = {LIB_API, *SERVICOS_WEB.glob('*.ts')}
     culpados = [str(p.relative_to(ROOT)) for p in _fontes(WEB_SRC)
-                if p != LIB_API and re.search(r"https?://localhost:4[01]00", p.read_text(encoding='utf8'))]
-    assert culpados == [], f'`localhost:4000`/`4100` fixo fora de lib/api.ts: {culpados}'
+                if p not in clientes and re.search(r"https?://localhost:4[0-9]00", p.read_text(encoding='utf8'))]
+    assert culpados == [], f'URL de serviço fixa fora dos clientes: {culpados}'
     lib = LIB_API.read_text(encoding='utf8')
     assert 'NEXT_PUBLIC_API_URL' in lib and 'process.env.API_URL' in lib
     assert 'NEXT_PUBLIC_INGESTAO_URL' in lib and 'process.env.INGESTAO_URL' in lib
+    for nome, porta, env in (('zip', 4200, 'ZIP_URL'), ('conversores', 4300, 'CONVERSORES_URL')):
+        cli = (SERVICOS_WEB / f'{nome}.ts').read_text(encoding='utf8')
+        assert f'localhost:{porta}' in cli and f'NEXT_PUBLIC_{env}' in cli and f'process.env.{env}' in cli
+    # o cliente de um serviço não importa o de outro, e cada URL aparece num cliente só
+    for c in clientes:
+        codigo = '\n'.join(l for l in c.read_text(encoding='utf8').splitlines() if not l.lstrip().startswith(('*', '/*', '//')))
+        assert codigo.count("'http://localhost:4") == (2 if c == LIB_API else 1), c
     # o web não tem mais rotas-proxy nem login (A7): tudo vai direto aos dois serviços
     assert not (WEB_SRC / 'app' / 'api').exists() and not (WEB_SRC / 'middleware.ts').exists()
+
+
+def test_servicos_stateless_nao_conhecem_dados():
+    """Regra 3: gerador-zip e conversores não importam @bim/dominio, não têm Mongoose, não leem STORAGE_PATH."""
+    for servico in ('gerador-zip', 'conversores'):
+        raiz = ROOT / 'servicos' / servico
+        pkg = json.loads((raiz / 'package.json').read_text(encoding='utf8'))
+        assert '@bim/dominio' not in pkg['dependencies'] and 'mongoose' not in pkg['dependencies'] and '@nestjs/mongoose' not in pkg['dependencies'], servico
+        for p in _fontes(raiz / 'src'):
+            txt = p.read_text(encoding='utf8')
+            assert not re.search(r"from '@bim/dominio'|from '@nestjs/mongoose'|MongooseModule\.for|process\.env\.STORAGE_PATH|storagePath\(", txt), p
+        main = (raiz / 'src' / 'main.ts').read_text(encoding='utf8')
+        assert 'iniciarServico(' in main and ('ZIP_PORT' in main or 'CONVERSORES_PORT' in main)
 
 
 def test_api_so_o_cliente_conhece_o_servico_de_ingestao():
@@ -74,23 +100,23 @@ def test_cada_servico_escuta_na_porta_do_env():
     assert 'process.env.INGESTAO_PORT' in main_ing and 'app.listen(PORT)' in main_ing
     assert not re.search(r'listen\(\s*4100\s*\)', main_ing)
     env = (WWW / '.env.example').read_text(encoding='utf8')
-    assert 'PORT=4000' in env and 'INGESTAO_PORT=4100' in env and 'INGESTAO_URL=' in env
+    assert 'PORT=4000' in env and 'INGESTAO_PORT=4100' in env and 'INGESTAO_URL=' in env and 'ZIP_PORT=4200' in env and 'CONVERSORES_PORT=4300' in env
 
 
 def test_biblioteca_alcancada_so_pela_base():
     """Regra 2 de docs/arquitetura.md §3: só `pacotes/base/src/biblioteca-cli.ts` sabe onde a biblioteca
     está (BIBLIOTECA_DIR), qual Python roda e como uma CLI se chama; nenhum serviço spawna processo."""
     cli_ts = BASE_SRC / 'biblioteca-cli.ts'
-    culpados = [str(p.relative_to(ROOT)) for raiz in (API_SRC, INGESTAO_SRC, DOMINIO_SRC, BASE_SRC) for p in _fontes(raiz)
+    culpados = [str(p.relative_to(ROOT)) for raiz in (API_SRC, INGESTAO_SRC, DOMINIO_SRC, BASE_SRC, ROOT / 'servicos') for p in _fontes(raiz)
                 if p != cli_ts and re.search(r"BIBLIOTECA_DIR|process\.env\.PYTHON|bim_pipeline\.cli", p.read_text(encoding='utf8'))]
     assert culpados == [], culpados
-    culpados = [str(p.relative_to(ROOT)) for raiz in (API_SRC, INGESTAO_SRC, DOMINIO_SRC) for p in _fontes(raiz)
+    culpados = [str(p.relative_to(ROOT)) for raiz in (API_SRC, INGESTAO_SRC, DOMINIO_SRC, ROOT / 'servicos') for p in _fontes(raiz)
                 if re.search(r"child_process|spawn\(", p.read_text(encoding='utf8'))]
     assert culpados == [], f'processo filho fora de pacotes/base: {culpados}'
     cli = cli_ts.read_text(encoding='utf8')
     assert 'process.env.PYTHON' in cli and 'BIBLIOTECA_DIR' in cli and 'bim_pipeline.cli.' in cli
-    svc = (INGESTAO_SRC / 'pipeline' / 'pipeline.service.ts').read_text(encoding='utf8')
-    assert "'--sair-com-stdin'" in svc and 'sairComStdin: true' in svc and 'new BibliotecaCli' in svc
+    svc = (BASE_SRC / 'biblioteca.ts').read_text(encoding='utf8')
+    assert "'--sair-com-stdin'" in svc and 'sairComStdin: true' in svc and 'extends BibliotecaCli' in svc
 
 
 @pytest.mark.paridade

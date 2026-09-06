@@ -4,7 +4,6 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { GeometryStoreModule, MongoProntoGuard } from '@bim/dominio';
 import { HealthController } from './health/health.controller';
 import { ImportacoesModule } from './importacoes/importacoes.module';
-import { CadModule } from './cad/cad.module';
 import { MiniaturasModule } from './miniaturas/miniaturas.module';
 import { ExportacaoModule } from './exportacao/exportacao.module';
 
@@ -16,7 +15,6 @@ import { ExportacaoModule } from './exportacao/exportacao.module';
     ),
     GeometryStoreModule,
     ImportacoesModule,
-    CadModule,
     MiniaturasModule,
     ExportacaoModule,
   ],

@@ -21,7 +21,7 @@ INGESTAO = WWW / 'apps' / 'ingestao'
 DOMINIO = ROOT / 'pacotes' / 'dominio'
 BASE = ROOT / 'pacotes' / 'base'
 LOCK = (ROOT / 'pnpm-lock.yaml').read_text(encoding='utf8')     # um só lockfile, na raiz (S8/F2)
-IMPORTERS = ('www/apps/api', 'www/apps/ingestao', 'pacotes/dominio', 'pacotes/base')
+IMPORTERS = ('www/apps/api', 'www/apps/ingestao', 'pacotes/dominio', 'pacotes/base', 'servicos/gerador-zip', 'servicos/conversores')
 
 
 def _bloco_importer(importer):
@@ -81,7 +81,8 @@ def test_os_tres_importers_resolvem_as_mesmas_versoes():
         versoes = {imp: _versao_instalada(pacote, imp) for imp in ('www/apps/api', 'www/apps/ingestao', 'pacotes/dominio')}
         assert len(set(versoes.values())) == 1, f'{pacote} resolvido em versões diferentes: {versoes}'
     for pacote in ('@nestjs/core', '@nestjs/platform-express', 'multer'):
-        assert _versao_instalada(pacote, 'www/apps/api') == _versao_instalada(pacote, 'www/apps/ingestao') == _versao_instalada(pacote, 'pacotes/base'), pacote
+        versoes = {imp: _versao_instalada(pacote, imp) for imp in ('www/apps/api', 'www/apps/ingestao', 'pacotes/base', 'servicos/gerador-zip', 'servicos/conversores')}
+        assert len(set(versoes.values())) == 1, f'{pacote}: {versoes}'
 
 
 def test_dominio_e_dependencia_dos_dois_apps_e_so_deles():

@@ -1,8 +1,9 @@
 /**
- * Bases dos dois serviços que o web consome — a ÚNICA origem de `localhost:4000`/`4100` no web (I17).
+ * Bases da API de catálogo e do criador de catálogos (ingestão). Os outros serviços têm cada um o seu cliente em
+ * `src/servicos/` (zip, conversores) — uma URL por arquivo (docs/arquitetura.md §3, regra 5).
  *
  *   API_URL       API de catálogo (apps/api, :4000): empresas, catálogos, produtos, geometria, miniaturas
- *   INGESTAO_URL  serviço de ingestão (apps/ingestao, :4100): upload/status de importação, tesselar CAD, exportar .aq
+ *   INGESTAO_URL  criador de catálogos (apps/ingestao, :4100): upload/status de importação, exportar catálogo → .aq
  *
  * No browser só `NEXT_PUBLIC_*` existe (o Next inlina no bundle). No servidor Next (server
  * components) `API_URL`/`INGESTAO_URL` têm precedência, para o caso de a rede interna ter outro

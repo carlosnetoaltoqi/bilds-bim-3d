@@ -12,7 +12,8 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { BimCatalog, BimCatalogDocument, BimImport, BimImportDocument, BimProduct, BimProductDocument, Company, CompanyDocument, IGeometryStore, NaoEncontrado, apagarProduto, normalizarCurva, normalizarSpecs } from '@bim/dominio';
+import { BimCatalog, BimCatalogDocument, BimImport, BimImportDocument, BimProduct, BimProductDocument, Company, CompanyDocument, IGeometryStore, NaoEncontrado, apagarProduto } from '@bim/dominio';
+import { normalizarCurva, normalizarSpecs } from '@bim/base';
 import { PatchProdutoDto } from './patch-produto.dto';
 
 /**
