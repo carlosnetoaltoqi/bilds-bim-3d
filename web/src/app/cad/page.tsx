@@ -125,11 +125,11 @@ export default function CadPage() {
       <div className="max-w-[880px] mx-auto">
         <p className="text-[12px] text-gray-500 mb-1"><a href="/" className="hover:underline">← início</a></p>
         <h1 className="text-2xl font-bold mb-1" style={{ fontFamily: 'Fira Sans, Inter, system-ui, sans-serif' }}>Converter peça CAD</h1>
-        <p className="text-[13px] text-gray-600 mb-6">
-          Um <code>.stp</code>/<code>.step</code> (B-rep, tesselado com OpenCASCADE) ou <code>.ifc</code> (parse_ifc.py; ifcopenshell
-          para arquivo grande) vira a geometria do viewer em metros, Y para cima — para conferir e baixar como JSON, IFC4 ou <code>.aq</code>,
-          sem criar produto. Para entrar num catálogo, use <a href="/importar?tipo=cad" className="text-[#1e40af] underline">Importar peça STEP / IFC</a>.
-        </p>
+        <aside className="mb-6 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-[13px] text-gray-600 flex flex-col gap-2">
+          <p><strong className="font-semibold text-gray-900">Para que serve:</strong> você tem um arquivo STEP, IGES ou IFC e quer inspecionar sua geometria ou convertê-lo para outro formato — sem adicioná-lo a nenhum catálogo. Útil para verificar se o arquivo está correto antes de importar, ou para gerar um <code>.aq</code> avulso para usar diretamente no AltoQi Builder.</p>
+          <p><strong className="font-semibold text-gray-900">O que você pode fazer após converter:</strong> ver a geometria no viewer 3D (dimensões, número de sólidos e triângulos); baixar como JSON interno <code>&#123;pos,col,idx&#125;</code>; exportar como IFC4 (gerado no browser); ou baixar como <code>.aq</code> compatível com o Builder.</p>
+          <p>Para adicionar a peça a um catálogo e deixá-la disponível no sistema, use <a href="/importar?tipo=cad" className="text-[#1e40af] underline">Importar peça STEP / IFC</a>.</p>
+        </aside>
 
         <form onSubmit={converter} className="bg-white border border-gray-200 rounded-lg p-5 flex flex-col gap-4 text-[13px]">
           <label className="flex flex-col gap-1">

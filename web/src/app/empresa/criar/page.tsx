@@ -64,7 +64,12 @@ export default function CriarEmpresaPage() {
   return (
     <main style={styles.main}>
       <div style={styles.card}>
+        <p className="text-[12px] text-gray-500 mb-4"><a href="/" className="hover:underline">← empresas e catálogos</a></p>
         <h1 style={styles.title}>Criar empresa</h1>
+        <aside style={styles.help}>
+          <p style={styles.helpItem}><strong style={styles.helpLabel}>Para que serve:</strong> todo catálogo pertence a uma empresa. Cadastre a empresa primeiro — depois importe bibliotecas e peças sob ela.</p>
+          <p style={styles.helpItem}><strong style={styles.helpLabel}>URL pública:</strong> define o endereço dos catálogos da empresa (ex.: bilds.com/<em>url</em>/nome-do-catalogo). Use um identificador curto, sem espaços e sem acentos — ele não pode ser alterado depois.</p>
+        </aside>
         <form onSubmit={handleSubmit} style={styles.form}>
           <label style={styles.label}>
             Nome da empresa
@@ -132,7 +137,19 @@ const styles: Record<string, React.CSSProperties> = {
     maxWidth: 440,
     boxShadow: '0 1px 3px rgba(0,0,0,.12)',
   },
-  title: { margin: '0 0 1.5rem', fontSize: '1.5rem', fontWeight: 700, color: '#111' },
+  title: { margin: '0 0 0.75rem', fontSize: '1.5rem', fontWeight: 700, color: '#111' },
+  help: {
+    background: '#f8fafc',
+    border: '1px solid #e2e8f0',
+    borderRadius: 6,
+    padding: '0.75rem 1rem',
+    marginBottom: '1.25rem',
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '0.4rem',
+  },
+  helpItem: { margin: 0, fontSize: '0.8125rem', color: '#4b5563', lineHeight: 1.5 },
+  helpLabel: { fontWeight: 600, color: '#111' },
   form: { display: 'flex', flexDirection: 'column', gap: '1rem' },
   label: { display: 'flex', flexDirection: 'column', gap: 4, fontSize: '0.875rem', fontWeight: 500 },
   input: {

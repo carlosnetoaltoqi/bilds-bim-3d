@@ -155,12 +155,22 @@ function ImportarPageInner() {
         <h1 className="text-2xl font-bold mb-1" style={{ fontFamily: 'Fira Sans, Inter, system-ui, sans-serif' }}>
           {tipo === 'aq' ? 'Importar biblioteca .aq' : tipo === 'cad' ? 'Importar peça STEP / IGES / IFC' : 'Importar biblioteca ou peça'}
         </h1>
-        <p className="text-[13px] text-gray-600 mb-6">
-          {tipo !== 'cad' && <>Uma biblioteca <code>.aq</code> (ou <code>.zip</code> com o SQLite dentro) vira um catálogo inteiro: o pipeline lê
-          peças, propriedades e a geometria OQ3D, grava uma geometria por simbologia e renderiza as miniaturas no Chromium. </>}
-          {tipo !== 'aq' && <>Uma peça <code>.stp</code>/<code>.step</code>/<code>.igs</code> (OpenCASCADE; IGES é costurado em sólido) ou <code>.ifc</code> entra como um produto num catálogo
-          &quot;Peças STEP/IFC&quot; da empresa, e dali abre no editor 3D.</>}
-        </p>
+        <aside className="mb-6 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-[13px] text-gray-600 flex flex-col gap-2">
+          {tipo === 'aq' && <>
+            <p><strong className="font-semibold text-gray-900">Para que serve:</strong> você tem uma biblioteca exportada do AltoQi Builder (arquivo <code>.aq</code> ou <code>.zip</code>) e quer publicá-la aqui como catálogo navegável com viewer 3D e miniaturas.</p>
+            <p><strong className="font-semibold text-gray-900">O que acontece:</strong> o sistema lê todas as peças, propriedades e geometria 3D da biblioteca, cria o catálogo no banco de dados e gera as miniaturas. Bibliotecas grandes podem levar vários minutos — a página acompanha o progresso e pode ser fechada.</p>
+            <p><strong className="font-semibold text-gray-900">O que você precisa:</strong> uma empresa já cadastrada (crie uma se ainda não tiver) e o arquivo <code>.aq</code> ou <code>.zip</code> exportado pelo Builder.</p>
+          </>}
+          {tipo === 'cad' && <>
+            <p><strong className="font-semibold text-gray-900">Para que serve:</strong> você tem um arquivo 3D de uma peça individual (STEP, IGES ou IFC) e quer adicioná-la a um catálogo para visualizar no viewer e exportar para o Builder. Cada arquivo vira um produto num catálogo da empresa escolhida.</p>
+            <p><strong className="font-semibold text-gray-900">O que acontece:</strong> a geometria é tesselada (STEP/IGES via OpenCASCADE; IFC via interpretador próprio) e o produto é criado no catálogo, pronto para editar no editor 3D ou baixar como <code>.aq</code>.</p>
+            <p>Para só inspecionar ou converter o arquivo sem criar produto, use <a href="/cad" className="text-[#1e40af] underline">Converter peça CAD</a>.</p>
+          </>}
+          {tipo === null && <>
+            <p><strong className="font-semibold text-gray-900">Para que serve:</strong> importar uma biblioteca <code>.aq</code>/<code>.zip</code> (catálogo inteiro do Builder) ou uma peça CAD individual (<code>.stp</code>, <code>.igs</code>, <code>.ifc</code>). O tipo é detectado pela extensão: biblioteca cria um catálogo; peça CAD cria um produto num catálogo da empresa.</p>
+            <p>Para só converter e inspecionar uma peça sem criar produto, use <a href="/cad" className="text-[#1e40af] underline">Converter peça CAD</a>.</p>
+          </>}
+        </aside>
 
         <form onSubmit={enviar} className="bg-white border border-gray-200 rounded-lg p-5 flex flex-col gap-4 text-[13px]">
           <label className="flex flex-col gap-1">

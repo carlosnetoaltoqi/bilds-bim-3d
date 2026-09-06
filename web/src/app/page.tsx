@@ -1,6 +1,5 @@
 import { CATALOGO_URL } from '@/servicos/catalogo'
 import { BotaoApagar } from '@/components/BotaoApagar'
-import { BotaoGerarZip } from '@/components/BotaoGerarZip'
 
 /**
  * / — empresas cadastradas e seus catálogos, com as chamadas para ver, editar e
@@ -38,7 +37,7 @@ export default async function HomePage() {
             <a href="/importar?tipo=cad" className="px-3 py-1.5 rounded bg-[#1e40af] text-white text-[12px] font-semibold">Importar peça STEP / IGES / IFC</a>
             <a href="/importar/plugin" className="px-3 py-1.5 rounded bg-[#1e40af] text-white text-[12px] font-semibold">Importar plugin do AutoCAD</a>
             <a href="/cad" className="px-3 py-1.5 rounded border border-gray-300 text-[12px] font-semibold text-gray-700">Converter peça CAD</a>
-            <BotaoGerarZip />
+            <a href="/exportar/zip-bilds" className="px-3 py-1.5 rounded border border-gray-300 text-[12px] font-semibold text-gray-700">Gerar ZIP bilds.com</a>
             <a href="/empresa/criar" className="px-3 py-1.5 rounded border border-gray-300 text-[12px] font-semibold text-gray-700">Criar empresa</a>
           </nav>
         </div>

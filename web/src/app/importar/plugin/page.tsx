@@ -118,12 +118,11 @@ export default function ImportarPluginPage() {
       <div className="max-w-[720px] mx-auto">
         <p className="text-[12px] text-gray-500 mb-1"><a href="/" className="hover:underline">← empresas e catálogos</a></p>
         <h1 className="text-2xl font-bold mb-1" style={{ fontFamily: 'Fira Sans, Inter, system-ui, sans-serif' }}>Importar plugin do AutoCAD</h1>
-        <p className="text-[13px] text-gray-600 mb-6">
-          Plugins de fabricante que abrem um <strong>catálogo web</strong> dentro do AutoCAD (a DLL <code>.dll</code> do bundle, em
-          <code> C:\Program Files\Autodesk\ApplicationPlugins\&lt;nome&gt;.bundle\</code>) não trazem geometria: abrem o catálogo web
-          do fabricante. Aqui a DLL diz qual catálogo é; você escolhe a categoria; o serviço baixa os arquivos 3D (IGES) e as
-          famílias Revit, tessela e publica um catálogo — que depois se edita e se exporta para o AltoQi Builder como <code>.aq</code>.
-        </p>
+        <aside className="mb-6 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-[13px] text-gray-600 flex flex-col gap-2">
+          <p><strong className="font-semibold text-gray-900">Para que serve:</strong> você tem um plugin de fabricante instalado no AutoCAD — os que, ao serem ativados, abrem um catálogo web do fabricante dentro do software (conexões, mangueiras, eletrodutos etc.). Este formulário extrai o catálogo 3D desse plugin e o publica aqui como catálogo editável.</p>
+          <p><strong className="font-semibold text-gray-900">Como funciona:</strong> a DLL do plugin (<code>.dll</code> no bundle do AutoCAD, em <code>C:\Program Files\Autodesk\ApplicationPlugins\</code>) contém o endereço do catálogo web do fabricante. O serviço lê essa DLL, lista as categorias disponíveis, e baixa os arquivos 3D (IGES) e as famílias Revit do site do fabricante — passando pelo formulário de download que o site exige. O resultado é publicado aqui como catálogo editável e exportável como <code>.aq</code> para o Builder.</p>
+          <p><strong className="font-semibold text-gray-900">Atenção:</strong> o formulário de download (passo 3) envia seus dados diretamente ao fabricante. Use seus dados reais — o download é registrado no site e vale os Termos de Uso do catálogo.</p>
+        </aside>
 
         <form onSubmit={enviar} className="bg-white border border-gray-200 rounded-lg p-5 flex flex-col gap-4 text-[13px]">
           <label className="flex flex-col gap-1">
