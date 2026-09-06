@@ -143,7 +143,7 @@ Verificado ao fechar: Dancor 13 peças/13 miniaturas, 9 MB em 11 s, `/tmp` limpo
 `docs/historico/planos/arquitetura-www-servico-de-ingestao.md` §4: `build_zip_bilds` duplica o `build_zip` do `build.py`, e `test_cli_akato`
 aponta para um `.aq` que não existe (pula sempre). Registro: `docs/sessoes/S7.18-botao-gerar-zip-bilds.md`. Suíte **141** (140 passam; `test_cli_akato` pula).
 
-**S8 (2026-09-06) — reengenharia em contextos desacoplados.** O usuário aprovou o plano em `docs/arquitetura.md` (fases F0–F6, estado na §6) e `docs/decisoes/`. As pendências da S7.18 e da §4 antiga foram absorvidas pelas fases F1–F5.
+**S8 (2026-09-06) — reengenharia em contextos desacoplados.** O usuário aprovou o plano em `docs/arquitetura.md` (fases F0–F6, estado na §6) e `docs/decisoes/`. As pendências da S7.18 e da §4 antiga foram absorvidas pelas fases F1–F5. **F0 e F1 feitas (S8.1):** a biblioteca `bim_pipeline` em `biblioteca/` é um pacote instalável, sem duplicações, sem `build.py`/`templates/`/`eng-reversa/` (arquivados em `docs/historico/`), sem fabricantes em código; fixtures por papel; suíte **164**. Registro: `docs/sessoes/S8.1-f1-biblioteca-bim-pipeline.md`.
 
 **Próxima sessão:** continuar pela primeira fase não marcada ✅ em `docs/arquitetura.md` §6. Antes: abrir o `.aq` da Tupy no AltoQi Builder (aceitação, como a Amanco na S7.16); depois
 `docs/sessoes/S7.14-www-servico-de-ingestao.md`, seção 7 — build do `dist/` com o `@bim/dominio`, e2e reexecutados,
@@ -194,43 +194,29 @@ geometria que o parser não leu (foi assim que apareceu a malha OQ3D versão 3 d
 
 ## Estrutura do projeto
 
+Em migração para a arquitetura de `docs/arquitetura.md` (S8): a biblioteca já está no lugar
+definitivo; `www/` ainda abriga os serviços e o web até as fases F2–F4.
+
 ```
 bilds-bim-3d/
 ├── CLAUDE.md · README.md · CONCEPTS.md
-├── .nvmrc (24) · .python-version (3.12) · package.json (packageManager pnpm@11, playwright para as miniaturas)
-├── requirements.txt (jinja2, numpy) · requirements-dev.txt (pytest) · requirements-cad.txt (ifcopenshell, OCP, pypdf, olefile)
-├── .github/workflows/ci.yml     ← pytest -m "not thumbs" + py_compile; pnpm -r build em www/
-├── config.example.json
-├── scripts/
-│   ├── build.py                 ← pipeline estático: .aq → catalog.json → preview → thumbs → ZIP (consome www/apps/ingestao/pipeline)
-│   ├── bootstrap.sh · setup_vendor.sh · link_skills.sh
-├── templates/layouts/{series-rows,catalog-grid}.html · templates/vendor/ (Three.js, baixado)
-├── tests/                       ← pytest; conftest põe scripts/, www/apps/ingestao/pipeline/ e eng-reversa/tools/ no path; paridade/ tem os harnesses Node
+├── .nvmrc (24) · .python-version (3.12) · package.json (Node dos harnesses de teste)
+├── requirements.txt (-e biblioteca) · requirements-dev.txt (pytest) · requirements-cad.txt (ifcopenshell, OCP, pypdf, olefile)
+├── .github/workflows/ci.yml     ← pip install -e biblioteca + pytest -m "not thumbs"; pnpm -r build em www/
+├── biblioteca/                  ← ★ A BIBLIOTECA COMUM `bim_pipeline` (README próprio) — stateless, `pip install -e`
+│   └── bim_pipeline/{aq,geometria,catalogo(/fontes),conversores,miniaturas,saida,cli(/ferramentas)}
+│       miniaturas/ tem package.json próprio (playwright + three) — `pnpm install` lá
+├── scripts/bootstrap.sh · link_skills.sh
+├── tests/                       ← pytest; fixtures reais por PAPEL em tests/fixtures.local.json (gitignored; modelo fixtures.example.json)
+│   └── paridade/                ← harnesses Node dos serviços
+├── contratos/                   ← (F2) JSON Schema biblioteca ↔ serviços
 ├── docs/
-│   ├── conhecimento/            ← pipeline-estatico, oq3d, read-aq, parse-ifc, templates-html, diagnostico
-│   ├── sessoes/                 ← um registro por sessão + README.md (índice) + TEMPLATE.md
-│   ├── skills/                  ← as quatro skills (symlinkadas de ~/.claude/skills)
-│   ├── auditoria-2026-09-03-pendencias.md · bilds-bim-3d-zip-spec.md · estudo-oq3d/ · solutions/ · saida-bilds-com/
-│   └── plano-*.md, plans/       ← históricos
-├── eng-reversa/                 ← escrever .aq/OQ3D, formas paramétricas, PDF → catálogo (README próprio)
-│   └── tupy/                    ← S7.17: plugin de AutoCAD (Catallog) → IGES → .aq; estudo/, tools/, dados/ (downloads/ e saida/ gitignored)
-├── www/                         ← em reestruturação (docs/historico/planos/arquitetura-www-servico-de-ingestao.md) — README próprio
-│   ├── apps/ingestao/pipeline/  ← ★ O PIPELINE PYTHON: read_aq.py, oq3d.py, dedup.py, catalogo.py, inferencia.py, miniaturas.py,
-│   │                               catalogo_de_aq.py (CLI), step_to_geo.py (STEP+IGES), ifc_to_geo.py, parse_ifc.py, geo_to_aq.py, aq_writer.py,
-│   │                               oq3d_writer.py, catalogo_to_aq.py (catálogo salvo → .aq novo), catallog.py (plugin de AutoCAD → catálogo),
-│   │                               rfa_partatom.py, zip_bilds.py (.aq/.zip → ZIP bilds.com, S7.18), schema-aq-607.sql, thumbs.mjs + harness.html
-│   ├── apps/api (Nest :4000) · apps/web (Next :3000) · tools/ (testes do editor)
+│   ├── arquitetura.md · decisoes/ (ADR-001…017) · conhecimento/ · skills/ · sessoes/ · bilds-bim-3d-zip-spec.md
+│   └── historico/               ← planos/ (arquitetura anterior), estudos/ (escrita de .aq a partir de PDF; plugin de CAD → catálogo web), preview-estatico/
+├── www/                         ← serviços Nest (ingestao :4100, api :4000), web Next (:3000), packages/dominio — README próprio; migram para servicos/, pacotes/, web/ nas F2–F4
 ├── input/                       ← .aq do usuário — gitignored
-└── output/                      ← gerado; só preview/index.html (landing feita à mão) é versionado
-    ├── <origem>/<slug>-<ts>.zip · <origem>/<slug>-catalog.json · geo/… · thumbs/…
-    └── preview/<slug>/{index.html,catalog.json,data/*.json} · preview/vendor/ · preview/catalogs.json
+└── output/                      ← saída do lote (`zip_bilds --all`) e da suíte — gitignored
 ```
-
-`output/` espelha `input/`; por isso o `.gitignore` usa `output/**/*.zip`. **`output/preview/index.html`
-é a única coisa em `output/` que não se regenera** — ao limpar, preserve-a. Tudo o mais volta
-com `python3 scripts/build.py --all --force` (rode `setup_vendor.sh` antes num clone novo).
-
----
 
 ## Pré-requisitos e ambiente
 
@@ -241,31 +227,31 @@ esperadas estão **nos arquivos**, não em texto: `.python-version`, `.nvmrc`, `
 
 | Item | Obrigatório para | Como conferir |
 |---|---|---|
-| Python ≥ 3.12, `requirements.txt` (jinja2, numpy) | tudo | `python3 -c 'import jinja2, numpy'` |
+| Python ≥ 3.12, `requirements.txt` (`pip install -e biblioteca`) | tudo | `python3 -c 'import bim_pipeline, numpy'` |
 | Node ≥ 22.6 (24 no `.nvmrc`) e pnpm 11 | miniaturas, `www/`, testes de paridade | `node -v; pnpm -v` |
-| `templates/vendor/` com Three.js | preview | `ls templates/vendor` (`bash scripts/setup_vendor.sh`) |
-| `node_modules/playwright` + Chromium + libs `libnss3 libnspr4 libasound2t64` | miniaturas (o build **falha** sem) | `ls node_modules/playwright; ldconfig -p \| grep libnss3` |
+| `biblioteca/bim_pipeline/miniaturas/node_modules` (playwright + three) + Chromium + libs `libnss3 libnspr4 libasound2t64` | miniaturas (a geração **falha** sem, salvo `--allow-no-thumbs`) | `ls biblioteca/bim_pipeline/miniaturas/node_modules; ldconfig -p \| grep libnss3` |
 | `requirements-dev.txt` (pytest) | `tests/` | `python3 -m pytest -q` |
 | `www/` com `pnpm install` e `www/.env` (Mongo, `STORAGE_PATH`) | serviço de ingestão, API e web | `bash scripts/bootstrap.sh --www --check`; subir com `pnpm dev:ingestao`, `dev:api`, `dev:web` |
 | `requirements-cad.txt` (ifcopenshell, cadquery-ocp, pypdf, olefile) | importar/tesselar STEP, IGES e IFC no serviço (`step_to_geo.py`, `ifc_to_geo.py`), plugin de AutoCAD (`catallog.py`; `olefile` só para os tipos do `.rfa`), PDF | `python3 -c 'import OCP, ifcopenshell, olefile'` |
 
 **Armadilhas de ambiente que já custaram tempo:**
 - **Dois Node na máquina.** O do apt (`/usr/bin/node`, v18) e o do nvm; o nvm só entra no PATH
-  de shell interativo, então um subprocess pega o velho e o Playwright recusa. `build.py` procura
-  sozinho um Node bom em `~/.nvm` (`_find_node`); em outro lugar, `BILDS_NODE=/caminho/node`.
+  de shell interativo, então um subprocess pega o velho e o Playwright recusa. A biblioteca procura
+  sozinha um Node bom em `~/.nvm` (`miniaturas.render.find_node`); em outro lugar, `BILDS_NODE=/caminho/node`.
 - **`sudo npx playwright install-deps` falha** com nvm: o `sudo` descarta o PATH e cai no Node do
   apt. Use o `apt-get` acima (mesmas libs) ou `sudo env "PATH=$PATH" npx …`. Sem sudo: baixar os
   `.deb` e extrair em `~/.local/chromium-libs` com `LD_LIBRARY_PATH` (receita no `README.md`).
 - **PEP 668** no Ubuntu: `pip install` fora de venv exige `--user --break-system-packages`; o
   `bootstrap.sh` tenta sem e repete com as flags.
-- **Só pnpm.** `npm install` cria um `package-lock.json` que não é versionado (I18).
+- **Só pnpm.** `npm install` cria um `package-lock.json` que não é versionado (I18). As miniaturas têm o
+  próprio `package.json` em `biblioteca/bim_pipeline/miniaturas/`.
 - **Atlas M0 com whitelist de IP** derruba a API da POC em retry infinito com uma mensagem que
   culpa o whitelist para qualquer causa — o diagnóstico por camadas está em `www/README.md`.
 
 ## Testes — `tests/`
 
 ```bash
-python3 -m pytest                                   # 141 testes, 1–4 min (abre o Chromium duas vezes; ida e volta da Akato; IGES da Tupy se baixados)
+python3 -m pytest                                   # 164 testes, ~4 min (Chromium, paridade, fixtures reais por papel)
 python3 -m pytest -m "not thumbs"                   # sem Chromium — é o que o CI roda
 python3 -m pytest -m "not thumbs and not paridade"  # só Python, sem Node
 ```
@@ -274,13 +260,15 @@ python3 -m pytest -m "not thumbs and not paridade"  # só Python, sem Node
 |---|---|
 | `test_oq3d.py` | contrato do parser: truncado → `OQ3DError`; layout desconhecido → pulado + aviso; versões 2 e 3 iguais; raízes do cabeçalho; Akato 262/262; Maxbar versão 3 |
 | `test_read_aq.py` | `open_aq` não cria arquivo, read-only, rejeita lixo; contagens da Akato; cp1252 sem `\x80–\x9f`/U+FFFD |
-| `test_build.py` | `auto_config` (só chaves do `.aq`; `--ifc` recusado — I6); `build_catalog_from_aq` + `diag` em Akato corrompida; render dos dois layouts com `1" x 1" <script>`; sem Jinja2/template → `RuntimeError`; `thumbCount`; `ThumbsError` sem Node, `--allow-no-thumbs`, `--skip-thumbs`, `run_all` exit 1; uma miniatura real |
-| `test_geo_to_aq.py` | I4: o pipeline não importa nada de fora do próprio diretório; `geo_to_aq.py` gera um `.aq` de uma malha que `read_aq.py` e `oq3d.py` leem de volta (nome com acento em cp1252, specs, um triângulo, cores) |
-| `test_step_to_geo.py` | S7.17: IGES de uma caixa escrita pelo próprio OCC (6 faces soltas) → `costurado`, volume igual ao da caixa, 12 △ com as normais para fora (volume assinado da malha positivo); o STEP da mesma caixa não costura; CLI; IGES da Tupy (se baixados): sólido fechado, volume > 0, cor preservada. Pula sem OCP |
-| `test_catallog.py` | S7.17, sem rede: `inspecionar_dll` numa DLL sintética (host, plugin, versão) e na TupyCAD.dll real (se instalada); não-PE/sem URL acusam; `validar_lead`; `specs_do_produto` (tabela Dimensionais com cabeçalho `colspan`/`rowspan`, Tipos Revit); `catalogo_de_downloads` com um IGES real → JSON do `catalogo_de_aq.py`, avisos de grupo sem IGES, idempotente; manifesto real da Tupy |
-| `test_zip_bilds.py` | S7.18: `zip_bilds.build_zip_bilds` — `manifest.json` com os campos do contrato, `catalog.json`, geometria compartilhada entra uma vez, `thumbs/` só com as que existem, geometria ausente não quebra; CLI com a Akato (marca `aq`, precisa de `input/` — **hoje pula sempre**: caminho errado, §4 da arquitetura) |
+| `test_catalogo.py` | `auto_config` só descreve o `.aq`; `build_catalog_from_aq` sobre a fixture `aq_pequena`; `diag` numa cópia corrompida separa tubos de simbologia descartada (I2/I3); `resumo_diag` |
+| `test_geometria.py` | S8: `dedup` vetorizado idêntico à implementação pura de referência; `eixos` inversos; `malhas_por_cor` (regra do primeiro vértice) e os erros de geometria inválida |
+| `test_ferramentas.py` | S8: `validar_aq`/`aq_referencia`/`oq3d_anatomy` sobre um `.aq` escrito pela própria biblioteca; as 21 formas paramétricas geram malhas que o OQ3D grava e relê |
+| `test_geo_to_aq.py` | a biblioteca não importa nada de fora de si; `gerar_aq` gera um `.aq` de uma malha que `read_aq` e `oq3d` leem de volta (nome com acento em cp1252, specs, um triângulo, cores) |
+| `test_step_to_geo.py` | IGES de uma caixa escrita pelo próprio OCC (6 faces soltas) → `costurado`, volume igual ao da caixa, normais para fora; o STEP da mesma caixa não costura; CLI; IGES reais (fixture `iges_pasta`): o que fecha tem volume > 0 e cor preservada, o que não fecha é contado. Pula sem OCP |
+| `test_catallog.py` | plugin web, sem rede: `inspecionar_dll` numa DLL sintética e numa real (fixture `dll_plugin`); não-PE/sem URL acusam; `validar_lead`; `specs_do_produto`; `catalogo_de_downloads` com um IGES sintético → o mesmo JSON do `catalogo_de_aq`, avisos, idempotente; manifesto real (fixture `manifesto_plugin`) |
+| `test_zip_bilds.py` | o único escritor do ZIP: manifesto, geometria compartilhada uma vez, `thumbs/`, geometria ausente avisada; `gerar_zip` (I1: sem Node falha por padrão, `--allow-no-thumbs` segue, `--skip-thumbs` nem tenta, catálogo vazio acusa); CLI um arquivo e lote (espelha pastas, pula feitos, `--force`, exit 1 em falha); uma miniatura real |
 | `test_catalogo_to_aq.py` | S7.16: `catalogo_to_aq.py` — manifesto com geometria compartilhada, cores, acentos, curva Q-H → relido por `read_aq`/`oq3d`/`catalogo.py` (uma simbologia por geometria, uma propriedade por chave, bomba 2075, cp1252 nos bytes); `--manter-prefixo-serie`; geometria ausente, caractere fora do cp1252 e catálogo vazio → exit 1 sem arquivo parcial; **ida e volta com a Akato inteira** (262 peças: nomes, séries, specs, bbox e triângulos iguais) |
-| `test_oq3d_roundtrip.py` | `eng-reversa/tools/oq3d_roundtrip.py` como processo: caminho padrão da Amanco, seis casos, `.aq` ausente → exit 1, `--sem-real` |
+| `test_oq3d_roundtrip.py` | `bim_pipeline.cli.ferramentas.oq3d_roundtrip` como processo: casos sintéticos sem `--aq`; blob real com `--aq` (fixture `aq_grande`); `--aq` ausente → exit 1; `--sem-real` |
 | `test_editor_roundtrips.py` | `www/tools/testes-editor.sh`: round-trip do `mesh-model` por agrupamento a 2 µm; IFC exportado → `parse_ifc.py` com todo vértice pareado a ≤ 2 µm nos dois sentidos; `ROUNDTRIP_SABOTAR=1` e `ROUNDTRIP_SABOTAR_IFC=1` têm de falhar |
 | `test_processo.py` | E3: `executar()` do serviço — saída ≠ 0 com o stderr, sinal, timeout, ocioso, comando inexistente, stdin do filho aberto enquanto o pai vive; `vigiar_stdin` sai com 2 no EOF e continua com o stdin aberto; `thumbs.mjs` com `sairComStdin` para sem renderizar (marcador `thumbs`) |
 | `test_www_config.py` | I17/E3: só `lib/api.ts` conhece `localhost:4000`/`4100`; só `common/ingestao-client.ts` da API conhece o serviço, e a API não roda processo filho; só `dominio/src/storage-path.ts` lê `STORAGE_PATH` (mesma pasta para api e ingestao); cada serviço escuta a porta do env; `PIPELINE_DIR`/`--sair-com-stdin` só no `pipeline.service.ts`. I30: `nomeOriginalUtf8` e todo `originalname` passa por ele |
@@ -292,8 +280,7 @@ python3 -m pytest -m "not thumbs and not paridade"  # só Python, sem Node
 | `test_www_deps.py` | I12/E3: lê `pnpm-lock.yaml` — peers satisfeitas nos importers `apps/api` e `apps/ingestao`; os três importers (com `packages/dominio`) resolvem as MESMAS versões de Nest/Mongoose/class-validator; `@bim/dominio` só nos dois apps; sem pacote `mongodb`; health pela conexão; nenhum parser `.aq`/OQ3D em TypeScript (A2) |
 | `test_bootstrap.py` | `bootstrap.sh --check` imprime a tabela e acusa Node ausente com exit 1 |
 
-Fixtures reais são os `.aq` de `input/` e o `www/storage/` — gitignored, então esses testes
-**pulam com motivo** onde não existem (no CI: ~50 passam, 20+ pulam). Os testes de `www/` rodam os
+Fixtures reais são referenciadas por **papel** (`aq_pequena`, `aq_grande`, `aq_malha_v3`, `step_peca`, `iges_pasta`, `dll_plugin`, `manifesto_plugin`) em `tests/fixtures.local.json` — gitignored; sem ele os testes **pulam com motivo** (no CI: os sintéticos passam, os reais pulam). Nenhum nome de fabricante mora nos testes (ADR-016). Os testes de `www/` rodam os
 harnesses de `tests/paridade/` com o `ts-node` de cada app (`apps/api`, `apps/ingestao`). Saída em
 `output/.pytest-tmp/` — tem de ficar **dentro da raiz** porque `thumbs.mjs` serve a geometria
 por HTTP relativo à raiz. `pytest.ini` restringe a coleta a `tests/` (o `.venv` do worker tem

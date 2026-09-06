@@ -93,7 +93,7 @@ Nenhum dado de fabricante fica no repositório: `input/`, `storage/` e as fixtur
 | Fase | Entregável | Estado |
 |---|---|---|
 | **F0** | Este documento; `docs/decisoes/` (ADR-001 a ADR-017); a arquitetura anterior arquivada em `docs/historico/planos/` | ✅ 2026-09-06 |
-| **F1** | Biblioteca `bim_pipeline` como pacote instalável, sem duplicações, com o modo lote do antigo `build.py`, ferramentas promovidas de `eng-reversa/tools`, fixtures por papel; preview estático sai | ⬜ |
+| **F1** | Biblioteca `bim_pipeline` como pacote instalável, sem duplicações, com o modo lote do antigo `build.py`, ferramentas promovidas de `eng-reversa/tools`, fixtures por papel; preview estático sai; sem fabricantes em código | ✅ 2026-09-06 (S8.1) |
 | **F2** | Workspace pnpm na raiz; `pacotes/base` e `pacotes/dominio` compilados com project references (`pnpm -r start` funciona) | ⬜ |
 | **F3** | `servicos/gerador-zip` e `servicos/conversores` (stateless); web com um cliente por serviço para eles | ⬜ |
 | **F4** | `servicos/criador-de-catalogos`, `servicos/catalogo-api`, `servicos/editor-de-pecas`; web reagrupado por contexto | ⬜ |
