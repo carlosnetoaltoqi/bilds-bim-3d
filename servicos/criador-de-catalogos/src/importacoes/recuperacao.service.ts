@@ -25,7 +25,7 @@ export const STATUS_NAO_TERMINAIS = ['recebido', 'parseando', 'gravando'] as con
 export const ERRO_REINICIO = 'a API foi reiniciada durante a importação — envie o arquivo de novo';
 
 /** Uploads que o multer deixa em `os.tmpdir()`: `bim-<uuid>.aq|.zip` (biblioteca), `cad-<uuid>.<ext>` (peça), `plugin-<uuid>.dll` (plugin de AutoCAD) e `revit-<uuid>.rfa|.zip` (famílias Revit). */
-export const UPLOAD_TEMPORARIO = /^(bim-[0-9a-f-]{36}\.(aq|zip)|cad-[0-9a-f-]{36}\.(stp|step|igs|iges|ifc|ifczip|ifcxml)|plugin-[0-9a-f-]{36}\.dll|revit-[0-9a-f-]{36}\.(rfa|zip))$/i;
+export const UPLOAD_TEMPORARIO = /^(bim-[0-9a-f-]{36}\.(aq|zip)|cad-[0-9a-f-]{36}\.(stp|step|igs|iges|ifc|ifczip|ifcxml)|plugin-[0-9a-f-]{36}\.dll|revit-[0-9a-f-]{36}\.(rfa|rvt|zip))$/i;
 
 export interface LogMinimo {
   log(msg: string): void;

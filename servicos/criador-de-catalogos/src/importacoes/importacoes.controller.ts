@@ -27,7 +27,8 @@ import { ImportarRevitDto } from './importar-revit.dto';
  * POST /importacoes                 — multipart `file` (.aq | .zip | .stp | .step | .igs | .ifc | .rfa) + campos do ImportarDto
  *                                     → 202 { importId, tipo, status:'recebido', statusUrl }   (um .rfa solto vira importação 'revit')
  * POST /importacoes/plugin-autocad  — multipart `file` (DLL) + ImportarPluginDto (categoria, lead…) → 202 como acima, tipo 'plugin' (S7.17)
- * POST /importacoes/familias-revit  — multipart `file` (.rfa ou .zip de famílias) + ImportarRevitDto → 202 como acima, tipo 'revit'
+ * POST /importacoes/familias-revit  — multipart `file` (.rfa, .rvt ou .zip de famílias/projetos) + ImportarRevitDto → 202 como acima, tipo 'revit'
+ * GET  /importacoes/familias-revit/aps — { disponivel } : o serviço tem APS_CLIENT_ID/APS_CLIENT_SECRET para traduzir .rvt (ADR-019)
  * GET  /importacoes/:importId       — status: recebido → parseando → gravando → publicado | vazio | falhou
  * GET  /importacoes?empresa=&limite= — últimas importações (da empresa, ou de todas)
  * DELETE /importacoes/:importId    — apaga a importação terminada com produtos e storage (409 se em andamento)
@@ -64,9 +65,15 @@ export class ImportacoesController {
   @HttpCode(202)
   @UseInterceptors(FileInterceptor('file', { storage: storageRevit, limits: { fileSize: MAX_FILE_BYTES } }))
   async familiasRevit(@UploadedFile() file: Express.Multer.File, @Body() body: ImportarRevitDto) {
-    if (!file) throw new BadRequestException('campo "file" obrigatório — um .rfa ou um .zip com as famílias Revit');
+    if (!file) throw new BadRequestException('campo "file" obrigatório — um .rfa, um projeto .rvt ou um .zip com as famílias Revit');
     const fileName = nomeOriginalUtf8(file.originalname, path.basename(file.path));
     return this.importacoes.createFamiliasRevit({ path: file.path, size: file.size, fileName }, body ?? {});
+  }
+
+  /** A página pergunta "usar a APS?" só quando o serviço tem credenciais (antes de `:importId`, senão a rota paramétrica engole). */
+  @Get('familias-revit/aps')
+  aps() {
+    return { disponivel: this.importacoes.apsDisponivel() };
   }
 
   @Post('plugin-autocad')

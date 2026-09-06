@@ -108,13 +108,19 @@ export interface FamiliasRevitInfo {
   n_familias: number;
   n_tipos: number;
   com_geometria_irma: number;
+  n_projetos: number;
+  projetos_sem_ifc: number;        // projetos .rvt que só entram com a tradução pela APS
   ignorados: number;
   avisos: string[];
   familias: Array<{
     arquivo: string; titulo: string; revit?: string | null; formato?: number | null; categoria?: string | null; fabricante?: string | null;
     tipos: number; type_catalog: boolean; geometria_irma?: string | null; preview: boolean;
   }>;
+  projetos: Array<{ arquivo: string; revit?: string | null; formato?: number | null; bytes: number; ifc_irmao?: string | null }>;
 }
+
+/** Credenciais de um app APS (Model Derivative) — só existem em memória e num JSON temporário 0600 para o filho. */
+export interface CredenciaisAps { client_id: string; client_secret: string }
 
 /** Os cinco campos do formulário de download do catálogo web — nunca persistidos. */
 export interface LeadDownload { full_name: string; email: string; mobile: string; company: string; position: string }
@@ -206,21 +212,30 @@ export class Biblioteca extends BibliotecaCli {
    */
   async catalogoDeFamiliasRevit(opts: {
     entrada: string; geoDir: string; titulo?: string; fabricante?: string; comprimentoMm?: number; deflexao?: number;
+    /** projetos .rvt → IFC pela APS (cobrado por projeto); `apsCache` evita pagar duas vezes pelo mesmo .rvt */
+    aps?: CredenciaisAps | null; apsCache?: string;
     onProgresso?: (linha: string) => void;
   }): Promise<ResultadoCatalogo> {
-    const saida = path.join(os.tmpdir(), `familias-revit-${crypto.randomUUID()}.json`);
+    const id = crypto.randomUUID();
+    const saida = path.join(os.tmpdir(), `familias-revit-${id}.json`);
+    const credPath = path.join(os.tmpdir(), `familias-revit-aps-${id}.json`);
     const args = ['importar', opts.entrada, '--geo-dir', opts.geoDir, '--saida', saida, '--sair-com-stdin'];
     if (opts.titulo) args.push('--titulo', opts.titulo);
     if (opts.fabricante) args.push('--fabricante', opts.fabricante);
     if (opts.comprimentoMm) args.push('--comprimento-mm', String(opts.comprimentoMm));
     if (opts.deflexao) args.push('--deflexao', String(opts.deflexao));
+    if (opts.aps) {
+      await fsp.writeFile(credPath, JSON.stringify(opts.aps), { mode: 0o600 });
+      args.push('--aps-credenciais', credPath);
+      if (opts.apsCache) args.push('--aps-cache', opts.apsCache);
+    }
     try {
       await this.rodar('familias_revit', args, {
         onStderr: (l) => { if (l.trim()) opts.onProgresso?.(l.trim()); },
       });
       return validarContrato<ResultadoCatalogo>('catalogo', JSON.parse(await fsp.readFile(saida, 'utf8')));
     } finally {
-      await fsp.unlink(saida).catch(() => {});
+      await Promise.all([saida, credPath].map((p) => fsp.unlink(p).catch(() => {})));
     }
   }
 

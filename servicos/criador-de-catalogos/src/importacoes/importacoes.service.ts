@@ -27,8 +27,15 @@ export { descreveDiag, descreveResumo } from '../publicacao/descricoes';
 const EXT_AQ = /\.(aq|zip)$/i;
 const EXT_CAD = /\.(stp|step|igs|iges|ifc|ifczip|ifcxml)$/i;
 const EXT_DLL = /\.dll$/i;
-const EXT_RFA = /\.rfa$/i;
-const EXT_REVIT = /\.(rfa|zip)$/i;   // na rota própria, `.zip` é um pacote de famílias (na rota geral, `.zip` é biblioteca .aq)
+const EXT_RFA = /\.(rfa|rvt)$/i;
+const EXT_REVIT = /\.(rfa|rvt|zip)$/i;   // na rota própria, `.zip` é um pacote de famílias/projetos (na rota geral, `.zip` é biblioteca .aq)
+
+/** Credenciais da Autodesk Platform Services no ambiente do serviço — só o criador as lê (`.env.example`). */
+export function credenciaisAps(env: NodeJS.ProcessEnv = process.env): { client_id: string; client_secret: string } | null {
+  const id = env.APS_CLIENT_ID?.trim();
+  const secret = env.APS_CLIENT_SECRET?.trim();
+  return id && secret ? { client_id: id, client_secret: secret } : null;
+}
 
 export function tipoDe(nomeOuExt: string): ImportTipo | null {
   if (EXT_AQ.test(nomeOuExt)) return 'aq';
@@ -182,19 +189,29 @@ export class ImportacoesService {
    * e devolve o catálogo, publicado como uma biblioteca. A inspeção síncrona recusa na hora o que não
    * tem nenhuma família (um `.zip` de outra coisa, um projeto `.rvt`).
    */
+  apsDisponivel(): boolean {
+    return credenciaisAps() !== null;
+  }
+
   async createFamiliasRevit(arquivo: ArquivoRecebido, body: ImportarRevitDto) {
     let company: Empresa;
     let info: FamiliasRevitInfo;
+    const aps = body.usarAps ? credenciaisAps() : null;
     try {
-      if (!EXT_REVIT.test(arquivo.fileName)) throw new BadRequestException(`"${arquivo.fileName}" não é .rfa nem .zip — envie a família ou um .zip com as famílias`);
+      if (!EXT_REVIT.test(arquivo.fileName)) throw new BadRequestException(`"${arquivo.fileName}" não é .rfa, .rvt nem .zip — envie a família, o projeto ou um .zip com eles`);
+      if (body.usarAps && !aps) throw new BadRequestException('a tradução pela Autodesk Platform Services não está configurada neste serviço (APS_CLIENT_ID/APS_CLIENT_SECRET) — importe sem "usarAps"');
       company = await this.empresaDe(body.empresa);
       try {
         info = await this.pipeline.inspecionarFamiliasRevit(arquivo.path);
       } catch (e: any) {
         throw new BadRequestException(`não li as famílias: ${(e?.message ?? String(e)).split('\n').slice(-3).join(' ').slice(0, 500)}`);
       }
-      if (info.n_familias === 0) {
-        throw new BadRequestException(`"${arquivo.fileName}" não tem nenhuma família .rfa legível${info.avisos.length ? ` — ${info.avisos.slice(0, 3).join('; ').slice(0, 400)}` : ''}`);
+      const projetosComIfc = info.n_projetos - info.projetos_sem_ifc;
+      if (info.n_familias === 0 && projetosComIfc === 0 && !(aps && info.n_projetos > 0)) {
+        const soProjetos = info.n_projetos > 0
+          ? ` — ${info.n_projetos} projeto(s) .rvt: as famílias embutidas num projeto não são legíveis fora do Revit; marque "usar a APS" para traduzir o projeto em IFC na Autodesk, ou coloque o IFC do projeto ao lado (mesmo nome)`
+          : (info.avisos.length ? ` — ${info.avisos.slice(0, 3).join('; ').slice(0, 400)}` : '');
+        throw new BadRequestException(`"${arquivo.fileName}" não tem nenhuma família .rfa legível${soProjetos}`);
       }
     } catch (e) {
       await fs.unlink(arquivo.path).catch(() => {});
@@ -202,7 +219,8 @@ export class ImportacoesService {
     }
     const sizeMb = (arquivo.size / 1024 / 1024).toFixed(1);
     const titulo = body.catalogo || arquivo.fileName.replace(EXT_REVIT, '');
-    this.logger.log(`famílias Revit recebidas — ${arquivo.fileName} (${sizeMb} MB): ${info.n_familias} família(s), ${info.n_tipos} tipo(s), ${info.com_geometria_irma} com geometria irmã · empresa=${company.customUrl}`);
+    const projetos = info.n_projetos ? ` · ${info.n_projetos} projeto(s) .rvt (${info.projetos_sem_ifc} via APS${aps ? '' : ' — não autorizada'})` : '';
+    this.logger.log(`famílias Revit recebidas — ${arquivo.fileName} (${sizeMb} MB): ${info.n_familias} família(s), ${info.n_tipos} tipo(s), ${info.com_geometria_irma} com geometria irmã${projetos} · empresa=${company.customUrl}`);
 
     const importId = crypto.randomUUID();
     await this.importModel.create({
@@ -211,20 +229,25 @@ export class ImportacoesService {
       tipo: 'revit' as ImportTipo,
       status: 'recebido' as ImportStatus,
       fileName: arquivo.fileName,
-      note: `${info.n_familias} família(s) Revit, ${info.n_tipos} tipo(s), ${info.com_geometria_irma} com geometria irmã — ${sizeMb} MB recebidos`,
+      note: `${info.n_familias} família(s) Revit, ${info.n_tipos} tipo(s), ${info.com_geometria_irma} com geometria irmã${projetos} — ${sizeMb} MB recebidos`,
       updatedAt: new Date(),
     });
     const trabalho = () => this.publicacao.processarCatalogo(importId, company, {
       rotulo: 'familias_revit importar',
       produzir: (geoDir, onProgresso) => this.pipeline.catalogoDeFamiliasRevit({
-        entrada: arquivo.path, geoDir, titulo, fabricante: body.fabricante, comprimentoMm: body.comprimentoMm, deflexao: body.deflexao, onProgresso,
+        entrada: arquivo.path, geoDir, titulo, fabricante: body.fabricante, comprimentoMm: body.comprimentoMm, deflexao: body.deflexao,
+        aps, apsCache: aps ? path.join(storagePath(), 'aps') : undefined, onProgresso,
       }),
       aoTerminar: () => fs.unlink(arquivo.path),
       notaExtra: (r) => {
         const o = (r.hints as any)?.origem;
         if (!o) return null;
         const semCota = o.sem_cota ? ` · ${o.sem_cota} tipo(s) sem cota ficaram fora` : '';
-        return `${r.hints.n_pecas} peça(s) de ${o.familias} família(s) · ${o.com_geometria_irma} com geometria irmã, ${o.representativas} com forma representativa${semCota}`;
+        const pj = o.projetos;
+        const projetos = pj?.projetos
+          ? ` · ${pj.projetos} projeto(s): ${pj.produtos} peça(s) do IFC (${pj.traduzidos_aps} traduzido(s) na APS, ${pj.do_cache} do cache, ${pj.ifc_irmao} com IFC irmão${pj.fora ? `, ${pj.fora} fora` : ''})`
+          : '';
+        return `${r.hints.n_pecas} peça(s) de ${o.familias} família(s) · ${o.com_geometria_irma} com geometria irmã, ${o.representativas} com forma representativa${semCota}${projetos}`;
       },
     });
     this.fila

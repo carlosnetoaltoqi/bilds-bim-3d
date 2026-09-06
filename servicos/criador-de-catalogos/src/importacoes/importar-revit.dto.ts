@@ -1,17 +1,22 @@
 import { Transform, Type } from 'class-transformer';
-import { IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import { IsBoolean, IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 import { LIMITES } from '@bim/base';
 
 const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
+const booleano = ({ value }: { value: unknown }) => (typeof value === 'string' ? ['true', '1', 'sim', 'on'].includes(value.trim().toLowerCase()) : value);
 
 /**
  * Campos do `POST /importacoes/familias-revit` (multipart — tudo chega como texto). O arquivo é um
- * `.rfa` solto ou um `.zip` com as famílias, os type catalogs `.txt` e, quando houver, a geometria
- * irmã (`.ifc`/`.stp`/`.igs` de mesmo nome). A geometria de um `.rfa` não é legível fora do Revit;
- * sem arquivo irmão cada tipo recebe uma forma representativa por parâmetro
- * (`docs/conhecimento/revit-familias.md`).
+ * `.rfa` solto, um projeto `.rvt` ou um `.zip` com famílias/projetos, os type catalogs `.txt` e, quando
+ * houver, a geometria irmã (`.ifc`/`.stp`/`.igs` de mesmo nome). A geometria de um `.rfa` não é legível
+ * fora do Revit; sem arquivo irmão cada tipo recebe uma forma representativa por parâmetro. Um projeto
+ * `.rvt` só entra pelo IFC irmão ou, com `usarAps`, traduzido pela Autodesk Platform Services — cobrado
+ * por projeto, opt-in de quem importa (`docs/conhecimento/revit-familias.md`, ADR-019).
  */
 export class ImportarRevitDto {
+  /** traduzir projetos .rvt pela APS (exige APS_CLIENT_ID/APS_CLIENT_SECRET no serviço); padrão false */
+  @IsOptional() @Transform(booleano) @IsBoolean({ message: '"usarAps" deve ser true ou false' }) usarAps?: boolean;
+
   /** customUrl da empresa dona do catálogo; vazio = a primeira cadastrada */
   @IsOptional() @IsString() @Transform(trim) @MaxLength(LIMITES.customUrl) empresa?: string;
 

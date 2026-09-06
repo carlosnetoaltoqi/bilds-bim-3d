@@ -21,13 +21,15 @@ import { CRIADOR_URL } from '@/servicos/criador'
 
 interface Empresa { id: string; name: string; customUrl: string; catalogCount: number }
 
-const EXT_OK = /\.(rfa|zip)$/i
+const EXT_OK = /\.(rfa|rvt|zip)$/i
 
 export default function ImportarRevitPage() {
   const router = useRouter()
   const [empresas, setEmpresas] = useState<Empresa[]>([])
   const [empresa, setEmpresa] = useState('')
   const [file, setFile] = useState<File | null>(null)
+  const [apsDisponivel, setApsDisponivel] = useState<boolean | null>(null)
+  const [usarAps, setUsarAps] = useState(false)
   const [catalogo, setCatalogo] = useState('')
   const [fabricante, setFabricante] = useState('')
   const [comprimento, setComprimento] = useState('1000')
@@ -41,16 +43,19 @@ export default function ImportarRevitPage() {
       setEmpresas(lista)
       if (lista[0]) setEmpresa(lista[0].customUrl)
     }).catch(() => setErro(`não consegui falar com a API em ${CATALOGO_URL}`))
+    fetch(`${CRIADOR_URL}/importacoes/familias-revit/aps`).then((r) => (r.ok ? r.json() : { disponivel: false }))
+      .then((d: { disponivel: boolean }) => setApsDisponivel(!!d.disponivel)).catch(() => setApsDisponivel(false))
   }, [])
 
   function enviar(e: FormEvent) {
     e.preventDefault()
     if (!file) return
-    if (!EXT_OK.test(file.name)) { setErro('envie um .rfa ou um .zip com as famílias'); return }
+    if (!EXT_OK.test(file.name)) { setErro('envie um .rfa, um projeto .rvt ou um .zip com as famílias'); return }
     setEnviando(true); setErro(null); setPct(0)
     const fd = new FormData()
     fd.append('file', file)
     if (empresa) fd.append('empresa', empresa)
+    fd.append('usarAps', usarAps && apsDisponivel ? 'true' : 'false')
     if (catalogo.trim()) fd.append('catalogo', catalogo.trim())
     if (fabricante.trim()) fd.append('fabricante', fabricante.trim())
     if (comprimento.trim()) fd.append('comprimentoMm', comprimento.trim())
@@ -74,6 +79,7 @@ export default function ImportarRevitPage() {
 
   const inputCls = 'w-full border border-gray-300 rounded px-2 py-1.5 text-[13px] bg-white'
   const ehZip = !!file && /\.zip$/i.test(file.name)
+  const ehRvt = !!file && /\.rvt$/i.test(file.name)
 
   return (
     <main className="min-h-screen bg-gray-50 text-gray-900 py-12 px-6" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
@@ -83,7 +89,7 @@ export default function ImportarRevitPage() {
         <aside className="mb-6 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-[13px] text-gray-600 flex flex-col gap-2">
           <p><strong className="font-semibold text-gray-900">Para que serve:</strong> você tem famílias Revit de um fabricante (<code>.rfa</code>, geralmente num <code>.zip</code> com os type catalogs <code>.txt</code>) e quer publicá-las aqui como catálogo com viewer 3D — e depois exportar para o AltoQi Builder como <code>.aq</code>. Cada tipo da família vira um produto; a família vira a série.</p>
           <p><strong className="font-semibold text-gray-900">O que acontece:</strong> o sistema lê de cada <code>.rfa</code> a categoria, a versão do Revit e a tabela de tipos com todos os parâmetros (fabricante, modelo, dimensões, material), e do <code>.txt</code> ao lado os tipos que o Revit carrega. <strong>A geometria 3D de um <code>.rfa</code> é proprietária e não é legível fora do Revit.</strong> Se houver um arquivo <code>.ifc</code>, <code>.stp</code> ou <code>.igs</code> com o mesmo nome da família (exportado do Revit ou baixado do portal do fabricante), a geometria real vem dele. Senão, cada tipo recebe uma <em>forma representativa</em> montada a partir das suas cotas (perfil I/U, tubo retangular ou redondo, caixa, chapa perfilada), marcada como aproximada na série e na ficha do produto.</p>
-          <p><strong className="font-semibold text-gray-900">O que não serve:</strong> um projeto <code>.rvt</code> — as famílias embutidas não são extraíveis; exporte cada família ou o modelo em IFC.</p>
+          <p><strong className="font-semibold text-gray-900">Projeto <code>.rvt</code>:</strong> as famílias embutidas num projeto não são extraíveis fora do Revit. Um projeto entra pelo IFC dele: ou você coloca o <code>.ifc</code> exportado ao lado (mesmo nome), ou marca abaixo <em>usar a Autodesk Platform Services</em> e o projeto é traduzido em IFC na nuvem da Autodesk (o arquivo sai desta máquina; cada projeto consome tokens da conta APS configurada no serviço; o mesmo projeto não é traduzido duas vezes). Cada tipo de família colocado no projeto vira um produto com a geometria real.</p>
         </aside>
 
         <form onSubmit={enviar} className="bg-white border border-gray-200 rounded-lg p-5 flex flex-col gap-4 text-[13px]">
@@ -95,15 +101,28 @@ export default function ImportarRevitPage() {
             </select>
           </label>
           <label className="flex flex-col gap-1">
-            <span className="text-[12px] text-gray-600 font-medium">Arquivo .rfa ou .zip com as famílias</span>
-            <input type="file" accept=".rfa,.zip,.RFA,.ZIP" required disabled={enviando}
+            <span className="text-[12px] text-gray-600 font-medium">Arquivo .rfa, projeto .rvt ou .zip com famílias/projetos</span>
+            <input type="file" accept=".rfa,.rvt,.zip,.RFA,.RVT,.ZIP" required disabled={enviando}
               onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="text-[13px]" />
           </label>
           {file && (
             <p className="text-[12px] text-gray-500 -mt-2">
-              {file.name} · {(file.size / 1024 / 1024).toFixed(1)} MB · {ehZip ? 'pacote de famílias → catálogo inteiro' : 'uma família → uma série com seus tipos'}
+              {file.name} · {(file.size / 1024 / 1024).toFixed(1)} MB · {ehZip ? 'pacote de famílias/projetos → catálogo inteiro' : ehRvt ? 'projeto → um produto por tipo de família colocado' : 'uma família → uma série com seus tipos'}
             </p>
           )}
+          <fieldset className={`rounded border px-3 py-2 flex flex-col gap-1 ${apsDisponivel ? 'border-amber-300 bg-amber-50' : 'border-gray-200 bg-gray-50'}`}>
+            <legend className="text-[12px] text-gray-600 font-medium px-1">Projetos .rvt no envio</legend>
+            <label className="flex items-start gap-2 text-[13px]">
+              <input type="checkbox" checked={usarAps && !!apsDisponivel} disabled={!apsDisponivel || enviando} onChange={(e) => setUsarAps(e.target.checked)} className="mt-0.5" />
+              <span>
+                Usar a <strong>Autodesk Platform Services</strong> para traduzir projetos <code>.rvt</code> em IFC
+                {apsDisponivel === false && <span className="text-gray-500"> — indisponível: o serviço não tem APS_CLIENT_ID/APS_CLIENT_SECRET (veja <code>.env.example</code>)</span>}
+                {apsDisponivel && <span className="text-amber-800"> — cobrado por projeto na conta APS; o arquivo sai para a nuvem da Autodesk</span>}
+                {apsDisponivel === null && <span className="text-gray-400"> — consultando o serviço…</span>}
+              </span>
+            </label>
+            <p className="text-[12px] text-gray-500">Sem marcar, um projeto só entra se houver um <code>.ifc</code> de mesmo nome ao lado; famílias <code>.rfa</code> não passam pela APS (o Model Derivative não as aceita).</p>
+          </fieldset>
           <div className="grid grid-cols-2 gap-3">
             <label className="flex flex-col gap-1"><span className="text-[12px] text-gray-600">Catálogo (título; vazio = nome do arquivo)</span><input value={catalogo} onChange={(e) => setCatalogo(e.target.value)} className={inputCls} placeholder={file ? file.name.replace(EXT_OK, '') : ''} /></label>
             <label className="flex flex-col gap-1"><span className="text-[12px] text-gray-600">Fabricante (vazio = o parâmetro Manufacturer das famílias)</span><input value={fabricante} onChange={(e) => setFabricante(e.target.value)} className={inputCls} /></label>
