@@ -1,9 +1,6 @@
 # O `.aq` do AltoQi Builder — ler (`biblioteca/bim_pipeline/aq/read_aq.py`)
 
-> Substitui `read-aq.md` (2026-09-06, passar a limpo, ADR-016). O conteúdo de leitura veio de lá,
-> da skill `leitor-biblioteca-aq` e dos docstrings do código; a escrita está em `aq-escrita.md`.
-> Toda contagem presa a uma biblioteca virou proporção — o número exato está no registro da sessão
-> citada em `docs/historico/`.
+> A escrita está em `aq-escrita.md`.
 
 Um `.aq` é uma biblioteca BIM do AltoQi Builder: um banco **SQLite** com peças, grupos, dados
 hidráulicos, curvas de bomba, propriedades personalizadas **e a malha 3D completa** (formato OQ3D,
@@ -36,9 +33,8 @@ O Builder é aplicação Windows, daí o cp1252. **Não é latin-1**: os dois co
 toda a tabela **exceto na faixa 0x80–0x9F** — exatamente onde moram travessão (`0x96`), aspas
 curvas (`0x93`/`0x94`) e reticências (`0x85`), caracteres comuns em nome de produto. Lido como
 latin-1, `5U – 19” x 570mm` vira `5U \x96 19\x94 x 570mm`. **O erro é silencioso**: latin-1 nunca
-lança exceção, então nada quebra — só sai errado, e chega à página pública. Foi o bug de produção
-de 2026-08-28 (`docs/historico/sessoes/2026-08-28-encoding-cp1252-nomes-de-peca-chegavam-quebrados-na-bilds-com.md`);
-a skill até a 2.0.0 dizia "latin-1 (Windows-1252)" como se fossem sinônimos, e estava errada.
+lança exceção, então nada quebra — só sai errado, e chega à página pública. Latin-1 e Windows-1252
+não são sinônimos.
 
 ```python
 def _decode_texto(b):
@@ -111,11 +107,7 @@ prefixo de `CLASSE_SIMBOLOGIA_3D.NOME_CLASSE` (abaixo).
 
 ### `DIAMETRO_PECA` é um CÓDIGO, não uma medida
 
-> **Armadilha corrigida em 2026-09-02** (skill 2.3.0; estudo
-> `docs/historico/estudos/escrita-aq-de-pdf/estudo/01-escrever-um-aq.md` §4). Até a 2.2.0 a skill
-> dizia "diâmetro nominal (cm)" e a chave do `build_product_map` se chamava `diametro_cm` — os dois
-> estavam errados. Tratar o valor como centímetro erra por ~2× nas peças de tubo e devolve
-> `-1.8e308` em todo o resto.
+> Tratar o valor como centímetro erra por ~2× nas peças de tubo e devolve `-1.8e308` em todo o resto.
 
 É um índice na escala de diâmetros nominais do AltoQi. Pares observados:
 
@@ -151,8 +143,7 @@ conexão mora em `ENTRADA_PECA.DIAMETRO_EP`, não em `PECA.DIAMETRO_PECA`.
 Uma coluna com sentinela **não está vazia no sentido do SQL**: `IS NULL` não a encontra, um
 `if peca['comprimento_cm']:` a considera verdadeira, e qualquer aritmética produz lixo.
 `read_aq._sem_sentinela()` converte as duas para `None`; as quatro chaves numéricas do
-`build_product_map` passam por ela (correção de 2026-09-02 — antes o mapa entregava `-1.8e308`
-como medida).
+`build_product_map` passam por ela.
 
 ### Enums do AltoQi — valores observados
 
@@ -213,8 +204,7 @@ por diâmetro × comprimento) e **kits de aparelho sanitário** (ramal de ventil
 tê) — entradas de projeto. Numa biblioteca de conexões são **cerca de um quarto das peças**. Pular
 é o correto; o build informa quantas.
 
-Mas "sem 3D" tem dois significados, e até a S7.6 o build somava os dois
-(`docs/historico/sessoes/S7.6-geracao-acusa-erro-e-tests.md`, I2). `build_catalog_from_aq` devolve
+Mas "sem 3D" tem dois significados, e o build os separa: `build_catalog_from_aq` devolve
 `(catalog, n_geo, diag)` e `resumo_diag(diag)` separa:
 
 | Categoria em `diag` | Significado | Como sai |
@@ -240,7 +230,7 @@ que a malha versão 3 apareceu. Teste:
 | `extract(path)` | `{grupos, pecas, curvas, propriedades}` — `SELECT *` em `GRUPO_PECA` e `PECA` (`ATIVO = 1`), joins de curva e de propriedade | não |
 | `extract_simbologias(path)` | `simbologias {id → {nome, grupo, classe, blob, imagem}}` e `por_peca {id_peca → id_simbologia}` — colunas explícitas com `CAST AS BLOB`; sem `WIREFRAME` | sim |
 | `peek_metadata(path)` | `fabricante` (prefixo comum das classes, Title Case; `PECA.BIBLIOTECA` como reforço), `linhas`, `grupos`, `has_curves`, `n_pecas`, `n_simbologias`, `schema` | não |
-| `build_product_map(data)` | `{nome_gp → {serie, pecas: [{id, nome, conexoes, diametro_codigo, comprimento_cm, …, specs, curva_pts}]}}` — histórico: servia ao modo `--ifc`, removido em 2026-09-05 | não |
+| `build_product_map(data)` | `{nome_gp → {serie, pecas: [{id, nome, conexoes, diametro_codigo, comprimento_cm, …, specs, curva_pts}]}}` — usado por `ferramentas.validar_aq` | não |
 
 `peek_metadata` deixa `FileNotFoundError` subir (caminho errado é erro do operador) e engole só
 "arquivo existe mas não é `.aq` legível". Do lado do catálogo, `catalogo.inferencia.peek_aq` monta
@@ -266,4 +256,4 @@ algum `NOME_PECA` do grupo tem menos de 4 caracteres ou se repete em outro grupo
 - `geometria.md` — `{pos, col, idx}`, dedup, unidades e eixos do viewer.
 - `catalogo-modelo.md` — o que o catálogo salvo guarda de cada peça (e o que não guarda).
 - `diagnostico.md` — sintoma → causa, incluindo as linhas de encoding, sentinela e `no such column`.
-- Skill `docs/skills/leitor-biblioteca-aq/` — a mesma matéria para uso fora deste repositório, com as queries de extração e o histórico de correções (`## Histórico`).
+- Skill `docs/skills/leitor-biblioteca-aq/` — a mesma matéria para uso fora deste repositório, com as queries de extração.

@@ -31,7 +31,7 @@ pip install -e 'biblioteca[cad,dev]' # + OpenCASCADE, ifcopenshell, pypdf, olefi
 | `python -m bim_pipeline.cli.…` | Faz | Quem chama |
 |---|---|---|
 | `catalogo_de_aq <aq> --geo-dir D --saida X.json [--nome-original] [--thumbs-dir] [--sair-com-stdin]` | `.aq`/`.zip` → geometrias em `D` + catálogo JSON (`contratos/catalogo`) | criador de catálogos |
-| `zip_bilds <aq> --saida X.zip [--skip-thumbs \| --allow-no-thumbs] [--sair-com-stdin]` · `zip_bilds --all [--input-dir] [--output-dir] [--force] [--layout]` | `.aq` → ZIP da bilds.com; lote espelhando subpastas (era o `scripts/build.py`) | gerador de ZIP; operador |
+| `zip_bilds <aq> --saida X.zip [--skip-thumbs \| --allow-no-thumbs] [--sair-com-stdin]` · `zip_bilds --all [--input-dir] [--output-dir] [--force] [--layout]` | `.aq` → ZIP da bilds.com; lote espelhando subpastas | gerador de ZIP; operador |
 | `step_iges <cad> <saida.json> [--deflexao] [--info]` · `ifc <ifc> <saida.json>` | CAD → `{pos, col, idx, partes, …}` | conversores; criador (peça CAD) |
 | `gerar_aq <geo.json> <saida.aq> [--fabricante …]` | geometria/partes → `.aq` de uma peça | conversores; editor |
 | `catalogo_para_aq <manifesto.json> <saida.aq>` | catálogo salvo → `.aq` inteiro | criador de catálogos |
@@ -44,12 +44,12 @@ para arquivo ou stdout; exit 0 ok, 1 erro, 2 "o pai morreu".
 
 ## Regras
 
-- Nenhum módulo importa nada de fora de `bim_pipeline` (`tests/test_geo_to_aq.py` garante) e
+- Nenhum módulo importa nada de fora de `bim_pipeline` (`tests/arquitetura/test_biblioteca_isolada.py` garante) e
   nenhum conhece Mongo, HTTP ou caminhos do repositório.
 - Uma implementação por coisa: um `slugify`, um `dedup`, um lugar para as conversões de eixos, um
   escritor de ZIP, um produtor do dict de catálogo. Duplicar aqui é regressão.
 - Sem fabricantes, arquivos ou caminhos da POC em código, docstring ou comentário (ADR-016):
-  exemplos são neutros e censos viram proporções; a evidência mora em `docs/historico/`.
+  exemplos são neutros e censos viram proporções.
 - O conhecimento sobre os formatos está em `docs/conhecimento/` — os módulos apontam para lá; os
   docstrings dizem só o que o código faz.
 - Testes em `tests/` (raiz): `python3 -m pytest -m "not thumbs"` roda tudo sem Chromium.

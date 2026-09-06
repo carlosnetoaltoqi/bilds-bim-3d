@@ -240,9 +240,6 @@ inventada, sobrevive ao round-trip com tolerância de 10⁻⁹ cm).
 - `biblioteca/bim_pipeline/cli/ferramentas/oq3d_anatomy.py` — dissecação byte a byte.
 - `biblioteca/bim_pipeline/geometria/eixos.py` — conversão de eixos e unidades (ver
   `geometria.md`).
-- Proveniência da engenharia reversa (histórico, não normativo):
-  `docs/historico/estudos/oq3d/README.md`,
-  `docs/historico/estudos/escrita-aq-de-pdf/estudo/02-escrever-oq3d.md`.
 
 ## Ver também
 

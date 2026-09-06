@@ -1,5 +1,8 @@
 # Especificação do ZIP — Módulo BIM 3D (bilds.com)
 
+> **Arquivado em 2026-09-06.** O formato oficial do pacote está em `docs/conhecimento/zip-bilds-formato.md`
+> e o lado consumidor em `docs/integracoes/bilds-com.md`. Este é o texto original da engenharia reversa.
+>
 > **Documento de engenharia reversa** — gerado a partir do código-fonte de
 > `bilds.com/apps/api/src/b-bim-3d/` e `bilds.com/apps/web/src/components/b-bim-3d/`.
 > Use este documento como contrato para qualquer pipeline que precise gerar

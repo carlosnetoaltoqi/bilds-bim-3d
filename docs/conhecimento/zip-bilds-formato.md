@@ -170,6 +170,101 @@ O campo `layout` determina como o consumidor renderiza a lista de produtos:
 | `series-rows` | uma linha horizontal por série, scroll horizontal | poucas séries (2–4) com muitas variantes cada |
 | `catalog-grid` | grade densa com filtros por série | 20+ itens heterogêneos |
 
+## 7. Exemplo completo
+
+Estrutura de um ZIP com dois produtos de duas séries distintas, usando `series-rows`:
+
+```
+catalogo-exemplo.zip
+├── manifest.json
+├── catalog.json
+└── geo/
+    ├── produto-a1.json
+    ├── produto-a2.json
+    └── produto-b1.json
+```
+
+**manifest.json:**
+```json
+{
+  "slug":         "linha-principal",
+  "title":        "Linha Principal de Equipamentos",
+  "manufacturer": "Fabricante Exemplo",
+  "description":  "Descrição geral do catálogo.",
+  "layout":       "series-rows",
+  "filters":      ["Serie-A", "Serie-B"],
+  "productCount": 3
+}
+```
+
+**catalog.json:**
+```json
+{
+  "slug":       "linha-principal",
+  "titulo":     "Linha Principal de Equipamentos",
+  "fabricante": "Fabricante Exemplo",
+  "descricao":  "Descrição geral do catálogo.",
+  "layout":     "series-rows",
+  "filtros":    ["Serie-A", "Serie-B"],
+  "produtos": [
+    {
+      "id":    "produto-a1",
+      "nome":  "Produto A1 — Variante 1",
+      "serie": "Serie-A",
+      "geo":   "produto-a1.json",
+      "specs": {
+        "Propriedade 1": "Valor 1",
+        "Propriedade 2": "Valor 2"
+      },
+      "curva": [
+        [0,  30, 1.1,  0],
+        [3,  25, 1.2, 42],
+        [6,  18, 1.3, 58],
+        [9,   8, 1.2, 48]
+      ]
+    },
+    {
+      "id":    "produto-a2",
+      "nome":  "Produto A2 — Variante 2",
+      "serie": "Serie-A",
+      "geo":   "produto-a2.json",
+      "specs": {
+        "Propriedade 1": "Valor 3"
+      },
+      "curva": null
+    },
+    {
+      "id":    "produto-b1",
+      "nome":  "Produto B1",
+      "serie": "Serie-B",
+      "geo":   "produto-b1.json",
+      "specs": {},
+      "curva": null
+    }
+  ]
+}
+```
+
+**geo/produto-a1.json — com cores por vértice, sem índices (non-indexed):**
+```json
+{
+  "pos": [0.0, 0.0, 0.0,  1.0, 0.0, 0.0,  0.5, 1.0, 0.0],
+  "col": [0.8, 0.2, 0.2,  0.8, 0.2, 0.2,  0.8, 0.2, 0.2],
+  "idx": []
+}
+```
+
+**geo/produto-b1.json — sem cores, com índices (indexed, geometria compartilhada):**
+```json
+{
+  "pos": [0.0, 0.0, 0.0,  1.0, 0.0, 0.0,  1.0, 1.0, 0.0,  0.0, 1.0, 0.0],
+  "col": [],
+  "idx": [0, 1, 2,  0, 2, 3]
+}
+```
+
+> **Nota sobre `idx` vazio vs. omitido:** o viewer aceita `[]` (array vazio) e `idx` ausente como equivalentes — ambos resultam em non-indexed geometry. A distinção relevante é: fornecer `idx` preenchido só faz sentido quando **não** há cores por face (campo `col` vazio ou ausente).
+
 ## 8. Curva Q-H (campo `curva`)
 
 Campo específico de domínio hidráulico — representa a curva de desempenho de um equipamento onde

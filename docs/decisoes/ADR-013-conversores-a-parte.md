@@ -8,7 +8,7 @@
 
 ## Por quê
 
-Eram rotas do serviço de ingestão sem nenhuma relação com ingestão; ficavam atrás do guarda de Mongo sem precisar dele.
+Tesselação, geração de `.aq` de uma peça e inspeção de DLL não dependem de ingestão nem de Mongo; num serviço com dados ficariam atrás de um guarda de banco sem precisar dele.
 
 ## Consequências
 

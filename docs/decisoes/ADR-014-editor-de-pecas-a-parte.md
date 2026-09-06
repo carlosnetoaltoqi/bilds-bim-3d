@@ -8,7 +8,7 @@
 
 ## Por quê
 
-O editor é um dos quatro contextos nomeados pelo usuário e o único com lógica de edição; misturado na API de leitura não era portável.
+O editor é um dos contextos nomeados pelo usuário e o único com lógica de edição; misturado na API de leitura não é portável.
 
 ## Consequências
 

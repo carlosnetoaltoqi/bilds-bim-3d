@@ -1,8 +1,7 @@
 # Arquitetura — contextos desacoplados sobre uma biblioteca comum
 
-> **Documento vivo**, fonte de verdade da arquitetura desde 2026-09-06 (S8). Cada decisão numerada
-> mora em `docs/decisoes/`. O plano de execução em fases e o estado de cada fase estão na seção 6.
-> Enquanto viver neste repositório, o sistema é POC: **sem auth, sem admin**; a empresa é um
+> Fonte de verdade da arquitetura, implementada em 2026-09-06. Cada decisão numerada mora em
+> `docs/decisoes/`. Enquanto viver neste repositório, o sistema é POC: **sem auth, sem admin**; a empresa é um
 > agrupador de catálogos, não um controle de acesso (ADR-007).
 
 ## 1. A ideia em um parágrafo
@@ -29,7 +28,8 @@ bilds-bim-3d/
 │   │   ├── miniaturas/    miniaturas.py, thumbs.mjs, harness.html, package.json (playwright + three)
 │   │   ├── saida/         zip_bilds (ÚNICO escritor do ZIP), geo_to_aq (uma peça), catalogo_to_aq (catálogo)
 │   │   ├── processo.py    vigiar_stdin
-│   │   └── cli/           um módulo por CLI + ferramentas/ (oq3d_anatomy, aq_referencia, validar_aq, oq3d_roundtrip)
+│   │   ├── cli/           um módulo por CLI + ferramentas/ (oq3d_anatomy, aq_referencia, validar_aq, oq3d_roundtrip)
+│   │   └── contratos/     JSON Schema dos contratos biblioteca ↔ serviços (a biblioteca os define; @bim/base valida o que lê)
 │   ├── pyproject.toml     `pip install -e biblioteca[cad,dev]`
 │   └── README.md
 ├── pacotes/                          ← compartilhado entre os serviços Nest (TypeScript, compilado para dist/)
@@ -46,9 +46,8 @@ bilds-bim-3d/
 │   └── conversores/           :4300  POST /tesselar (STEP/IGES/IFC → geometria), POST /aq (geometria → .aq de uma peça),
 │                                     POST /plugin/inspecionar (DLL → host/categorias). STATELESS.
 ├── web/                              ← Next :3000, um app, árvore por contexto e UM cliente por serviço em src/servicos/
-│   └── bim_pipeline/contratos/       ← JSON Schema dos contratos biblioteca ↔ serviços (a biblioteca os define; @bim/base valida o que lê)
 ├── tests/                            ← biblioteca/, servicos/ (harnesses), arquitetura/ (guardas), fixtures por papel (não por empresa)
-├── docs/                             ← conhecimento/ (formatos, algoritmos, padrões — sem empresas), decisoes/, historico/, integracoes/
+├── docs/                             ← conhecimento/ (formatos, algoritmos, padrões — sem empresas), decisoes/, integracoes/, historico/ (não carregar)
 ├── input/ (gitignored) · storage/ (gitignored) · .github/workflows/ci.yml
 └── CLAUDE.md (mapa) · README.md (subir tudo) · CONCEPTS.md
 ```
@@ -60,7 +59,7 @@ bilds-bim-3d/
 3. **Stateless de verdade**: `gerador-zip` e `conversores` não importam `pacotes/dominio`, não têm `MongooseModule`, não leem `STORAGE_PATH`; o `/health` deles só confere a biblioteca (ADR-012, ADR-013).
 4. **Dados**: só `criador-de-catalogos`, `catalogo-api` e `editor-de-pecas` importam `dominio`. Quem grava o quê está na seção 5. Mongo e storage compartilhados são **acoplamento aceito e documentado da POC**; `IGeometryStore` e os schemas são a costura de porte (ADR-004, ADR-014).
 5. **Web**: um cliente por serviço em `web/src/servicos/`; nenhuma URL fixa fora deles; componente de um contexto não importa cliente de outro (o editor usa `editor` + `conversores`; a home usa `catalogo` + `zip`; importar usa `criador` + `catalogo`).
-6. **Sem empresas**: nomes de fabricante, domínios e caminhos efêmeros da POC (lista em `tests/arquitetura/termos_efemeros.txt`) não aparecem em `biblioteca/`, `servicos/`, `pacotes/`, `web/`, `tests/` — e, a partir da F6, em `docs/conhecimento/` e `docs/skills/`; só em `docs/historico/`, `docs/integracoes/` e `tests/fixtures.local.*` (ADR-016).
+6. **Sem empresas**: nomes de fabricante, domínios e caminhos efêmeros da POC (lista em `tests/arquitetura/termos_efemeros.txt`) não aparecem em `biblioteca/`, `servicos/`, `pacotes/`, `web/`, `tests/`, `docs/conhecimento/` e `docs/skills/`; só em `docs/historico/`, `docs/integracoes/` e `tests/fixtures.local.*` (ADR-016).
 7. **Contratos** entre biblioteca e serviços têm JSON Schema em `biblioteca/bim_pipeline/contratos/` — a biblioteca os define porque é quem emite; ela prova em teste que emite conforme (`tests/arquitetura/test_contratos.py`) e `@bim/base` valida o que lê (`validarContrato`, ajv) (ADR-015).
 
 ## 4. O que cada contexto leva consigo ao ser portado
@@ -88,24 +87,16 @@ bilds-bim-3d/
 
 Nenhum dado de fabricante fica no repositório: `input/`, `storage/` e as fixtures locais são gitignored.
 
-## 6. Fases e estado
+## 6. Regras de mudança
 
-| Fase | Entregável | Estado |
-|---|---|---|
-| **F0** | Este documento; `docs/decisoes/` (ADR-001 a ADR-017); a arquitetura anterior arquivada em `docs/historico/planos/` | ✅ 2026-09-06 |
-| **F1** | Biblioteca `bim_pipeline` como pacote instalável, sem duplicações, com o modo lote do antigo `build.py`, ferramentas genéricas do estudo promovidas, fixtures por papel; preview estático sai; sem fabricantes em código | ✅ 2026-09-06 (S8.1) |
-| **F2** | Workspace pnpm na raiz; `pacotes/base` e `pacotes/dominio` compilados com project references (`pnpm -r start` funciona); contratos em JSON Schema validados nos dois lados | ✅ 2026-09-06 (S8.2) |
-| **F3** | `servicos/gerador-zip` e `servicos/conversores` (stateless); web com um cliente por serviço para eles; cliente tipado da biblioteca em `@bim/base` | ✅ 2026-09-06 (S8.3) |
-| **F4** | `servicos/criador-de-catalogos` (importação/publicação/miniaturas divididas), `servicos/catalogo-api` (só leitura), `servicos/editor-de-pecas`; `web/` na raiz com um cliente por serviço; `www/` deixa de existir | ✅ 2026-09-06 (S8.4) |
-| **F5** | `tests/{biblioteca,servicos,arquitetura}`; as sete regras como testes (+ termos da POC, contratos, dependências); CI por camada; `README.md`; `docs/aceitacao.md`; código e testes sem termos da POC | ✅ 2026-09-06 (S8.5) |
-| **F6** | `docs/conhecimento/` reescrito por formato/algoritmo sem empresas (16 documentos); skills como how-to apontando para lá (`referencias/`); `docs/historico/{sessoes,estudos,planos}`; `docs/integracoes/`; `CLAUDE.md`, `CONCEPTS.md`, `README.md`; a guarda de termos cobre docs e skills | ✅ 2026-09-06 (S8.6) |
+Um commit por item; o teste que prova o comportamento novo entra no mesmo commit; `python3 -m pytest
+-m "not thumbs"` e `pnpm -r build` verdes antes de commitar; a documentação do que mudou vai no mesmo
+commit, no documento de origem. Uma decisão nova ou revista é um ADR em `docs/decisoes/`. O plano de
+fases que implementou esta arquitetura está arquivado em `docs/historico/planos/`.
 
-Regras de execução: um commit por item; cada fase termina com `python3 -m pytest -m "not thumbs"`
-e `pnpm -r build` verdes; documentação do que mudou no mesmo commit; registro da sessão em
-`docs/historico/sessoes/`.
+## 7. Invariantes
 
-## 7. O que não muda
-
-Mongo, coleções e formato dos ponteiros (`geo/<importId>/…`, `thumbs/<importId>/…`); o contrato do
-ZIP consumido pela bilds.com e o `catalog.json`; os algoritmos do parser, do OQ3D, das miniaturas e
-dos conversores (só mudam de lugar e perdem cópias); sem auth; empresa por `customUrl`.
+Coleções do Mongo e formato dos ponteiros (`geo/<importId>/…`, `thumbs/<importId>/…`); o contrato do
+ZIP consumido pela bilds.com e o `catalog.json` (`docs/conhecimento/zip-bilds-formato.md`); uma
+implementação por algoritmo na biblioteca (parser, OQ3D, miniaturas, conversores); sem auth; empresa
+por `customUrl`.

@@ -8,5 +8,5 @@
 | `resumo-miniaturas` | `miniaturas/thumbs.mjs` (uma linha por geometria) | criador de catálogos |
 | `info-plugin` | `cli.plugin_catalogo_web inspecionar` | conversores, criador |
 
-A biblioteca prova em teste que emite conforme (`tests/test_contratos.py`, com `jsonschema`);
+A biblioteca prova em teste que emite conforme (`tests/arquitetura/test_contratos.py`, com `jsonschema`);
 `@bim/base` valida o que lê (`validarContrato`, com `ajv`). Uma mudança de contrato falha nos dois lados.

@@ -2,9 +2,7 @@
 
 > Escrita. O irmão `aq-formato.md` cobre o inverso — ler um `.aq` que já existe. Aqui o
 > `.aq` **nasce** neste projeto: de uma malha qualquer (`geo_to_aq.py`, uma peça) ou de um
-> catálogo inteiro salvo (`catalogo_to_aq.py`, N peças). Toda contagem presa a uma
-> biblioteca de fabricante virou proporção — o número exato está no registro da sessão
-> citada em `docs/historico/`.
+> catálogo inteiro salvo (`catalogo_to_aq.py`, N peças).
 
 Para quem precisa gerar uma biblioteca que o AltoQi Builder aceite: a partir de uma
 geometria isolada (um STEP tesselado, uma peça editada num viewer) ou a partir de um
@@ -43,8 +41,8 @@ con.execute('INSERT INTO PECA (NOME_PECA) VALUES (CAST(? AS TEXT))',
 bytes ficam idênticos aos de uma biblioteca real, e o leitor do projeto devolve a string
 original. Gravar em UTF-8 faz `'Soldável'` voltar `'SoldÃ¡vel'` **sem levantar exceção em
 lugar nenhum** — passa no `integrity_check`, passa no `foreign_key_check`, e o nome errado
-chega à ficha do produto na página pública. Foi o bug de produção de 2026-08-28, do lado
-de quem lê; o mesmo erro do lado de quem escreve é o risco aqui.
+chega à ficha do produto na página pública. Esse erro já aconteceu do lado de quem lê; do lado
+de quem escreve o risco é o mesmo.
 
 `EscritorAq.ins(tabela, **campos)` faz esse `CAST` em toda coluna de texto automaticamente.
 O encode é **estrito** — nunca `errors='replace'`. Um caractere fora das 256 posições do
@@ -170,7 +168,7 @@ Generalizar a receita acima para um catálogo com centenas de produtos exige cin
 que só aparecem escrevendo N peças em vez de uma — todas conferidas contra uma biblioteca
 real de conexões reconstruída (cerca de 850 peças exportadas, 450 simbologias, `NOME_PECA`
 igual ao original em 100% das peças, bbox e triângulos iguais em todas as geometrias) e
-**aceita pelo AltoQi Builder** (S7.16, `docs/historico/sessoes/S7.16-exportar-catalogo-aq.md`).
+**aceita pelo AltoQi Builder**.
 
 **1. Uma `SIMBOLOGIA_3D` por arquivo de geometria, não por peça.** O pipeline já grava uma
 geometria por simbologia e várias peças apontam para ela (compartilhamento entre variantes,
@@ -240,12 +238,9 @@ de progresso, que vai no `stderr`.
 
 O leitor do projeto (`read_aq.py`/`oq3d.py`) confere que o arquivo é consistente consigo
 mesmo; só o AltoQi Builder confirma que ele é aceito de verdade. Duas aceitações manuais
-registradas até aqui: um `.aq` de uma peça só, gerado do zero (estudo
-`docs/historico/estudos/escrita-aq-de-pdf/estudo/01-escrever-um-aq.md`, §8) — árvore de
+registradas até aqui: um `.aq` de uma peça só, gerado do zero — árvore de
 classes/grupos/peças correta, propriedades personalizadas visíveis, acentos íntegros; e um
-catálogo inteiro reconstruído a partir do que estava salvo (S7.16,
-`docs/historico/sessoes/S7.16-exportar-catalogo-aq.md`, §4) — usuário: "testei e deu tudo
-certo". Nenhum dos dois testes tem registro detalhado do que foi olhado na janela 3D ou do
+catálogo inteiro reconstruído a partir do que estava salvo — aberto e conferido pelo usuário. Nenhum dos dois testes tem registro detalhado do que foi olhado na janela 3D ou do
 lançamento da peça numa rede — só o veredito de abertura.
 
 ## Ferramentas
@@ -281,4 +276,4 @@ lançamento da peça numa rede — só o veredito de abertura.
 - `formas-representativas.md` — quando a geometria não vem de malha nenhuma, mas de
   parâmetros.
 - Skill `docs/skills/leitor-biblioteca-aq/` — a mesma matéria para uso fora deste
-  repositório, com o histórico de correções (`## Histórico`).
+  repositório.

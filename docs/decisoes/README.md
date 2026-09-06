@@ -1,6 +1,6 @@
 # Decisões de arquitetura (ADR)
 
-Uma decisão por arquivo. ADR-001 a ADR-010 migram as decisões A1–A10 de 2026-09-05 (a versão original está em `docs/historico/planos/arquitetura-www-servico-de-ingestao.md`); ADR-011 em diante são da reengenharia de 2026-09-06 (S8). Uma decisão superada não é apagada: ganha status 'Substituída por ADR-nnn'.
+Uma decisão por arquivo: decisão, por quê, consequências. Uma decisão superada não é apagada: ganha status 'Substituída por ADR-nnn'. Decisão nova ou revista entra aqui, nunca só no código.
 
 | ADR | Título | Status |
 |---|---|---|

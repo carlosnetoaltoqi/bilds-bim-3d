@@ -1,8 +1,7 @@
 # Serviços web — armadilhas de NestJS, build e ambiente
 
-Lições genéricas de rodar serviços HTTP (NestJS/Express, TypeScript, Mongo) por trás deste
-pipeline — não específicas de um formato de arquivo, mas repetidas o bastante entre serviços para
-valer registrar uma vez só.
+Fatos genéricos sobre rodar serviços HTTP (NestJS/Express, TypeScript, Mongo) por trás deste
+pipeline — não específicos de um formato de arquivo, mas comuns a todos os serviços.
 
 ## `@Post` responde 201 — download precisa de `res.status(200)` explícito
 
@@ -152,24 +151,6 @@ timeout longo, um guard checa o `readyState` da conexão **antes** de a rota rod
 `503` na hora, com uma mensagem dizendo que o serviço está em modo de espera/retry. `GET /health`
 expõe esse `readyState` diretamente, para diagnóstico rápido sem precisar disparar uma rota de
 negócio só para descobrir se o banco está acessível.
-
-## `git clean -fdq` apaga o que ainda não está no `.gitignore`
-
-`git clean -fdq` remove todo arquivo não rastreado que o `.gitignore` **atual** não cobre — se um
-diretório de dados foi movido para um novo lugar (por um script de migração, por exemplo) mas o
-`.gitignore` ainda aponta para o caminho antigo, o diretório novo fica sem proteção nenhuma e é
-apagado junto com o lixo que o comando pretendia limpar. A ordem correta é: mover dados só depois
-de o `.gitignore` já cobrir o destino novo, e conferir `git status`/`git clean -ndq` (dry-run)
-antes de rodar a versão que de fato apaga.
-
-## `git mv` de diretório para destino existente move para dentro
-
-`git mv origem/ destino/` quando `destino/` **já existe** não funde nem substitui — move `origem/`
-para dentro de `destino/`, resultando em `destino/origem/` em vez do `destino/` esperado. Uma
-rodada anterior de um script de reorganização que deixou o destino já criado (com `node_modules`
-dentro, por exemplo) faz a rodada seguinte empilhar um diretório dentro do outro sem erro nenhum
-— o comando "funciona", só que não do jeito pretendido. Limpar (ou renomear) o destino antes de
-repetir a operação evita o aninhamento.
 
 ## Onde está no código
 

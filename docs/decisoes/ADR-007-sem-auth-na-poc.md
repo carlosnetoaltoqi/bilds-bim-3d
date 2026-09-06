@@ -1,6 +1,6 @@
 # ADR-007 — sem auth na poc
 
-**Status:** Aceita (2026-09-05, A7; mantida)
+**Status:** Aceita (2026-09-05)
 
 ## Decisão
 
@@ -12,4 +12,4 @@ POC enquanto viver neste repositório.
 
 ## Consequências
 
-Qualquer incremento de produção precisa da lista de `docs/historico/estudos/` ('o que a POC não implementou').
+Qualquer incremento de produção começa por autenticação e controle de acesso; a lista do que a POC não implementou está arquivada em `docs/historico/`.

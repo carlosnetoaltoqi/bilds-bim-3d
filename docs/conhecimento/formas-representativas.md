@@ -1,10 +1,7 @@
 # Formas representativas — geometria paramétrica quando o fabricante não publica cota
 
-> Proveniência: `docs/historico/estudos/escrita-aq-de-pdf/estudo/06-formas-parametricas.md`,
-> do estudo de escrita de um `.aq` a partir de um catálogo comercial em PDF (ver
-> `pdf-catalogo.md`). Aplicado a um catálogo real de PVC hidráulico — 262 peças com geometria,
-> zero arestas de borda, aceito pelo pipeline do projeto. Nomes de fabricante ficam só no
-> histórico (ADR-016); aqui fica a técnica.
+> Aplicado a um catálogo real de PVC hidráulico: todas as peças com geometria, zero arestas de borda,
+> aceito pelo pipeline do projeto (ver `pdf-catalogo.md` para a origem da lacuna).
 
 ## O problema: catálogo comercial não tem cota de forma
 
@@ -166,8 +163,6 @@ honesta sobre o que é — forma plausível, cota não conferida — e a ressalv
 - Contagem de arestas de borda: a mesma checagem de `docs/conhecimento/step-iges.md` e
   `docs/conhecimento/oq3d.md`, aplicada aqui à saída da revolução/varredura em vez de a um
   B-rep importado.
-- Proveniência (histórico, não normativo):
-  `docs/historico/estudos/escrita-aq-de-pdf/estudo/06-formas-parametricas.md`.
 
 ## Ver também
 

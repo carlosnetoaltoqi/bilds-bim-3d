@@ -2,7 +2,7 @@
 
 Next.js, sem login (ADR-007). Fala **direto** com os serviços, **um cliente por serviço** em `src/servicos/`
 (`catalogo.ts`, `criador.ts`, `editor.ts`, `zip.ts`, `conversores.ts`) — nenhuma URL fixa fora deles
-(`tests/test_servicos_fronteiras.py`). No browser valem as `NEXT_PUBLIC_*_URL`; no servidor Next as sem prefixo.
+(`tests/arquitetura/test_fronteiras.py`). No browser valem as `NEXT_PUBLIC_*_URL`; no servidor Next as sem prefixo.
 
 | Página | Contexto | Serviços |
 |---|---|---|
@@ -15,4 +15,4 @@ Next.js, sem login (ADR-007). Fala **direto** com os serviços, **um cliente por
 | `/empresa/criar` | catálogo | nome, customUrl, logo |
 
 `tools/`: round-trips do editor (`testes-editor.sh`: `mesh-model` a 2 µm e o exportador IFC conferido pela
-biblioteca) — `tests/test_editor_roundtrips.py` os roda. Subir: `pnpm dev:web`.
+biblioteca) — `tests/servicos/test_editor_roundtrips.py` os roda. Subir: `pnpm dev:web`.

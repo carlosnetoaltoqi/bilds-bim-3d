@@ -1,6 +1,6 @@
 # ADR-002 — geometria e miniaturas pelo pipeline python
 
-**Status:** Aceita (2026-09-05, A2; mantida)
+**Status:** Aceita (2026-09-05)
 
 ## Decisão
 
@@ -8,7 +8,7 @@ O parse do `.aq`, a extração de geometria OQ3D, a dedup, o catálogo e as mini
 
 ## Por quê
 
-É o caminho provado em produção no ZIP da bilds.com. O port TypeScript não se mostrou eficiente na geração de miniaturas e foi removido em 2026-09-05.
+É o caminho provado em produção no ZIP da bilds.com; um port TypeScript não se mostrou eficiente na geração de miniaturas.
 
 ## Consequências
 

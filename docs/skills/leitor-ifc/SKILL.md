@@ -58,23 +58,3 @@ Se a origem é uma biblioteca do AltoQi Builder, verifique primeiro se há um `.
 | A mesma geometria via `.aq` — mais rápida, sem IFC | `aq-formato.md` |
 | Serviços web (`POST /tesselar`, despacho por extensão) | `servicos-web.md` |
 | Diagnóstico rápido | `diagnostico.md` |
-
-## Histórico
-
-**1.9.0** — 2026-09-06 — reescrita como how-to; o conhecimento técnico foi para `docs/conhecimento/ifc.md`, `geometria.md`, `aq-formato.md` e `servicos-web.md`; removida a seção `FILE_MAP` (o script de referência tomava argumentos fixos por dicionário; o CLI atual recebe o arquivo de entrada direto); sem nomes de fabricantes (ADR-016).
-
-**1.8.1** — Correção da armadilha "igualdade de conjunto arredondado": comparar conjuntos a 10 µm e tolerar uma fração na fronteira era o erro, não a solução — numa malha de 44 mil vértices a fração chega a 2,2% com desvio real de 1,4 µm. Agora: par por vizinho mais próximo a ≤ 2 µm (tolerância derivada dos 6 decimais do `REAL`), nos dois sentidos, zero sem par, exit 1 e autoteste sabotado. Os "14 µm" citados na 1.6.0 eram artefato dessa comparação.
-
-**1.8.0** — Subseção "Arquivo grande": quando o parser manual não escala e como usar o `ifcopenshell.geom.iterator` como caminho rápido (cor por material com `r()/g()/b()` como métodos, metros já convertidos, degenerados descartados, dedup em numpy, um produto só não paraleliza, conversão fora da requisição HTTP). Medido num IFC de projeto de 124 MB: 760.038 △ em 221 s, 3,6 GB.
-
-**1.7.0** — Nova seção "O parser como biblioteca — IFC entrando num editor": o que falta ao `parse_ifc_file` para servir de entrada (dedup, unidade decidida pela declaração **e** pela magnitude, nomes via `ifcopenshell`) e a conferência por round-trip com o exportador da 1.6.0.
-
-**1.6.0** — Nova seção "Escrever IFC que este parser lê": as regras para gerar IFC4 a partir de um `{pos,col,idx}` (uma entidade por linha, montagem sem Representation, METRE coerente, eixos `(x,−z,y)`, placement rígido vs escala assada, REAL sem expoente, mapa de cor 1-based + `IFCSTYLEDITEM`, `Closed` honesto, strings `\X2\`, propriedades). Cada uma é uma armadilha deste documento vista pelo lado de quem escreve. Conferido com o próprio `parse_ifc.py` (mesmos triângulos, 14 µm) e `ifcopenshell.validate` (0 erros).
-
-**1.5.0** — Nova seção "O IFC como gabarito": como reconstruir a geometria de um arquivo tessellated direto do STEP (sem tesselador, exato) e usá-la para validar o parser de outro formato. Quatro armadilhas de comparação, todas encontradas na prática: bbox não distingue rotação de transposta, centróide não serve de âncora quando um lado solda vértices e o outro não, igualdade de conjunto arredondado falha na fronteira, e o `ifcopenshell` descarta degenerados (50 triângulos a menos que o STEP numa peça real).
-
-**1.4.0** — Aviso no início: se a origem for uma biblioteca AltoQi, o `.aq` traz a mesma geometria e é muito mais rápido de ler (ver `leitor-biblioteca-aq`). Listados os casos em que o IFC continua sendo a fonte certa.
-
-**1.3.1** — Bug do `IFCMAPPEDITEM`: falta um nível de indireção até o face set.
-
-**1.3.0** — Cinco bugs de parsing STEP documentados com suas correções.

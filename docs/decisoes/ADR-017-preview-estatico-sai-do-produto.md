@@ -8,7 +8,7 @@ O preview HTML estático (templates Jinja, `templates/vendor`, `output/preview`,
 
 ## Por quê
 
-Duas implementações paralelas do mesmo viewer (Jinja + JS inline e React) e mais duas cópias de `buildScene`. Só a bilds.com consome o ZIP; o preview era conveniência local.
+O web em React e o preview HTML eram duas implementações do mesmo viewer, com cópias de `buildScene`. Só a bilds.com consome o ZIP; o preview era conveniência local.
 
 ## Consequências
 

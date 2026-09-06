@@ -1,9 +1,7 @@
 # Plugin de CAD como casca de um catálogo web (`bim_pipeline.catalogo.fontes.plugin_catalogo_web`)
 
-> Proveniência: um plugin de AutoCAD de fabricante, inspecionado e importado numa sessão de
-> 2026-09 (histórico em `docs/historico/sessoes/` e `docs/historico/estudos/plugin-cad-catalogo-web/`).
-> Fabricante, produto e domínios ficam só lá (ADR-016) — aqui fica o padrão, generalizável a
-> qualquer plugin de CAD que siga a mesma forma.
+> O padrão, generalizável a qualquer plugin de CAD que siga a mesma forma; fabricante, produto e
+> domínios do caso estudado não aparecem aqui (ADR-016).
 
 ## O padrão
 
@@ -102,8 +100,8 @@ comercialização dos dados e engenharia reversa do site. Baixar em lote program
 justamente o tipo de uso que esses termos miram. Por isso a regra é: **antes de baixar mais
 que um punhado de arquivos de teste, obter autorização explícita de escopo** — que categoria,
 que grupos, com que finalidade — e registrar essa autorização. O código não decide isso
-sozinho; o escopo autorizado por sessão fica registrado no histórico
-(`docs/historico/sessoes/`), não neste documento nem no código.
+sozinho; o escopo autorizado fica registrado pelo operador em `docs/historico/`, não neste
+documento nem no código.
 
 ## Download idempotente
 

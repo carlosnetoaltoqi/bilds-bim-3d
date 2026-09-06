@@ -8,7 +8,7 @@
 
 ## Por quê
 
-Foi a origem do pedido de reengenharia: o gerador de ZIP tinha uma cópia do escritor de ZIP em vez de consumir a função comum.
+Toda função que dois contextos precisam (catálogo, miniaturas, escrita do ZIP) tem de existir uma vez só; uma cópia por contexto diverge.
 
 ## Consequências
 

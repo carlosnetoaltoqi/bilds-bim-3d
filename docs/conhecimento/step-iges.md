@@ -1,10 +1,6 @@
 # STEP e IGES — B-rep paramétrico tesselado com OpenCASCADE (`bim_pipeline.conversores.step_iges`)
 
-> Conhecimento sobre os dois formatos irmãos do IFC (mesmo ISO 10303-21, outro schema) e o kernel
-> CAD que os transforma em malha. A evidência numérica de cada afirmação está em
-> `docs/historico/estudos/plugin-cad-catalogo-web/` e em `docs/historico/sessoes/` (a sessão que
-> introduziu o suporte a IGES); o histórico da skill em `docs/skills/leitor-step/SKILL.md`
-> (1.0.0 → 1.1.0).
+> Os dois formatos irmãos do IFC (mesmo ISO 10303-21, outro schema) e o kernel CAD que os transforma em malha.
 
 ---
 

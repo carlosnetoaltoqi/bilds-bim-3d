@@ -68,7 +68,7 @@ curl -s -D h.txt -o exportado.aq localhost:4100/exportar/catalogo/$CAT; grep -i 
 python3 -m bim_pipeline.cli.ferramentas.validar_aq exportado.aq
 ```
 Esperado: 200, `pecas_<Fabricante>_<Titulo>.aq`, resumo no header; o validador lê o arquivo sem `FALHA`.
-Aceitação final é abrir o `.aq` no AltoQi Builder (passo manual, registrado na sessão).
+Aceitação final é abrir o `.aq` no AltoQi Builder (passo manual).
 
 ## 5. Gerador de ZIP — stateless
 
@@ -80,7 +80,7 @@ ls /tmp/zip-* 2>/dev/null || echo "tmp limpo"
 ```
 Esperado: 200, `<nome>-bilds.zip`, `manifest.json` + `catalog.json` + `geo/` + `thumbs/`, `thumbCount ==`
 geometrias; nada fica em `/tmp`. Este é o mesmo ZIP que se sobe no dashboard da bilds.com
-(`docs/bilds-bim-3d-zip-spec.md`).
+(`docs/integracoes/bilds-com.md`).
 
 ## 6. Conversores — stateless
 
@@ -120,5 +120,4 @@ e `geo/<importId>` foi removido.
 
 ---
 
-Registre no `docs/historico/sessoes/` o que rodou, o que imprimiu e o que divergiu. O último roteiro executado:
-S8.4 (editor de ponta a ponta) e S8.3 (stateless, ZIP, tesselar, inspecionar, import).
+O que divergir do esperado é defeito ou documentação errada: corrigir no código ou no documento de origem.

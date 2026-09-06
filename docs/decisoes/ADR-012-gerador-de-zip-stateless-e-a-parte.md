@@ -4,7 +4,7 @@
 
 ## Decisão
 
-`servicos/gerador-zip` recebe um `.aq`/`.zip` e devolve o ZIP da bilds.com em stream. Não lê nem grava Mongo, não usa storage, não cria catálogo; upload e ZIP são apagados. Consome a biblioteca (parse, catálogo em memória, miniaturas, escrita do ZIP). O antigo `scripts/build.py` vira o modo lote da mesma CLI.
+`servicos/gerador-zip` recebe um `.aq`/`.zip` e devolve o ZIP da bilds.com em stream. Não lê nem grava Mongo, não usa storage, não cria catálogo; upload e ZIP são apagados. Consome a biblioteca (parse, catálogo em memória, miniaturas, escrita do ZIP). O modo lote (`--all`) é a mesma CLI.
 
 ## Por quê
 

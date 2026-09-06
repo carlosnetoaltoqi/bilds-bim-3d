@@ -163,7 +163,7 @@ deve dar zero, acima).
   do projeto; unidades e eixos do lado da leitura/escrita do `.aq`.
 - `docs/conhecimento/ifc.md` — o caminho de geometria a partir de IFC puro,
   incluindo `IFCINDEXEDCOLOURMAP` (cor por face) e os outliers de placement.
-- `docs/bilds-bim-3d-zip-spec.md` §4 — o contrato de geometria do lado do consumidor
-  (o ZIP publicado para a bilds.com), com a mesma tabela de eixos.
+- `docs/conhecimento/zip-bilds-formato.md` §4 — a geometria dentro do pacote ZIP, com a mesma
+  tabela de eixos.
 - `CONCEPTS.md` — verbetes "`{pos, col, idx}`", "Dedup", "Bocal", "Parte", "Bake",
   "Arestas de borda", "Forma representativa".

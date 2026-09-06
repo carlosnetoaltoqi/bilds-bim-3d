@@ -1,6 +1,6 @@
 # ADR-008 — edicao acessivel da pagina publica
 
-**Status:** Aceita (2026-09-05, A8; mantida)
+**Status:** Aceita (2026-09-05)
 
 ## Decisão
 

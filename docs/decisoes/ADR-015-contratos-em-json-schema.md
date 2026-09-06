@@ -8,7 +8,7 @@ Os JSONs que cruzam a fronteira biblioteca ↔ serviço (catálogo, geometria, m
 
 ## Por quê
 
-Até aqui os contratos eram interfaces TypeScript espelhando docstrings Python, validadas só por `JSON.parse`.
+Interfaces TypeScript espelhando docstrings Python, validadas só por `JSON.parse`, não detectam uma mudança de contrato.
 
 ## Consequências
 

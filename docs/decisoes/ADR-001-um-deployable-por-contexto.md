@@ -1,6 +1,6 @@
 # ADR-001 — um deployable por contexto
 
-**Status:** Aceita (2026-09-06; substitui A1 de 2026-09-05)
+**Status:** Aceita (2026-09-06)
 
 ## Decisão
 
@@ -8,7 +8,7 @@ Cada contexto de negócio — criador de catálogos, API de catálogo, editor de
 
 ## Por quê
 
-A A1 (2026-09-05) separava só ingestão, API e web. O usuário pediu, em 2026-09-06, que cada parte possa ser portada para outro sistema levando só o que é sua. A separação em deployables é o que torna isso verificável: `docs/arquitetura.md` §4 lista o que cada contexto leva.
+Cada parte deve poder ser portada para outro sistema levando só o que é sua. A separação em deployables é o que torna isso verificável: `docs/arquitetura.md` §4 lista o que cada contexto leva.
 
 ## Consequências
 

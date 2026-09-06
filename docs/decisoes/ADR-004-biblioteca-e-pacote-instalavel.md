@@ -1,6 +1,6 @@
 # ADR-004 — biblioteca e pacote instalavel
 
-**Status:** Aceita (2026-09-06; substitui A4)
+**Status:** Aceita (2026-09-06)
 
 ## Decisão
 
@@ -8,7 +8,7 @@ O código Python mora em `biblioteca/` como pacote `bim_pipeline` instalável (`
 
 ## Por quê
 
-A A4 punha o pipeline dentro do serviço de ingestão e fazia o `build.py` importá-lo de lá por caminho; isso amarrava a biblioteca a um serviço e a suíte a caminhos do repositório. Um pacote é a unidade que qualquer contexto pode levar consigo.
+Um pacote é a unidade que qualquer contexto pode levar consigo; entrar por caminho do repositório amarrava a biblioteca a um serviço e a suíte a caminhos.
 
 ## Consequências
 

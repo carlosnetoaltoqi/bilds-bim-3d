@@ -76,18 +76,12 @@ estão em `docs/conhecimento/servicos-web.md` — ver a seção final deste docu
 ## Serviços e ferramentas
 
 Sintomas de serviço HTTP, build e ambiente (não de formato/algoritmo) estão em
-`docs/conhecimento/servicos-web.md`. As armadilhas mais recentes registradas lá:
+`docs/conhecimento/servicos-web.md`. Duas delas:
 
 - **Contrato JSON Schema recusado** — schemas em draft 2020-12 exigem a build `ajv/dist/2020`
   (`Ajv2020`); o construtor padrão do Ajv só conhece draft-07 e falha sem dizer isso claramente.
 - **`tsc -b` "não vê" mudança depois de `rm -rf dist`** — sem `tsBuildInfoFile` apontando para
   dentro de `dist/`, o cache incremental sobrevive fora da pasta apagada.
-- **Suíte de teste "passa" com menos testes do que deveria** — uma exclusão de diretório do
-  coletor pode casar sem querer com uma pasta de teste inteira (por exemplo, uma pasta chamada
-  igual a um nome excluído por outro motivo), e a suíte roda verde só porque boa parte dela nunca
-  foi coletada. Só a contagem de coleta denuncia — conferir sempre quantos testes rodaram.
-- **`git clean -fdq` apaga dado que ainda não está no `.gitignore`** — mover um diretório de dados
-  para um lugar novo sem atualizar o ignore primeiro deixa o destino sem proteção nenhuma.
 
 ## Onde está no código
 
@@ -98,7 +92,7 @@ explicação.
 ## Ver também
 
 - `docs/conhecimento/oq3d.md`, `docs/conhecimento/aq-formato.md`, `docs/conhecimento/aq-escrita.md`
-- `docs/conhecimento/ifc.md`, `docs/conhecimento/ifc.md`, `docs/conhecimento/step-iges.md`
+- `docs/conhecimento/ifc.md`, `docs/conhecimento/step-iges.md`
 - `docs/conhecimento/geometria.md`, `docs/conhecimento/miniaturas.md`,
   `docs/conhecimento/catalogo-modelo.md`, `docs/conhecimento/zip-bilds-formato.md`
 - `docs/conhecimento/processos-filhos.md`, `docs/conhecimento/servicos-web.md`

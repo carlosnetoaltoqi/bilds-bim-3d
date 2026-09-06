@@ -120,7 +120,7 @@ leitor, não para ignorar. `docs/conhecimento/diagnostico.md` tem a tabela sinto
 - `docs/arquitetura.md` — as camadas, as sete regras de fronteira, quem grava o quê, o que cada contexto leva ao ser portado
 - `docs/decisoes/` — ADR-001 a ADR-017
 - `docs/conhecimento/` — formatos (`.aq`, OQ3D, IFC, STEP/IGES), geometria, catálogo, miniaturas, ZIP, processos filhos, diagnóstico
-- `docs/bilds-bim-3d-zip-spec.md` — contrato do ZIP consumido pela bilds.com
 - `docs/skills/` — skills de agente sobre `.aq`, IFC, STEP e páginas de catálogo (`bash scripts/link_skills.sh` cria os symlinks em `~/.claude/skills/`)
-- `docs/historico/` — sessões, estudos e planos antigos (registro; não guia nada)
+- `docs/integracoes/bilds-com.md` — o upload do ZIP na bilds.com (endpoint, erros, upsert, URL)
+- `docs/historico/` — registro arquivado (sessões, estudos, planos, spec original do ZIP); consulta pontual, **não carregar ao iniciar uma sessão**
 - `CLAUDE.md` — mapa para quem trabalha no projeto

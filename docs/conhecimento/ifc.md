@@ -1,12 +1,7 @@
 # IFC4 — leitura, escrita e verificação (`bim_pipeline.conversores.{parse_ifc,ifc}`, `web/src/components/bim-editor/ifc-export.ts`)
 
-> Substitui `parse-ifc.md` (2026-09-06, S8). Reúne o que estava lá — os bugs de parsing de texto
-> STEP — com o que a skill `leitor-ifc` (1.6.0 a 1.8.1) e a S7.9 acrescentaram: o caminho rápido para
-> arquivo grande, a **escrita** de IFC pelo exportador do editor e a **verificação de ida e volta**.
-> Conhecimento sobre o formato e os algoritmos; a evidência numérica de cada afirmação está em
-> `docs/historico/sessoes/` (S7.9, S7.17) e o histórico da skill em `docs/skills/leitor-ifc/SKILL.md`.
 > Se a origem for uma biblioteca do AltoQi Builder, o `.aq` traz a mesma geometria e é 85× a 421× mais
-> rápido de ler (`read-aq.md`, `oq3d.md`) — o IFC é a fonte certa quando não há `.aq`, quando há peça em
+> rápido de ler (`aq-formato.md`, `oq3d.md`) — o IFC é a fonte certa quando não há `.aq`, quando há peça em
 > IFC ausente do banco, ou quando se precisa da variante exata que o exportador gerou.
 
 ---
@@ -276,10 +271,9 @@ e compara com o `bake()` esperado; com `ifcopenshell` instalado, ainda lê o pse
 **Não comparar conjuntos de pontos arredondados.** Coordenadas em cima da fronteira de
 arredondamento caem para lados diferentes nos dois lados, e a fração "na fronteira" cresce com a
 malha: num modelo de 44 mil vértices, buckets de 10 µm acusaram **2,2 % de divergência** onde o
-desvio real, ponto a ponto, era **1,4 µm** — um limite percentual não resolve. Até a S7.9 a
-conferência fazia exatamente isso e, pior, imprimia `[FALHA]` e saía 0.
+desvio real, ponto a ponto, era **1,4 µm** — um limite percentual não resolve.
 
-**O que se faz (S7.9, I26):**
+**O que se faz:**
 
 1. **Parear cada vértice com o vizinho mais próximo do outro lado a ≤ 2 µm** — grade de célula
    igual à tolerância, busca nos 27 vizinhos; um par a ≤ tolerância está sempre numa célula vizinha.
@@ -363,7 +357,7 @@ menos de 1 mm). Armadilhas ao comparar as duas geometrias — as três específi
 | IFC exportado abre em dobro | a montagem recebeu Representation |
 | IFC exportado: parser ignora um face set | entidade em várias linhas |
 | IFC exportado: parte rotacionada fora do lugar | Axis/RefDirection montados sem converter os eixos |
-| Round-trip acusa "N sem par" com desvio ≤ 2 µm | não acontece mais desde S7.9; se acusar, é erro real (ou a fixture mudou — o teste usa a primeira geometria do storage) |
+| Round-trip acusa "N sem par" com desvio ≤ 2 µm | erro real (ou a fixture mudou — o teste usa a primeira geometria do storage) |
 | Contagem do `ifcopenshell` menor que a do STEP | degenerados descartados — contar pelo `CoordIndex` |
 
 ---
@@ -387,6 +381,4 @@ menos de 1 mm). Armadilhas ao comparar as duas geometrias — as três específi
 - `docs/conhecimento/oq3d.md` — a geometria dentro do `.aq` e a correspondência OQ3D ↔ IFC (`TQi3DReusedObject` ↔ `IFCMAPPEDITEM`).
 - `docs/conhecimento/aq-formato.md` — quando o `.aq` dispensa o IFC.
 - `docs/conhecimento/diagnostico.md` — tabela sintoma → causa de todo o pipeline.
-- `docs/skills/leitor-ifc/SKILL.md` — a versão portável desta página (histórico 1.3.0 → 1.8.1), com o exemplo de integração Three.js.
-- `docs/historico/sessoes/S7.9-i26-conferencia-ifc-pareia-a-2um.md` — a evidência da métrica de 2 µm (medições, varredura, decisões).
-- `docs/historico/estudos/oq3d/` — como o IFC serviu de gabarito para o leitor OQ3D.
+- `docs/skills/leitor-ifc/SKILL.md` — a versão portável desta página, com o exemplo de integração Three.js.

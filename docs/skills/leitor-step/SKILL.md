@@ -53,21 +53,3 @@ Você é especialista em transformar arquivos STEP e IGES em malha pronta para v
 | Gerar `.aq` a partir da malha | `aq-escrita.md` |
 | Serviços web (rotas, filas, despacho por extensão) | `servicos-web.md` |
 | Diagnóstico rápido | `diagnostico.md` |
-
-## Histórico
-
-**1.0.0** — Criada em 2026-09-03 a partir da importação de uma peça CAD real (Autodesk
-Inventor, AP214, mm) no editor 3D do projeto: receita XCAF completa, as duas
-armadilhas de referência morta (documento e explorer) que deram segfault na primeira
-versão, unidade/eixos/sentido, e a conferência por round-trip pelos parsers do projeto.
-
-**1.1.0** — 2026-09-05: IGES. Dez arquivos de um catálogo de conexões real (SolidWorks,
-faces soltas) tesselados pelo conversor do projeto: costura, sólido, orientação pelo volume
-assinado, cores por face preservadas depois da costura; teste com uma caixa escrita pelo
-próprio OCC.
-
-**1.2.0** — 2026-09-06 — reescrita como how-to; o conhecimento técnico foi para
-`docs/conhecimento/step-iges.md`, `geometria.md`, `ifc.md`, `aq-escrita.md` e
-`servicos-web.md`; removida a rota `POST /step/importar` (não existe mais: a conversão é
-`POST /tesselar` de `servicos/conversores`, e uma peça CAD vira produto de catálogo por
-`POST /importacoes` do criador de catálogos); sem nomes de fabricantes (ADR-016).

@@ -1,12 +1,8 @@
 # Extrair tabelas de um catálogo comercial em PDF
 
-> Proveniência: engenharia reversa de um catálogo comercial real (~270 produtos, gerado no
-> Adobe Illustrator) — histórico em
-> `docs/historico/estudos/escrita-aq-de-pdf/estudo/03-extrair-tabelas-de-um-pdf-de-catalogo.md`
-> e `04-lacunas-do-catalogo-comercial.md`. O catálogo virou um `.aq` aceito pelo Builder
-> (10 tabelas, ~270 linhas, zero linhas incompletas, zero códigos repetidos, conferido linha a
-> linha contra o PDF) — a prova de que o método funciona em catálogo real, não só em teoria.
-> Fabricante e arquivo ficam só no histórico (ADR-016).
+> Método derivado de um catálogo comercial real (~270 produtos, gerado no Adobe Illustrator), que virou
+> um `.aq` aceito pelo Builder: 10 tabelas, ~270 linhas, zero linhas incompletas, zero códigos repetidos,
+> conferido linha a linha contra o PDF.
 
 ## Por que `extract_text()` falha
 
@@ -173,9 +169,8 @@ comercial); um IFC ou STEP que o fabricante já tenha; geometria paramétrica po
 ## Onde está no código
 
 - Este documento descreve o **método**; a implementação de referência e os dados
-  intermediários do catálogo estudado (código de fabricante, texto bruto, tabelas remontadas)
-  ficam em `docs/historico/estudos/escrita-aq-de-pdf/` (histórico, não normativo — ADR-016: o
-  nome do fabricante não sai de lá).
+  intermediários do catálogo estudado estão arquivados em `docs/historico/estudos/` (não normativo;
+  consulta pontual).
 - `docs/conhecimento/aq-formato.md` — a mesma armadilha de encoding (cp1252) do lado da
   escrita do `.aq`.
 - `biblioteca/bim_pipeline/aq/formas_parametricas.py` — o gerador de forma representativa que

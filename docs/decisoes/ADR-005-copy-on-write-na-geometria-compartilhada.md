@@ -1,6 +1,6 @@
 # ADR-005 — copy on write na geometria compartilhada
 
-**Status:** Aceita (2026-09-05, A5; mantida)
+**Status:** Aceita (2026-09-05)
 
 ## Decisão
 

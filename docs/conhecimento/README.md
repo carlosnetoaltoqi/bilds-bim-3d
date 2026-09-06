@@ -2,7 +2,8 @@
 
 O que se sabe sobre os formatos, os algoritmos e os padrões — sem fabricantes, arquivos ou caminhos da
 POC (ADR-016; a guarda `tests/arquitetura/test_sem_empresas.py` cobre esta pasta). Censos de uma
-biblioteca específica viram proporções; a evidência mora em `docs/historico/`. Modelo de escrita:
+biblioteca específica viram proporções; a evidência numérica está arquivada em `docs/historico/`
+(consulta pontual — não carregar ao iniciar uma sessão). Modelo de escrita:
 introdução de um parágrafo, seções curtas, tabelas, e ao fim "Onde está no código" e "Ver também".
 **Conhecimento novo entra aqui**, no documento certo; `CLAUDE.md` só aponta.
 

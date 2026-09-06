@@ -1,6 +1,6 @@
 # ADR-006 — miniatura por geometria regerada pelo criador
 
-**Status:** Aceita (2026-09-05, A6; mantida)
+**Status:** Aceita (2026-09-05)
 
 ## Decisão
 
