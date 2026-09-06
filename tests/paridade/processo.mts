@@ -1,7 +1,7 @@
 // Harness do `executar()` (apps/ingestao/src/pipeline/processo.ts): cada jeito de um processo
 // filho morrer vira ProcessoError com motivo, e as linhas de saída chegam na hora.
 // Roda com `node --experimental-strip-types` (só builtins). Imprime JSON para tests/test_processo.py.
-import { executar, ProcessoError } from '../../www/apps/ingestao/src/pipeline/processo.ts'
+import { executar, ProcessoError } from '../../pacotes/base/src/processo.ts'
 
 const node = process.execPath
 const saida: Record<string, unknown> = {}

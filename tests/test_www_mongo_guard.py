@@ -2,7 +2,7 @@
 
 Até 2026-09-05 só `GET /health` sabia dizer que a conexão do Mongoose não estava pronta; as
 demais rotas esperavam o `serverSelectionTimeoutMS` do driver. `MongoProntoGuard`
-(`www/packages/dominio/src/mongo-pronto.guard.ts`) é `APP_GUARD` na API e no serviço de
+(`pacotes/dominio/src/mongo-pronto.guard.ts`) é `APP_GUARD` na API e no serviço de
 ingestão: `readyState ≠ 1` → `ServiceUnavailableException` antes de chegar ao controller,
 exceto nas rotas de `ROTAS_SEM_MONGO`. Harness `tests/paridade/mongo_guard.cts` (ts-node de
 `www/apps/api`); os dois últimos testes leem os `app.module.ts` para garantir o registro.
@@ -24,7 +24,7 @@ def casos():
     if not node:
         pytest.skip('precisa de Node >= 22')
     if not (API / 'node_modules' / 'ts-node').is_dir():
-        pytest.skip('precisa de ts-node em www/apps/api/node_modules (pnpm install em www/)')
+        pytest.skip('precisa de ts-node em www/apps/api/node_modules (pnpm install na raiz)')
     proc = subprocess.run(
         [node, '--no-warnings', '--require', 'ts-node/register/transpile-only', '--require', 'reflect-metadata',
          str(ROOT / 'tests' / 'paridade' / 'mongo_guard.cts')],

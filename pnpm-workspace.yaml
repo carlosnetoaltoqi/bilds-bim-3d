@@ -1,0 +1,10 @@
+packages:
+  - 'pacotes/*'
+  - 'www/apps/*'
+  - 'servicos/*'
+  - 'web'
+  - 'biblioteca/bim_pipeline/miniaturas'
+allowBuilds:
+  '@nestjs/core': true
+  '@nestjs/mongoose': true
+  playwright: true

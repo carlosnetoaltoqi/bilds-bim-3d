@@ -24,7 +24,7 @@ def c():
     if not node:
         pytest.skip('precisa de Node >= 22')
     if not (API / 'node_modules' / 'ts-node').is_dir():
-        pytest.skip('precisa de ts-node em www/apps/api/node_modules (pnpm install em www/)')
+        pytest.skip('precisa de ts-node em www/apps/api/node_modules (pnpm install na raiz)')
     proc = subprocess.run(
         [node, '--no-warnings', '--require', 'ts-node/register/transpile-only', '--require', 'reflect-metadata',
          str(HARNESS)],

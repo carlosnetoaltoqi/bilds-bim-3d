@@ -1,9 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import {
-  BimCatalog, BimCatalogSchema, BimImport, BimImportSchema, BimProduct, BimProductSchema,
-  Company, CompanySchema, GeometryStoreModule,
-} from '@bim/dominio';
+import { BimCatalog, BimCatalogSchema, BimImport, BimImportSchema, BimProduct, BimProductSchema, Company, CompanySchema, GeometryStoreModule } from '@bim/dominio';
 import { ImportacoesController } from './importacoes.controller';
 import { ImportacoesService } from './importacoes.service';
 import { RecuperacaoService } from './recuperacao.service';

@@ -143,7 +143,7 @@ Verificado ao fechar: Dancor 13 peças/13 miniaturas, 9 MB em 11 s, `/tmp` limpo
 `docs/historico/planos/arquitetura-www-servico-de-ingestao.md` §4: `build_zip_bilds` duplica o `build_zip` do `build.py`, e `test_cli_akato`
 aponta para um `.aq` que não existe (pula sempre). Registro: `docs/sessoes/S7.18-botao-gerar-zip-bilds.md`. Suíte **141** (140 passam; `test_cli_akato` pula).
 
-**S8 (2026-09-06) — reengenharia em contextos desacoplados.** O usuário aprovou o plano em `docs/arquitetura.md` (fases F0–F6, estado na §6) e `docs/decisoes/`. As pendências da S7.18 e da §4 antiga foram absorvidas pelas fases F1–F5. **F0 e F1 feitas (S8.1):** a biblioteca `bim_pipeline` em `biblioteca/` é um pacote instalável, sem duplicações, sem `build.py`/`templates/`/`eng-reversa/` (arquivados em `docs/historico/`), sem fabricantes em código; fixtures por papel; suíte **164**. Registro: `docs/sessoes/S8.1-f1-biblioteca-bim-pipeline.md`.
+**S8 (2026-09-06) — reengenharia em contextos desacoplados.** O usuário aprovou o plano em `docs/arquitetura.md` (fases F0–F6, estado na §6) e `docs/decisoes/`. As pendências da S7.18 e da §4 antiga foram absorvidas pelas fases F1–F5. **F0, F1 (S8.1) e F2 (S8.2) feitas:** workspace pnpm na raiz, `pacotes/base` e `pacotes/dominio` compilados (o `pnpm start` do `dist/` voltou a funcionar), contratos em JSON Schema. **F1:** a biblioteca `bim_pipeline` em `biblioteca/` é um pacote instalável, sem duplicações, sem `build.py`/`templates/`/`eng-reversa/` (arquivados em `docs/historico/`), sem fabricantes em código; fixtures por papel; suíte **164**. Registro: `docs/sessoes/S8.1-f1-biblioteca-bim-pipeline.md`.
 
 **Próxima sessão:** continuar pela primeira fase não marcada ✅ em `docs/arquitetura.md` §6. Antes: abrir o `.aq` da Tupy no AltoQi Builder (aceitação, como a Amanco na S7.16); depois
 `docs/sessoes/S7.14-www-servico-de-ingestao.md`, seção 7 — build do `dist/` com o `@bim/dominio`, e2e reexecutados,
@@ -200,20 +200,22 @@ definitivo; `www/` ainda abriga os serviços e o web até as fases F2–F4.
 ```
 bilds-bim-3d/
 ├── CLAUDE.md · README.md · CONCEPTS.md
-├── .nvmrc (24) · .python-version (3.12) · package.json (Node dos harnesses de teste)
+├── .nvmrc (24) · .python-version (3.12) · package.json + pnpm-workspace.yaml (workspace pnpm na RAIZ: pacotes/*, www/apps/*, web, miniaturas da biblioteca)
 ├── requirements.txt (-e biblioteca) · requirements-dev.txt (pytest) · requirements-cad.txt (ifcopenshell, OCP, pypdf, olefile)
 ├── .github/workflows/ci.yml     ← pip install -e biblioteca + pytest -m "not thumbs"; pnpm -r build em www/
 ├── biblioteca/                  ← ★ A BIBLIOTECA COMUM `bim_pipeline` (README próprio) — stateless, `pip install -e`
-│   └── bim_pipeline/{aq,geometria,catalogo(/fontes),conversores,miniaturas,saida,cli(/ferramentas)}
-│       miniaturas/ tem package.json próprio (playwright + three) — `pnpm install` lá
+│   └── bim_pipeline/{aq,geometria,catalogo(/fontes),conversores,miniaturas,saida,cli(/ferramentas),contratos}
+│       miniaturas/ tem package.json próprio (playwright + three; entra no workspace); contratos/ = JSON Schema do que a biblioteca emite
+├── pacotes/                     ← TypeScript compilado para dist/ (project references, `pnpm build:pacotes`)
+│   ├── base/                    ← @bim/base: processo filho, BibliotecaCli (a ÚNICA porta para o Python), upload, ValidationPipe, download em stream, bootstrap, validarContrato
+│   └── dominio/                 ← @bim/dominio: schemas Mongoose, IGeometryStore, storage-path, remoção em cascata, MongoProntoGuard — só para serviços com dados
 ├── scripts/bootstrap.sh · link_skills.sh
 ├── tests/                       ← pytest; fixtures reais por PAPEL em tests/fixtures.local.json (gitignored; modelo fixtures.example.json)
 │   └── paridade/                ← harnesses Node dos serviços
-├── contratos/                   ← (F2) JSON Schema biblioteca ↔ serviços
 ├── docs/
 │   ├── arquitetura.md · decisoes/ (ADR-001…017) · conhecimento/ · skills/ · sessoes/ · bilds-bim-3d-zip-spec.md
 │   └── historico/               ← planos/ (arquitetura anterior), estudos/ (escrita de .aq a partir de PDF; plugin de CAD → catálogo web), preview-estatico/
-├── www/                         ← serviços Nest (ingestao :4100, api :4000), web Next (:3000), packages/dominio — README próprio; migram para servicos/, pacotes/, web/ nas F2–F4
+├── www/                         ← serviços Nest (apps/ingestao :4100, apps/api :4000) e web Next (apps/web :3000) — README próprio; migram para servicos/ e web/ nas F3–F4
 ├── input/                       ← .aq do usuário — gitignored
 └── output/                      ← saída do lote (`zip_bilds --all`) e da suíte — gitignored
 ```
@@ -231,7 +233,7 @@ esperadas estão **nos arquivos**, não em texto: `.python-version`, `.nvmrc`, `
 | Node ≥ 22.6 (24 no `.nvmrc`) e pnpm 11 | miniaturas, `www/`, testes de paridade | `node -v; pnpm -v` |
 | `biblioteca/bim_pipeline/miniaturas/node_modules` (playwright + three) + Chromium + libs `libnss3 libnspr4 libasound2t64` | miniaturas (a geração **falha** sem, salvo `--allow-no-thumbs`) | `ls biblioteca/bim_pipeline/miniaturas/node_modules; ldconfig -p \| grep libnss3` |
 | `requirements-dev.txt` (pytest) | `tests/` | `python3 -m pytest -q` |
-| `www/` com `pnpm install` e `www/.env` (Mongo, `STORAGE_PATH`) | serviço de ingestão, API e web | `bash scripts/bootstrap.sh --www --check`; subir com `pnpm dev:ingestao`, `dev:api`, `dev:web` |
+| `pnpm install` **na raiz** (+ `pnpm build:pacotes`) e `www/.env` (Mongo, `STORAGE_PATH`) | serviços e web | `bash scripts/bootstrap.sh --www --check`; subir com `pnpm dev` (os três) ou `pnpm dev:ingestao`, `dev:api`, `dev:web`; `pnpm -r build` + `pnpm start:*` rodam do `dist/` |
 | `requirements-cad.txt` (ifcopenshell, cadquery-ocp, pypdf, olefile) | importar/tesselar STEP, IGES e IFC no serviço (`step_to_geo.py`, `ifc_to_geo.py`), plugin de AutoCAD (`catallog.py`; `olefile` só para os tipos do `.rfa`), PDF | `python3 -c 'import OCP, ifcopenshell, olefile'` |
 
 **Armadilhas de ambiente que já custaram tempo:**
@@ -251,7 +253,7 @@ esperadas estão **nos arquivos**, não em texto: `.python-version`, `.nvmrc`, `
 ## Testes — `tests/`
 
 ```bash
-python3 -m pytest                                   # 164 testes, ~4 min (Chromium, paridade, fixtures reais por papel)
+python3 -m pytest                                   # 169 testes, ~4 min (Chromium, paridade, fixtures reais por papel)
 python3 -m pytest -m "not thumbs"                   # sem Chromium — é o que o CI roda
 python3 -m pytest -m "not thumbs and not paridade"  # só Python, sem Node
 ```
@@ -262,6 +264,7 @@ python3 -m pytest -m "not thumbs and not paridade"  # só Python, sem Node
 | `test_read_aq.py` | `open_aq` não cria arquivo, read-only, rejeita lixo; contagens da Akato; cp1252 sem `\x80–\x9f`/U+FFFD |
 | `test_catalogo.py` | `auto_config` só descreve o `.aq`; `build_catalog_from_aq` sobre a fixture `aq_pequena`; `diag` numa cópia corrompida separa tubos de simbologia descartada (I2/I3); `resumo_diag` |
 | `test_geometria.py` | S8: `dedup` vetorizado idêntico à implementação pura de referência; `eixos` inversos; `malhas_por_cor` (regra do primeiro vértice) e os erros de geometria inválida |
+| `test_contratos.py` | S8/F2: os cinco JSON Schema são válidos; `montar_resultado`, `catalogo_de_aq` (fixture) e `step_iges` (caixa) emitem conforme o contrato; exemplos de manifesto/info-plugin/resumo-miniaturas |
 | `test_ferramentas.py` | S8: `validar_aq`/`aq_referencia`/`oq3d_anatomy` sobre um `.aq` escrito pela própria biblioteca; as 21 formas paramétricas geram malhas que o OQ3D grava e relê |
 | `test_geo_to_aq.py` | a biblioteca não importa nada de fora de si; `gerar_aq` gera um `.aq` de uma malha que `read_aq` e `oq3d` leem de volta (nome com acento em cp1252, specs, um triângulo, cores) |
 | `test_step_to_geo.py` | IGES de uma caixa escrita pelo próprio OCC (6 faces soltas) → `costurado`, volume igual ao da caixa, normais para fora; o STEP da mesma caixa não costura; CLI; IGES reais (fixture `iges_pasta`): o que fecha tem volume > 0 e cor preservada, o que não fecha é contado. Pula sem OCP |

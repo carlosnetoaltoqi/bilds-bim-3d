@@ -119,7 +119,7 @@ O código que lê o `.aq` e gera catálogo, geometria e miniaturas mora em `www/
 ## Testes
 
 ```bash
-python3 -m pytest                                   # 53 testes, ≈ 20 s
+python3 -m pytest                                   # ~170 testes
 python3 -m pytest -m "not thumbs"                   # sem abrir o Chromium
 python3 -m pytest -m "not thumbs and not paridade"  # só Python, sem Node
 ```
@@ -203,11 +203,7 @@ Se faltar uma peça que deveria ter forma e ela só existe como IFC, não no `.a
 ## `www/` — serviço de ingestão, API de catálogo e web (POC, local)
 
 O `www/` é o que vai para o repositório limpo (2026-09-05, `docs/historico/planos/arquitetura-www-servico-de-ingestao.md`):
-três apps sem login. O **serviço de ingestão** (`:4100`) recebe uma biblioteca `.aq`/`.zip` ou uma peça
-`.stp`/`.step`/`.ifc`, roda **o mesmo pipeline Python deste repositório** (`www/apps/ingestao/pipeline/`) e o
-Chromium para catálogo, geometria e miniaturas, e grava tudo no Mongo e no storage. A **API de catálogo**
-(`:4000`) serve e edita. O **web** (`:3000`) mostra o catálogo (cards com miniatura, modal com 3D) com a
-chamada para edição em cada página, o editor 3D e a página `/importar`.
+três apps sem login. O **serviço de ingestão** (`:4100`) recebe uma biblioteca `.aq`/`.zip` ou uma peça `.stp`/`.step`/`.igs`/`.ifc`, roda **a biblioteca Python** (`biblioteca/`) e o Chromium como processos filhos, e grava tudo no Mongo e no storage. A **API de catálogo** (`:4000`) serve e edita. O **web** (`:3000`) mostra o catálogo, o editor 3D e a página `/importar`. Desde a S8/F2 o workspace pnpm é a **raiz**: `pnpm install && pnpm dev` sobe os três; `pnpm -r build && pnpm start:ingestao` etc. rodam do `dist/` (os pacotes `@bim/base` e `@bim/dominio` compilam antes). A arquitetura-alvo está em `docs/arquitetura.md`.
 
 ```bash
 cd www && cp .env.example .env      # preencher Mongo e STORAGE_PATH

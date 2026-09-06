@@ -1,6 +1,6 @@
 """Apagar em cada nível (2026-09-05, S7.15): empresa, catálogo, peça, importação.
 
-`www/packages/dominio/src/remocao.ts` é a lógica compartilhada pela API (`DELETE /empresas/:customUrl`,
+`pacotes/dominio/src/remocao.ts` é a lógica compartilhada pela API (`DELETE /empresas/:customUrl`,
 `/catalogos/:id`, `/produtos/:id`) e pelo serviço de ingestão (`DELETE /importacoes/:id`). O que
 importa provar: apagar um produto não leva a geometria que outros produtos compartilham (o pipeline
 grava uma por simbologia); a cópia copy-on-write e o `.orig.json` saem; catálogo e empresa levam o
@@ -24,7 +24,7 @@ def c():
     if not node:
         pytest.skip('precisa de Node >= 22')
     if not (API / 'node_modules' / 'ts-node').is_dir():
-        pytest.skip('precisa de ts-node em www/apps/api/node_modules (pnpm install em www/)')
+        pytest.skip('precisa de ts-node em www/apps/api/node_modules (pnpm install na raiz)')
     proc = subprocess.run([node, '--no-warnings', '--require', 'ts-node/register/transpile-only', '--require', 'reflect-metadata',
                            str(ROOT / 'tests' / 'paridade' / 'remocao.cts')], capture_output=True, text=True, cwd=API, timeout=120)
     assert proc.returncode == 0, proc.stderr[-3000:]

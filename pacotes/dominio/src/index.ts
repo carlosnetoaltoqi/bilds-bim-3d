@@ -1,8 +1,7 @@
 /**
- * @bim/dominio — o que `apps/api` (catálogo: leitura + edição) e `apps/ingestao`
- * (importação: pipeline Python + Chromium) compartilham. Criado na E3 de
- * docs/arquitetura-www-servico-de-ingestao.md (2026-09-05); até então tudo vivia
- * em apps/api/src.
+ * @bim/dominio — o que os serviços COM DADOS compartilham (criador de catálogos, API de catálogo,
+ * editor de peças — docs/arquitetura.md §2). Criado na E3 (2026-09-05) como packages/dominio;
+ * pacote compilado desde a F2 da S8 (2026-09-06). Infraestrutura sem dado de negócio é do @bim/base.
  *
  * Aqui só entra o que os DOIS lados precisam para falar do mesmo dado: schemas,
  * storage, contrato `{pos,col,idx}`, ETag, validação, nome de upload. Regra de
@@ -16,7 +15,6 @@ export * from './storage-path';
 export * from './geo-buffers';
 export * from './asset-cache';
 export * from './validation';
-export * from './upload';
 export * from './mongo-pronto.guard';
 export * from './remocao';
 export * from './geometry-store/geometry-store.interface';

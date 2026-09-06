@@ -39,7 +39,7 @@ def fila(node):
 @pytest.fixture(scope='module')
 def recuperacao(node):
     if not (INGESTAO / 'node_modules' / 'ts-node').is_dir():
-        pytest.skip('precisa de ts-node em www/apps/ingestao/node_modules (pnpm install em www/)')
+        pytest.skip('precisa de ts-node em www/apps/ingestao/node_modules (pnpm install na raiz)')
     proc = subprocess.run(
         [node, '--no-warnings', '--require', 'ts-node/register/transpile-only', '--require', 'reflect-metadata',
          str(ROOT / 'tests' / 'paridade' / 'recuperacao.cts')],

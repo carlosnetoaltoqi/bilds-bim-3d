@@ -4,10 +4,7 @@ import { Model } from 'mongoose';
 import * as crypto from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import {
-  BimCatalog, BimCatalogDocument, BimImport, BimImportDocument, BimProduct, BimProductDocument,
-  Company, CompanyDocument, IGeometryStore, ImportStatus, ImportTipo, apagarImportacao, storagePath,
-} from '@bim/dominio';
+import { BimCatalog, BimCatalogDocument, BimImport, BimImportDocument, BimProduct, BimProductDocument, Company, CompanyDocument, IGeometryStore, ImportStatus, ImportTipo, apagarImportacao, storagePath } from '@bim/dominio';
 import { FILA_IMPORTACOES, FILA_MINIATURAS, Fila } from './fila';
 import { ImportarDto } from './importar.dto';
 import { ImportarPluginDto } from './importar-plugin.dto';

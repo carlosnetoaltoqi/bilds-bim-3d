@@ -1,0 +1,26 @@
+{
+  "name": "@bim/dominio",
+  "version": "0.0.1",
+  "private": true,
+  "description": "O que os serviços COM DADOS compartilham (criador de catálogos, API de catálogo, editor de peças): schemas Mongoose, storage em disco, contrato {pos,col,idx}, ETag, validadores de domínio, remoção em cascata, guarda do Mongo. Compilado para dist/ (project references).",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "dependencies": {
+    "@bim/base": "workspace:*",
+    "@nestjs/common": "^10.0.0",
+    "@nestjs/mongoose": "^11.0.4",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.1",
+    "mongoose": "^9.9.4",
+    "reflect-metadata": "^0.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.0.0"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "tsc -b -w",
+    "clean": "tsc -b --clean && rm -rf dist"
+  }
+}

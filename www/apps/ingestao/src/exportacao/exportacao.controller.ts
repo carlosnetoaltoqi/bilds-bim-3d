@@ -1,13 +1,11 @@
 import { BadRequestException, Controller, Get, Param, Post, Res, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
-import { diskStorage } from 'multer';
 import { createReadStream } from 'node:fs';
 import * as fs from 'node:fs/promises';
-import * as crypto from 'node:crypto';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { nomeOriginalUtf8 } from '@bim/dominio';
+import { armazenamentoTemporario, enviarArquivo, nomeOriginalUtf8 } from '@bim/base';
 import { ExportacaoService } from './exportacao.service';
 
 /**
@@ -21,13 +19,7 @@ import { ExportacaoService } from './exportacao.service';
 
 const MAX_AQ_BYTES = 1024 * 1024 * 1024;   // mesmo limite do importar (Maxbar 618 MB)
 
-const storageAq = diskStorage({
-  destination: (_req, _file, cb) => cb(null, os.tmpdir()),
-  filename: (_req, file, cb) => {
-    const ext = (path.extname(file.originalname ?? '') || '.aq').toLowerCase();
-    cb(null, `exp-${crypto.randomUUID()}${ext}`);
-  },
-});
+const storageAq = armazenamentoTemporario('exp', '.aq');
 
 @Controller('exportar')
 export class ExportacaoController {
@@ -76,32 +68,20 @@ export class ExportacaoController {
     }
 
     let zipPath: string | null = null;
+    let r: { path: string; nomeArquivo: string };
     const limparUpload = () => fs.unlink(file.path).catch(() => {});
     const limparZip = () => zipPath ? fs.unlink(zipPath).catch(() => {}) : Promise.resolve();
 
     try {
-      const r = await this.exportacao.zipBilds(file.path, nomeOriginal);
+      r = await this.exportacao.zipBilds(file.path, nomeOriginal);
       zipPath = r.path;
       await limparUpload();   // .aq/zip de entrada não é mais necessário
 
-      const { size } = await fs.stat(zipPath);
-      res.status(200);
-      res.setHeader('Content-Type', 'application/zip');
-      res.setHeader('Content-Length', String(size));
-      res.setHeader('Content-Disposition', `attachment; filename="${r.nomeArquivo}"`);
     } catch (e) {
       await limparUpload();
       await limparZip();
       throw e;
     }
-
-    const stream = createReadStream(zipPath!);
-    stream.on('close', () => void limparZip());
-    stream.on('error', (e) => {
-      void limparZip();
-      if (!res.headersSent) res.status(500).json({ message: `falha ao ler o ZIP gerado — ${e.message}` });
-      else res.destroy(e);
-    });
-    stream.pipe(res);
+    await enviarArquivo(res, zipPath!, { nome: r.nomeArquivo, contentType: 'application/zip' });
   }
 }

@@ -8,7 +8,8 @@
  *
  * `.cts` porque a raiz tem "type":"module" (ver geometrias_thumb.cts).
  */
-import { criarValidationPipe, normalizarCurva, normalizarSpecs } from '../../www/packages/dominio/src/validation';
+import { normalizarCurva, normalizarSpecs } from '../../pacotes/dominio/src/validation';
+import { criarValidationPipe } from '../../pacotes/base/src/validacao';
 import { PatchProdutoDto } from '../../www/apps/api/src/produtos/patch-produto.dto';
 import { PatchCatalogoDto } from '../../www/apps/api/src/catalogos/patch-catalogo.dto';
 import { ExportarAqDto } from '../../www/apps/ingestao/src/cad/cad.dto';

@@ -6,7 +6,7 @@
  *   cd www/apps/api && node --require ts-node/register/transpile-only --require reflect-metadata \
  *       ../../../tests/paridade/mongo_guard.cts
  */
-import { MongoProntoGuard, motivoMongoIndisponivel, ROTAS_SEM_MONGO } from '../../www/packages/dominio/src/mongo-pronto.guard';
+import { MongoProntoGuard, motivoMongoIndisponivel, ROTAS_SEM_MONGO } from '../../pacotes/dominio/src/mongo-pronto.guard';
 
 function ctx(path: string) {
   return { switchToHttp: () => ({ getRequest: () => ({ path, url: path }) }) } as any;

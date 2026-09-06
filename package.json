@@ -1,12 +1,20 @@
 {
-  "name": "bilds-bim-3d-thumbs",
+  "name": "bilds-bim-3d",
   "private": true,
-  "type": "module",
-  "description": "Raiz do repositório. As miniaturas têm o próprio package.json em biblioteca/bim_pipeline/miniaturas (Playwright + three); este fica para o Node dos harnesses de teste.",
+  "description": "Raiz do workspace pnpm: pacotes/ (base, dominio), os serviços (hoje em www/apps, migrando para servicos/), web e as dependências Node das miniaturas da biblioteca. Python (biblioteca/) é instalado com pip.",
   "scripts": {
-    "postinstall": "playwright install chromium"
+    "build": "pnpm -r build",
+    "build:pacotes": "pnpm --filter './pacotes/*' -r build",
+    "dev": "pnpm build:pacotes && concurrently -n ingestao,api,web -c blue,green,magenta \"pnpm dev:ingestao\" \"pnpm dev:api\" \"pnpm dev:web\"",
+    "dev:ingestao": "pnpm --filter ingestao dev",
+    "dev:api": "pnpm --filter api dev",
+    "dev:web": "pnpm --filter web dev",
+    "start:ingestao": "pnpm --filter ingestao start",
+    "start:api": "pnpm --filter api start",
+    "start:web": "pnpm --filter web start"
   },
-  "dependencies": {
+  "devDependencies": {
+    "concurrently": "^9.1.0",
     "playwright": "1.62.1"
   },
   "packageManager": "pnpm@11.24.0",

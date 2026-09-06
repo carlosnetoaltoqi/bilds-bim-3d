@@ -9,7 +9,7 @@ import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 import { storagePath, storagePathDefinido } from '@bim/dominio';
-import { criarValidationPipe } from '@bim/dominio';
+import { criarValidationPipe } from '@bim/base';
 
 // A geometria editada volta pelo PUT /geometrias/:id como JSON. Uma peça grande
 // (Maxbar) passa de 10 MB; o limite padrão do express é 100 KB.

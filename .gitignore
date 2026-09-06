@@ -19,7 +19,8 @@ config.json
 
 # POC — www/
 .next/
-www/**/dist/
+dist/
+*.tsbuildinfo
 www/storage/
 **/.venv/
 *.tsbuildinfo

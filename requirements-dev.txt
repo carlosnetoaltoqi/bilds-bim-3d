@@ -1,3 +1,4 @@
 # Suíte tests/ — python3 -m pytest. O CI instala requirements.txt + este.
 -r requirements.txt
 pytest>=8,<10
+jsonschema>=4.10    # tests/test_contratos.py

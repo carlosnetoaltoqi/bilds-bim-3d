@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "bim_pipeline/contratos/geometria.schema.json",
+  "title": "Geometria do viewer: {pos, col, idx} em metros, Y-up, mais metadados dos conversores",
+  "description": "O que step_iges, ifc e o oq3d produzem e o editor/viewer consomem. pos: 3 floats por vértice; col: RGB 0–1 por vértice ou vazio; idx: índices de triângulo.",
+  "type": "object",
+  "required": [
+    "pos",
+    "col",
+    "idx"
+  ],
+  "properties": {
+    "pos": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      }
+    },
+    "col": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      }
+    },
+    "idx": {
+      "type": "array",
+      "items": {
+        "type": "integer"
+      }
+    },
+    "partes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "nome"
+        ],
+        "properties": {
+          "nome": {
+            "type": "string"
+          },
+          "cor": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "tipo": {
+            "type": "string"
+          },
+          "triangulos": {
+            "type": "integer"
+          },
+          "triangulo_inicial": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "unidade": {
+      "type": "string"
+    },
+    "bbox_mm": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      }
+    },
+    "fonte": {
+      "type": "string"
+    },
+    "deflexao_mm": {
+      "type": "number"
+    },
+    "escala_aplicada": {
+      "type": "number"
+    },
+    "cor_por_face": {
+      "type": "boolean"
+    },
+    "segundos": {
+      "type": "number"
+    },
+    "formato": {
+      "enum": [
+        "step",
+        "iges",
+        "ifc"
+      ]
+    },
+    "caminho": {
+      "type": "string"
+    },
+    "tamanho_mb": {
+      "type": "number"
+    },
+    "aviso": {
+      "type": "string"
+    },
+    "volume_cm3": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "costurado": {
+      "type": "boolean"
+    },
+    "arestas_livres": {
+      "type": "integer"
+    }
+  }
+}

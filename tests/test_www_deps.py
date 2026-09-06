@@ -18,9 +18,10 @@ from conftest import ROOT
 WWW = ROOT / 'www'
 API = WWW / 'apps' / 'api'
 INGESTAO = WWW / 'apps' / 'ingestao'
-DOMINIO = WWW / 'packages' / 'dominio'
-LOCK = (WWW / 'pnpm-lock.yaml').read_text(encoding='utf8')
-IMPORTERS = ('apps/api', 'apps/ingestao', 'packages/dominio')
+DOMINIO = ROOT / 'pacotes' / 'dominio'
+BASE = ROOT / 'pacotes' / 'base'
+LOCK = (ROOT / 'pnpm-lock.yaml').read_text(encoding='utf8')     # um só lockfile, na raiz (S8/F2)
+IMPORTERS = ('www/apps/api', 'www/apps/ingestao', 'pacotes/dominio', 'pacotes/base')
 
 
 def _bloco_importer(importer):
@@ -30,7 +31,7 @@ def _bloco_importer(importer):
     return resto[: m.start()] if m else resto
 
 
-def _versao_instalada(nome, importer='apps/api'):
+def _versao_instalada(nome, importer='www/apps/api'):
     """Versão resolvida no importer do lockfile (ex.: '10.4.22')."""
     bloco = _bloco_importer(importer)
     m = re.search(rf"^      '?{re.escape(nome)}'?:\n        specifier: .*\n        version: (\d+\.\d+\.\d+)", bloco, flags=re.M)
@@ -54,7 +55,7 @@ def _satisfaz(versao, faixa):
 
 
 def test_nestjs_mongoose_satisfaz_o_nest_instalado():
-    for importer in ('apps/api', 'apps/ingestao'):
+    for importer in ('www/apps/api', 'www/apps/ingestao'):
         mongoose_nest = _versao_instalada('@nestjs/mongoose', importer)
         peers = _peers('@nestjs/mongoose', mongoose_nest)
         for pacote in ('@nestjs/common', '@nestjs/core', 'mongoose'):
@@ -64,7 +65,7 @@ def test_nestjs_mongoose_satisfaz_o_nest_instalado():
 
 
 def test_platform_express_satisfaz_o_nest_instalado():
-    for importer in ('apps/api', 'apps/ingestao'):
+    for importer in ('www/apps/api', 'www/apps/ingestao'):
         v = _versao_instalada('@nestjs/platform-express', importer)
         peers = _peers('@nestjs/platform-express', v)
         for pacote in ('@nestjs/common', '@nestjs/core'):
@@ -73,27 +74,33 @@ def test_platform_express_satisfaz_o_nest_instalado():
 
 def test_os_tres_importers_resolvem_as_mesmas_versoes():
     """Uma só cópia de Nest, Mongoose e class-validator: o dominio é compilado dentro de cada app."""
-    for pacote in ('@nestjs/common', '@nestjs/mongoose', 'mongoose', 'class-validator', 'class-transformer', 'reflect-metadata'):
+    for pacote in ('@nestjs/common', 'class-validator', 'class-transformer', 'reflect-metadata'):
         versoes = {imp: _versao_instalada(pacote, imp) for imp in IMPORTERS}
         assert len(set(versoes.values())) == 1, f'{pacote} resolvido em versões diferentes: {versoes}'
+    for pacote in ('@nestjs/mongoose', 'mongoose'):
+        versoes = {imp: _versao_instalada(pacote, imp) for imp in ('www/apps/api', 'www/apps/ingestao', 'pacotes/dominio')}
+        assert len(set(versoes.values())) == 1, f'{pacote} resolvido em versões diferentes: {versoes}'
     for pacote in ('@nestjs/core', '@nestjs/platform-express', 'multer'):
-        assert _versao_instalada(pacote, 'apps/api') == _versao_instalada(pacote, 'apps/ingestao'), pacote
+        assert _versao_instalada(pacote, 'www/apps/api') == _versao_instalada(pacote, 'www/apps/ingestao') == _versao_instalada(pacote, 'pacotes/base'), pacote
 
 
 def test_dominio_e_dependencia_dos_dois_apps_e_so_deles():
     for app in (API, INGESTAO):
         pkg = json.loads((app / 'package.json').read_text(encoding='utf8'))
         assert pkg['dependencies'].get('@bim/dominio') == 'workspace:*', app
+        assert pkg['dependencies'].get('@bim/base') == 'workspace:*', app
+    base = json.loads((BASE / 'package.json').read_text(encoding='utf8'))
+    assert '@bim/dominio' not in base['dependencies'] and 'mongoose' not in base['dependencies'], 'a base não sabe de Mongo'
     web = json.loads((WWW / 'apps' / 'web' / 'package.json').read_text(encoding='utf8'))
     assert '@bim/dominio' not in web.get('dependencies', {}), 'o web não consome schemas do Mongo — fala com a API'
 
 
 def test_um_so_driver_mongo():
-    for base in (API, INGESTAO, DOMINIO):
+    for base in (API, INGESTAO, DOMINIO, BASE):
         pkg = json.loads((base / 'package.json').read_text(encoding='utf8'))
         assert 'mongodb' not in pkg.get('dependencies', {}) and 'mongodb' not in pkg.get('devDependencies', {}), \
             f'o pacote mongodb voltou a {base.relative_to(ROOT)} — o mongoose já embute o driver'
-    culpados = [str(p.relative_to(ROOT)) for base in (API / 'src', INGESTAO / 'src', DOMINIO / 'src', WWW / 'tools')
+    culpados = [str(p.relative_to(ROOT)) for base in (API / 'src', INGESTAO / 'src', DOMINIO / 'src', BASE / 'src', WWW / 'tools')
                 for p in base.rglob('*.ts') if 'node_modules' not in p.parts and re.search(r"from ['\"]mongodb['\"]", p.read_text(encoding='utf8'))]
     assert culpados == [], f"import direto de 'mongodb' — use mongoose.mongo: {culpados}"
 
@@ -107,7 +114,7 @@ def test_health_responde_pela_conexao_do_mongoose():
 
 def test_nenhum_parser_em_typescript():
     """A2: o `.aq`/OQ3D é lido só pelo Python do pipeline — o port TS saiu na E3."""
-    for base in (API / 'src', INGESTAO / 'src', DOMINIO / 'src', WWW / 'tools'):
+    for base in (API / 'src', INGESTAO / 'src', DOMINIO / 'src', BASE / 'src', WWW / 'tools'):
         for p in base.rglob('*.ts'):
             if 'node_modules' in p.parts:
                 continue

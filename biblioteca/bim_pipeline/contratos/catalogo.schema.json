@@ -1,0 +1,326 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "bim_pipeline/contratos/catalogo.schema.json",
+  "title": "Resultado de uma fonte de catálogo (catalogo_de_aq, plugin_catalogo_web importar)",
+  "description": "O JSON que a biblioteca grava em --saida e o criador de catálogos lê para publicar. Geometrias já estão em --geo-dir, uma por simbologia.",
+  "type": "object",
+  "required": [
+    "config",
+    "catalog",
+    "n_geometrias",
+    "diag",
+    "hints"
+  ],
+  "properties": {
+    "config": {
+      "type": "object",
+      "required": [
+        "slug",
+        "titulo",
+        "fabricante",
+        "layout"
+      ],
+      "properties": {
+        "slug": {
+          "type": "string"
+        },
+        "titulo": {
+          "type": "string"
+        },
+        "fabricante": {
+          "type": "string"
+        },
+        "descricao": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "layout": {
+          "enum": [
+            "series-rows",
+            "catalog-grid"
+          ]
+        }
+      }
+    },
+    "catalog": {
+      "type": "object",
+      "required": [
+        "slug",
+        "titulo",
+        "fabricante",
+        "layout",
+        "filtros",
+        "produtos"
+      ],
+      "properties": {
+        "slug": {
+          "type": "string"
+        },
+        "titulo": {
+          "type": "string"
+        },
+        "fabricante": {
+          "type": "string"
+        },
+        "descricao": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "layout": {
+          "enum": [
+            "series-rows",
+            "catalog-grid"
+          ]
+        },
+        "filtros": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "produtos": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "nome",
+              "serie",
+              "geo",
+              "specs"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "nome": {
+                "type": "string"
+              },
+              "serie": {
+                "type": "string"
+              },
+              "geo": {
+                "type": "string",
+                "description": "\"<stem>.json\", relativo ao geo-dir"
+              },
+              "potencia": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "conexoes": {
+                "type": "string"
+              },
+              "specs": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": [
+                    "string",
+                    "number",
+                    "boolean",
+                    "null"
+                  ]
+                }
+              },
+              "curva": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  }
+                }
+              },
+              "codigo": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "thumb": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "n_geometrias": {
+      "type": "integer"
+    },
+    "diag": {
+      "type": "object",
+      "required": [
+        "pecas_sem_simbologia",
+        "pecas_sim_descartada",
+        "sim_sem_blob",
+        "sim_nao_oq3d",
+        "sim_ilegivel",
+        "sim_vazia",
+        "avisos"
+      ],
+      "properties": {
+        "pecas_sem_simbologia": {
+          "type": "integer"
+        },
+        "pecas_sim_descartada": {
+          "type": "integer"
+        },
+        "sim_sem_blob": {
+          "type": "integer"
+        },
+        "sim_nao_oq3d": {
+          "type": "integer"
+        },
+        "sim_ilegivel": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "nome",
+              "erro"
+            ],
+            "properties": {
+              "id": {
+                "type": [
+                  "integer",
+                  "string"
+                ]
+              },
+              "nome": {
+                "type": "string"
+              },
+              "erro": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "sim_vazia": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "nome"
+            ],
+            "properties": {
+              "id": {
+                "type": [
+                  "integer",
+                  "string"
+                ]
+              },
+              "nome": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "avisos": {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "type": "object",
+                "required": [
+                  "id",
+                  "nome",
+                  "mensagem"
+                ],
+                "properties": {
+                  "id": {
+                    "type": [
+                      "integer",
+                      "string"
+                    ]
+                  },
+                  "nome": {
+                    "type": "string"
+                  },
+                  "mensagem": {
+                    "type": "string"
+                  }
+                }
+              },
+              {
+                "type": "string"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "hints": {
+      "type": "object",
+      "properties": {
+        "n_pecas": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "n_simbologias": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "schema": {},
+        "grupos": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "linhas": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "has_curves": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "origem": {
+          "type": "object"
+        }
+      }
+    },
+    "thumbs": {
+      "type": "object",
+      "required": [
+        "geradas"
+      ],
+      "properties": {
+        "geradas": {
+          "type": "integer"
+        },
+        "erro": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    }
+  }
+}

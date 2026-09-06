@@ -9,7 +9,8 @@ import {
   ValidateIf,
   ValidateNested,
 } from 'class-validator';
-import { IsSpecs, LIMITES } from '@bim/dominio';
+import { IsSpecs } from '@bim/dominio';
+import { LIMITES } from '@bim/base';
 
 const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
 

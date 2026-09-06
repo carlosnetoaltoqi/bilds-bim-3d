@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "bim_pipeline/contratos/resumo-miniaturas.schema.json",
+  "title": "Uma linha do stdout do thumbs.mjs: uma geometria renderizada ou falhada",
+  "type": "object",
+  "required": [
+    "geo"
+  ],
+  "properties": {
+    "geo": {
+      "type": "string",
+      "description": "stem da geometria"
+    },
+    "bytes": {
+      "type": "integer"
+    },
+    "error": {
+      "type": "string"
+    }
+  },
+  "oneOf": [
+    {
+      "required": [
+        "bytes"
+      ]
+    },
+    {
+      "required": [
+        "error"
+      ]
+    }
+  ]
+}

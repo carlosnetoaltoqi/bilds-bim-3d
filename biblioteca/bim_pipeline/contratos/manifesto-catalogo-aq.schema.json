@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "bim_pipeline/contratos/manifesto-catalogo-aq.schema.json",
+  "title": "Entrada do catalogo_para_aq: um catálogo salvo → .aq novo",
+  "description": "O criador de catálogos monta a partir do banco; a biblioteca lê. `geo` é relativo a `geo_dir`.",
+  "type": "object",
+  "required": [
+    "catalogo",
+    "geo_dir",
+    "produtos"
+  ],
+  "properties": {
+    "catalogo": {
+      "type": "object",
+      "required": [
+        "fabricante",
+        "titulo",
+        "slug"
+      ],
+      "properties": {
+        "fabricante": {
+          "type": "string"
+        },
+        "titulo": {
+          "type": "string"
+        },
+        "slug": {
+          "type": "string"
+        },
+        "descricao": {
+          "type": "string"
+        },
+        "origem": {
+          "type": "string"
+        }
+      }
+    },
+    "geo_dir": {
+      "type": "string"
+    },
+    "produtos": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "nome",
+          "serie",
+          "geo"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "nome": {
+            "type": "string"
+          },
+          "serie": {
+            "type": "string"
+          },
+          "conexoes": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "specs": {
+            "type": "object"
+          },
+          "curva": {
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "potencia": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "codigo": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "geo": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

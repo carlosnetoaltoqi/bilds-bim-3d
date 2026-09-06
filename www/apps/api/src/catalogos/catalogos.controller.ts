@@ -13,10 +13,7 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import {
-  BimCatalog, BimCatalogDocument, BimImport, BimImportDocument, BimProduct, BimProductDocument,
-  Company, CompanyDocument, IGeometryStore, NaoEncontrado, apagarCatalogo,
-} from '@bim/dominio';
+import { BimCatalog, BimCatalogDocument, BimImport, BimImportDocument, BimProduct, BimProductDocument, Company, CompanyDocument, IGeometryStore, NaoEncontrado, apagarCatalogo } from '@bim/dominio';
 import { PatchCatalogoDto } from './patch-catalogo.dto';
 
 @Controller('catalogos')

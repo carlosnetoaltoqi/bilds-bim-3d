@@ -1,5 +1,6 @@
 /**
- * validation.ts — validação de entrada da API (I16, 2026-09-05).
+ * validation.ts — validadores de DOMÍNIO (`specs`, `curva`) para os DTOs (I16, 2026-09-05). O pipe
+ * global e os limites de tamanho estão em @bim/base (validacao.ts).
  *
  * Até então não havia `ValidationPipe`: cada controller checava o corpo à mão, sem
  * limite de tamanho em `curva`/`partes`, e `produtos.controller.ts` transformava um
@@ -15,31 +16,8 @@
  * Os limites abaixo são de POC: generosos para a Dancor/Maxbar, apertados o bastante
  * para um corpo malicioso ou um bug do editor não virar documento de MB no Mongo.
  */
-import { ValidationPipe, ValidationPipeOptions } from '@nestjs/common';
 import { registerDecorator, ValidationArguments, ValidationOptions } from 'class-validator';
-
-export const LIMITES = {
-  texto: 200,          // nome, serie, title, manufacturer, fabricante, linha, codigo…
-  textoLongo: 2000,    // conexoes, descricao, origem, valor de spec
-  specsChaves: 200,
-  specChave: 100,
-  curvaPontos: 1000,
-  partes: 500,
-  customUrl: 60,
-} as const;
-
-/** Opções do `ValidationPipe` global — também usadas pelo harness dos testes. */
-export const opcoesValidacao: ValidationPipeOptions = {
-  whitelist: true,
-  forbidNonWhitelisted: true,
-  transform: true,
-  // com `transform` os objetos aninhados já viram instâncias; `true` rejeitaria objetos livres como `specs`
-  forbidUnknownValues: false,
-  stopAtFirstError: false,
-};
-
-/** O pipe que o `main.ts` instala — o harness `tests/paridade/validacao.cts` usa o mesmo. */
-export const criarValidationPipe = () => new ValidationPipe(opcoesValidacao);
+import { LIMITES } from '@bim/base';
 
 /**
  * `specs` é `{ chave: valor }` com valor texto (ou número/booleano, que viram texto no

@@ -7,7 +7,8 @@ dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
-import { criarValidationPipe, storagePath, storagePathDefinido } from '@bim/dominio';
+import { storagePath, storagePathDefinido } from '@bim/dominio';
+import { criarValidationPipe } from '@bim/base';
 import { AppModule } from './app.module';
 import { pipelineDir } from './pipeline/pipeline.service';
 

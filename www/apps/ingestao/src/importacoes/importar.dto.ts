@@ -1,6 +1,6 @@
 import { Transform, Type } from 'class-transformer';
 import { IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
-import { LIMITES } from '@bim/dominio';
+import { LIMITES } from '@bim/base';
 
 const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
 

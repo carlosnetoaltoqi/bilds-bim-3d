@@ -6,12 +6,11 @@
 #     Os `.aq` de input/ são gitignored, então os testes que dependem deles PULAM
 #     aqui com motivo — o que roda são os blobs OQ3D sintéticos, o contrato do
 #     parser, o render dos templates e os harnesses Node de www/ (Node 24 roda .ts direto).
-#   www — `pnpm install --frozen-lockfile` + `pnpm -r build` (serviço de ingestão e API com tsc,
-#     web com next build; o pacote @bim/dominio compila dentro de cada app). Não sobe Mongo nem
-#     Chromium; só prova que compila.
+#   www — `pnpm install --frozen-lockfile` + `pnpm -r build` na raiz (pacotes/base e pacotes/dominio para dist/
+#     com project references, depois os serviços e o web). Não sobe Mongo nem Chromium; só prova que compila.
 #   Versões: Node em .nvmrc, pnpm em packageManager (package.json), Python em .python-version.
 #
-# Localmente a mesma coisa é: python3 -m pytest -m "not thumbs"  e  (cd www && pnpm -r build)
+# Localmente a mesma coisa é: python3 -m pytest -m "not thumbs"  e  pnpm -r build
 name: ci
 
 on:
@@ -53,22 +52,16 @@ jobs:
   www:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    defaults:
-      run:
-        working-directory: www
     steps:
       - uses: actions/checkout@v4
 
-      # a versão do pnpm vem do campo packageManager do www/package.json
+      # a versão do pnpm vem do campo packageManager do package.json da raiz
       - uses: pnpm/action-setup@v4
-        with:
-          package_json_file: www/package.json
 
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
           cache: pnpm
-          cache-dependency-path: www/pnpm-lock.yaml
 
       - run: pnpm install --frozen-lockfile
 

@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "bim_pipeline/contratos/info-plugin.schema.json",
+  "title": "O que `plugin_catalogo_web inspecionar` tira de uma DLL de plugin (e, com rede, do catálogo web)",
+  "type": "object",
+  "required": [
+    "arquivo",
+    "bytes",
+    "host",
+    "hosts",
+    "dotnet"
+  ],
+  "properties": {
+    "arquivo": {
+      "type": "string"
+    },
+    "bytes": {
+      "type": "integer"
+    },
+    "host": {
+      "type": "string"
+    },
+    "hosts": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "plugin": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "empresa": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "versao": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "dotnet": {
+      "type": "boolean"
+    },
+    "titulo": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "formulario_download": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "categorias": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "slug",
+          "name"
+        ],
+        "properties": {
+          "slug": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "grupos": {
+            "type": "integer"
+          },
+          "grupos_nomes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  }
+}

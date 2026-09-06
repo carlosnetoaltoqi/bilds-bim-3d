@@ -11,7 +11,7 @@ dependencies = ["numpy>=1.26"]
 
 [project.optional-dependencies]
 cad = ["cadquery-ocp>=7.7", "ifcopenshell>=0.8", "pypdf>=4", "olefile>=0.47"]
-dev = ["pytest>=8"]
+dev = ["pytest>=8", "jsonschema>=4.10"]
 
 [tool.setuptools.packages.find]
 include = ["bim_pipeline*"]
@@ -19,3 +19,4 @@ include = ["bim_pipeline*"]
 [tool.setuptools.package-data]
 "bim_pipeline.aq" = ["*.sql"]
 "bim_pipeline.miniaturas" = ["*.mjs", "*.html", "package.json"]
+"bim_pipeline.contratos" = ["*.schema.json", "README.md"]

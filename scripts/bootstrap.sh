@@ -96,8 +96,8 @@ if [ "${NLIBS:-0}" -ge 3 ]; then linha ok "libs do Chromium" "libnss3, libnspr4,
 else linha FALTA "libs do Chromium" "faltam ($NLIBS/3) — sudo apt-get install -y libnss3 libnspr4 libasound2t64 (NÃO use 'sudo npx playwright install-deps': o sudo descarta o PATH do nvm)" "ldconfig -p | grep -E 'libnss3|libnspr4|libasound'"; fi
 
 # ── Opcionais ─────────────────────────────────────────────────────────────────
-if [ -d www/apps/web/node_modules/three ]; then linha ok "www/ (pnpm install)" "dependências presentes" "ls www/apps/web/node_modules/three"
-elif [ $WWW = 1 ] && [ $CHECK = 0 ] && command -v pnpm >/dev/null; then echo ">> pnpm install em www/"; (cd www && pnpm install --frozen-lockfile >/dev/null) && linha ok "www/ (pnpm install)" "instalado agora" "ls www/apps/web/node_modules/three" || linha opcional "www/ (pnpm install)" "falhou" "cd www && pnpm install"
+if [ -d www/apps/web/node_modules/three ] && [ -d pacotes/base/node_modules ]; then linha ok "workspace (pnpm install)" "dependências presentes" "ls www/apps/web/node_modules/three pacotes/base/node_modules"
+elif [ $WWW = 1 ] && [ $CHECK = 0 ] && command -v pnpm >/dev/null; then echo ">> pnpm install (raiz) + pnpm build:pacotes"; pnpm install --frozen-lockfile >/dev/null && pnpm build:pacotes >/dev/null && linha ok "workspace (pnpm install)" "instalado agora" "ls pacotes/base/dist" || linha opcional "workspace (pnpm install)" "falhou" "pnpm install && pnpm build:pacotes"
 else linha opcional "www/ (pnpm install)" "ausente — só para a POC (www/README.md); --www instala" "cd www && pnpm install"; fi
 if python3 -c 'import OCP, ifcopenshell, pypdf' 2>/dev/null; then linha ok "requirements-cad.txt" "OCP, ifcopenshell e pypdf importam" "python3 -c 'import OCP, ifcopenshell, pypdf'"
 elif [ $CAD = 1 ] && [ $CHECK = 0 ]; then echo ">> pip install -r requirements-cad.txt (grande: ~400 MB)"; pip_install -r requirements-cad.txt && linha ok "requirements-cad.txt" "instalado agora" "python3 -c 'import OCP, ifcopenshell, pypdf'" || linha opcional "requirements-cad.txt" "pip falhou" "pip install --user --break-system-packages -r requirements-cad.txt"

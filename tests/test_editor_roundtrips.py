@@ -31,7 +31,7 @@ pytestmark = pytest.mark.paridade
 
 def _primeira_geometria():
     if not (ROOT / 'www' / 'apps' / 'web' / 'node_modules' / 'three').is_dir():
-        pytest.skip('www/apps/web/node_modules sem three (pnpm install em www/)')
+        pytest.skip('www/apps/web/node_modules sem three (pnpm install na raiz)')
     if shutil.which('node') is None:
         pytest.skip('node não está no PATH')
     geos = sorted(p for p in GEO_DIR.glob('*/*.json') if not p.name.endswith('.orig.json')) \

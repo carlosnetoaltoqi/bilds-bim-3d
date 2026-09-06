@@ -242,8 +242,7 @@ def montar_resultado(config, catalog, n_geometrias, diag=None, hints=None, thumb
     """
     if diag is None:
         diag = diag_vazio()
-    if isinstance(diag.get('sim_ilegivel'), dict):
-        diag = diag_para_json(diag)
+    diag = diag_para_json(diag)
     hints = hints or {}
     r = {
         'config': {k: config.get(k, '' if k == 'descricao' else None) for k in ('slug', 'titulo', 'fabricante', 'descricao', 'layout')},
@@ -311,13 +310,18 @@ def resumo_diag(diag, indent='    ', max_itens=5, out=None):
 
 
 def diag_para_json(diag):
-    """`diag` com listas de tuplas viram listas de objetos — o que o serviço grava no import."""
+    """`diag` com listas de tuplas viram listas de objetos (contrato `catalogo`). Idempotente: itens já
+    em objeto (ou avisos em texto, do plugin web) passam como estão."""
+    def obj(item, chaves):
+        if isinstance(item, (dict, str)):
+            return item
+        return dict(zip(chaves, item))
     return {
         'pecas_sem_simbologia': diag['pecas_sem_simbologia'],
         'pecas_sim_descartada': diag['pecas_sim_descartada'],
         'sim_sem_blob': diag['sim_sem_blob'],
         'sim_nao_oq3d': diag['sim_nao_oq3d'],
-        'sim_ilegivel': [{'id': s, 'nome': n, 'erro': e} for s, n, e in diag['sim_ilegivel']],
-        'sim_vazia': [{'id': s, 'nome': n} for s, n in diag['sim_vazia']],
-        'avisos': [{'id': s, 'nome': n, 'mensagem': m} for s, n, m in diag['avisos']],
+        'sim_ilegivel': [obj(i, ('id', 'nome', 'erro')) for i in diag['sim_ilegivel']],
+        'sim_vazia': [obj(i, ('id', 'nome')) for i in diag['sim_vazia']],
+        'avisos': [obj(i, ('id', 'nome', 'mensagem')) for i in diag['avisos']],
     }

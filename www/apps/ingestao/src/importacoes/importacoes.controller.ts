@@ -14,11 +14,10 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import * as crypto from 'node:crypto';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { ImportacaoEmAndamento, NaoEncontrado, nomeOriginalUtf8 } from '@bim/dominio';
+import { ImportacaoEmAndamento, NaoEncontrado } from '@bim/dominio';
+import { armazenamentoTemporario, nomeOriginalUtf8 } from '@bim/base';
 import { ImportacoesService, tipoDe } from './importacoes.service';
 import { ImportarDto } from './importar.dto';
 import { ImportarPluginDto } from './importar-plugin.dto';
@@ -38,21 +37,11 @@ import { ImportarPluginDto } from './importar-plugin.dto';
  */
 const MAX_FILE_BYTES = 1024 * 1024 * 1024;   // 1 GB: um Revit exportado passa fácil de 100 MB; Maxbar 618 MB
 
-const storage = diskStorage({
-  destination: (_req, _file, cb) => cb(null, os.tmpdir()),
-  filename: (_req, file, cb) => {
-    const ext = (path.extname(file.originalname ?? '') || '.aq').toLowerCase();
-    const prefixo = tipoDe(ext) === 'cad' ? 'cad' : 'bim';
-    cb(null, `${prefixo}-${crypto.randomUUID()}${ext}`);
-  },
-});
+const storage = armazenamentoTemporario((ext) => (tipoDe(ext) === 'cad' ? 'cad' : 'bim'), '.aq');
 
 // A DLL de um plugin (TupyCAD.dll tem 35 KB); prefixo `plugin-` reconhecido pela recuperação no boot
 const MAX_DLL_BYTES = 64 * 1024 * 1024;
-const storagePlugin = diskStorage({
-  destination: (_req, _file, cb) => cb(null, os.tmpdir()),
-  filename: (_req, file, cb) => cb(null, `plugin-${crypto.randomUUID()}${(path.extname(file.originalname ?? '') || '.dll').toLowerCase()}`),
-});
+const storagePlugin = armazenamentoTemporario('plugin', '.dll');
 
 @Controller('importacoes')
 export class ImportacoesController {

@@ -1,11 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as crypto from 'node:crypto';
-import * as fs from 'node:fs';
 import * as fsp from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { GeoBuffers } from '@bim/dominio';
-import { executar, ProcessoError } from './processo';
+import { BibliotecaCli, bibliotecaDir, validarContrato, ProcessoError, TIMEOUT_PADRAO_MS } from '@bim/base';
 
 /**
  * PipelineService — a fronteira entre o Nest e o pipeline (A2/A3 de
@@ -22,30 +21,15 @@ import { executar, ProcessoError } from './processo';
  *   catalogoParaAq python3 pipeline/catalogo_to_aq.py  catálogo salvo (produtos + geometria do storage) → .aq
  *   miniaturas     node    pipeline/thumbs.mjs         geometrias → WebP por geometria (Chromium)
  *
- * A biblioteca é o pacote Python `bim_pipeline` em `biblioteca/` (`BIBLIOTECA_DIR`); cada método roda
- * `python -m bim_pipeline.cli.<nome>` ou o `thumbs.mjs` dela. Só Python e Node aqui — nenhum parser
+ * A biblioteca é o pacote Python `bim_pipeline` em `biblioteca/`; cada método roda uma CLI dela pela
+ * `BibliotecaCli` de @bim/base (que é quem sabe onde ela está e como chamá-la) ou o `thumbs.mjs`. Nenhum parser
  * em TypeScript (ADR-002).
  */
 
-/**
- * Onde está a biblioteca Python (`biblioteca/`, com o pacote `bim_pipeline`). `BIBLIOTECA_DIR`
- * aponta para ela quando o serviço roda fora do repositório; por padrão é `../../../../../biblioteca`
- * a partir de `src/pipeline/`. Vai no PYTHONPATH do filho, então funciona instalada ou não (S8/F1).
- */
-export function pipelineDir(env: NodeJS.ProcessEnv = process.env): string {
-  return path.resolve(env.BIBLIOTECA_DIR ?? path.join(__dirname, '..', '..', '..', '..', '..', 'biblioteca'));
-}
+/** Compat: quem imprime onde a biblioteca está (health, main). */
+export const pipelineDir = bibliotecaDir;
 
-/** Ambiente do filho Python: a biblioteca no PYTHONPATH. */
-function envPython(dir: string): NodeJS.ProcessEnv {
-  const atual = process.env.PYTHONPATH;
-  return { ...process.env, PYTHONPATH: atual ? `${dir}${path.delimiter}${atual}` : dir };
-}
-
-const PYTHON = process.env.PYTHON ?? 'python3';
-const TIMEOUT_MS = 30 * 60 * 1000;      // um Revit de 130 MB leva minutos no ifcopenshell
-const OCIOSO_PYTHON_MS = 10 * 60 * 1000;
-const OCIOSO_CHROMIUM_MS = 2 * 60 * 1000;   // thumbs.mjs sem uma linha por 2 min = Chromium travado
+const TIMEOUT_MS = TIMEOUT_PADRAO_MS;
 
 export interface ProdutoPipeline {
   id: string;
@@ -135,30 +119,20 @@ export function formatoDe(nome: string): 'step' | 'iges' | 'ifc' {
 @Injectable()
 export class PipelineService {
   private readonly logger = new Logger(PipelineService.name);
-  readonly dir = pipelineDir();
-
-  constructor() {
-    if (!fs.existsSync(path.join(this.dir, 'bim_pipeline', 'cli', 'catalogo_de_aq.py'))) {
-      throw new Error(`biblioteca/ não encontrada em ${this.dir} — defina BIBLIOTECA_DIR (veja www/.env.example)`);
-    }
-  }
-
-  /** `python -m bim_pipeline.cli.<nome>` — a única forma de chegar à biblioteca. */
-  private script(nome: string): string[] { return ['-m', `bim_pipeline.cli.${nome}`]; }
-  private readonly env = envPython(pipelineDir());
-  private get thumbsMjs() { return path.join(this.dir, 'bim_pipeline', 'miniaturas', 'thumbs.mjs'); }
+  /** A porta para a biblioteca Python (@bim/base) — só ela sabe onde está e como chamar. */
+  private readonly cli = new BibliotecaCli();
+  readonly dir = this.cli.dir;
 
   /** `.aq`/`.zip` → geometrias em `geoDir` + catálogo. Progresso do Python linha a linha em `onProgresso`. */
   async catalogoDeAq(opts: { aqPath: string; geoDir: string; nomeOriginal?: string; onProgresso?: (linha: string) => void }): Promise<ResultadoCatalogo> {
     const saida = path.join(os.tmpdir(), `catalogo-${crypto.randomUUID()}.json`);
-    const args = [...this.script('catalogo_de_aq'), opts.aqPath, '--geo-dir', opts.geoDir, '--saida', saida, '--sair-com-stdin'];
+    const args = [opts.aqPath, '--geo-dir', opts.geoDir, '--saida', saida, '--sair-com-stdin'];
     if (opts.nomeOriginal) args.push('--nome-original', opts.nomeOriginal);
     try {
-      await executar(PYTHON, args, {
-        nome: 'catalogo_de_aq.py', cwd: this.dir, env: this.env, timeoutMs: TIMEOUT_MS, ociosoMs: OCIOSO_PYTHON_MS,
+      await this.cli.rodar('catalogo_de_aq', args, {
         onStderr: (l) => { if (l.trim()) opts.onProgresso?.(l.trim()); },
       });
-      return JSON.parse(await fsp.readFile(saida, 'utf8')) as ResultadoCatalogo;
+      return validarContrato<ResultadoCatalogo>('catalogo', JSON.parse(await fsp.readFile(saida, 'utf8')));
     } finally {
       await fsp.unlink(saida).catch(() => {});
     }
@@ -169,12 +143,12 @@ export class PipelineService {
    * título do catálogo e categorias (com o número de grupos de cada). Síncrono, segundos.
    */
   async inspecionarPlugin(dllPath: string, opts: { semRede?: boolean } = {}): Promise<PluginInfo> {
-    const args = [...this.script('plugin_catalogo_web'), 'inspecionar', dllPath];
+    const args = ['inspecionar', dllPath];
     if (opts.semRede) args.push('--sem-rede');
-    const { stdout } = await executar(PYTHON, args, { nome: 'catallog.py inspecionar', cwd: this.dir, env: this.env, timeoutMs: 5 * 60 * 1000 });
+    const { stdout } = await this.cli.rodar('plugin_catalogo_web', args, { timeoutMs: 5 * 60 * 1000 });
     const linha = stdout.trim().split('\n').reverse().find((l) => l.startsWith('{'));
     if (!linha) throw new Error('catallog.py inspecionar terminou sem o JSON');
-    return JSON.parse(linha) as PluginInfo;
+    return validarContrato<PluginInfo>('info-plugin', JSON.parse(linha));
   }
 
   /**
@@ -192,7 +166,7 @@ export class PipelineService {
     const saida = path.join(os.tmpdir(), `catallog-catalogo-${id}.json`);
     await fsp.writeFile(leadPath, JSON.stringify(opts.lead), { mode: 0o600 });
     const args = [
-      ...this.script('plugin_catalogo_web'), 'importar', '--host', opts.host, '--categoria', opts.categoria, '--lead', leadPath,
+      'importar', '--host', opts.host, '--categoria', opts.categoria, '--lead', leadPath,
       '--downloads', opts.downloads, '--geo-dir', opts.geoDir, '--saida', saida,
       '--igs-por-grupo', String(opts.igsPorGrupo ?? 1), '--deflexao', String(opts.deflexao ?? 0.2), '--sair-com-stdin',
     ];
@@ -201,11 +175,10 @@ export class PipelineService {
       args.push('--plugin', pluginPath);
     }
     try {
-      await executar(PYTHON, args, {
-        nome: 'catallog.py importar', cwd: this.dir, env: this.env, timeoutMs: TIMEOUT_MS, ociosoMs: OCIOSO_PYTHON_MS,
+      await this.cli.rodar('plugin_catalogo_web', args, {
         onStderr: (l) => { if (l.trim()) opts.onProgresso?.(l.trim()); },
       });
-      return JSON.parse(await fsp.readFile(saida, 'utf8')) as ResultadoCatalogo;
+      return validarContrato<ResultadoCatalogo>('catalogo', JSON.parse(await fsp.readFile(saida, 'utf8')));
     } finally {
       await Promise.all([leadPath, pluginPath, saida].map((p) => fsp.unlink(p).catch(() => {})));
     }
@@ -219,15 +192,14 @@ export class PipelineService {
     const outJson = path.join(os.tmpdir(), `cad-${crypto.randomUUID()}.json`);
     const t0 = Date.now();
     const formato = formatoDe(nomeOriginal ?? caminho);
-    const args = formato === 'ifc'
-      ? [...this.script('ifc'), caminho, outJson]
-      : [...this.script('step_iges'), caminho, outJson, '--deflexao', String(deflexaoMm)];
+    const [cli, args] = formato === 'ifc'
+      ? ['ifc', [caminho, outJson]] as const
+      : ['step_iges', [caminho, outJson, '--deflexao', String(deflexaoMm)]] as const;
     try {
-      await executar(PYTHON, args, {
-        nome: path.basename(args[0]), cwd: this.dir, env: this.env, timeoutMs: TIMEOUT_MS, ociosoMs: OCIOSO_PYTHON_MS,
+      await this.cli.rodar(cli, [...args], {
         onStderr: (l) => { if (l.trim()) onProgresso?.(l.trim()); },
       });
-      const geo = JSON.parse(await fsp.readFile(outJson, 'utf8')) as StepGeo;
+      const geo = validarContrato<StepGeo>('geometria', JSON.parse(await fsp.readFile(outJson, 'utf8')));
       if (nomeOriginal) geo.fonte = path.basename(nomeOriginal);   // o script grava o nome temporário do multer
       geo.formato = formato;
       this.logger.log(
@@ -247,8 +219,8 @@ export class PipelineService {
     const outAq = path.join(os.tmpdir(), `aq-out-${id}.aq`);
     await fsp.writeFile(inJson, JSON.stringify({ info, partes: partes.length ? partes : undefined, ...(geo ?? {}) }));
     try {
-      const { stdout } = await executar(PYTHON, [...this.script('gerar_aq'), inJson, outAq, '--quiet'], {
-        nome: 'geo_to_aq.py', cwd: this.dir, env: this.env, timeoutMs: 10 * 60 * 1000,
+      const { stdout } = await this.cli.rodar('gerar_aq', [inJson, outAq, '--quiet'], {
+        timeoutMs: 10 * 60 * 1000,
       });
       const linhaJson = stdout.trim().split('\n').reverse().find((l) => l.startsWith('{')) ?? '{}';
       const resumo = JSON.parse(linhaJson);
@@ -269,10 +241,11 @@ export class PipelineService {
     const id = crypto.randomUUID();
     const inJson = path.join(os.tmpdir(), `aq-catalogo-in-${id}.json`);
     const outAq = path.join(os.tmpdir(), `aq-catalogo-out-${id}.aq`);
+    validarContrato('manifesto-catalogo-aq', manifesto);
     await fsp.writeFile(inJson, JSON.stringify(manifesto));
     try {
-      const { stdout } = await executar(PYTHON, [...this.script('catalogo_para_aq'), inJson, outAq], {
-        nome: 'catalogo_to_aq.py', cwd: this.dir, env: this.env, timeoutMs: TIMEOUT_MS, ociosoMs: OCIOSO_PYTHON_MS,
+      const { stdout } = await this.cli.rodar('catalogo_para_aq', [inJson, outAq], {
+        
         onStderr: (l) => { if (l.trim()) onProgresso?.(l.trim()); },
       });
       const linhaJson = stdout.trim().split('\n').reverse().find((l) => l.startsWith('{'));
@@ -299,12 +272,11 @@ export class PipelineService {
     onProgresso?: (linha: string) => void;
   }): Promise<{ path: string }> {
     const outZip = path.join(os.tmpdir(), `bilds-zip-${crypto.randomUUID()}.zip`);
-    const args = [...this.script('zip_bilds'), opts.aqPath, '--saida', outZip, '--sair-com-stdin'];
+    const args = [opts.aqPath, '--saida', outZip, '--sair-com-stdin'];
     if (opts.nomeOriginal) args.push('--nome-original', opts.nomeOriginal);
     args.push(opts.skipThumbs ? '--skip-thumbs' : '--allow-no-thumbs');   // quem pediu está esperando um download
     try {
-      await executar(PYTHON, args, {
-        nome: 'zip_bilds.py', cwd: this.dir, env: this.env, timeoutMs: TIMEOUT_MS, ociosoMs: OCIOSO_PYTHON_MS,
+      await this.cli.rodar('zip_bilds', args, {
         onStderr: (l) => { if (l.trim()) opts.onProgresso?.(l.trim()); },
       });
       return { path: outZip };
@@ -336,12 +308,11 @@ export class PipelineService {
     };
     await fsp.writeFile(cfgPath, JSON.stringify(cfg));
     try {
-      const r = await executar(process.execPath, [this.thumbsMjs, cfgPath], {
-        nome: 'thumbs.mjs', cwd: path.dirname(this.thumbsMjs), timeoutMs: TIMEOUT_MS, ociosoMs: OCIOSO_CHROMIUM_MS,
-        aceitarCodigos: [0, 2], guardarStdout: false,
+      const r = await this.cli.rodarThumbs(cfgPath, {
+        guardarStdout: false,
         onStdout: (linha) => {
           let msg: any;
-          try { msg = JSON.parse(linha); } catch { return; }
+          try { msg = validarContrato('resumo-miniaturas', JSON.parse(linha)); } catch { return; }
           if (msg.error) {
             resumo.falhas.push({ geo: msg.geo, message: String(msg.error) });
             opts.onFalha?.(msg.geo, String(msg.error));

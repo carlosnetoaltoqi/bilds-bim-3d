@@ -1,5 +1,5 @@
 /**
- * processo.ts — roda um processo filho (Python do pipeline ou `thumbs.mjs`) e NÃO engole
+ * processo.ts — roda um processo filho (uma CLI da biblioteca Python ou o `thumbs.mjs`) e NÃO engole
  * como ele morre. Herdeiro do `worker-ipc.ts` (I15/I29), sem `fork`/IPC:
  *
  *   - saída ≠ 0 (ou fora de `aceitarCodigos`), sinal, `error` do spawn, timeout total e
@@ -11,7 +11,8 @@
  *     o pipe fecha e o filho para sozinho (`processo.py:vigiar_stdin`, `sairComStdin` do
  *     thumbs.mjs) — o que o `disconnect` do IPC fazia.
  *
- * Sem Nest aqui: testável direto (tests/paridade/processo.mts).
+ * Sem Nest aqui: testável direto (tests/paridade/processo.mts). Vive em @bim/base porque todo serviço
+ * que chega à biblioteca passa por aqui (regra 2 de docs/arquitetura.md §3).
  */
 import { spawn } from 'node:child_process';
 import * as path from 'node:path';

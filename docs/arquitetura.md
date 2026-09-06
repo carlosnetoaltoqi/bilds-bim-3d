@@ -46,7 +46,7 @@ bilds-bim-3d/
 │   └── conversores/           :4300  POST /tesselar (STEP/IGES/IFC → geometria), POST /aq (geometria → .aq de uma peça),
 │                                     POST /plugin/inspecionar (DLL → host/categorias). STATELESS.
 ├── web/                              ← Next :3000, um app, árvore por contexto e UM cliente por serviço em src/servicos/
-├── contratos/                        ← JSON Schema dos contratos biblioteca ↔ serviços, validados nos dois lados
+│   └── bim_pipeline/contratos/       ← JSON Schema dos contratos biblioteca ↔ serviços (a biblioteca os define; @bim/base valida o que lê)
 ├── tests/                            ← biblioteca/, servicos/ (harnesses), arquitetura/ (guardas), fixtures por papel (não por empresa)
 ├── docs/                             ← conhecimento/ (formatos, algoritmos, padrões — sem empresas), decisoes/, historico/, integracoes/
 ├── input/ (gitignored) · storage/ (gitignored) · .github/workflows/ci.yml
@@ -61,7 +61,7 @@ bilds-bim-3d/
 4. **Dados**: só `criador-de-catalogos`, `catalogo-api` e `editor-de-pecas` importam `dominio`. Quem grava o quê está na seção 5. Mongo e storage compartilhados são **acoplamento aceito e documentado da POC**; `IGeometryStore` e os schemas são a costura de porte (ADR-004, ADR-014).
 5. **Web**: um cliente por serviço em `web/src/servicos/`; nenhuma URL fixa fora deles; componente de um contexto não importa cliente de outro (o editor usa `editor` + `conversores`; a home usa `catalogo` + `zip`; importar usa `criador` + `catalogo`).
 6. **Sem empresas**: nomes de fabricante, domínios e caminhos `input/` não aparecem em `biblioteca/`, `servicos/`, `pacotes/`, `web/`, `contratos/`, `docs/conhecimento/` nem `docs/skills/` — só em `docs/historico/`, `docs/integracoes/` e `tests/fixtures.local.*` (ADR-016).
-7. **Contratos** entre biblioteca e serviços têm JSON Schema em `contratos/`; a biblioteca valida o que emite (teste) e o serviço valida o que lê (ADR-015).
+7. **Contratos** entre biblioteca e serviços têm JSON Schema em `biblioteca/bim_pipeline/contratos/` — a biblioteca os define porque é quem emite; ela prova em teste que emite conforme (`tests/test_contratos.py`) e `@bim/base` valida o que lê (`validarContrato`, ajv) (ADR-015).
 
 ## 4. O que cada contexto leva consigo ao ser portado
 
@@ -94,7 +94,7 @@ Nenhum dado de fabricante fica no repositório: `input/`, `storage/` e as fixtur
 |---|---|---|
 | **F0** | Este documento; `docs/decisoes/` (ADR-001 a ADR-017); a arquitetura anterior arquivada em `docs/historico/planos/` | ✅ 2026-09-06 |
 | **F1** | Biblioteca `bim_pipeline` como pacote instalável, sem duplicações, com o modo lote do antigo `build.py`, ferramentas promovidas de `eng-reversa/tools`, fixtures por papel; preview estático sai; sem fabricantes em código | ✅ 2026-09-06 (S8.1) |
-| **F2** | Workspace pnpm na raiz; `pacotes/base` e `pacotes/dominio` compilados com project references (`pnpm -r start` funciona) | ⬜ |
+| **F2** | Workspace pnpm na raiz; `pacotes/base` e `pacotes/dominio` compilados com project references (`pnpm -r start` funciona); contratos em JSON Schema validados nos dois lados | ✅ 2026-09-06 (S8.2) |
 | **F3** | `servicos/gerador-zip` e `servicos/conversores` (stateless); web com um cliente por serviço para eles | ⬜ |
 | **F4** | `servicos/criador-de-catalogos`, `servicos/catalogo-api`, `servicos/editor-de-pecas`; web reagrupado por contexto | ⬜ |
 | **F5** | Guardas de arquitetura, CI, `pnpm dev` único, `README.md`, roteiro `docs/aceitacao.md` | ⬜ |

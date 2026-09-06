@@ -19,10 +19,7 @@ import { Model } from 'mongoose';
 import * as path from 'path';
 import * as fs from 'fs';
 import { Response } from 'express';
-import {
-  BimCatalog, BimCatalogDocument, BimImport, BimImportDocument, BimProduct, BimProductDocument,
-  Company, CompanyDocument, IGeometryStore, NaoEncontrado, apagarEmpresa, storagePath,
-} from '@bim/dominio';
+import { BimCatalog, BimCatalogDocument, BimImport, BimImportDocument, BimProduct, BimProductDocument, Company, CompanyDocument, IGeometryStore, NaoEncontrado, apagarEmpresa, storagePath } from '@bim/dominio';
 import { CriarEmpresaDto } from './criar-empresa.dto';
 
 /**

@@ -4,7 +4,7 @@
 
 ## Decisão
 
-Os JSONs que cruzam a fronteira biblioteca ↔ serviço (catálogo, geometria, manifesto de catálogo → `.aq`, resumo de miniaturas, informação de plugin) têm JSON Schema em `contratos/`. A biblioteca prova em teste que emite conforme o schema; `pacotes/base` valida o que lê.
+Os JSONs que cruzam a fronteira biblioteca ↔ serviço (catálogo, geometria, manifesto de catálogo → `.aq`, resumo de miniaturas, informação de plugin) têm JSON Schema em `biblioteca/bim_pipeline/contratos/` (a biblioteca define o que emite; assim um contexto portado leva o contrato junto com a biblioteca). A biblioteca prova em teste que emite conforme o schema; `pacotes/base` valida o que lê.
 
 ## Por quê
 

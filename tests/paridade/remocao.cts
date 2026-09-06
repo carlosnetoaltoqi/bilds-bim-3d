@@ -5,7 +5,7 @@
  *   cd www/apps/api && node --require ts-node/register/transpile-only --require reflect-metadata \
  *       ../../../tests/paridade/remocao.cts
  */
-import { apagarCatalogo, apagarEmpresa, apagarImportacao, apagarProduto, ImportacaoEmAndamento, NaoEncontrado } from '../../www/packages/dominio/src/remocao';
+import { apagarCatalogo, apagarEmpresa, apagarImportacao, apagarProduto, ImportacaoEmAndamento, NaoEncontrado } from '../../pacotes/dominio/src/remocao';
 
 type Doc = Record<string, any>;
 

@@ -21,7 +21,8 @@ from conftest import ROOT, node_para_ts
 WWW = ROOT / 'www'
 API_SRC = WWW / 'apps' / 'api' / 'src'
 INGESTAO_SRC = WWW / 'apps' / 'ingestao' / 'src'
-DOMINIO_SRC = WWW / 'packages' / 'dominio' / 'src'
+DOMINIO_SRC = ROOT / 'pacotes' / 'dominio' / 'src'
+BASE_SRC = ROOT / 'pacotes' / 'base' / 'src'
 WEB_SRC = WWW / 'apps' / 'web' / 'src'
 STORAGE_PATH_TS = DOMINIO_SRC / 'storage-path.ts'
 INGESTAO_CLIENT_TS = API_SRC / 'common' / 'ingestao-client.ts'
@@ -55,7 +56,7 @@ def test_api_so_o_cliente_conhece_o_servico_de_ingestao():
 
 
 def test_storage_path_resolvida_so_em_storage_path_ts():
-    culpados = [str(p.relative_to(ROOT)) for raiz in (API_SRC, INGESTAO_SRC, DOMINIO_SRC) for p in _fontes(raiz)
+    culpados = [str(p.relative_to(ROOT)) for raiz in (API_SRC, INGESTAO_SRC, DOMINIO_SRC, BASE_SRC) for p in _fontes(raiz)
                 if p != STORAGE_PATH_TS and 'process.env.STORAGE_PATH' in p.read_text(encoding='utf8')]
     assert culpados == [], f'STORAGE_PATH resolvida fora de dominio/src/storage-path.ts: {culpados}'
     # e quem precisa da raiz usa o resolvedor
@@ -76,12 +77,20 @@ def test_cada_servico_escuta_na_porta_do_env():
     assert 'PORT=4000' in env and 'INGESTAO_PORT=4100' in env and 'INGESTAO_URL=' in env
 
 
-def test_pipeline_dir_resolvido_so_no_pipeline_service():
-    culpados = [str(p.relative_to(ROOT)) for p in _fontes(INGESTAO_SRC)
-                if p.name != 'pipeline.service.ts' and 'BIBLIOTECA_DIR' in p.read_text(encoding='utf8')]
+def test_biblioteca_alcancada_so_pela_base():
+    """Regra 2 de docs/arquitetura.md §3: só `pacotes/base/src/biblioteca-cli.ts` sabe onde a biblioteca
+    está (BIBLIOTECA_DIR), qual Python roda e como uma CLI se chama; nenhum serviço spawna processo."""
+    cli_ts = BASE_SRC / 'biblioteca-cli.ts'
+    culpados = [str(p.relative_to(ROOT)) for raiz in (API_SRC, INGESTAO_SRC, DOMINIO_SRC, BASE_SRC) for p in _fontes(raiz)
+                if p != cli_ts and re.search(r"BIBLIOTECA_DIR|process\.env\.PYTHON|bim_pipeline\.cli", p.read_text(encoding='utf8'))]
     assert culpados == [], culpados
+    culpados = [str(p.relative_to(ROOT)) for raiz in (API_SRC, INGESTAO_SRC, DOMINIO_SRC) for p in _fontes(raiz)
+                if re.search(r"child_process|spawn\(", p.read_text(encoding='utf8'))]
+    assert culpados == [], f'processo filho fora de pacotes/base: {culpados}'
+    cli = cli_ts.read_text(encoding='utf8')
+    assert 'process.env.PYTHON' in cli and 'BIBLIOTECA_DIR' in cli and 'bim_pipeline.cli.' in cli
     svc = (INGESTAO_SRC / 'pipeline' / 'pipeline.service.ts').read_text(encoding='utf8')
-    assert 'process.env.PYTHON' in svc and "'--sair-com-stdin'" in svc and 'sairComStdin: true' in svc
+    assert "'--sair-com-stdin'" in svc and 'sairComStdin: true' in svc and 'new BibliotecaCli' in svc
 
 
 @pytest.mark.paridade
@@ -107,7 +116,7 @@ def test_storage_path_resolve_relativo_ao_cwd_com_e_sem_variavel():
 def test_nome_do_arquivo_enviado_volta_a_utf8():
     """S7.13: o multer 2.0.2 embutido no Nest 10 lê o `filename` do multipart como latin1 (e não
     conhece `defParamCharset`) — `gás.aq` virava `gÃ¡s.aq` no log, no `fileName` do import e no
-    nome do produto CAD. `dominio/src/upload.ts` refaz a decodificação com guarda de ida e volta."""
+    nome do produto CAD. `pacotes/base/src/upload.ts` refaz a decodificação com guarda de ida e volta."""
     node = node_para_ts()
     if not node:
         pytest.skip('precisa de Node >= 22')
@@ -128,7 +137,7 @@ def test_nome_do_arquivo_enviado_volta_a_utf8():
 def test_originalname_so_e_guardado_via_nome_original_utf8():
     """Guarda de regressão: todo `originalname` que vira nome (não só extensão) passa por `nomeOriginalUtf8`."""
     culpados = []
-    for raiz in (API_SRC, INGESTAO_SRC):
+    for raiz in (API_SRC, INGESTAO_SRC, BASE_SRC):
         for p in _fontes(raiz):
             for n, linha in enumerate(p.read_text(encoding='utf8').splitlines(), 1):
                 if '.originalname' in linha and not any(ok in linha for ok in ('nomeOriginalUtf8(', 'extname(', 'inferExt(')):

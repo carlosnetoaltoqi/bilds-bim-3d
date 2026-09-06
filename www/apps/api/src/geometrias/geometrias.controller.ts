@@ -15,19 +15,7 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import type { Request, Response } from 'express';
-import {
-  ASSET_CACHE_CONTROL,
-  AssetStat,
-  BimProduct,
-  BimProductDocument,
-  GeoValidationError,
-  IGeometryStore,
-  assetEtag,
-  geoStats,
-  ifNoneMatchSatisfied,
-  originalKeyFor,
-  validateGeoBuffers,
-} from '@bim/dominio';
+import { ASSET_CACHE_CONTROL, AssetStat, BimProduct, BimProductDocument, GeoValidationError, IGeometryStore, assetEtag, geoStats, ifNoneMatchSatisfied, originalKeyFor, validateGeoBuffers } from '@bim/dominio';
 import { IngestaoClient } from '../common/ingestao-client';
 
 /**
