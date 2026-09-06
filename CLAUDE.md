@@ -132,7 +132,7 @@ mesmo JSON do `catalogo_de_aq.py`); `rfa_partatom.py`; import tipo **`plugin`** 
 `processarCatalogo` comum ao `.aq`); botão **"Importar plugin do AutoCAD"** na home (`/importar/plugin`); `.igs` aceito
 como peça CAD. Estudo e ferramentas em `eng-reversa/tupy/` (22 arquivos baixados, gitignored) →
 `Tupy-TupyGrooved.aq` (10 peças) validado pelos leitores; ponta a ponta pelo serviço em 294 s, `.aq` exportado relido.
-**Não aberto no AltoQi Builder ainda.** Registro: `docs/sessoes/S7.17-plugin-autocad-tupy.md`. Suíte **136**.
+O usuário testou o botão na interface ao fim da sessão: "tudo funcionando". **O `.aq` da Tupy não foi aberto no AltoQi Builder ainda.** Registro: `docs/sessoes/S7.17-plugin-autocad-tupy.md`. Suíte **136**.
 
 **Próxima sessão:** abrir o `.aq` da Tupy no AltoQi Builder (aceitação, como a Amanco na S7.16); depois
 `docs/sessoes/S7.14-www-servico-de-ingestao.md`, seção 7 — build do `dist/` com o `@bim/dominio`, e2e reexecutados,
