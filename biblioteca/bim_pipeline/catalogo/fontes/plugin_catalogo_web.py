@@ -420,10 +420,7 @@ def specs_do_produto(prod, grupo, partatom=None):
     return {k: v for k, v in specs.items() if v}
 
 
-def slugify(s):
-    import unicodedata
-    s = unicodedata.normalize('NFKD', s or '').encode('ascii', 'ignore').decode()
-    return re.sub(r'^-|-$', '', re.sub(r'[^a-z0-9]+', '-', s.lower()))
+from bim_pipeline.catalogo.catalogo import montar_resultado, slugify  # noqa: E402  o mesmo slug de todo o catálogo
 
 
 # ─── Downloads → catálogo (o JSON do catalogo_de_aq.py) ───────────────────────
@@ -512,17 +509,13 @@ def catalogo_de_downloads(downloads, geo_dir, deflexao=0.2, forcar=False, progre
     slug = slugify(titulo) or 'catalogo'
     config = {'slug': slug, 'titulo': titulo, 'fabricante': fabricante, 'descricao': descricao, 'layout': 'catalog-grid'}
     bytes_ = sum(a['bytes'] for a in man['arquivos'])
-    return {
-        'config': config,
-        'catalog': {**config, 'filtros': series, 'produtos': produtos},
-        'n_geometrias': len(produtos),
-        'diag': {'pecas_sem_simbologia': 0, 'pecas_sim_descartada': 0, 'sim_sem_blob': 0, 'sim_nao_oq3d': 0,
-                 'sim_ilegivel': [], 'sim_vazia': [], 'avisos': avisos},
-        'hints': {'n_pecas': len(produtos), 'n_simbologias': len(produtos), 'schema': 'catallog', 'grupos': series,
-                  'linhas': [titulo], 'has_curves': False,
-                  'origem': {**(origem or {}), 'host': man.get('host'), 'arquivos': len(man['arquivos']), 'bytes': bytes_,
-                             'grupos': len(grupos), 'grupos_sem_igs': sem, 'segundos_tesselacao': round(t_geo, 1)}},
-    }
+    diag = {'pecas_sem_simbologia': 0, 'pecas_sim_descartada': 0, 'sim_sem_blob': 0, 'sim_nao_oq3d': 0,
+            'sim_ilegivel': [], 'sim_vazia': [], 'avisos': avisos}
+    hints = {'n_pecas': len(produtos), 'n_simbologias': len(produtos), 'schema': 'plugin-web', 'grupos': series,
+             'linhas': [titulo], 'has_curves': False,
+             'origem': {**(origem or {}), 'host': man.get('host'), 'arquivos': len(man['arquivos']), 'bytes': bytes_,
+                        'grupos': len(grupos), 'grupos_sem_igs': sem, 'segundos_tesselacao': round(t_geo, 1)}}
+    return montar_resultado(config, {**config, 'filtros': series, 'produtos': produtos}, len(produtos), diag, hints)
 
 
 def importar(host, categoria, lead, downloads, geo_dir, igs_por_grupo=1, dxf=False, deflexao=0.2,

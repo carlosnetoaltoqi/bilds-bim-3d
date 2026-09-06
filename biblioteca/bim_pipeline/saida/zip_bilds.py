@@ -24,6 +24,7 @@ AQUI = os.path.dirname(os.path.abspath(__file__))
 from bim_pipeline.catalogo.catalogo import build_catalog_from_aq  # noqa: E402
 from bim_pipeline.catalogo.inferencia import auto_config           # noqa: E402
 from bim_pipeline.miniaturas.render import ThumbsError, build_thumbs  # noqa: E402
+from bim_pipeline.processo import vigiar_stdin  # noqa: E402
 
 
 def build_zip_bilds(catalog, zip_path, geo_dir, thumbs_dir=None):
@@ -74,15 +75,7 @@ def main():
     args = ap.parse_args()
 
     if args.sair_com_stdin:
-        import signal
-        import threading
-        def _watch_stdin():
-            try:
-                sys.stdin.read()
-            except Exception:
-                pass
-            os.kill(os.getpid(), signal.SIGTERM)
-        threading.Thread(target=_watch_stdin, daemon=True).start()
+        vigiar_stdin()
 
     nome_original = args.nome_original or os.path.basename(args.input)
     config, _hints = auto_config(args.input, nome_original=nome_original)

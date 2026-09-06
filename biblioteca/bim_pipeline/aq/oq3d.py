@@ -97,7 +97,7 @@ except ImportError:
     HAS_NUMPY = False
 
 MAGIC = b'OQ3D 3D Objects File'
-CM_TO_M = 0.01
+from bim_pipeline.geometria.eixos import CM_TO_M, zup_para_viewer, zup_para_viewer_np  # noqa: E402
 
 OPEN, CLOSE = 0x5B, 0x5D
 
@@ -445,14 +445,14 @@ def to_buffers(buf, scale=CM_TO_M, skip_markers=False):
     for verts, tris, rgba in extract(buf, skip_markers=skip_markers):
         rgb = [c / 255.0 for c in rgba[:3]]
         if HAS_NUMPY:
-            world = np.column_stack([verts[:, 0], verts[:, 2], -verts[:, 1]]) * scale
+            world = zup_para_viewer_np(verts, scale)
             pos.extend(world.ravel().tolist())
             col.extend(np.tile(rgb, (len(world), 1)).ravel().tolist())
             idx.extend((np.asarray(tris) + base).ravel().tolist())
             base += len(world)
         else:
             for v in verts:
-                pos.extend([v[0] * scale, v[2] * scale, -v[1] * scale])
+                pos.extend(zup_para_viewer(v[0], v[1], v[2], scale))
                 col.extend(rgb)
             for t in tris:
                 idx.extend([t[0] + base, t[1] + base, t[2] + base])

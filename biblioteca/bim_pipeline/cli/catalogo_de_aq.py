@@ -38,7 +38,7 @@ import time
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
 
-from bim_pipeline.catalogo.catalogo import build_catalog_from_aq, diag_para_json, resumo_diag   # noqa: E402
+from bim_pipeline.catalogo.catalogo import build_catalog_from_aq, montar_resultado, resumo_diag   # noqa: E402
 from bim_pipeline.catalogo.inferencia import auto_config                                          # noqa: E402
 from bim_pipeline.processo import vigiar_stdin                                           # noqa: E402
 
@@ -90,15 +90,7 @@ def main(argv=None):
             thumbs = {'geradas': geradas, 'erro': str(e)}
             _log(f'AVISO: miniaturas — {e}')
 
-    resultado = {
-        'config': {k: config[k] for k in ('slug', 'titulo', 'fabricante', 'descricao', 'layout')},
-        'catalog': catalog,
-        'n_geometrias': n_geo,
-        'diag': diag_para_json(diag),
-        'hints': {k: hints.get(k) for k in ('n_pecas', 'n_simbologias', 'schema', 'grupos', 'linhas', 'has_curves')},
-    }
-    if thumbs is not None:
-        resultado['thumbs'] = thumbs
+    resultado = montar_resultado(config, catalog, n_geo, diag, hints, thumbs)
     os.makedirs(os.path.dirname(os.path.abspath(args.saida)), exist_ok=True)
     with open(args.saida, 'w', encoding='utf-8') as f:
         json.dump(resultado, f, ensure_ascii=False)

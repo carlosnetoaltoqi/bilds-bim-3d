@@ -26,6 +26,8 @@ import struct
 import argparse
 import os
 
+from bim_pipeline.geometria.eixos import zup_para_viewer
+
 try:
     import ifcopenshell
     import ifcopenshell.geom
@@ -287,8 +289,8 @@ def build_face_color_map(content, idx):
 # ─── Emissão de triângulos ────────────────────────────────────────────────────
 
 def ifc_to_threejs(p):
-    """Converte ponto IFC (Z-up) para Three.js (Y-up)."""
-    return [p[0], p[2], -p[1]]
+    """Converte ponto IFC (Z-up, metros) para o viewer (Y-up) — `bim_pipeline.geometria.eixos`."""
+    return list(zup_para_viewer(p[0], p[1], p[2]))
 
 
 def emit_colored(coord_list, face_indices, lp_matrix, colours, colour_indices, pos_out, col_out):

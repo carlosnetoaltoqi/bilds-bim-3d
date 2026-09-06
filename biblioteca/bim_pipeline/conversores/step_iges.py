@@ -99,8 +99,8 @@ except ImportError:  # pragma: no cover
     HAS_OCP = False
 
 from bim_pipeline.geometria.dedup import dedup  # noqa: E402  o mesmo dedup float32 do pipeline
+from bim_pipeline.geometria.eixos import MM_TO_M, plano_zup_para_viewer  # noqa: E402
 
-MM_TO_M = 0.001
 COR_PADRAO = (0.533, 0.588, 0.667)      # o cinza do viewer para malha sem cor
 EXT_IGES = ('.igs', '.iges')
 EXT_STEP = ('.stp', '.step', '.p21')
@@ -310,13 +310,8 @@ def converter(caminho, deflexao=0.2, angulo=0.35):
     if not pos_mm:
         raise SystemExit(f'{caminho}: nenhuma face tesselável — o {x["formato"].upper()} tem só curvas ou pontos?')
 
-    # mm, Z-up → m, Y-up  (x, y, z) → (x, z, −y)
-    pos = [0.0] * len(pos_mm)
-    for i in range(0, len(pos_mm), 3):
-        px, py, pz = pos_mm[i], pos_mm[i + 1], pos_mm[i + 2]
-        pos[i] = round(px * MM_TO_M, 7)
-        pos[i + 1] = round(pz * MM_TO_M, 7)
-        pos[i + 2] = round(-py * MM_TO_M, 7)
+    # mm, Z-up → m, Y-up (bim_pipeline.geometria.eixos)
+    pos = plano_zup_para_viewer(pos_mm, MM_TO_M, casas=7)
 
     geo, _n_orig, _n_dedup, _pct = dedup({'pos': pos, 'col': col})
     x0, y0, z0, x1, y1, z1 = bbox.Get()

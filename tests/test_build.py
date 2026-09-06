@@ -226,7 +226,7 @@ def test_build_zip_sem_thumbs_dir_thumbcount_zero(saida):
 @pytest.fixture
 def sem_node(monkeypatch):
     # build_thumbs mora em miniaturas.py (E2) e procura o Node pelo módulo dele
-    monkeypatch.setattr(miniaturas, '_find_node', lambda: None)
+    monkeypatch.setattr(miniaturas, 'find_node', lambda: None)
 
 
 def _run_akato(saida, aq, *flags):

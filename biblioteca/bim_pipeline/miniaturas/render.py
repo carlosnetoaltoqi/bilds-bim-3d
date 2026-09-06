@@ -27,7 +27,7 @@ THUMB_MIME, THUMB_EXT, THUMB_QUALITY = 'image/webp', 'webp', 0.85
 NODE_MINIMO = 20  # exigência do Playwright
 
 
-def _node_versao(exe):
+def node_versao(exe):
     """Major do Node em `exe`, ou None se não executar."""
     try:
         out = subprocess.run([exe, '--version'], capture_output=True,
@@ -38,7 +38,7 @@ def _node_versao(exe):
     return int(m.group(1)) if m else None
 
 
-def _find_node():
+def find_node():
     """
     Node com major >= NODE_MINIMO, ou None.
 
@@ -52,9 +52,9 @@ def _find_node():
     """
     forcado = os.environ.get('BILDS_NODE')
     if forcado:
-        return forcado if (_node_versao(forcado) or 0) >= NODE_MINIMO else None
+        return forcado if (node_versao(forcado) or 0) >= NODE_MINIMO else None
 
-    if (_node_versao('node') or 0) >= NODE_MINIMO:
+    if (node_versao('node') or 0) >= NODE_MINIMO:
         return 'node'
 
     nvm = os.path.expanduser('~/.nvm/versions/node')
@@ -62,10 +62,14 @@ def _find_node():
     if os.path.isdir(nvm):
         for v in os.listdir(nvm):
             exe = os.path.join(nvm, v, 'bin', 'node')
-            major = _node_versao(exe) if os.path.exists(exe) else None
+            major = node_versao(exe) if os.path.exists(exe) else None
             if major and major >= NODE_MINIMO:
                 candidatos.append((major, exe))
     return max(candidatos)[1] if candidatos else None
+
+
+# nomes antigos (o build estático e a suíte os importavam como privados)
+_find_node, _node_versao = find_node, node_versao
 
 
 class ThumbsError(RuntimeError):
@@ -129,10 +133,10 @@ def build_thumbs(catalog, geo_dir, thumbs_dir, vendor_dir=None, node_modules_dir
     with open(cfg_path, 'w', encoding='utf-8') as f:
         json.dump(cfg, f)
 
-    node = _find_node()
+    node = find_node()
     if not node:
         os.remove(cfg_path)
-        atual = _node_versao('node')
+        atual = node_versao('node')
         raise ThumbsError(
             f'Playwright exige Node >= {NODE_MINIMO}'
             + (f', e o do PATH é v{atual}' if atual else ', e não há node no PATH')

@@ -50,7 +50,8 @@ import time
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
 from bim_pipeline.conversores import parse_ifc
-from bim_pipeline.geometria.dedup import dedup     # noqa: E402
+from bim_pipeline.geometria.dedup import dedup, dedup_arrays     # noqa: E402
+from bim_pipeline.geometria.eixos import zup_para_viewer_np      # noqa: E402
 
 LIMIAR_MB = 20
 COR_PADRAO = (0.533, 0.588, 0.667)
@@ -171,17 +172,14 @@ def rapido_ifcopenshell(caminho, log=print):
 
     pos = np.concatenate(blocos_pos)                 # (N, 3) em metros, Z-up — USE_WORLD_COORDS
     col = np.concatenate(blocos_col)
-    # Z-up → Y-up: (x, y, z) → (x, z, −y)
-    pos = np.stack([pos[:, 0], pos[:, 2], -pos[:, 1]], axis=1)
-    # dedup com quantização float32 em (pos, cor) — a mesma chave do pipeline, vetorizada
-    chave = np.concatenate([pos.astype(np.float32), col.astype(np.float32)], axis=1)
-    _, primeiro, inverso = np.unique(chave.view([('', chave.dtype)] * chave.shape[1]), return_index=True, return_inverse=True)
+    pos = zup_para_viewer_np(pos)                      # Z-up → Y-up (bim_pipeline.geometria.eixos)
+    pos_u, col_u, idx = dedup_arrays(pos, col)         # a mesma chave float32 (pos, cor) do pipeline
     geo = {
-        'pos': np.round(pos[primeiro], 7).ravel().tolist(),
-        'col': np.round(col[primeiro], 4).ravel().tolist(),
-        'idx': inverso.ravel().astype(int).tolist(),
+        'pos': np.round(pos_u, 7).ravel().tolist(),
+        'col': np.round(col_u, 4).ravel().tolist(),
+        'idx': idx.astype(int).tolist(),
     }
-    log(f'  rápido: {len(partes)} formas, {n_tri:,} triângulos, {len(primeiro):,} vértices únicos em {time.time() - t:.1f}s')
+    log(f'  rápido: {len(partes)} formas, {n_tri:,} triângulos, {len(pos_u):,} vértices únicos em {time.time() - t:.1f}s')
     return geo, partes
 
 

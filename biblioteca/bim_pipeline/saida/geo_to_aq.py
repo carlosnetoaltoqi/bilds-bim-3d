@@ -54,60 +54,9 @@ AQUI = os.path.dirname(os.path.abspath(__file__))
 from bim_pipeline.aq import aq_writer
 from bim_pipeline.aq import oq3d_writer
 
+from bim_pipeline.geometria.malhas import GeometriaInvalida, malhas_de_partes, malhas_por_cor
+
 SCHEMA_SQL = aq_writer.SCHEMA_SQL
-M_TO_CM = 100.0
-COR_PADRAO = (0.533, 0.588, 0.667)
-
-
-def _rgba(rgb):
-    return tuple(int(round(max(0.0, min(1.0, c)) * 255)) for c in rgb) + (255,)
-
-
-def _para_oq3d(pos, idx):
-    """metros Y-up → centímetros Z-up: (x, y, z) → (x·100, −z·100, y·100)."""
-    verts = [(pos[i] * M_TO_CM, -pos[i + 2] * M_TO_CM, pos[i + 1] * M_TO_CM)
-             for i in range(0, len(pos), 3)]
-    tris = [(idx[t], idx[t + 1], idx[t + 2]) for t in range(0, len(idx), 3)]
-    return verts, tris
-
-
-def malhas_de_partes(partes):
-    """[(verts_cm, tris, rgba, None)] — uma por parte, cor do primeiro vértice."""
-    malhas = []
-    for p in partes:
-        pos, idx, col = p['pos'], p['idx'], p.get('col')
-        if not idx:
-            continue
-        cor = tuple(col[:3]) if col else COR_PADRAO
-        verts, tris = _para_oq3d(pos, idx)
-        malhas.append((verts, tris, _rgba(cor), None))
-    return malhas
-
-
-def malhas_por_cor(pos, col, idx):
-    """Divide uma malha única em malhas de cor uniforme (o OQ3D só tem cor por malha)."""
-    if not col:
-        verts, tris = _para_oq3d(pos, idx)
-        return [(verts, tris, _rgba(COR_PADRAO), None)]
-    grupos = {}
-    for t in range(0, len(idx), 3):
-        a = idx[t]
-        chave = (round(col[a * 3], 4), round(col[a * 3 + 1], 4), round(col[a * 3 + 2], 4))
-        grupos.setdefault(chave, []).append((idx[t], idx[t + 1], idx[t + 2]))
-    malhas = []
-    for cor, tris in grupos.items():
-        remap, p2, t2 = {}, [], []
-        for tri in tris:
-            novo = []
-            for vi in tri:
-                if vi not in remap:
-                    remap[vi] = len(p2) // 3
-                    p2.extend(pos[vi * 3:vi * 3 + 3])
-                novo.append(remap[vi])
-            t2.extend(novo)
-        verts, tris_cm = _para_oq3d(p2, t2)
-        malhas.append((verts, tris_cm, _rgba(cor), None))
-    return malhas
 
 
 def gerar(entrada, saida, info):
@@ -124,7 +73,10 @@ def gerar(entrada, saida, info):
     if partes and all('pos' in p for p in partes):
         malhas = malhas_de_partes(partes)
     else:
-        malhas = malhas_por_cor(entrada['pos'], entrada.get('col') or [], entrada['idx'])
+        try:
+            malhas = malhas_por_cor(entrada, onde='entrada')
+        except GeometriaInvalida as e:
+            raise SystemExit(str(e))
     if not malhas:
         raise SystemExit('nenhuma malha para gravar')
 

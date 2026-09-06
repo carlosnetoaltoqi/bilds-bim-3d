@@ -216,17 +216,47 @@ def build_catalog_from_aq(config, aq_path, geo_dir, progresso=None):
         })
         series_set.add(serie)
 
-    catalog = {
+    catalog = montar_catalogo(config, produtos, series_set)
+    avisar(f'{len(produtos)} produtos, {len(geo_por_sim)} geometrias')
+    return catalog, len(geo_por_sim), diag
+
+
+def montar_catalogo(config, produtos, series):
+    """O dict `catalog` do contrato (`contratos/catalogo`): metadados do config + filtros ordenados + produtos."""
+    return {
         'slug': config['slug'],
         'titulo': config['titulo'],
         'fabricante': config['fabricante'],
         'descricao': config.get('descricao', ''),
         'layout': config.get('layout', 'catalog-grid'),
-        'filtros': sorted(s for s in series_set if s),
+        'filtros': sorted(s for s in series if s),
         'produtos': produtos,
     }
-    avisar(f'{len(produtos)} produtos, {len(geo_por_sim)} geometrias')
-    return catalog, len(geo_por_sim), diag
+
+
+def montar_resultado(config, catalog, n_geometrias, diag=None, hints=None, thumbs=None):
+    """
+    O JSON que toda fonte de catálogo emite para o serviço (`catalogo_de_aq`, plugin web):
+    `{config, catalog, n_geometrias, diag, hints[, thumbs]}`. `diag` pode ser o dict interno
+    (com sets) ou já em JSON; ausente vira o diagnóstico vazio.
+    """
+    if diag is None:
+        diag = diag_vazio()
+    if isinstance(diag.get('sim_ilegivel'), dict):
+        diag = diag_para_json(diag)
+    hints = hints or {}
+    r = {
+        'config': {k: config.get(k, '' if k == 'descricao' else None) for k in ('slug', 'titulo', 'fabricante', 'descricao', 'layout')},
+        'catalog': catalog,
+        'n_geometrias': n_geometrias,
+        'diag': diag,
+        'hints': {k: hints.get(k) for k in ('n_pecas', 'n_simbologias', 'schema', 'grupos', 'linhas', 'has_curves')},
+    }
+    if 'origem' in hints:
+        r['hints']['origem'] = hints['origem']
+    if thumbs is not None:
+        r['thumbs'] = thumbs
+    return r
 
 
 def resumo_diag(diag, indent='    ', max_itens=5, out=None):

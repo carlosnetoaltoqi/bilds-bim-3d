@@ -85,8 +85,8 @@ AQUI = os.path.dirname(os.path.abspath(__file__))
 from bim_pipeline.aq import aq_writer
 from bim_pipeline.aq import oq3d_writer
 
-M_TO_CM = 100.0
-COR_PADRAO = (0.533, 0.588, 0.667)
+from bim_pipeline.geometria.malhas import GeometriaInvalida, malhas_por_cor
+
 RE_UUID = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', re.I)
 
 
@@ -104,45 +104,11 @@ def avisar(msg):
 # ─── Geometria ────────────────────────────────────────────────────────────────
 
 def malhas_de_geometria(geo, onde='geometria'):
-    """
-    `{pos, col, idx}` do viewer (metros, Y-up, cor por vértice) → `[(verts_cm, tris, rgba, None)]`,
-    uma malha por cor uniforme, em centímetros Z-up — o que `oq3d_writer.escrever` grava.
-
-    A cor de um triângulo é a do seu primeiro vértice (mesma regra do `geo_to_aq.py`); a
-    divisão por cor é vetorizada porque um catálogo tem centenas de geometrias com milhões
-    de vértices no total.
-    """
+    """`{pos, col, idx}` do viewer → malhas por cor em cm Z-up (`geometria.malhas`); erro vira `ExportacaoError`."""
     try:
-        pos = np.asarray(geo['pos'], dtype=float).reshape(-1, 3)
-        idx = np.asarray(geo['idx'], dtype=np.int64).reshape(-1, 3)
-    except (KeyError, TypeError, ValueError) as e:
-        raise ExportacaoError(f'{onde}: JSON de geometria inválido ({e})')
-    if len(idx) == 0 or len(pos) == 0:
-        raise ExportacaoError(f'{onde}: geometria sem triângulos')
-    if idx.min() < 0 or idx.max() >= len(pos):
-        raise ExportacaoError(f'{onde}: índice {int(idx.max())} fora dos {len(pos)} vértices')
-    if not np.isfinite(pos).all():
-        raise ExportacaoError(f'{onde}: coordenada não finita')
-
-    col = geo.get('col') or []
-    if len(col) == len(geo['pos']):
-        cores_v = np.asarray(col, dtype=float).reshape(-1, 3)
-        chave = np.round(cores_v[idx[:, 0]], 4)
-        cores, inv = np.unique(chave, axis=0, return_inverse=True)
-        inv = np.asarray(inv).ravel()
-    else:
-        cores = np.array([COR_PADRAO])
-        inv = np.zeros(len(idx), dtype=np.int64)
-
-    malhas = []
-    for k, cor in enumerate(cores):
-        tris = idx[inv == k]
-        usados, remap = np.unique(tris, return_inverse=True)
-        v = pos[usados]
-        verts = np.column_stack([v[:, 0] * M_TO_CM, -v[:, 2] * M_TO_CM, v[:, 1] * M_TO_CM])
-        rgba = tuple(int(round(min(max(float(c), 0.0), 1.0) * 255)) for c in cor) + (255,)
-        malhas.append((verts.tolist(), np.asarray(remap).reshape(-1, 3).tolist(), rgba, None))
-    return malhas
+        return malhas_por_cor(geo, onde)
+    except GeometriaInvalida as e:
+        raise ExportacaoError(str(e))
 
 
 def carregar_geometria(caminho, onde):
