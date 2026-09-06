@@ -3,7 +3,7 @@
  * Mongoose não está pronta, exceto /health. Sem Nest de pé: instancia o guard com uma conexão
  * falsa e um ExecutionContext mínimo. Imprime JSON para tests/test_www_mongo_guard.py.
  *
- *   cd www/apps/api && node --require ts-node/register/transpile-only --require reflect-metadata \
+ *   cd servicos/catalogo-api && node --require ts-node/register/transpile-only --require reflect-metadata \
  *       ../../../tests/paridade/mongo_guard.cts
  */
 import { MongoProntoGuard, motivoMongoIndisponivel, ROTAS_SEM_MONGO } from '../../pacotes/dominio/src/mongo-pronto.guard';

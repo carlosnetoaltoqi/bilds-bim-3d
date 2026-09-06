@@ -3,19 +3,19 @@
  * (`criarValidationPipe()` de `common/validation.ts`), contra cada DTO, e imprime JSON {cenario: {ok: valorTransformado} | {erros}}.
  * Sem Nest de pé, sem Mongo.
  *
- *   cd www/apps/api && node --require ts-node/register/transpile-only --require reflect-metadata \
+ *   cd servicos/catalogo-api && node --require ts-node/register/transpile-only --require reflect-metadata \
  *       ../../../tests/paridade/validacao.cts
  *
  * `.cts` porque a raiz tem "type":"module" (ver geometrias_thumb.cts).
  */
 import { normalizarCurva, normalizarSpecs } from '../../pacotes/base/src/validadores';
 import { criarValidationPipe } from '../../pacotes/base/src/validacao';
-import { PatchProdutoDto } from '../../www/apps/api/src/produtos/patch-produto.dto';
-import { PatchCatalogoDto } from '../../www/apps/api/src/catalogos/patch-catalogo.dto';
+import { PatchProdutoDto } from '../../servicos/editor-de-pecas/src/patch-produto.dto';
+import { PatchCatalogoDto } from '../../servicos/catalogo-api/src/catalogos/patch-catalogo.dto';
 import { ExportarAqDto } from '../../servicos/conversores/src/conversores.dto';
-import { CriarEmpresaDto } from '../../www/apps/api/src/empresas/criar-empresa.dto';
-import { ImportarDto } from '../../www/apps/ingestao/src/importacoes/importar.dto';
-import { ImportarPluginDto } from '../../www/apps/ingestao/src/importacoes/importar-plugin.dto';
+import { CriarEmpresaDto } from '../../servicos/catalogo-api/src/empresas/criar-empresa.dto';
+import { ImportarDto } from '../../servicos/criador-de-catalogos/src/importacoes/importar.dto';
+import { ImportarPluginDto } from '../../servicos/criador-de-catalogos/src/importacoes/importar-plugin.dto';
 
 const pipe = criarValidationPipe();
 

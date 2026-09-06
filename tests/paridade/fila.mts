@@ -1,8 +1,8 @@
-// Harness da fila de importações (I11): `www/apps/ingestao/src/importacoes/fila.ts` é puro, então roda
+// Harness da fila de importações (I11): `servicos/criador-de-catalogos/src/importacoes/fila.ts` é puro, então roda
 // direto no Node com strip-types. Imprime JSON {cenario: resultado} para tests/test_www_importacao.py.
 //
 //   node --no-warnings --experimental-strip-types tests/paridade/fila.mts
-import { Fila, concorrenciaDoEnv } from '../../www/apps/ingestao/src/importacoes/fila.ts'
+import { Fila, concorrenciaDoEnv } from '../../servicos/criador-de-catalogos/src/importacoes/fila.ts'
 
 const tick = (ms: number) => new Promise((r) => setTimeout(r, ms))
 const saida: Record<string, unknown> = {}

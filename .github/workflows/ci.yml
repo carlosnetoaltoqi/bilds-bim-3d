@@ -6,7 +6,7 @@
 #     Os `.aq` de input/ são gitignored, então os testes que dependem deles PULAM
 #     aqui com motivo — o que roda são os blobs OQ3D sintéticos, o contrato do
 #     parser, o render dos templates e os harnesses Node de www/ (Node 24 roda .ts direto).
-#   www — `pnpm install --frozen-lockfile` + `pnpm -r build` na raiz (pacotes/base e pacotes/dominio para dist/
+#   servicos — `pnpm install --frozen-lockfile` + `pnpm -r build` na raiz (pacotes/base e pacotes/dominio para dist/
 #     com project references, depois os serviços e o web). Não sobe Mongo nem Chromium; só prova que compila.
 #   Versões: Node em .nvmrc, pnpm em packageManager (package.json), Python em .python-version.
 #
@@ -49,7 +49,7 @@ jobs:
       - name: pytest (sem Chromium; fixtures de input/ pulam com motivo)
         run: python -m pytest -m "not thumbs" -rs
 
-  www:
+  servicos:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:

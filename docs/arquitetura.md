@@ -96,7 +96,7 @@ Nenhum dado de fabricante fica no repositório: `input/`, `storage/` e as fixtur
 | **F1** | Biblioteca `bim_pipeline` como pacote instalável, sem duplicações, com o modo lote do antigo `build.py`, ferramentas promovidas de `eng-reversa/tools`, fixtures por papel; preview estático sai; sem fabricantes em código | ✅ 2026-09-06 (S8.1) |
 | **F2** | Workspace pnpm na raiz; `pacotes/base` e `pacotes/dominio` compilados com project references (`pnpm -r start` funciona); contratos em JSON Schema validados nos dois lados | ✅ 2026-09-06 (S8.2) |
 | **F3** | `servicos/gerador-zip` e `servicos/conversores` (stateless); web com um cliente por serviço para eles; cliente tipado da biblioteca em `@bim/base` | ✅ 2026-09-06 (S8.3) |
-| **F4** | `servicos/criador-de-catalogos`, `servicos/catalogo-api`, `servicos/editor-de-pecas`; web reagrupado por contexto | ⬜ |
+| **F4** | `servicos/criador-de-catalogos` (importação/publicação/miniaturas divididas), `servicos/catalogo-api` (só leitura), `servicos/editor-de-pecas`; `web/` na raiz com um cliente por serviço; `www/` deixa de existir | ✅ 2026-09-06 (S8.4) |
 | **F5** | Guardas de arquitetura, CI, `pnpm dev` único, `README.md`, roteiro `docs/aceitacao.md` | ⬜ |
 | **F6** | `docs/conhecimento/` reescrito por formato/algoritmo sem empresas; skills apontando para lá; `docs/historico/`; `CLAUDE.md`, `CONCEPTS.md` | ⬜ |
 

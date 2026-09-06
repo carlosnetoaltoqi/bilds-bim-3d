@@ -101,6 +101,64 @@ importers:
         specifier: ^5.0.0
         version: 5.9.3
 
+  servicos/catalogo-api:
+    dependencies:
+      '@bim/base':
+        specifier: workspace:*
+        version: link:../../pacotes/base
+      '@bim/dominio':
+        specifier: workspace:*
+        version: link:../../pacotes/dominio
+      '@nestjs/common':
+        specifier: ^10.0.0
+        version: 10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1)
+      '@nestjs/core':
+        specifier: ^10.0.0
+        version: 10.4.22(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/platform-express@10.4.22)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/mongoose':
+        specifier: ^11.0.4
+        version: 11.0.4(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@10.4.22)(mongoose@9.9.5)(rxjs@7.8.2)
+      '@nestjs/platform-express':
+        specifier: ^10.0.0
+        version: 10.4.22(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@10.4.22)(supports-color@8.1.1)
+      class-transformer:
+        specifier: ^0.5.1
+        version: 0.5.1
+      class-validator:
+        specifier: ^0.15.1
+        version: 0.15.1
+      dotenv:
+        specifier: ^16.0.0
+        version: 16.6.1
+      mongoose:
+        specifier: ^9.9.4
+        version: 9.9.5
+      multer:
+        specifier: ^2.3.0
+        version: 2.3.0
+      reflect-metadata:
+        specifier: ^0.2.0
+        version: 0.2.2
+      rxjs:
+        specifier: ^7.0.0
+        version: 7.8.2
+    devDependencies:
+      '@types/express':
+        specifier: ^4.0.0
+        version: 4.17.25
+      '@types/multer':
+        specifier: ^2.2.0
+        version: 2.2.0
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.1
+      ts-node:
+        specifier: ^10.0.0
+        version: 10.9.2(@types/node@22.20.1)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.0.0
+        version: 5.9.3
+
   servicos/conversores:
     dependencies:
       '@bim/base':
@@ -140,6 +198,122 @@ importers:
       '@types/multer':
         specifier: ^2.2.0
         version: 2.2.0
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.1
+      ts-node:
+        specifier: ^10.0.0
+        version: 10.9.2(@types/node@22.20.1)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.0.0
+        version: 5.9.3
+
+  servicos/criador-de-catalogos:
+    dependencies:
+      '@bim/base':
+        specifier: workspace:*
+        version: link:../../pacotes/base
+      '@bim/dominio':
+        specifier: workspace:*
+        version: link:../../pacotes/dominio
+      '@nestjs/common':
+        specifier: ^10.0.0
+        version: 10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1)
+      '@nestjs/core':
+        specifier: ^10.0.0
+        version: 10.4.22(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/platform-express@10.4.22)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/mongoose':
+        specifier: ^11.0.4
+        version: 11.0.4(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@10.4.22)(mongoose@9.9.5)(rxjs@7.8.2)
+      '@nestjs/platform-express':
+        specifier: ^10.0.0
+        version: 10.4.22(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@10.4.22)(supports-color@8.1.1)
+      class-transformer:
+        specifier: ^0.5.1
+        version: 0.5.1
+      class-validator:
+        specifier: ^0.15.1
+        version: 0.15.1
+      dotenv:
+        specifier: ^16.0.0
+        version: 16.6.1
+      mongoose:
+        specifier: ^9.9.4
+        version: 9.9.5
+      multer:
+        specifier: ^2.3.0
+        version: 2.3.0
+      playwright:
+        specifier: 1.62.1
+        version: 1.62.1
+      reflect-metadata:
+        specifier: ^0.2.0
+        version: 0.2.2
+      rxjs:
+        specifier: ^7.0.0
+        version: 7.8.2
+      three:
+        specifier: ^0.185.1
+        version: 0.185.1
+    devDependencies:
+      '@types/express':
+        specifier: ^4.0.0
+        version: 4.17.25
+      '@types/multer':
+        specifier: ^2.2.0
+        version: 2.2.0
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.1
+      ts-node:
+        specifier: ^10.0.0
+        version: 10.9.2(@types/node@22.20.1)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.0.0
+        version: 5.9.3
+
+  servicos/editor-de-pecas:
+    dependencies:
+      '@bim/base':
+        specifier: workspace:*
+        version: link:../../pacotes/base
+      '@bim/dominio':
+        specifier: workspace:*
+        version: link:../../pacotes/dominio
+      '@nestjs/common':
+        specifier: ^10.0.0
+        version: 10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1)
+      '@nestjs/core':
+        specifier: ^10.0.0
+        version: 10.4.22(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/platform-express@10.4.22)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/mongoose':
+        specifier: ^11.0.4
+        version: 11.0.4(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@10.4.22)(mongoose@9.9.5)(rxjs@7.8.2)
+      '@nestjs/platform-express':
+        specifier: ^10.0.0
+        version: 10.4.22(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@10.4.22)(supports-color@8.1.1)
+      class-transformer:
+        specifier: ^0.5.1
+        version: 0.5.1
+      class-validator:
+        specifier: ^0.15.1
+        version: 0.15.1
+      dotenv:
+        specifier: ^16.0.0
+        version: 16.6.1
+      mongoose:
+        specifier: ^9.9.4
+        version: 9.9.5
+      reflect-metadata:
+        specifier: ^0.2.0
+        version: 0.2.2
+      rxjs:
+        specifier: ^7.0.0
+        version: 7.8.2
+    devDependencies:
+      '@types/express':
+        specifier: ^4.0.0
+        version: 4.17.25
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.1
@@ -199,129 +373,7 @@ importers:
         specifier: ^5.0.0
         version: 5.9.3
 
-  www/apps/api:
-    dependencies:
-      '@bim/base':
-        specifier: workspace:*
-        version: link:../../../pacotes/base
-      '@bim/dominio':
-        specifier: workspace:*
-        version: link:../../../pacotes/dominio
-      '@nestjs/common':
-        specifier: ^10.0.0
-        version: 10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1)
-      '@nestjs/core':
-        specifier: ^10.0.0
-        version: 10.4.22(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/platform-express@10.4.22)(reflect-metadata@0.2.2)(rxjs@7.8.2)
-      '@nestjs/mongoose':
-        specifier: ^11.0.4
-        version: 11.0.4(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@10.4.22)(mongoose@9.9.5)(rxjs@7.8.2)
-      '@nestjs/platform-express':
-        specifier: ^10.0.0
-        version: 10.4.22(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@10.4.22)(supports-color@8.1.1)
-      class-transformer:
-        specifier: ^0.5.1
-        version: 0.5.1
-      class-validator:
-        specifier: ^0.15.1
-        version: 0.15.1
-      dotenv:
-        specifier: ^16.0.0
-        version: 16.6.1
-      mongoose:
-        specifier: ^9.9.4
-        version: 9.9.5
-      multer:
-        specifier: ^2.3.0
-        version: 2.3.0
-      reflect-metadata:
-        specifier: ^0.2.0
-        version: 0.2.2
-      rxjs:
-        specifier: ^7.0.0
-        version: 7.8.2
-    devDependencies:
-      '@types/express':
-        specifier: ^4.0.0
-        version: 4.17.25
-      '@types/multer':
-        specifier: ^2.2.0
-        version: 2.2.0
-      '@types/node':
-        specifier: ^22.0.0
-        version: 22.20.1
-      ts-node:
-        specifier: ^10.0.0
-        version: 10.9.2(@types/node@22.20.1)(typescript@5.9.3)
-      typescript:
-        specifier: ^5.0.0
-        version: 5.9.3
-
-  www/apps/ingestao:
-    dependencies:
-      '@bim/base':
-        specifier: workspace:*
-        version: link:../../../pacotes/base
-      '@bim/dominio':
-        specifier: workspace:*
-        version: link:../../../pacotes/dominio
-      '@nestjs/common':
-        specifier: ^10.0.0
-        version: 10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1)
-      '@nestjs/core':
-        specifier: ^10.0.0
-        version: 10.4.22(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/platform-express@10.4.22)(reflect-metadata@0.2.2)(rxjs@7.8.2)
-      '@nestjs/mongoose':
-        specifier: ^11.0.4
-        version: 11.0.4(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@10.4.22)(mongoose@9.9.5)(rxjs@7.8.2)
-      '@nestjs/platform-express':
-        specifier: ^10.0.0
-        version: 10.4.22(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@10.4.22)(supports-color@8.1.1)
-      class-transformer:
-        specifier: ^0.5.1
-        version: 0.5.1
-      class-validator:
-        specifier: ^0.15.1
-        version: 0.15.1
-      dotenv:
-        specifier: ^16.0.0
-        version: 16.6.1
-      mongoose:
-        specifier: ^9.9.4
-        version: 9.9.5
-      multer:
-        specifier: ^2.3.0
-        version: 2.3.0
-      playwright:
-        specifier: 1.62.1
-        version: 1.62.1
-      reflect-metadata:
-        specifier: ^0.2.0
-        version: 0.2.2
-      rxjs:
-        specifier: ^7.0.0
-        version: 7.8.2
-      three:
-        specifier: ^0.185.1
-        version: 0.185.1
-    devDependencies:
-      '@types/express':
-        specifier: ^4.0.0
-        version: 4.17.25
-      '@types/multer':
-        specifier: ^2.2.0
-        version: 2.2.0
-      '@types/node':
-        specifier: ^22.0.0
-        version: 22.20.1
-      ts-node:
-        specifier: ^10.0.0
-        version: 10.9.2(@types/node@22.20.1)(typescript@5.9.3)
-      typescript:
-        specifier: ^5.0.0
-        version: 5.9.3
-
-  www/apps/web:
+  web:
     dependencies:
       '@types/three':
         specifier: ^0.185.4

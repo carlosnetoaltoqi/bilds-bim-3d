@@ -12,14 +12,15 @@
  * Instancia os controllers à mão (sem Nest, sem Mongo, sem rede), com modelos, store e cliente
  * falsos em memória. Imprime JSON para tests/test_geometrias_thumb.py.
  *
- *   cd www/apps/api && node --require ts-node/register/transpile-only --require reflect-metadata \
+ *   cd servicos/editor-de-pecas && node --require ts-node/register/transpile-only --require reflect-metadata \
  *       ../../../tests/paridade/geometrias_thumb.cts
  *
  * Extensão .cts porque o package.json da raiz tem "type": "module".
  */
 import * as path from 'node:path';
-import { GeometriasController } from '../../www/apps/api/src/geometrias/geometrias.controller';
-import { ProdutosController } from '../../www/apps/api/src/produtos/produtos.controller';
+import { GeometriasEdicaoController as GeometriasController } from '../../servicos/editor-de-pecas/src/geometrias-edicao.controller';
+import { ProdutosEdicaoController as ProdutosController } from '../../servicos/editor-de-pecas/src/produtos-edicao.controller';
+import { ProdutosController as ProdutosLeituraController } from '../../servicos/catalogo-api/src/produtos/produtos.controller';
 
 // ── falsos ───────────────────────────────────────────────────────────────────
 function modeloFalso(docs: Record<string, any>) {
@@ -60,7 +61,7 @@ function clienteFalso(resposta: { ok: boolean; erro?: string } = { ok: true }) {
 }
 
 // o Logger do Nest escreve no stdout e sujaria o JSON que o pytest lê (resolvido a partir de apps/api: este arquivo mora em tests/)
-const { Logger } = require(require.resolve('@nestjs/common', { paths: [path.resolve(__dirname, '../../www/apps/api')] }));
+const { Logger } = require(require.resolve('@nestjs/common', { paths: [path.resolve(__dirname, '../../servicos/editor-de-pecas')] }));
 Logger.overrideLogger(false);
 
 const geoValida = { pos: [0, 0, 0, 1, 0, 0, 0, 1, 0], col: [], idx: [0, 1, 2] };
@@ -145,7 +146,8 @@ async function main() {
       ok: { _id: 'ok', catalogId: 'c', importId: 'imp1', id: 'x', nome: 'X', geoKey: 'geo/imp1/x.json', thumbKey: 'thumbs/imp1/ok.webp', thumbAtualizadaEm: quando, thumbErro: null },
       falhou: { _id: 'falhou', catalogId: 'c', importId: 'imp1', id: 'y', nome: 'Y', geoKey: 'geo/imp1/y.json', thumbErro: 'EACCES: permission denied' },
     });
-    const ctrl = new ProdutosController(produtos as any, {} as any);
+    // a LEITURA do produto (GET /produtos/:id) é da API de catálogo; o editor só tem o PATCH
+    const ctrl = new ProdutosLeituraController(produtos as any, {} as any, {} as any, {} as any, {} as any);
     const pick = (d: any) => ({ thumbAtualizadaEm: d.thumbAtualizadaEm, thumbErro: d.thumbErro, thumbUrl: d.thumbUrl });
     saida.get_produto_expoe_miniatura = { ok: pick(await ctrl.get('ok')), falhou: pick(await ctrl.get('falhou')) };
   }

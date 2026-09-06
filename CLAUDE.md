@@ -143,7 +143,7 @@ Verificado ao fechar: Dancor 13 peças/13 miniaturas, 9 MB em 11 s, `/tmp` limpo
 `docs/historico/planos/arquitetura-www-servico-de-ingestao.md` §4: `build_zip_bilds` duplica o `build_zip` do `build.py`, e `test_cli_akato`
 aponta para um `.aq` que não existe (pula sempre). Registro: `docs/sessoes/S7.18-botao-gerar-zip-bilds.md`. Suíte **141** (140 passam; `test_cli_akato` pula).
 
-**S8 (2026-09-06) — reengenharia em contextos desacoplados.** O usuário aprovou o plano em `docs/arquitetura.md` (fases F0–F6, estado na §6) e `docs/decisoes/`. As pendências da S7.18 e da §4 antiga foram absorvidas pelas fases F1–F5. **F0–F3 feitas.** F3 (S8.3): `servicos/gerador-zip` e `servicos/conversores`, stateless, sobem sem variáveis de Mongo; o cliente tipado da biblioteca (`Biblioteca`, ex-`PipelineService`) e os validadores de geometria/specs vivem em `@bim/base`; o web tem um cliente por serviço (`src/servicos/`). **F2 (S8.2):** workspace pnpm na raiz, `pacotes/base` e `pacotes/dominio` compilados (o `pnpm start` do `dist/` voltou a funcionar), contratos em JSON Schema. **F1:** a biblioteca `bim_pipeline` em `biblioteca/` é um pacote instalável, sem duplicações, sem `build.py`/`templates/`/`eng-reversa/` (arquivados em `docs/historico/`), sem fabricantes em código; fixtures por papel; suíte **164**. Registro: `docs/sessoes/S8.1-f1-biblioteca-bim-pipeline.md`.
+**S8 (2026-09-06) — reengenharia em contextos desacoplados.** O usuário aprovou o plano em `docs/arquitetura.md` (fases F0–F6, estado na §6) e `docs/decisoes/`. As pendências da S7.18 e da §4 antiga foram absorvidas pelas fases F1–F5. **F0–F4 feitas.** F4 (S8.4): `www/` deixou de existir — `servicos/criador-de-catalogos` (o `ImportacoesService` dividido em importações/publicação/miniaturas), `servicos/catalogo-api` (só leitura), `servicos/editor-de-pecas` (novo, :4400) e `web/` na raiz com um cliente por serviço; `.env.example` e `storage/` na raiz. F3 (S8.3): `servicos/gerador-zip` e `servicos/conversores`, stateless, sobem sem variáveis de Mongo; o cliente tipado da biblioteca (`Biblioteca`, ex-`PipelineService`) e os validadores de geometria/specs vivem em `@bim/base`; o web tem um cliente por serviço (`src/servicos/`). **F2 (S8.2):** workspace pnpm na raiz, `pacotes/base` e `pacotes/dominio` compilados (o `pnpm start` do `dist/` voltou a funcionar), contratos em JSON Schema. **F1:** a biblioteca `bim_pipeline` em `biblioteca/` é um pacote instalável, sem duplicações, sem `build.py`/`templates/`/`eng-reversa/` (arquivados em `docs/historico/`), sem fabricantes em código; fixtures por papel; suíte **164**. Registro: `docs/sessoes/S8.1-f1-biblioteca-bim-pipeline.md`.
 
 **Próxima sessão:** continuar pela primeira fase não marcada ✅ em `docs/arquitetura.md` §6. Antes: abrir o `.aq` da Tupy no AltoQi Builder (aceitação, como a Amanco na S7.16); depois
 `docs/sessoes/S7.14-www-servico-de-ingestao.md`, seção 7 — build do `dist/` com o `@bim/dominio`, e2e reexecutados,
@@ -215,10 +215,15 @@ bilds-bim-3d/
 ├── docs/
 │   ├── arquitetura.md · decisoes/ (ADR-001…017) · conhecimento/ · skills/ · sessoes/ · bilds-bim-3d-zip-spec.md
 │   └── historico/               ← planos/ (arquitetura anterior), estudos/ (escrita de .aq a partir de PDF; plugin de CAD → catálogo web), preview-estatico/
-├── servicos/                    ← UM DEPLOYABLE POR CONTEXTO (Nest; README próprio em cada um)
+├── servicos/                    ← UM DEPLOYABLE POR CONTEXTO (Nest; README próprio em cada um; leem o .env da raiz)
+│   ├── criador-de-catalogos/ :4100 ← importações (.aq/.zip, CAD, plugin web), fila, publicação (grava Mongo+storage), miniaturas, exportar catálogo → .aq
+│   ├── catalogo-api/ :4000      ← leitura (empresas, catálogos, produtos, geometria, miniaturas) e remoção em cascata; não fala com ninguém
+│   ├── editor-de-pecas/ :4400   ← PATCH produto, PUT geometria (copy-on-write), restaurar, original; pede miniatura ao criador — ADR-014
 │   ├── gerador-zip/ :4200       ← .aq → ZIP da bilds.com em stream; STATELESS (sem Mongo, sem storage) — ADR-012
 │   └── conversores/ :4300       ← STEP/IGES/IFC → geometria, geometria → .aq de uma peça, DLL de plugin → catálogo web; STATELESS — ADR-013
-├── www/                         ← ainda aqui: criador de catálogos (apps/ingestao :4100), API de catálogo (apps/api :4000), web (apps/web :3000) — README próprio; F4 os leva para servicos/ e web/
+├── web/ :3000                   ← Next; um cliente por serviço em src/servicos/; tools/ com os round-trips do editor
+├── .env.example                 ← todas as variáveis (portas por contexto, URLs, Mongo, STORAGE_PATH); o .env real é gitignored
+├── storage/                     ← geometria, miniaturas, logos e downloads de plugin dos serviços com dados — gitignored
 ├── input/                       ← .aq do usuário — gitignored
 └── output/                      ← saída do lote (`zip_bilds --all`) e da suíte — gitignored
 ```
@@ -236,7 +241,7 @@ esperadas estão **nos arquivos**, não em texto: `.python-version`, `.nvmrc`, `
 | Node ≥ 22.6 (24 no `.nvmrc`) e pnpm 11 | miniaturas, `www/`, testes de paridade | `node -v; pnpm -v` |
 | `biblioteca/bim_pipeline/miniaturas/node_modules` (playwright + three) + Chromium + libs `libnss3 libnspr4 libasound2t64` | miniaturas (a geração **falha** sem, salvo `--allow-no-thumbs`) | `ls biblioteca/bim_pipeline/miniaturas/node_modules; ldconfig -p \| grep libnss3` |
 | `requirements-dev.txt` (pytest) | `tests/` | `python3 -m pytest -q` |
-| `pnpm install` **na raiz** (+ `pnpm build:pacotes`) e `www/.env` (Mongo, `STORAGE_PATH`) | serviços e web | `bash scripts/bootstrap.sh --www --check`; subir com `pnpm dev` (os cinco) ou `pnpm dev:ingestao`, `dev:api`, `dev:zip`, `dev:conversores`, `dev:web`; `pnpm -r build` + `pnpm start:*` rodam do `dist/`. Os serviços em `servicos/` leem o `.env` da **raiz** |
+| `pnpm install` **na raiz** (+ `pnpm build:pacotes`) e `.env` na raiz (Mongo, `STORAGE_PATH`) | serviços e web | `bash scripts/bootstrap.sh --www --check`; subir com `pnpm dev` (os cinco serviços + web) ou `pnpm dev:criador`, `dev:catalogo`, `dev:editor`, `dev:zip`, `dev:conversores`, `dev:web`; `pnpm -r build` + `pnpm start:*` rodam do `dist/` |
 | `requirements-cad.txt` (ifcopenshell, cadquery-ocp, pypdf, olefile) | importar/tesselar STEP, IGES e IFC no serviço (`step_to_geo.py`, `ifc_to_geo.py`), plugin de AutoCAD (`catallog.py`; `olefile` só para os tipos do `.rfa`), PDF | `python3 -c 'import OCP, ifcopenshell, olefile'` |
 
 **Armadilhas de ambiente que já custaram tempo:**

@@ -2,7 +2,7 @@
  * Harness de remocao.ts (@bim/dominio): apagar produto, catálogo, empresa e importação com modelos e
  * store falsos em memória. Imprime JSON para tests/test_www_remocao.py.
  *
- *   cd www/apps/api && node --require ts-node/register/transpile-only --require reflect-metadata \
+ *   cd servicos/catalogo-api && node --require ts-node/register/transpile-only --require reflect-metadata \
  *       ../../../tests/paridade/remocao.cts
  */
 import { apagarCatalogo, apagarEmpresa, apagarImportacao, apagarProduto, ImportacaoEmAndamento, NaoEncontrado } from '../../pacotes/dominio/src/remocao';

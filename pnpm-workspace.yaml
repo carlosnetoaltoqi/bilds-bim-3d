@@ -1,6 +1,5 @@
 packages:
   - 'pacotes/*'
-  - 'www/apps/*'
   - 'servicos/*'
   - 'web'
   - 'biblioteca/bim_pipeline/miniaturas'

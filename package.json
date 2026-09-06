@@ -1,21 +1,23 @@
 {
   "name": "bilds-bim-3d",
   "private": true,
-  "description": "Raiz do workspace pnpm: pacotes/ (base, dominio), os serviços (hoje em www/apps, migrando para servicos/), web e as dependências Node das miniaturas da biblioteca. Python (biblioteca/) é instalado com pip.",
+  "description": "Raiz do workspace pnpm: pacotes/ (base, dominio), servicos/ (um por contexto), web/ e as dependências Node das miniaturas da biblioteca. Python (biblioteca/) é instalado com pip.",
   "scripts": {
     "build": "pnpm -r build",
     "build:pacotes": "pnpm --filter './pacotes/*' -r build",
-    "dev": "pnpm build:pacotes && concurrently -n ingestao,api,zip,conversores,web -c blue,green,yellow,cyan,magenta \"pnpm dev:ingestao\" \"pnpm dev:api\" \"pnpm dev:zip\" \"pnpm dev:conversores\" \"pnpm dev:web\"",
-    "dev:ingestao": "pnpm --filter ingestao dev",
-    "dev:api": "pnpm --filter api dev",
-    "dev:web": "pnpm --filter web dev",
-    "start:ingestao": "pnpm --filter ingestao start",
-    "start:api": "pnpm --filter api start",
-    "start:web": "pnpm --filter web start",
+    "dev": "pnpm build:pacotes && concurrently -n criador,catalogo,editor,zip,conversores,web -c blue,green,red,yellow,cyan,magenta \"pnpm dev:criador\" \"pnpm dev:catalogo\" \"pnpm dev:editor\" \"pnpm dev:zip\" \"pnpm dev:conversores\" \"pnpm dev:web\"",
+    "dev:criador": "pnpm --filter criador-de-catalogos dev",
+    "dev:catalogo": "pnpm --filter catalogo-api dev",
+    "dev:editor": "pnpm --filter editor-de-pecas dev",
     "dev:zip": "pnpm --filter gerador-zip dev",
     "dev:conversores": "pnpm --filter conversores dev",
+    "dev:web": "pnpm --filter web dev",
+    "start:criador": "pnpm --filter criador-de-catalogos start",
+    "start:catalogo": "pnpm --filter catalogo-api start",
+    "start:editor": "pnpm --filter editor-de-pecas start",
     "start:zip": "pnpm --filter gerador-zip start",
-    "start:conversores": "pnpm --filter conversores start"
+    "start:conversores": "pnpm --filter conversores start",
+    "start:web": "pnpm --filter web start"
   },
   "devDependencies": {
     "concurrently": "^9.1.0",

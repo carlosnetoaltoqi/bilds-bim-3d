@@ -17,11 +17,11 @@ __pycache__/
 config.json
 .vercel
 
-# POC — www/
+# serviços e web
 .next/
 dist/
 *.tsbuildinfo
-www/storage/
+storage/
 **/.venv/
 *.tsbuildinfo
 

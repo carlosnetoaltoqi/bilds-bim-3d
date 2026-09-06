@@ -93,10 +93,10 @@ def test_thumbs_mjs_para_quando_o_stdin_fecha(tmp_path):
     node = node_para_ts()
     if not node:
         pytest.skip('precisa de Node >= 22')
-    geo_dir = ROOT / 'www' / 'storage' / 'bim' / 'geo'
+    geo_dir = ROOT / 'storage' / 'bim' / 'geo'
     geos = sorted(str(p.relative_to(geo_dir)) for p in geo_dir.rglob('*.json') if not p.name.endswith('.orig.json')) if geo_dir.is_dir() else []
     if not geos:
-        pytest.skip('sem geometria em www/storage/bim/geo')
+        pytest.skip('sem geometria em storage/bim/geo')
     miniaturas = PIPELINE / 'miniaturas'
     if not (miniaturas / 'node_modules' / 'three' / 'build' / 'three.module.js').is_file():
         pytest.skip('pnpm install não foi rodado em biblioteca/bim_pipeline/miniaturas')
