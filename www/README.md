@@ -1,6 +1,6 @@
 # www — serviço de ingestão + API de catálogo + web
 
-Monorepo pnpm com **três apps e um pacote** (arquitetura em `docs/arquitetura-www-servico-de-ingestao.md`,
+Monorepo pnpm com **três apps e um pacote** (arquitetura em `docs/historico/planos/arquitetura-www-servico-de-ingestao.md`,
 2026-09-05, S7.14). Este arquivo é a **fonte de verdade do `www/`**: como subir, contratos, onde está
 o quê, estado da base e armadilhas. O `CLAUDE.md` da raiz só aponta para cá.
 

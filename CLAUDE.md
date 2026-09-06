@@ -41,7 +41,8 @@ agente e skills fora do repo são auxiliares. **Toda sessão termina assim:**
 | Templates HTML, Three.js self-hosted, escape, design tokens | `docs/conhecimento/templates-html.md` + skill `pagina-biblioteca` |
 | **Sintoma → causa** (tabela de diagnóstico, ~70 linhas) | `docs/conhecimento/diagnostico.md` |
 | Contrato do ZIP consumido pela bilds.com | `docs/bilds-bim-3d-zip-spec.md` |
-| **`www/`** — serviço de ingestão (pipeline Python + Chromium), API de catálogo e web: subir os três, contratos, fluxo do import, **estado da base**, decisões/pendências, `.env`, Atlas | `www/README.md` + `docs/arquitetura-www-servico-de-ingestao.md` (decisões A1–A10, etapas E0–E6) |
+| **Arquitetura vigente** (S8, 2026-09-06): biblioteca Python comum + um serviço por contexto + web; regras de fronteira; quem grava o quê; fases F0–F6 | `docs/arquitetura.md` + `docs/decisoes/` (ADR-001…017) |
+| **`www/`** (em migração para `biblioteca/`, `pacotes/`, `servicos/`, `web/`) — subir os três, contratos, fluxo do import, **estado da base**, `.env`, Atlas | `www/README.md`; a arquitetura anterior (A1–A10, E0–E6) está em `docs/historico/planos/arquitetura-www-servico-de-ingestao.md` |
 | Aprendizados da POC dinâmica (ADRs, diretrizes para a reconstrução na bilds.com) | `docs/solutions/architecture-patterns/` |
 | Planos históricos | `docs/plano-produto-dinamico.md`, `docs/plano-integracao-bilds.md`, `docs/plans/` — **históricos**, não guiam nada |
 | O que a bilds.com recebe deste pipeline (lado consumidor) | `docs/saida-bilds-com/pipeline-bim-dinamico-na-bilds-com.md` |
@@ -104,7 +105,7 @@ serviço); o **web** (`apps/web`, :3000) sem login, com chamada para edição em
 pacote `packages/dominio`. O port TypeScript do leitor `.aq` e toda a auth **saíram**. Seis etapas E0–E6,
 todas feitas e commitadas uma a uma; aceitação com Dancor e **Amanco (856 produtos, 448 miniaturas em 58 s)**,
 copy-on-write real e `kill -9` no meio do import. Registro: `docs/sessoes/S7.14-www-servico-de-ingestao.md`;
-plano e pendências: `docs/arquitetura-www-servico-de-ingestao.md` (§4). O inventário fica-ou-sai
+plano e pendências: `docs/historico/planos/arquitetura-www-servico-de-ingestao.md` (§4). O inventário fica-ou-sai
 (`docs/inventario-2026-09-05-fica-ou-sai.md`) foi escrito antes e está anotado. `scripts/build.py` continua
 gerando o ZIP da bilds.com, agora importando o pipeline de `www/apps/ingestao/pipeline/`.
 
@@ -139,10 +140,12 @@ no serviço → `zip_bilds.py` (mesmo pipeline do `build.py` + miniaturas no Chr
 `docs/bilds-bim-3d-zip-spec.md` como download. **Não cria catálogo, não toca o Mongo, nada fica no servidor.** Dois fixes
 achados na interface: botão duplicado no estado de erro e **`@Post` do Nest responde 201** (o download exige `res.status(200)`).
 Verificado ao fechar: Dancor 13 peças/13 miniaturas, 9 MB em 11 s, `/tmp` limpo. Deixou duas pendências em
-`docs/arquitetura-www-servico-de-ingestao.md` §4: `build_zip_bilds` duplica o `build_zip` do `build.py`, e `test_cli_akato`
+`docs/historico/planos/arquitetura-www-servico-de-ingestao.md` §4: `build_zip_bilds` duplica o `build_zip` do `build.py`, e `test_cli_akato`
 aponta para um `.aq` que não existe (pula sempre). Registro: `docs/sessoes/S7.18-botao-gerar-zip-bilds.md`. Suíte **141** (140 passam; `test_cli_akato` pula).
 
-**Próxima sessão:** as duas pendências da S7.18 (fixture da Akato; `build.py` importar `zip_bilds.build_zip_bilds`); abrir o `.aq` da Tupy no AltoQi Builder (aceitação, como a Amanco na S7.16); depois
+**S8 (2026-09-06) — reengenharia em contextos desacoplados.** O usuário aprovou o plano em `docs/arquitetura.md` (fases F0–F6, estado na §6) e `docs/decisoes/`. As pendências da S7.18 e da §4 antiga foram absorvidas pelas fases F1–F5.
+
+**Próxima sessão:** continuar pela primeira fase não marcada ✅ em `docs/arquitetura.md` §6. Antes: abrir o `.aq` da Tupy no AltoQi Builder (aceitação, como a Amanco na S7.16); depois
 `docs/sessoes/S7.14-www-servico-de-ingestao.md`, seção 7 — build do `dist/` com o `@bim/dominio`, e2e reexecutados,
 aceitação automatizada, Nest 11; depois o isolamento do serviço. Decisão antiga ainda em aberto: LICENSE.
 
@@ -166,7 +169,7 @@ pasta, matching por nome) foi **removido em 2026-09-05** (I6); `parse_ifc.py` fi
 **Linhas de trabalho:** (1) pipeline estático — a linha madura, em produção; (2) engenharia
 reversa da **escrita** de `.aq` (`eng-reversa/`, 2026-09-02; o `.aq` gerado abre no AltoQi
 Builder); (3) **`www/`: serviço de ingestão + API de catálogo + web com editor** (reestruturado em
-2026-09-05, S7.14 — é o que vai para o repositório limpo; `docs/arquitetura-www-servico-de-ingestao.md`);
+2026-09-05, S7.14 — é o que vai para o repositório limpo; `docs/historico/planos/arquitetura-www-servico-de-ingestao.md`);
 (4) POC de catálogo dinâmico — **encerrada em 2026-08-31**, aprendizados em
 `docs/solutions/architecture-patterns/`. Desde a S7.14 o pipeline (leitura do `.aq`, catálogo,
 miniaturas) mora em `www/apps/ingestao/pipeline/` e o `build.py` da linha (1) o importa.
@@ -212,7 +215,7 @@ bilds-bim-3d/
 │   └── plano-*.md, plans/       ← históricos
 ├── eng-reversa/                 ← escrever .aq/OQ3D, formas paramétricas, PDF → catálogo (README próprio)
 │   └── tupy/                    ← S7.17: plugin de AutoCAD (Catallog) → IGES → .aq; estudo/, tools/, dados/ (downloads/ e saida/ gitignored)
-├── www/                         ← em reestruturação (docs/arquitetura-www-servico-de-ingestao.md) — README próprio
+├── www/                         ← em reestruturação (docs/historico/planos/arquitetura-www-servico-de-ingestao.md) — README próprio
 │   ├── apps/ingestao/pipeline/  ← ★ O PIPELINE PYTHON: read_aq.py, oq3d.py, dedup.py, catalogo.py, inferencia.py, miniaturas.py,
 │   │                               catalogo_de_aq.py (CLI), step_to_geo.py (STEP+IGES), ifc_to_geo.py, parse_ifc.py, geo_to_aq.py, aq_writer.py,
 │   │                               oq3d_writer.py, catalogo_to_aq.py (catálogo salvo → .aq novo), catallog.py (plugin de AutoCAD → catálogo),

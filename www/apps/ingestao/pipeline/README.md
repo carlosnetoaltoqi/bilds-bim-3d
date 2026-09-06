@@ -2,7 +2,7 @@
 
 Aqui mora o que lê o `.aq` e produz catálogo, geometria e miniaturas. É o **mesmo código**
 que o pipeline estático (`scripts/build.py`, ZIP para a bilds.com) usa — o `build.py` importa
-daqui. Movido de `scripts/` em 2026-09-05 (etapa E2 de `docs/arquitetura-www-servico-de-ingestao.md`)
+daqui. Movido de `scripts/` em 2026-09-05 (etapa E2 de `docs/historico/planos/arquitetura-www-servico-de-ingestao.md`)
 para o serviço ser autocontido quando for isolado num repositório próprio.
 
 | Arquivo | O quê |
@@ -22,7 +22,7 @@ para o serviço ser autocontido quando for isolado num repositório próprio.
 | `oq3d_writer.py` | **escrever** OQ3D: malhas indexadas → blob que o `oq3d.py` (e o Builder) leem; cilindro/tubo paramétricos |
 | `geo_to_aq.py` | `{pos, col, idx}` ou partes do editor → `.aq` com uma peça (usa os dois acima; nada de fora do serviço) |
 | `catalogo_to_aq.py` | **CLI** que o serviço executa em `GET /exportar/catalogo/:id`: manifesto JSON (catálogo + produtos + caminhos das geometrias no storage) → `.aq` **novo com todas as peças** — um grupo por série (`aq_writer.classificar_grupo`), uma simbologia por arquivo de geometria (compartilhada como no original), uma propriedade por chave de spec, curva Q-H; `--manter-prefixo-serie`; resumo JSON na última linha do stdout (S7.16) |
-| `zip_bilds.py` | **CLI** que o serviço executa em `POST /exportar/zip-bilds`: `.aq`/`.zip` → `auto_config` → `build_catalog_from_aq` → `build_thumbs` → `build_zip_bilds` (manifesto + `catalog.json` + `geo/` + `thumbs/` do contrato `docs/bilds-bim-3d-zip-spec.md`) num diretório temporário apagado no fim; `--skip-thumbs`; `ThumbsError` não aborta (sai sem `thumbs/`); catálogo vazio → exit 1 (S7.18). **Duplica `build_zip` do `scripts/build.py`** — pendência em `docs/arquitetura-www-servico-de-ingestao.md` §4 |
+| `zip_bilds.py` | **CLI** que o serviço executa em `POST /exportar/zip-bilds`: `.aq`/`.zip` → `auto_config` → `build_catalog_from_aq` → `build_thumbs` → `build_zip_bilds` (manifesto + `catalog.json` + `geo/` + `thumbs/` do contrato `docs/bilds-bim-3d-zip-spec.md`) num diretório temporário apagado no fim; `--skip-thumbs`; `ThumbsError` não aborta (sai sem `thumbs/`); catálogo vazio → exit 1 (S7.18). **Duplica `build_zip` do `scripts/build.py`** — pendência em `docs/historico/planos/arquitetura-www-servico-de-ingestao.md` §4 |
 | `processo.py` | `vigiar_stdin()`: o filho sai quando o pai morre |
 
 Nenhum módulo importa nada de fora deste diretório (`tests/test_geo_to_aq.py` garante). O inverso do `catalogo_de_aq.py` é o `catalogo_to_aq.py` (`tests/test_catalogo_to_aq.py` faz a ida e volta com a Akato inteira). Todos importam os irmãos com o próprio diretório no `sys.path` — quem usa faz

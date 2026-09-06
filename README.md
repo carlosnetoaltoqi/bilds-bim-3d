@@ -204,7 +204,7 @@ Se faltar uma peça que deveria ter forma e ela só existe como IFC, não no `.a
 
 ## `www/` — serviço de ingestão, API de catálogo e web (POC, local)
 
-O `www/` é o que vai para o repositório limpo (2026-09-05, `docs/arquitetura-www-servico-de-ingestao.md`):
+O `www/` é o que vai para o repositório limpo (2026-09-05, `docs/historico/planos/arquitetura-www-servico-de-ingestao.md`):
 três apps sem login. O **serviço de ingestão** (`:4100`) recebe uma biblioteca `.aq`/`.zip` ou uma peça
 `.stp`/`.step`/`.ifc`, roda **o mesmo pipeline Python deste repositório** (`www/apps/ingestao/pipeline/`) e o
 Chromium para catálogo, geometria e miniaturas, e grava tudo no Mongo e no storage. A **API de catálogo**
@@ -233,7 +233,7 @@ potência e conexões, com "voltar" por campo. Tudo em `www/README.md`.
 ## Documentação
 
 - `CLAUDE.md` — mapa do projeto: onde está cada conhecimento, fase atual, testes
-- `docs/arquitetura-www-servico-de-ingestao.md` — o `www/` em três apps: decisões, contratos, etapas, pendências
+- `docs/historico/planos/arquitetura-www-servico-de-ingestao.md` — o `www/` em três apps: decisões, contratos, etapas, pendências
 - `www/README.md` — subir os três apps, rotas, estado da base, `.env`, Atlas
 - `docs/bilds-bim-3d-zip-spec.md` — contrato do ZIP consumido pela bilds.com
 - `docs/plano-integracao-bilds.md` — plano original da integração (**histórico**: o módulo já está em produção; não use como guia)

@@ -1,3 +1,5 @@
+> **HISTÓRICO — superado em 2026-09-06 (S8).** A arquitetura vigente está em `docs/arquitetura.md` e as decisões em `docs/decisoes/` (A1–A10 viraram ADR-001 a ADR-010; A1, A4 e A9 foram substituídas). Este documento fica como registro das etapas E0–E6 de 2026-09-05 e das pendências da §4, que foram absorvidas pelas fases F1–F5 do plano novo.
+
 # Arquitetura — `www/` como serviço de ingestão + API de catálogo + web (2026-09-05)
 
 > **Documento vivo.** Define a arquitetura-alvo do `www/` e o plano em etapas para chegar lá.
