@@ -29,7 +29,7 @@ def test_biblioteca_nao_conhece_mongo_nem_servicos():
 
 
 def test_clis_dos_servicos_aceitam_sair_com_stdin():
-    for nome in ('catalogo_de_aq', 'zip_bilds', 'plugin_catalogo_web'):
+    for nome in ('catalogo_de_aq', 'zip_bilds', 'plugin_catalogo_web', 'familias_revit'):
         fonte = (PIPELINE / 'cli' / f'{nome}.py').read_text(encoding='utf8')
         alvo = fonte
         m = re.search(r"run_module\('([\w.]+)'", fonte)      # wrapper → o módulo real

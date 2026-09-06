@@ -8,4 +8,4 @@
 ifcopenshell==0.8.5      # bim_pipeline.conversores.ifc (IFC B-rep e IFC grande na POC); round-trip do exportador IFC do editor
 cadquery-ocp==7.9.3.1.1  # OpenCASCADE: bim_pipeline.conversores.step_iges (tesselar .stp e .igs — IGES costurado desde a S7.17); ~165 MB
 pypdf==6.14.2            # eng-reversa/tools/pdf_coords.py (catálogo comercial em PDF → células)
-olefile==0.47            # bim_pipeline.conversores.rfa_partatom (tipos de uma família Revit .rfa, para o import de plugin de AutoCAD); sem ele o import segue sem a spec "Tipos Revit"
+# olefile (famílias Revit .rfa) deixou de ser opcional: é dependência da biblioteca (requirements.txt / pyproject)

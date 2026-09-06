@@ -240,9 +240,12 @@ def main(argv=None):
                       f"cores {st['cores']}")
         checar('todos os blobs são OQ3D válidos', ok_blobs == len(simbs),
                f'{ok_blobs}/{len(simbs)} blobs, {tri_total} triângulos')
+        # Geometria compartilhada é normal (uma simbologia, N peças — o .aq de fabricante e o de catálogo
+        # exportado fazem isso); o que tem de valer é: toda peça ligada, nenhuma simbologia órfã.
+        usadas = set(por_peca.values())
         checar('vínculo peça → simbologia é chave estrangeira',
-               len(por_peca) == len(simbs),
-               f'{len(por_peca)} peças ligadas a {len(simbs)} simbologias')
+               len(por_peca) == len(dados['pecas']) and usadas == set(simbs),
+               f'{len(por_peca)}/{len(dados["pecas"])} peças ligadas a {len(usadas)}/{len(simbs)} simbologias')
         if args.tubo_cm is not None:
             checar(f'barras de tubo com {args.tubo_cm:g} cm no eixo Z',
                    bool(tubos) and all(abs(b[2] - args.tubo_cm) < 0.01 for _, b in tubos),

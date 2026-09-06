@@ -8,7 +8,7 @@ import json
 import os
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
-NOMES = ('catalogo', 'geometria', 'manifesto-catalogo-aq', 'resumo-miniaturas', 'info-plugin')
+NOMES = ('catalogo', 'geometria', 'manifesto-catalogo-aq', 'resumo-miniaturas', 'info-plugin', 'info-familias-revit')
 
 
 def carregar(nome):

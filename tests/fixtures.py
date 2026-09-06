@@ -14,6 +14,7 @@ Papéis:
   iges_pasta   pasta com .igs de faces soltas: {caminho}
   dll_plugin   DLL de um plugin de CAD que é casca de catálogo web: {caminho}
   manifesto_plugin  manifesto.json de um download real do plugin web: {caminho}
+  rfa_familias  .zip (ou pasta) de famílias Revit .rfa de um fabricante, com type catalogs .txt ao lado: {caminho}
 """
 import json
 from pathlib import Path

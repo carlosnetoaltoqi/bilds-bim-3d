@@ -6,5 +6,6 @@
   "step_peca":   {"caminho": "input/<pasta>/<peca>.stp", "bbox_mm": [152, 107, 152]},
   "iges_pasta":  {"caminho": "<pasta com .igs de faces soltas>"},
   "dll_plugin":  {"caminho": "/mnt/c/Program Files/Autodesk/ApplicationPlugins/<plugin>.bundle/<plugin>.dll"},
-  "manifesto_plugin": {"caminho": "<pasta de downloads>/manifesto.json"}
+  "manifesto_plugin": {"caminho": "<pasta de downloads>/manifesto.json"},
+  "rfa_familias": {"caminho": "input/revit/<familias>.zip"}
 }
