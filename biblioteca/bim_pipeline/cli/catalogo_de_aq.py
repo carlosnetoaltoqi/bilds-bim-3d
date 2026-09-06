@@ -37,11 +37,10 @@ import sys
 import time
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, AQUI)
 
-from catalogo import build_catalog_from_aq, diag_para_json, resumo_diag   # noqa: E402
-from inferencia import auto_config                                          # noqa: E402
-from processo import vigiar_stdin                                           # noqa: E402
+from bim_pipeline.catalogo.catalogo import build_catalog_from_aq, diag_para_json, resumo_diag   # noqa: E402
+from bim_pipeline.catalogo.inferencia import auto_config                                          # noqa: E402
+from bim_pipeline.processo import vigiar_stdin                                           # noqa: E402
 
 
 def _log(msg):
@@ -81,7 +80,7 @@ def main(argv=None):
 
     thumbs = None
     if args.thumbs_dir:
-        from miniaturas import ThumbsError, build_thumbs
+        from bim_pipeline.miniaturas.render import ThumbsError, build_thumbs
         try:
             geradas = build_thumbs(catalog, args.geo_dir, args.thumbs_dir,
                                    vendor_dir=args.vendor_dir, progresso=lap)

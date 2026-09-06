@@ -34,11 +34,11 @@ import sys
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
 RAIZ = os.path.dirname(os.path.dirname(AQUI))
-sys.path.insert(0, os.path.join(RAIZ, 'www', 'apps', 'ingestao', 'pipeline'))   # o oq3d.py do projeto
+sys.path.insert(0, os.path.join(RAIZ, 'biblioteca'))   # o pacote bim_pipeline
 sys.path.insert(0, AQUI)
 
-import oq3d                      # noqa: E402  leitor do projeto, intocado
-import oq3d_writer as w          # noqa: E402
+from bim_pipeline.aq import oq3d   # noqa: E402  leitor do projeto, intocado
+from bim_pipeline.aq import oq3d_writer as w   # noqa: E402
 
 TOL = 1e-9
 falhas = []

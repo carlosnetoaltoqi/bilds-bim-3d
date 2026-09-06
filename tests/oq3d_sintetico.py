@@ -1,8 +1,8 @@
 """Blobs OQ3D sintéticos e mutações controladas, para testar o parser sem .aq."""
 import struct
 
-import oq3d
-import oq3d_writer  # eng-reversa/tools — o writer que gerou o .aq da Akato
+from bim_pipeline.aq import oq3d
+from bim_pipeline.aq import oq3d_writer
 
 # Um triângulo em centímetros, Z-up. Valores distintos por eixo para o teste
 # de conversão (x, y, z) → (x, z, -y) × 0,01 não passar por coincidência.

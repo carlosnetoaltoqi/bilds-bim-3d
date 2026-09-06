@@ -15,9 +15,9 @@ import zipfile
 import pytest
 
 import build
-import miniaturas
-import oq3d
-import read_aq
+from bim_pipeline.miniaturas import render as miniaturas
+from bim_pipeline.aq import oq3d
+from bim_pipeline.aq import read_aq
 from conftest import ROOT, args_build
 from oq3d_sintetico import com_raizes_declaradas, com_versao_malha, triangulo
 

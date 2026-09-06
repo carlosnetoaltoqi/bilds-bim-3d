@@ -64,9 +64,9 @@ def test_stdin_do_filho_fica_aberto_enquanto_o_pai_vive(casos):
 
 
 def _python_vigiado():
-    codigo = ("import sys, time; sys.path.insert(0, sys.argv[1]); from processo import vigiar_stdin; "
+    codigo = ("import sys, time; sys.path.insert(0, sys.argv[1]); from bim_pipeline.processo import vigiar_stdin; "
               "vigiar_stdin(); print('pronto', flush=True); time.sleep(30)")
-    return subprocess.Popen(['python3', '-c', codigo, str(PIPELINE)], stdin=subprocess.PIPE,
+    return subprocess.Popen(['python3', '-c', codigo, str(PIPELINE.parent)], stdin=subprocess.PIPE,
                             stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
 
@@ -97,13 +97,12 @@ def test_thumbs_mjs_para_quando_o_stdin_fecha(tmp_path):
     geos = sorted(str(p.relative_to(geo_dir)) for p in geo_dir.rglob('*.json') if not p.name.endswith('.orig.json')) if geo_dir.is_dir() else []
     if not geos:
         pytest.skip('sem geometria em www/storage/bim/geo')
-    vendor = ROOT / 'templates' / 'vendor'
-    if not (vendor / 'three.module.js').is_file():
-        pytest.skip('templates/vendor sem three.module.js')
+    miniaturas = PIPELINE / 'miniaturas'
+    if not (miniaturas / 'node_modules' / 'three' / 'build' / 'three.module.js').is_file():
+        pytest.skip('pnpm install não foi rodado em biblioteca/bim_pipeline/miniaturas')
     cfg = tmp_path / 'cfg.json'
-    cfg.write_text(json.dumps({'harnessDir': str(PIPELINE), 'vendorDir': str(vendor), 'geoDir': str(geo_dir),
-                               'outDir': str(tmp_path / 'thumbs'), 'geos': geos[:1], 'sairComStdin': True}))
-    p = subprocess.Popen([node, str(PIPELINE / 'thumbs.mjs'), str(cfg)], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+    cfg.write_text(json.dumps({'geoDir': str(geo_dir), 'outDir': str(tmp_path / 'thumbs'), 'geos': geos[:1], 'sairComStdin': True}))
+    p = subprocess.Popen([node, str(miniaturas / 'thumbs.mjs'), str(cfg)], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                          stderr=subprocess.PIPE, text=True, cwd=ROOT)
     out, err = p.communicate(input='', timeout=120)      # fecha o stdin na hora: o "pai" morreu antes do Chromium subir
     assert p.returncode == 2 and 'fechou o stdin' in err, (p.returncode, err[-500:])

@@ -32,10 +32,10 @@ import sys
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
 RAIZ = os.path.dirname(os.path.dirname(AQUI))
-sys.path.insert(0, os.path.join(RAIZ, 'www', 'apps', 'ingestao', 'pipeline'))
+sys.path.insert(0, os.path.join(RAIZ, 'biblioteca'))
 
-import oq3d        # noqa: E402   leitor do projeto, intocado
-import read_aq     # noqa: E402   leitor do projeto, intocado
+from bim_pipeline.aq import oq3d        # noqa: E402   leitor do projeto, intocado
+from bim_pipeline.aq import read_aq     # noqa: E402   leitor do projeto, intocado
 
 falhas = []
 

@@ -22,10 +22,9 @@ import sys
 import pytest
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PIPELINE = os.path.join(RAIZ, 'www', 'apps', 'ingestao', 'pipeline')
-sys.path.insert(0, PIPELINE)
+sys.path.insert(0, os.path.join(RAIZ, 'biblioteca'))
 
-import catallog  # noqa: E402
+from bim_pipeline.catalogo.fontes import plugin_catalogo_web as catallog
 
 DLL_REAL = '/mnt/c/Program Files/Autodesk/ApplicationPlugins/TupyCAD.bundle/TupyCAD.dll'
 
@@ -117,7 +116,7 @@ def test_specs_do_produto():
 @pytest.fixture
 def downloads(tmp_path):
     """Um `manifesto.json` com um IGES real (caixa 20×30×40 mm) num grupo, e um segundo grupo sem IGES."""
-    step_to_geo = pytest.importorskip('step_to_geo')
+    step_to_geo = pytest.importorskip('bim_pipeline.conversores.step_iges')
     if not step_to_geo.HAS_OCP:
         pytest.skip('OCP não instalado')
     from OCP.BRepPrimAPI import BRepPrimAPI_MakeBox

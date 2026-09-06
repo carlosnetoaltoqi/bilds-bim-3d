@@ -57,14 +57,12 @@ import zipfile
 # O pipeline (leitura do .aq, catálogo, miniaturas) mora no serviço de ingestão —
 # www/apps/ingestao/pipeline — desde 2026-09-05 (E2 de docs/arquitetura-www-servico-de-ingestao.md).
 # Este build é um consumidor dele: só o que é do ZIP/preview fica aqui.
-PIPELINE_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                            'www', 'apps', 'ingestao', 'pipeline')
-sys.path.insert(0, PIPELINE_DIR)
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'biblioteca'))
 
-from catalogo import build_catalog_from_aq, resumo_diag, slugify, tokenize          # noqa: E402,F401
-from inferencia import auto_config, find_aq_paths, infer_titulo, peek_aq            # noqa: E402,F401
-from miniaturas import (THUMB_EXT, THUMB_H, THUMB_MIME, THUMB_QUALITY, THUMB_W,    # noqa: E402,F401
-                        ThumbsError, _find_node, _node_versao, build_thumbs)
+from bim_pipeline.catalogo.catalogo import build_catalog_from_aq, resumo_diag, slugify, tokenize     # noqa: E402,F401
+from bim_pipeline.catalogo.inferencia import auto_config, find_aq_paths, infer_titulo, peek_aq       # noqa: E402,F401
+from bim_pipeline.miniaturas.render import (THUMB_EXT, THUMB_H, THUMB_MIME, THUMB_QUALITY, THUMB_W,  # noqa: E402,F401
+                                            ThumbsError, _find_node, _node_versao, build_thumbs)
 
 try:
     from jinja2 import Environment, FileSystemLoader, StrictUndefined

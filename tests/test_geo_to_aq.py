@@ -12,14 +12,14 @@ import re
 import subprocess
 import sys
 
-import oq3d
-import read_aq
+from bim_pipeline.aq import oq3d
+from bim_pipeline.aq import read_aq
 from conftest import PIPELINE, ROOT
 
 
 def test_pipeline_nao_importa_de_fora_do_proprio_diretorio():
     culpados = []
-    for p in sorted(PIPELINE.glob('*.py')):
+    for p in sorted(PIPELINE.rglob('*.py')):
         for n, linha in enumerate(p.read_text(encoding='utf8').splitlines(), 1):
             linha = linha.split('#', 1)[0]      # só o código: comentários podem citar a origem
             if re.match(r'\s*(import|from)\s+\w', linha) and 'eng-reversa' in linha:
@@ -27,7 +27,7 @@ def test_pipeline_nao_importa_de_fora_do_proprio_diretorio():
             if 'sys.path.insert' in linha and ('eng-reversa' in linha or "'..'" in linha):
                 culpados.append(f'{p.name}:{n}: {linha.strip()}')
     assert culpados == [], culpados
-    assert (PIPELINE / 'schema-aq-607.sql').is_file() and (PIPELINE / 'aq_writer.py').is_file() and (PIPELINE / 'oq3d_writer.py').is_file()
+    assert (PIPELINE / 'aq' / 'schema-aq-607.sql').is_file() and (PIPELINE / 'aq' / 'aq_writer.py').is_file() and (PIPELINE / 'aq' / 'oq3d_writer.py').is_file()
 
 
 def test_geo_to_aq_gera_um_aq_que_o_leitor_do_projeto_le(tmp_path):
@@ -37,7 +37,7 @@ def test_geo_to_aq_gera_um_aq_que_o_leitor_do_projeto_le(tmp_path):
            'pos': [0, 0, 0, 0.1, 0, 0, 0, 0.1, 0], 'col': [1, 0, 0] * 3, 'idx': [0, 1, 2]}
     entrada = tmp_path / 'geo.json'; saida = tmp_path / 'peca.aq'
     entrada.write_text(json.dumps(geo), encoding='utf8')
-    proc = subprocess.run([sys.executable, str(PIPELINE / 'geo_to_aq.py'), str(entrada), str(saida), '--quiet'],
+    proc = subprocess.run([sys.executable, '-m', 'bim_pipeline.cli.gerar_aq', str(entrada), str(saida), '--quiet'],
                           capture_output=True, text=True, cwd=ROOT, timeout=120)
     assert proc.returncode == 0, proc.stderr[-2000:]
     resumo = json.loads([l for l in proc.stdout.splitlines() if l.startswith('{')][-1])

@@ -8,7 +8,7 @@
  *   { harnessDir, vendorDir, geoDir, outDir, geos[], width, height, mime, quality, ext, sairComStdin }
  *
  *   harnessDir  pasta com harness.html (este diretório)
- *   vendorDir   pasta com three.module.js (templates/vendor ou node_modules/three/build)
+ *   vendorDir   pasta com three.module.js (opcional: por padrão a build/ do `three` instalado ao lado deste arquivo)
  *   geoDir      pasta com os JSONs de geometria; `geos` são caminhos relativos a ela
  *   outDir      onde escrever <geo-sem-extensão>.<ext>
  *
@@ -31,6 +31,7 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises'
 import { createReadStream, existsSync, statSync } from 'node:fs'
 import { extname, join, resolve, basename, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { createRequire } from 'node:module'
 
 const AQUI = dirname(fileURLToPath(import.meta.url))
 
@@ -68,7 +69,7 @@ function startServer(montagens) {
 const cfg = JSON.parse(await readFile(process.argv[2], 'utf8'))
 const {
   harnessDir = AQUI,
-  vendorDir,
+  vendorDir: vendorDirCfg,
   geoDir,
   outDir,
   geos,
@@ -80,16 +81,23 @@ const {
   sairComStdin = false,
 } = cfg
 
-if (!vendorDir || !existsSync(join(vendorDir, 'three.module.js'))) {
-  console.error(`vendorDir sem three.module.js: ${vendorDir} — rode scripts/setup_vendor.sh ou aponte para node_modules/three/build`)
+// `three/build/three.module.js` não está no `exports` do pacote: resolve-se o pacote e toma-se a pasta.
+// O `three` vem do package.json deste diretório (mesma cena do viewer; a versão exata não afeta o render).
+let vendor = vendorDirCfg ?? process.env.BILDS_THREE_DIR
+if (!vendor) {
+  try { vendor = dirname(createRequire(import.meta.url).resolve('three')) } catch { vendor = undefined }
+}
+if (!vendor || !existsSync(join(vendor, 'three.module.js'))) {
+  console.error(`three.module.js não encontrado (vendorDir=${vendor}) — rode \`pnpm install\` em ${AQUI} ou aponte BILDS_THREE_DIR`)
   process.exit(1)
 }
+const vendorDir = vendor
 
 let chromium
 try {
   ;({ chromium } = await import('playwright'))
 } catch {
-  console.error('playwright ausente — rode: pnpm install (na raiz do repositório)')
+  console.error(`playwright ausente — rode: pnpm install em ${AQUI}`)
   process.exit(1)
 }
 

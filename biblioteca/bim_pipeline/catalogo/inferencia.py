@@ -11,10 +11,8 @@ import re
 import sys
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
-if AQUI not in sys.path:
-    sys.path.insert(0, AQUI)
 
-from catalogo import slugify, tokenize   # noqa: E402
+from bim_pipeline.catalogo.catalogo import slugify, tokenize   # noqa: E402
 
 _AQ_NOISE = {'pecas', 'peca', 'biblioteca', 'lib', 'catalogo', 'catalog',
              'bim', 'ifc', 'altoqi', 'arquivo', 'dados', 'base'}
@@ -102,7 +100,7 @@ def peek_aq(aq_path, nome_original=None):
       3. Prefixo comum das linhas do banco (CLASSE_SIMBOLOGIA_3D.NOME_CLASSE)
       4. Último recurso: o próprio fabricante
     """
-    from read_aq import peek_metadata
+    from bim_pipeline.aq.read_aq import peek_metadata
 
     meta = peek_metadata(aq_path)
     hints = {

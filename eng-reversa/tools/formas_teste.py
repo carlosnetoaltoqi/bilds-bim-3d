@@ -26,12 +26,12 @@ from collections import defaultdict
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
 RAIZ = os.path.dirname(os.path.dirname(AQUI))
-sys.path.insert(0, os.path.join(RAIZ, 'www', 'apps', 'ingestao', 'pipeline'))
+sys.path.insert(0, os.path.join(RAIZ, 'biblioteca'))
 sys.path.insert(0, AQUI)
 
-import oq3d                          # noqa: E402  leitor do projeto
+from bim_pipeline.aq import oq3d     # noqa: E402  leitor do projeto
 import formas                        # noqa: E402
-import oq3d_writer as w              # noqa: E402
+from bim_pipeline.aq import oq3d_writer as w   # noqa: E402
 from gerar_aq import (classificar, dimensoes, diametros_mm,  # noqa: E402
                       comprimento_do_titulo)
 

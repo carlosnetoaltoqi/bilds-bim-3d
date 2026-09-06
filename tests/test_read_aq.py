@@ -4,7 +4,7 @@ import sqlite3
 
 import pytest
 
-import read_aq
+from bim_pipeline.aq import read_aq
 
 
 def test_open_aq_inexistente_nao_cria_arquivo(tmp_path):

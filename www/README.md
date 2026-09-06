@@ -201,7 +201,7 @@ aponta para `geo/<importId>/<stem>.json` e a miniatura para `thumbs/<importId>/<
 | `IMPORTACOES_CONCORRENCIA` (opcional) | Importações simultâneas no serviço (1–8, padrão 1). |
 | `JSON_BODY_LIMIT` (opcional) | Limite do body JSON (`PUT /geometrias`, `POST /exportar/aq`). Padrão `300mb`. |
 | `PYTHON` (opcional) | Interpretador do pipeline. Padrão `python3`; precisa de `numpy`, e de `cadquery-ocp` + `ifcopenshell` para CAD. |
-| `PIPELINE_DIR` (opcional) | Onde está `pipeline/`; só quando o serviço roda fora do repositório. |
+| `BIBLIOTECA_DIR` (opcional) | Onde está `biblioteca/` (o pacote `bim_pipeline` e o `thumbs.mjs`); só quando o serviço roda fora do repositório. |
 | `BILDS_THREE_DIR` (opcional) | Pasta com `three.module.js` para o harness; padrão: o `three` instalado em `apps/ingestao`. |
 
 O pipeline estático (`scripts/build.py`) **não usa nenhuma delas** — lê só o `.aq`.

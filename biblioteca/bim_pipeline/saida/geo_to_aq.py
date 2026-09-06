@@ -39,8 +39,8 @@ da Amanco). A origem fica gravada numa propriedade personalizada "Geometria
 3D", como o `eng-reversa` faz com a forma representativa.
 
 Uso:
-    python3 www/apps/ingestao/pipeline/geo_to_aq.py entrada.json saida.aq
-    python3 www/apps/ingestao/pipeline/geo_to_aq.py entrada.json saida.aq --fabricante Dancor --linha "Bombas" --nome "2831A09"
+    python3 -m bim_pipeline.cli.gerar_aq entrada.json saida.aq
+    python3 -m bim_pipeline.cli.gerar_aq entrada.json saida.aq --fabricante Dancor --linha "Bombas" --nome "2831A09"
     (os argumentos de linha de comando sobrepõem `info` do JSON)
 """
 import argparse
@@ -50,10 +50,9 @@ import sqlite3
 import sys
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, AQUI)
 
-import aq_writer      # noqa: E402  schema 607, constantes do AltoQi, escritor cp1252 (I4: promovido do eng-reversa)
-import oq3d_writer    # noqa: E402  o escritor OQ3D
+from bim_pipeline.aq import aq_writer
+from bim_pipeline.aq import oq3d_writer
 
 SCHEMA_SQL = aq_writer.SCHEMA_SQL
 M_TO_CM = 100.0

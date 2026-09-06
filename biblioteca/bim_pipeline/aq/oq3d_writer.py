@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-oq3d_writer.py — ESCREVE o formato binário OQ3D. O inverso do `www/apps/ingestao/pipeline/oq3d.py`.
+oq3d_writer.py — ESCREVE o formato binário OQ3D. O inverso do `bim_pipeline.aq.oq3d`.
 
-O `www/apps/ingestao/pipeline/oq3d.py` do projeto é um leitor TOLERANTE: varre à procura de
+O `bim_pipeline.aq.oq3d` do projeto é um leitor TOLERANTE: varre à procura de
 `0x5B`/`0x5D` e consome por inteiro apenas os três blocos de tamanho conhecido
 (malha, cor, transform). Todo o resto ele pula. Um escritor não tem essa
 liberdade — o AltoQi Builder vai ler o que gravarmos e ele conhece o formato
@@ -139,7 +139,7 @@ def _transform(xform):
 
     A rotação vai para o arquivo em COLUNAS: o elemento (i, j) mora em
     `r[j*3 + i]`. `xform` chega em linhas, que é a convenção do
-    `www/apps/ingestao/pipeline/oq3d.py` — ele já transpõe na leitura. Gravar sem transpor de
+    `bim_pipeline.aq.oq3d` — ele já transpõe na leitura. Gravar sem transpor de
     volta produz a matriz transposta, e toda instância com rotação não
     simétrica sai do lugar sem mudar a contagem de triângulos, que é
     justamente o bug que passou despercebido até a sessão S5.1.

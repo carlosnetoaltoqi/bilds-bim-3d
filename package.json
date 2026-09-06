@@ -2,7 +2,7 @@
   "name": "bilds-bim-3d-thumbs",
   "private": true,
   "type": "module",
-  "description": "Playwright para as miniaturas (www/apps/ingestao/pipeline/thumbs.mjs). O resto do pipeline é Python.",
+  "description": "Raiz do repositório. As miniaturas têm o próprio package.json em biblioteca/bim_pipeline/miniaturas (Playwright + three); este fica para o Node dos harnesses de teste.",
   "scripts": {
     "postinstall": "playwright install chromium"
   },

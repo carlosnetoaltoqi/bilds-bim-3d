@@ -30,9 +30,9 @@ import sys
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
 RAIZ = os.path.abspath(os.path.join(AQUI, '..', '..', '..'))
-sys.path.insert(0, os.path.join(RAIZ, 'www', 'apps', 'ingestao', 'pipeline'))
+sys.path.insert(0, os.path.join(RAIZ, 'biblioteca'))
 
-import catallog   # noqa: E402
+from bim_pipeline.catalogo.fontes import plugin_catalogo_web as catallog   # noqa: E402
 
 
 def main():

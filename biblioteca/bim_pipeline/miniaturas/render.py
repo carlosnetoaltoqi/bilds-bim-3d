@@ -74,24 +74,16 @@ class ThumbsError(RuntimeError):
 
 def vendor_dir_padrao():
     """
-    Onde está o `three.module.js` que o harness importa.
-
-    Ordem: $BILDS_THREE_DIR > `templates/vendor/` da raiz do repositório
-    (baixado por `scripts/setup_vendor.sh`) > o `three` instalado em `www/apps/web`.
-    O serviço de ingestão passa o dele explicitamente (`node_modules/three/build`).
+    Onde está o `three.module.js` que o harness importa: por padrão a `build/` do `three`
+    instalado por `package.json` deste diretório (o `thumbs.mjs` resolve sozinho quando não
+    recebe `vendorDir`); `$BILDS_THREE_DIR` sobrepõe. Devolve None quando é para o `thumbs.mjs`
+    decidir.
     """
     forcado = os.environ.get('BILDS_THREE_DIR')
     if forcado:
         return forcado
-    raiz = os.path.abspath(os.path.join(AQUI, '..', '..', '..', '..'))
-    candidatos = [
-        os.path.join(raiz, 'templates', 'vendor'),
-        os.path.join(raiz, 'www', 'apps', 'web', 'node_modules', 'three', 'build'),
-    ]
-    for c in candidatos:
-        if os.path.isfile(os.path.join(c, 'three.module.js')):
-            return c
-    return candidatos[0]
+    local = os.path.join(AQUI, 'node_modules', 'three', 'build')
+    return local if os.path.isfile(os.path.join(local, 'three.module.js')) else None
 
 
 def build_thumbs(catalog, geo_dir, thumbs_dir, vendor_dir=None, node_modules_dir=None,
@@ -123,10 +115,10 @@ def build_thumbs(catalog, geo_dir, thumbs_dir, vendor_dir=None, node_modules_dir
         return 0
 
     os.makedirs(thumbs_dir, exist_ok=True)
-    raiz = os.path.abspath(os.path.join(AQUI, '..', '..', '..', '..'))
+    vendor = vendor_dir or vendor_dir_padrao()
     cfg = {
         'harnessDir': AQUI,
-        'vendorDir': os.path.abspath(vendor_dir or vendor_dir_padrao()),
+        **({'vendorDir': os.path.abspath(vendor)} if vendor else {}),
         'geoDir': os.path.abspath(geo_dir),
         'outDir': os.path.abspath(thumbs_dir),
         'geos': geos,
@@ -148,11 +140,13 @@ def build_thumbs(catalog, geo_dir, thumbs_dir, vendor_dir=None, node_modules_dir
               'executável compatível.')
 
     env = dict(os.environ)
-    # o thumbs.mjs faz `import('playwright')`: resolve a partir do CWD / NODE_PATH
-    env['NODE_PATH'] = os.path.join(node_modules_dir or os.path.join(raiz, 'node_modules'))
+    # o thumbs.mjs faz `import('playwright')` e resolve `three` a partir do próprio arquivo
+    # (node_modules deste diretório); `node_modules_dir` só existe para apontar outro lugar via NODE_PATH.
+    if node_modules_dir:
+        env['NODE_PATH'] = node_modules_dir
     ok, erros = {}, []
     try:
-        proc = subprocess.Popen([node, THUMBS_MJS, cfg_path], cwd=os.path.dirname(env['NODE_PATH']),
+        proc = subprocess.Popen([node, THUMBS_MJS, cfg_path], cwd=AQUI,
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env)
         try:
             for linha in proc.stdout:

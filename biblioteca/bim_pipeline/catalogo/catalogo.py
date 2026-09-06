@@ -18,9 +18,9 @@ AQUI = os.path.dirname(os.path.abspath(__file__))
 if AQUI not in __import__('sys').path:
     __import__('sys').path.insert(0, AQUI)
 
-import oq3d                       # noqa: E402
-from dedup import dedup           # noqa: E402
-from read_aq import extract as extract_aq, extract_simbologias   # noqa: E402
+from bim_pipeline.aq import oq3d
+from bim_pipeline.geometria.dedup import dedup           # noqa: E402
+from bim_pipeline.aq.read_aq import extract as extract_aq, extract_simbologias   # noqa: E402
 
 
 def slugify(s):

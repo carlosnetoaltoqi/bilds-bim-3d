@@ -8,8 +8,8 @@ import warnings
 
 import pytest
 
-import oq3d
-import read_aq
+from bim_pipeline.aq import oq3d
+from bim_pipeline.aq import read_aq
 from oq3d_sintetico import (RGBA, TRIS, VERTS_CM, com_n_coord, com_n_idx,
                             com_raizes_declaradas, com_versao_malha,
                             duas_malhas, esperado_triangulo, triangulo,

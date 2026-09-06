@@ -59,9 +59,9 @@ a das malhas do AltoQi (a peça 2831A09 de 152 mm sai com ~7.500 triângulos;
 0,05 mm dobra para ~20.000). Peças com rosca (o adaptador Tupy) passam de 50.000 a 0,2 mm.
 
 Uso:
-    python3 www/apps/ingestao/pipeline/step_to_geo.py peca.stp saida.json [--deflexao 0.2] [--angulo 0.35]
-    python3 www/apps/ingestao/pipeline/step_to_geo.py peca.igs saida.json
-    python3 www/apps/ingestao/pipeline/step_to_geo.py peca.stp --info      # só inspeciona, não grava
+    python3 -m bim_pipeline.cli.step_iges peca.stp saida.json [--deflexao 0.2] [--angulo 0.35]
+    python3 -m bim_pipeline.cli.step_iges peca.igs saida.json
+    python3 -m bim_pipeline.cli.step_iges peca.stp --info      # só inspeciona, não grava
 """
 import argparse
 import json
@@ -98,8 +98,7 @@ try:
 except ImportError:  # pragma: no cover
     HAS_OCP = False
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from dedup import dedup  # noqa: E402  o mesmo dedup float32 do pipeline
+from bim_pipeline.geometria.dedup import dedup  # noqa: E402  o mesmo dedup float32 do pipeline
 
 MM_TO_M = 0.001
 COR_PADRAO = (0.533, 0.588, 0.667)      # o cinza do viewer para malha sem cor

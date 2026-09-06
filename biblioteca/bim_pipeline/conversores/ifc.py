@@ -49,9 +49,8 @@ import sys
 import time
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, AQUI)
-import parse_ifc            # noqa: E402  o parser do projeto, intocado
-from dedup import dedup     # noqa: E402
+from bim_pipeline.conversores import parse_ifc
+from bim_pipeline.geometria.dedup import dedup     # noqa: E402
 
 LIMIAR_MB = 20
 COR_PADRAO = (0.533, 0.588, 0.667)

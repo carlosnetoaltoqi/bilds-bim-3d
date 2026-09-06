@@ -40,8 +40,8 @@ import sys, json
 from collections import defaultdict
 import numpy as np
 ifc, esperado = sys.argv[1], sys.argv[2]
-sys.path.insert(0, 'www/apps/ingestao/pipeline')   # parse_ifc.py mora no pipeline do serviço desde a E2
-import parse_ifc
+sys.path.insert(0, 'biblioteca')   # o pacote bim_pipeline (S8/F1)
+from bim_pipeline.conversores import parse_ifc
 res = parse_ifc.parse_ifc_file(ifc); exp = json.load(open(esperado))
 falhas = 0
 def check(ok, msg):

@@ -3,7 +3,7 @@
 parse_ifc.py — Extrai geometria de arquivos IFC4 e gera JSONs { pos, col, idx }.
 
 Uso direto:
-  python3 www/apps/ingestao/pipeline/parse_ifc.py <ifc_file> <output_dir> [--slug <slug>]
+  python3 -m bim_pipeline.cli.parse_ifc <ifc_file> <output_dir> [--slug <slug>]
 
 Uso via build.py (recomendado):
   build.py lê file_map do config.json e chama parse_one() para cada arquivo.

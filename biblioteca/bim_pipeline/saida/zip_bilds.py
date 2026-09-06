@@ -20,11 +20,10 @@ import tempfile
 import zipfile
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, AQUI)
 
-from catalogo import build_catalog_from_aq  # noqa: E402
-from inferencia import auto_config           # noqa: E402
-from miniaturas import ThumbsError, build_thumbs  # noqa: E402
+from bim_pipeline.catalogo.catalogo import build_catalog_from_aq  # noqa: E402
+from bim_pipeline.catalogo.inferencia import auto_config           # noqa: E402
+from bim_pipeline.miniaturas.render import ThumbsError, build_thumbs  # noqa: E402
 
 
 def build_zip_bilds(catalog, zip_path, geo_dir, thumbs_dir=None):

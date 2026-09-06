@@ -56,14 +56,14 @@ import unicodedata
 AQUI = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, AQUI)
 RAIZ = os.path.abspath(os.path.join(AQUI, '..', '..'))
-sys.path.insert(0, os.path.join(RAIZ, 'www', 'apps', 'ingestao', 'pipeline'))
+sys.path.insert(0, os.path.join(RAIZ, 'biblioteca'))
 
-import oq3d_writer  # noqa: E402  o escritor OQ3D (no pipeline do serviço desde I4)
+from bim_pipeline.aq import oq3d_writer  # noqa: E402  o escritor OQ3D (na biblioteca desde I4)
 
 # O genérico (constantes do AltoQi, schema, escritor cp1252) mora no pipeline do serviço de
 # ingestão desde 2026-09-05 (I4): www/apps/ingestao/pipeline/aq_writer.py. Aqui fica só o que é da Akato.
-from aq_writer import *   # noqa: E402,F401,F403
-from aq_writer import EscritorAq, SCHEMA_SQL   # noqa: E402
+from bim_pipeline.aq.aq_writer import *   # noqa: E402,F401,F403
+from bim_pipeline.aq.aq_writer import EscritorAq, SCHEMA_SQL   # noqa: E402
 
 FABRICANTE = 'Akato'
 TABELA_REFERENCIA = 'Akato — Catálogo Construção Civil, versão 01.2026'
@@ -615,7 +615,7 @@ class Gerador(EscritorAq):
         `DIAMETRO_PECA` e `COMPRIMENTO_PECA`. Isto existe para exercitar o
         `oq3d_writer.py` dentro de um `.aq` de verdade.
         """
-        import oq3d_writer as w
+        from bim_pipeline.aq import oq3d_writer as w
 
         # `CLASSE_SIMBOLOGIA_3D.NOME_CLASSE` tem de seguir o padrão
         # "FABRICANTE - Linha de Produto": é o primeiro passo da cascata de

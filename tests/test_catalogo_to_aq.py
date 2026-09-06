@@ -15,12 +15,12 @@ import sys
 
 import pytest
 
-import catalogo
-import oq3d
-import read_aq
+from bim_pipeline.catalogo import catalogo
+from bim_pipeline.aq import oq3d
+from bim_pipeline.aq import read_aq
 from conftest import PIPELINE, ROOT
 
-SCRIPT = PIPELINE / 'catalogo_to_aq.py'
+SCRIPT = ['-m', 'bim_pipeline.cli.catalogo_para_aq']
 
 
 def _geo(dx, cores):
@@ -38,7 +38,7 @@ def _geo(dx, cores):
 def _rodar(manifesto, saida, *flags):
     entrada = saida.parent / 'manifesto.json'
     entrada.write_text(json.dumps(manifesto, ensure_ascii=False), encoding='utf8')
-    return subprocess.run([sys.executable, str(SCRIPT), str(entrada), str(saida), *flags],
+    return subprocess.run([sys.executable, *SCRIPT, str(entrada), str(saida), *flags],
                           capture_output=True, text=True, cwd=ROOT, timeout=600)
 
 

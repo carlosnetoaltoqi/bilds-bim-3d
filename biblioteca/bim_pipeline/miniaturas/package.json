@@ -1,0 +1,13 @@
+{
+  "name": "bim-pipeline-miniaturas",
+  "private": true,
+  "type": "module",
+  "description": "Dependências Node do harness de miniaturas da biblioteca (thumbs.mjs): Playwright (Chromium) e three. Instale com `pnpm install` neste diretório (o bootstrap faz).",
+  "scripts": {
+    "postinstall": "playwright install chromium"
+  },
+  "dependencies": {
+    "playwright": "1.62.1",
+    "three": "^0.185.1"
+  }
+}

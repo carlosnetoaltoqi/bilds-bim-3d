@@ -19,10 +19,9 @@ import sys
 import pytest
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PIPELINE = os.path.join(RAIZ, 'www', 'apps', 'ingestao', 'pipeline')
-sys.path.insert(0, PIPELINE)
+sys.path.insert(0, os.path.join(RAIZ, 'biblioteca'))
 
-step_to_geo = pytest.importorskip('step_to_geo')
+step_to_geo = pytest.importorskip('bim_pipeline.conversores.step_iges')
 if not step_to_geo.HAS_OCP:
     pytest.skip('OCP (cadquery-ocp) não instalado', allow_module_level=True)
 
@@ -98,7 +97,7 @@ def test_step_da_mesma_caixa_nao_costura(caixa):
 
 def test_cli_iges(caixa, tmp_path):
     saida = tmp_path / 'caixa.json'
-    r = subprocess.run([sys.executable, os.path.join(PIPELINE, 'step_to_geo.py'), caixa['igs'], str(saida)],
+    r = subprocess.run([sys.executable, '-m', 'bim_pipeline.cli.step_iges', caixa['igs'], str(saida)],
                        capture_output=True, text=True)
     assert r.returncode == 0, r.stderr
     assert 'IGES em MM' in r.stdout and 'costurado' in r.stdout

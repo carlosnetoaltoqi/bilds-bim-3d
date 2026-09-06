@@ -61,7 +61,6 @@ import urllib.parse
 import urllib.request
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, AQUI)
 
 UA = 'Mozilla/5.0 (bilds-bim-3d; www/apps/ingestao/pipeline/catallog.py)'
 CAMPOS_LEAD = ('full_name', 'email', 'mobile', 'company', 'position')
@@ -435,9 +434,9 @@ def catalogo_de_downloads(downloads, geo_dir, deflexao=0.2, forcar=False, progre
     Tessela cada IGES do `manifesto.json` (uma geometria por peça em `geo_dir/<codigo>.json`) e monta
     o catálogo. Lê o `PartAtom` dos `.rfa` quando o `olefile` está instalado (senão, avisa e segue).
     """
-    import step_to_geo
+    from bim_pipeline.conversores import step_iges as step_to_geo
     try:
-        import rfa_partatom
+        from bim_pipeline.conversores import rfa_partatom
     except ImportError:
         rfa_partatom = None
 
@@ -584,7 +583,7 @@ def main():
         return
 
     if args.sair_com_stdin:
-        from processo import vigiar_stdin
+        from bim_pipeline.processo import vigiar_stdin
         vigiar_stdin()
     with open(args.lead, encoding='utf-8') as f:
         lead = json.load(f)

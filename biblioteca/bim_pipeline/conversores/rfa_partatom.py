@@ -20,7 +20,7 @@ Saída: um JSON ao lado do `.rfa` (`<nome>.partatom.json`) e o PNG (`<nome>.prev
 ou no diretório de `--saida`. Requer `olefile` (`pip install --user --break-system-packages olefile`).
 
 Uso:
-    python3 www/apps/ingestao/pipeline/rfa_partatom.py familia.rfa [outra.rfa …] [--saida DIR]
+    python3 -m bim_pipeline.cli.rfa_partatom familia.rfa [outra.rfa …] [--saida DIR]
 """
 import argparse
 import json

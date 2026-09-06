@@ -13,7 +13,7 @@ import zipfile
 
 import pytest
 
-import zip_bilds
+from bim_pipeline.saida import zip_bilds
 
 
 # ─── helpers ─────────────────────────────────────────────────────────────────
@@ -149,10 +149,9 @@ def test_cli_akato(tmp_path):
     """CLI com a Akato real: ZIP tem os arquivos obrigatórios e o manifest é válido."""
     saida = str(tmp_path / 'saida.zip')
     r = subprocess.run(
-        [sys.executable, 'zip_bilds.py', os.path.abspath(AQ_AKATO),
+        [sys.executable, '-m', 'bim_pipeline.cli.zip_bilds', os.path.abspath(AQ_AKATO),
          '--saida', saida, '--skip-thumbs'],
         capture_output=True, text=True,
-        cwd=os.path.join(os.path.dirname(__file__), '..', 'www', 'apps', 'ingestao', 'pipeline'),
     )
     assert r.returncode == 0, r.stderr
     assert os.path.exists(saida)

@@ -1,7 +1,5 @@
-# Pipeline padrão (scripts/build.py lendo o .aq). Só isto:
+# A biblioteca comum (pacote bim_pipeline, em biblioteca/) instalada em modo editável, mais o que o
+# build estático ainda precisa (jinja2 — sai com o preview, S8/F1). Testes: requirements-dev.txt.
+# STEP/IGES/IFC/PDF/RFA: requirements-cad.txt (ou `pip install -e 'biblioteca[cad]'`).
+-e ./biblioteca
 jinja2>=3.1,<4
-numpy>=1.24,<3
-
-# Testes: requirements-dev.txt.  STEP/IFC B-rep/PDF: requirements-cad.txt.
-# (Até 2026-09-04 este arquivo puxava ifcopenshell por padrão — 200 MB para um modo
-#  que quase ninguém usa; I5 da auditoria.)

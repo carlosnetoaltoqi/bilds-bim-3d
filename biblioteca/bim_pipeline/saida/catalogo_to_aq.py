@@ -67,7 +67,7 @@ JSON com o resumo: `{pecas, grupos, simbologias, triangulos, propriedades, valor
 bytes, segundos}`.
 
 Uso:
-    python3 www/apps/ingestao/pipeline/catalogo_to_aq.py manifesto.json saida.aq [--quiet] [--manter-prefixo-serie]
+    python3 -m bim_pipeline.cli.catalogo_para_aq manifesto.json saida.aq [--quiet] [--manter-prefixo-serie]
 """
 import argparse
 import contextlib
@@ -81,10 +81,9 @@ import time
 import numpy as np
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, AQUI)
 
-import aq_writer      # noqa: E402
-import oq3d_writer    # noqa: E402
+from bim_pipeline.aq import aq_writer
+from bim_pipeline.aq import oq3d_writer
 
 M_TO_CM = 100.0
 COR_PADRAO = (0.533, 0.588, 0.667)

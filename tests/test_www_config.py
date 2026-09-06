@@ -78,7 +78,7 @@ def test_cada_servico_escuta_na_porta_do_env():
 
 def test_pipeline_dir_resolvido_so_no_pipeline_service():
     culpados = [str(p.relative_to(ROOT)) for p in _fontes(INGESTAO_SRC)
-                if p.name != 'pipeline.service.ts' and 'PIPELINE_DIR' in p.read_text(encoding='utf8')]
+                if p.name != 'pipeline.service.ts' and 'BIBLIOTECA_DIR' in p.read_text(encoding='utf8')]
     assert culpados == [], culpados
     svc = (INGESTAO_SRC / 'pipeline' / 'pipeline.service.ts').read_text(encoding='utf8')
     assert 'process.env.PYTHON' in svc and "'--sair-com-stdin'" in svc and 'sairComStdin: true' in svc

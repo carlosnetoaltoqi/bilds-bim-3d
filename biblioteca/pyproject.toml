@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bim-pipeline"
+version = "1.0.0"
+description = "Biblioteca comum do bilds-bim-3d: leitura e escrita de .aq/OQ3D, geometria, catálogo, miniaturas, conversores CAD e saídas (ZIP bilds.com, .aq). Stateless."
+requires-python = ">=3.12"
+dependencies = ["numpy>=1.26"]
+
+[project.optional-dependencies]
+cad = ["cadquery-ocp>=7.7", "ifcopenshell>=0.8", "pypdf>=4", "olefile>=0.47"]
+dev = ["pytest>=8"]
+
+[tool.setuptools.packages.find]
+include = ["bim_pipeline*"]
+
+[tool.setuptools.package-data]
+"bim_pipeline.aq" = ["*.sql"]
+"bim_pipeline.miniaturas" = ["*.mjs", "*.html", "package.json"]

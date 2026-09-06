@@ -29,9 +29,13 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
-PIPELINE = ROOT / 'www' / 'apps' / 'ingestao' / 'pipeline'   # read_aq, oq3d, dedup, catalogo… (E2, 2026-09-05)
+BIBLIOTECA = ROOT / 'biblioteca'                 # o pacote `bim_pipeline` (S8/F1, 2026-09-06)
+PIPELINE = BIBLIOTECA / 'bim_pipeline'           # a pasta do pacote (para os testes que olham os arquivos)
+# A biblioteca é instalável (`pip install -e biblioteca`); aqui garantimos que a suíte e os
+# subprocessos `python -m bim_pipeline.cli.*` a achem mesmo sem instalar.
+sys.path.insert(0, str(BIBLIOTECA))
+os.environ['PYTHONPATH'] = str(BIBLIOTECA) + (os.pathsep + os.environ['PYTHONPATH'] if os.environ.get('PYTHONPATH') else '')
 sys.path.insert(0, str(ROOT / 'scripts'))
-sys.path.insert(0, str(PIPELINE))
 sys.path.insert(0, str(ROOT / 'eng-reversa' / 'tools'))
 
 AKATO_AQ = ROOT / 'input' / 'Akato' / 'PVC Construção Civil' / 'pecas_akato_construcao_civil.aq'
