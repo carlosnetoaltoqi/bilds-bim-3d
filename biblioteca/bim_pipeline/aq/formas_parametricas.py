@@ -58,9 +58,9 @@ PAREDE_NBR = {
     'ESGOTO':      {40: 1.5, 50: 1.7, 75: 1.7, 100: 2.1, 150: 3.2, 200: 4.6},
 }
 
-# Polegada → milímetro que NÃO está na tabela de conversão da Akato (página 23
+# Polegada → milímetro que NÃO costuma estar na tabela de conversão de um catálogo comercial (a do
 # do catálogo). O 3/8" e o 7/8" aparecem só na linha de polietileno e nas
-# válvulas de pia, e a tabela da Akato não os cobre.
+# válvulas de pia, e a tabela do catálogo estudado não os cobria.
 POLEGADA_EXTRA = {'3/8': 17, '7/8': 22}
 
 # Cores. As de PVC seguem o que o catálogo afirma — marrom no soldável

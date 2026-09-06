@@ -151,7 +151,7 @@ try {
     }
     const stem = geo.replace(/\.json$/i, '')
     // Segmentos são encodados um a um: há pastas com espaço e vírgula
-    // ("Amanco/PVC Esgoto SN, SR e Silentium") e a barra não pode ser escapada.
+    // ("Fabricante/PVC Esgoto SN, SR e Silentium") e a barra não pode ser escapada.
     const geoUrl = '/geo/' + geo.split(/[\\/]/).map(encodeURIComponent).join('/')
     try {
       const dataUrl = await page.evaluate(

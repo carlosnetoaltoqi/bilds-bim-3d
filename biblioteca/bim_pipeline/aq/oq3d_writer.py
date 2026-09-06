@@ -9,7 +9,7 @@ liberdade — o AltoQi Builder vai ler o que gravarmos e ele conhece o formato
 inteiro. Então aqui **nada é inventado**: a moldura é copiada byte a byte de uma
 subárvore real, com buracos só onde estão os dados que controlamos.
 
-O gabarito veio da `SIMBOLOGIA_3D` 169 da biblioteca Amanco (`DN150 -
+O gabarito veio de uma `SIMBOLOGIA_3D` real de uma biblioteca de conexões (`DN150 -
 QUADRADA`, schema 595), a menor malha das 12 bibliotecas disponíveis, e o seu
 primeiro objeto-raiz é justamente a forma canônica: uma instância com a
 definição embutida, uma malha, uma cor e os dois transforms.
@@ -26,7 +26,7 @@ Cabeçalho, 37 bytes, idêntico nas 12 bibliotecas e nas 6 versões de schema
     u32 0
 
 O campo `N` foi confirmado contra o parser em 22 das 24 amostras medidas; nas
-duas que divergem (`Intelbras Cont_Acesso` e `PPCI`) o parser conta dois nós a
+duas que divergem (bibliotecas de controle de acesso e de incêndio de um mesmo fabricante) o parser conta dois nós a
 mais, e a diferença é do leitor tolerante — um `0x5D` dentro de um double
 desempilha um nível e promove dois nós filhos a raiz —, não do campo.
 
@@ -54,7 +54,7 @@ Emite uma malha por objeto-raiz, sempre com a definição embutida
 (discriminador `0x02`). Não gera `TQi3DReusedObject` por referência
 (discriminador `0x01`), que é como o AltoQi economiza espaço quando a mesma
 malha aparece muitas vezes, nem `TQi3DObjectGroup`. Para N malhas saem N
-raízes — exatamente o que a Amanco faz na `SIMBOLOGIA_3D` 169, que tem 3
+raízes — exatamente o que o Builder faz na simbologia-gabarito, que tem 3
 malhas em 3 raízes.
 
 UNIDADES

@@ -4,7 +4,7 @@ rfa_partatom.py — o que dá para tirar de uma família Revit (`.rfa`) SEM o Re
 
 O `.rfa` é um documento OLE2 (a mesma casca do .doc antigo). A geometria fica em
 `Partitions/<n>`, num formato binário proprietário da Autodesk que ninguém fora do Revit lê —
-por isso a geometria 3D das peças Tupy vem do IGES, não daqui. Quem usa: `catallog.py` (spec
+por isso a geometria 3D das peças vem do IGES, não daqui. Quem usa: `plugin_catalogo_web.py` (spec
 "Tipos Revit" de cada peça) e `docs/conhecimento/plugin-cad-catalogo-web.md`. O que É legível:
 
     PartAtom          XML Atom (`urn:schemas-autodesk-com:partatom`) com o título da família, a
@@ -49,7 +49,7 @@ def _limpo(tag):
 
 
 def _parametros(el):
-    """Elementos-filho arbitrários (`<Fabricante type=…>TUPY S.A.</Fabricante>`) → {nome: valor}."""
+    """Elementos-filho arbitrários (`<Fabricante type=…>FABRICANTE S.A.</Fabricante>`) → {nome: valor}."""
     out = {}
     for ch in el:
         nome = _limpo(ch.tag)

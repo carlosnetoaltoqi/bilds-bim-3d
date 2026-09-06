@@ -4,7 +4,7 @@ catalogo_de_aq.py — a linha de comando do pipeline: um `.aq` (ou `.zip` com o
 SQLite dentro) vira JSONs de geometria em `--geo-dir` e um catálogo em JSON.
 
     python3 catalogo_de_aq.py <biblioteca.aq> --geo-dir <dir> --saida <catalogo.json>
-                              [--nome-original pecas_dancor.aq] [--thumbs-dir <dir>]
+                              [--nome-original pecas_fabricante.aq] [--thumbs-dir <dir>]
                               [--vendor-dir <dir>] [--sair-com-stdin]
 
 É o que o serviço de ingestão (`apps/ingestao`) executa como processo filho para

@@ -13,7 +13,7 @@ arquivo como download e o apaga.
 ENTRADA (JSON, o "manifesto"):
 
     {
-      "catalogo": { "fabricante": "Amanco", "titulo": "Esgoto SN SR Silentium", "slug": "…",
+      "catalogo": { "fabricante": "Fabricante", "titulo": "Esgoto SN SR Silentium", "slug": "…",
                     "descricao": "…", "origem": "texto livre gravado em ITEM.TABELA_REFERENCIA" },
       "geo_dir": "/abs/storage",                  # base dos `geo` relativos (opcional)
       "produtos": [
@@ -27,13 +27,13 @@ O QUE O ARQUIVO GERADO TEM — e de onde vem cada coisa:
 
   CLASSE_PECA          uma, "Fabricante - Título"                    (catalogo)
   GRUPO_PECA           uma por `serie`, na ordem em que aparece; códigos IFC e tipo de aplicação
-                       por `aq_writer.classificar_grupo(serie)` (189/192 grupos da Amanco);
+                       por `aq_writer.classificar_grupo(serie)` (189 de 192 grupos numa biblioteca real);
                        `PROJETO_APLICACAO` por `aplicacao_de(título, séries)`; um grupo com
                        produto de curva Q-H vira bomba (2075)
   PECA                 uma por produto. NOME_PECA é o nome da tela SEM o prefixo da série que o
                        `catalogo.py` acrescenta quando o nome sozinho é ambíguo ('Cap 75mm' →
-                       '75mm', como a Amanco grava) — `--manter-prefixo-serie` desliga isso.
-                       Colunas como a Amanco grava numa peça com 3D (POSICIONAR_SIMBOLOGIA_3D=3,
+                       '75mm', como o Builder grava) — `--manter-prefixo-serie` desliga isso.
+                       Colunas como o Builder grava numa peça com 3D (POSICIONAR_SIMBOLOGIA_3D=3,
                        INDICE_SIMBOLO3D_SELECIONADO=1, dimensões na sentinela -DBL_MAX)
   DADOS_HIDRAULICOS    uma por peça (TIPO_CURVA=2; com curva, aponta para o MODELO_BOMBA)
   MODELO_BOMBA +
@@ -51,11 +51,11 @@ O QUE O ARQUIVO GERADO TEM — e de onde vem cada coisa:
                        tem uma raiz por cor (o OQ3D só tem cor por malha): metros Y-up →
                        centímetros Z-up, `(x·100, −z·100, y·100)`
   PROPRIEDADE_PERSONALIZADA
-                       UMA POR CHAVE DE SPEC distinta (12 na Amanco), num grupo "Fabricante:
+                       UMA POR CHAVE DE SPEC distinta (uma dúzia numa biblioteca real), num grupo "Fabricante:
                        Título"; VALOR_PROPRIEDADE_PERSONALIZADA por (produto, chave) não vazia
 
 O QUE FICA DE FORA, porque o catálogo não tem de onde tirar: as peças sem simbologia 3D do
-`.aq` original (tubos e kits — 312 das 1.168 da Amanco), `ENTRADA_PECA`/`ENTRADA_3D` (bocais e
+`.aq` original (tubos e kits — cerca de um quarto das peças numa biblioteca de conexões), `ENTRADA_PECA`/`ENTRADA_3D` (bocais e
 conectividade), simbologia 2D, `IMAGEM`/`WIREFRAME`, os códigos comerciais originais.
 
 ERROS — tudo acusa, nada é engolido: geometria ausente no storage, JSON de geometria inválido,
@@ -127,7 +127,7 @@ def nome_da_peca(nome, serie, manter_prefixo=False):
     """
     Desfaz o prefixo de série que o `catalogo.py` acrescenta ao nome exibido quando o nome da
     peça sozinho é curto ou se repete entre grupos ('50mm' aparece em Cap, Luva, Joelho…):
-    'Cap 50mm' com série 'Cap' volta a '50mm', que é como a Amanco grava `NOME_PECA`.
+    'Cap 50mm' com série 'Cap' volta a '50mm', que é como o Builder grava `NOME_PECA`.
     Se o que sobra é vazio, ou `manter_prefixo`, fica o nome da tela.
     """
     n = (nome or '').strip()

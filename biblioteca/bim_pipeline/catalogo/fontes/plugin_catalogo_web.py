@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-catallog.py — de um plugin de AutoCAD da plataforma Catallog (Collabo) a um catálogo do
+plugin_catalogo_web.py — de um plugin de AutoCAD que é casca de um catálogo web a um catálogo do
 bilds-bim-3d: descobre o catálogo web que o plugin abre, baixa os arquivos 3D de uma categoria
 (IGES) e os metadados dos produtos, tessela e devolve o catálogo no MESMO JSON que o
 `catalogo_de_aq.py` devolve — para o serviço de ingestão publicar como publica uma biblioteca.
 
 COMO O PLUGIN FUNCIONA (`docs/conhecimento/plugin-cad-catalogo-web.md`,
-S7.17, com o TupyCAD 2.0.0): a DLL .NET (35 KB) é uma casca — abre uma paleta com a página web
-do catálogo (`PLUGIN_HOST`, ex. https://tupycad.catallog.digital) e expõe três callbacks
+S7.17, com um plugin real): a DLL .NET (dezenas de KB) é uma casca — abre uma paleta com a página web
+do catálogo (`PLUGIN_HOST`, o host que está gravado nas strings da DLL) e expõe três callbacks
 JavaScript (`InsertBlockFromURL`, `RequestDownload`, `GetPluginVersion`). A geometria NÃO está
 na DLL; está no catálogo web, um arquivo por produto, e a API é pública:
 
@@ -43,8 +43,8 @@ com um `manifesto.json` (grupo, produto, tipo, tamanho, SHA-256, URL) — o impo
 sobre ele. Progresso no stderr; erros acusam e saem com 1.
 
 Uso:
-    python3 catallog.py inspecionar TupyCAD.dll                # host, título, categorias → stdout JSON
-    python3 catallog.py importar --host https://… --categoria tupygrooved-173 --lead lead.json \
+    python3 -m bim_pipeline.cli.plugin_catalogo_web inspecionar Plugin.dll     # host, título, categorias → stdout JSON
+    python3 -m bim_pipeline.cli.plugin_catalogo_web importar --host https://… --categoria <slug> --lead lead.json \
         --downloads DIR --geo-dir DIR --saida catalogo.json [--igs-por-grupo 1] [--dxf] [--deflexao 0.2] \
         [--limite N] [--sair-com-stdin]
 """
@@ -62,15 +62,19 @@ import urllib.request
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
 
-UA = 'Mozilla/5.0 (bilds-bim-3d; www/apps/ingestao/pipeline/catallog.py)'
+# Domínios das plataformas de catálogo web já vistas em plugins (heurística para escolher o host
+# quando a DLL traz mais de uma URL). Plataforma ≠ fabricante: é o protocolo que este módulo fala.
+PLATAFORMAS_CONHECIDAS = r'catallog|collabo'
+
+UA = 'Mozilla/5.0 (bilds-bim-3d; bim_pipeline.catalogo.fontes.plugin_catalogo_web)'
 CAMPOS_LEAD = ('full_name', 'email', 'mobile', 'company', 'position')
 PAUSA_S = 1.0
 RE_URL = re.compile(r'https?://[A-Za-z0-9.-]+(?::\d+)?(?:/[^\s"\'<>]*)?')
 
 
-class CatallogError(SystemExit):
+class CatalogoWebError(SystemExit):
     def __init__(self, msg):
-        super().__init__(f'catallog: {msg}')
+        super().__init__(f'plugin_catalogo_web: {msg}')
 
 
 def avisar(msg):
@@ -92,7 +96,7 @@ def inspecionar_dll(caminho):
     with open(caminho, 'rb') as f:
         data = f.read()
     if data[:2] != b'MZ':
-        raise CatallogError(f'{os.path.basename(caminho)} não é um executável Windows (PE) — envie a DLL do plugin')
+        raise CatalogoWebError(f'{os.path.basename(caminho)} não é um executável Windows (PE) — envie a DLL do plugin')
     lits = strings_utf16(data)
     urls = [u for s in lits for u in RE_URL.findall(s)]
     hosts = []
@@ -102,8 +106,8 @@ def inspecionar_dll(caminho):
         if h not in hosts:
             hosts.append(h)
     if not hosts:
-        raise CatallogError(f'{os.path.basename(caminho)}: nenhuma URL nas strings — não é um plugin Catallog/Collabo?')
-    preferidos = [h for h in hosts if re.search(r'catallog|collabo', h, re.I)]
+        raise CatalogoWebError(f'{os.path.basename(caminho)}: nenhuma URL nas strings — não é um plugin que abre um catálogo web?')
+    preferidos = [h for h in hosts if re.search(PLATAFORMAS_CONHECIDAS, h, re.I)]
     host = (preferidos or hosts)[0]
 
     def depois_de(marca):
@@ -126,7 +130,7 @@ def inspecionar_dll(caminho):
 
 # ─── A API do catálogo ────────────────────────────────────────────────────────
 
-class Catallog:
+class CatalogoWeb:
     def __init__(self, host, pausa=PAUSA_S, ua=UA):
         self.host = host.rstrip('/')
         self.pausa = pausa
@@ -144,10 +148,10 @@ class Catallog:
                     return r.status, r.read(), dict(r.headers)
             except urllib.error.HTTPError as e:
                 if e.code < 500 or i == tent - 1:
-                    raise CatallogError(f'HTTP {e.code} em {url}: {e.read()[:300]!r}')
+                    raise CatalogoWebError(f'HTTP {e.code} em {url}: {e.read()[:300]!r}')
             except (urllib.error.URLError, TimeoutError) as e:
                 if i == tent - 1:
-                    raise CatallogError(f'falha de rede em {url}: {e}')
+                    raise CatalogoWebError(f'falha de rede em {url}: {e}')
             time.sleep(2 * (i + 1))
 
     def get_json(self, path, **q):
@@ -156,7 +160,7 @@ class Catallog:
         try:
             return json.loads(raw)
         except ValueError:
-            raise CatallogError(f'{url} não devolveu JSON (é um catálogo Catallog?)')
+            raise CatalogoWebError(f'{url} não devolveu JSON (é um catálogo web desta plataforma?)')
 
     def settings(self):
         return self.get_json('/api/marketplace/v1/settings/', _lang='pt')
@@ -200,24 +204,24 @@ class Catallog:
         resp = json.loads(raw)
         url = resp.get('url') if isinstance(resp, dict) else None
         if not url:
-            raise CatallogError(f'o formulário não devolveu a url para {recurso.get("title")!r}: {raw[:300]!r}')
+            raise CatalogoWebError(f'o formulário não devolveu a url para {recurso.get("title")!r}: {raw[:300]!r}')
         return url if url.startswith('http') else self.host + url
 
     def baixar(self, url, esperado=None):
         _, raw, hdr = self._req(url)
         if not raw:
-            raise CatallogError(f'arquivo vazio: {url}')
+            raise CatalogoWebError(f'arquivo vazio: {url}')
         if esperado and len(raw) != esperado:
-            raise CatallogError(f'{url.rsplit("/", 1)[-1]}: {len(raw)} bytes, o catálogo declara {esperado}')
+            raise CatalogoWebError(f'{url.rsplit("/", 1)[-1]}: {len(raw)} bytes, o catálogo declara {esperado}')
         return raw, hdr.get('Content-Type', '')
 
 
 def validar_lead(lead):
     faltam = [k for k in CAMPOS_LEAD if not str((lead or {}).get(k) or '').strip()]
     if faltam:
-        raise CatallogError(f'dados do formulário de download incompletos — faltam {faltam}')
+        raise CatalogoWebError(f'dados do formulário de download incompletos — faltam {faltam}')
     if '@' not in lead['email']:
-        raise CatallogError('e-mail do formulário inválido')
+        raise CatalogoWebError('e-mail do formulário inválido')
     return {k: str(lead[k]).strip() for k in CAMPOS_LEAD}
 
 
@@ -232,7 +236,7 @@ def planejar(cli, categoria, igs_por_grupo=1, dxf=False, progresso=avisar):
     """Grupos da categoria (com detalhe) e o plano `[(grupo, produto|None, recurso)]`."""
     grupos = cli.grupos(categoria)
     if not grupos:
-        raise CatallogError(f'categoria {categoria!r} sem grupos em {cli.host}')
+        raise CatalogoWebError(f'categoria {categoria!r} sem grupos em {cli.host}')
     progresso(f'{categoria}: {len(grupos)} grupo(s) em {cli.host}')
     plano = []
     for gi, g in enumerate(grupos, start=1):
@@ -329,7 +333,7 @@ def secoes_details(details):
 
 def tabela(html_tabela):
     """
-    `(colunas, dados)` de uma tabela HTML. O cabeçalho da Tupy tem DUAS linhas com `colspan`/`rowspan`
+    `(colunas, dados)` de uma tabela HTML. O cabeçalho observado tem DUAS linhas com `colspan`/`rowspan`
     ("Diâmetro nominal" colspan=2 sobre "Polegada" e "mm"; "Dimensões em mm" sobre "L"; "Peso em g"
     rowspan=2) — as colunas-folha saem da expansão: célula que atravessa todas as linhas do cabeçalho
     é uma coluna; as outras cedem lugar às `colspan` células da linha de baixo. Uma só linha de
@@ -497,7 +501,7 @@ def catalogo_de_downloads(downloads, geo_dir, deflexao=0.2, forcar=False, progre
     if sem:
         avisos.append(f"{len(sem)} grupo(s) sem IGES ficaram fora: {', '.join(sem)}")
     marca = next((p.get('brand', {}).get('name') for a in man['arquivos'] for p in [a.get('produto_detalhe') or {}] if p.get('brand')), None)
-    fabricante = fabricante or marca or 'Catallog'
+    fabricante = fabricante or marca or 'Fabricante'
     cat_nome = None
     for g in grupos.values():
         h = (g.get('hierarchy') or [[]])[0]
@@ -520,7 +524,7 @@ def catalogo_de_downloads(downloads, geo_dir, deflexao=0.2, forcar=False, progre
 
 def importar(host, categoria, lead, downloads, geo_dir, igs_por_grupo=1, dxf=False, deflexao=0.2,
              limite=0, progresso=avisar, plugin=None):
-    cli = Catallog(host)
+    cli = CatalogoWeb(host)
     s = cli.settings()
     form_padrao = (s.get('forms') or {}).get('download')
     titulo_site = cli.titulo(s)
@@ -561,7 +565,7 @@ def main():
     if args.cmd == 'inspecionar':
         info = inspecionar_dll(args.dll)
         if not args.sem_rede:
-            cli = Catallog(info['host'])
+            cli = CatalogoWeb(info['host'])
             s = cli.settings()
             info['titulo'] = cli.titulo(s)
             info['formulario_download'] = (s.get('forms') or {}).get('download')

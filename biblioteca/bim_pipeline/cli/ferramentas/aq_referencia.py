@@ -17,7 +17,7 @@ import sqlite3
 import sys
 
 # Colunas BLOB que nunca devem ser lidas por inteiro: o WIREFRAME é 69-71% do
-# arquivo (285 MB dos 412 MB da Amanco) e não serve para nada aqui.
+# arquivo (~70 % numa biblioteca de conexões) e não serve para nada aqui.
 BLOBS = {'SIMBOLOGIA_3D', 'IMAGEM', 'SIMBOLOGIA_3D_SIMPLIFICADA',
          'IMAGEM_SIMPLIFICADA', 'WIREFRAME', 'SIMBOLOGIA', 'METAINFOS',
          'SIMBOLO_ESQUEMA_LIGACAO'}

@@ -5,11 +5,11 @@ grava texto em cp1252 como o Builder faz. É o inverso do `read_aq.py`.
 
 Era a parte genérica do gerador do estudo de escrita de `.aq` a partir de PDF (2026-09-02, `docs/historico/estudos/escrita-aq-de-pdf/`);
 promovida para o pipeline do serviço de ingestão em 2026-09-05 (I4) para que o `geo_to_aq.py`
-— o "Exportar .aq" do editor — não dependa de uma pasta de estudo. O que é da Akato
+— o "Exportar .aq" do editor — não dependa de uma pasta de estudo. O que era do catálogo estudado
 (classificação de famílias, dimensões do PDF, formas representativas) continua lá, como
 `Gerador(EscritorAq)`.
 
-Tudo aqui foi observado em bibliotecas reais (Amanco 595, Dancor/Komeco/Maxbar 607);
+Tudo aqui foi observado em bibliotecas reais de fabricante (schemas 595 e 607);
 o conhecimento está em `docs/conhecimento/read-aq.md` e na skill `leitor-biblioteca-aq`.
 """
 import os
@@ -31,66 +31,66 @@ SENT_INT = -2147483647
 SENT_REAL = -1.7976931348623157e+308     # -DBL_MAX
 
 # PROJETO_APLICACAO — tipo de instalação do grupo. Valores observados:
-#   8  esgoto        (Amanco, PVC esgoto)
-#   12 água fria     (Komeco, bombas e pressurizadores)
-#   22 incêndio      (Dancor, bombas de combate a incêndio)
-#   36 gás           (Komeco, aquecedor de passagem a gás)
-#   64, 76 elétrico  (Maxbar, barramento blindado)
+#   8  esgoto        (biblioteca de PVC esgoto)
+#   12 água fria     (bombas e pressurizadores)
+#   22 incêndio      (bombas de combate a incêndio)
+#   36 gás           (aquecedor de passagem a gás)
+#   64, 76 elétrico  (barramento blindado)
 APLICACAO_ESGOTO = 8
 APLICACAO_AGUA_FRIA = 12
 APLICACAO_INCENDIO = 22
 APLICACAO_GAS = 36
 
-# Hazen-Williams C e Manning do PVC, como a Amanco grava para PVC.
+# Hazen-Williams C e Manning do PVC, como as bibliotecas de PVC gravam.
 RUGOSIDADE_PVC = 135.0
 RUGOSIDADE_EQUIV_PVC = 6e-05
 MANNING_PVC = 0.01
 TIPO_FWH_PVC = 1
 
 # ENTIDADE_IFC / SUBTIPO_IFC / TIPO_ENTIDADE_IFC / ENTIDADE_IFC_2X3.
-# Os quatro andam juntos; estas combinações vêm todas da Amanco (schema 595) e
-# da Dancor (607), correlacionando `GRUPO_PECA.NOME_GP` com os códigos.
+# Os quatro andam juntos; estas combinações vêm de uma biblioteca de conexões (schema 595) e
+# de uma de bombas (607), correlacionando `GRUPO_PECA.NOME_GP` com os códigos.
 IFC_CONEXAO = (2071, 4099, 2088)      # IfcPipeFitting
 IFC_TUBO = (2072, 4096, 2086)         # IfcPipeSegment
-IFC_BOMBA = (2075, 4118, 2093)        # bomba (Dancor, SUBTIPO_IFC = 5)
+IFC_BOMBA = (2075, 4118, 2093)        # bomba (SUBTIPO_IFC = 5)
 IFC_APARELHO = (2076, 4122, 2092)     # aparelho sanitário
 IFC_VALVULA = (2084, 4103, 2091)      # válvula
 IFC_TERMINAL = (2085, 4123, 2092)     # ralo, caixa sifonada
 
-# SUBTIPO_IFC dentro de IfcPipeFitting, pelos grupos da Amanco:
+# SUBTIPO_IFC dentro de IfcPipeFitting, pelos grupos de uma biblioteca de conexões:
 #   0 curva/joelho   1 luva      3 cap      4 tê/junção     6 redução
 SUB_CURVA, SUB_LUVA, SUB_CAP, SUB_TE, SUB_REDUCAO = 0, 1, 3, 4, 6
 SUB_TUBO = 3                          # único observado em IfcPipeSegment
-SUB_BOMBA = 5                         # único observado em 2075 (Dancor)
+SUB_BOMBA = 5                         # único observado em 2075
 
-# TIPO_APLICACAO_PECA, da Amanco:
+# TIPO_APLICACAO_PECA, observado numa biblioteca de conexões:
 #   1 tubo   2 conexão   8 aparelho sanitário   9 caixa sifonada/ralo com
-#   grelha   10 ralo   55 ramal de ventilação        (6 = bomba, na Dancor)
+#   grelha   10 ralo   55 ramal de ventilação        (6 = bomba, numa biblioteca de bombas)
 APL_TUBO, APL_CONEXAO, APL_APARELHO, APL_CAIXA, APL_RALO = 1, 2, 8, 9, 10
 APL_BOMBA = 6
 
-# DADOS_HIDRAULICOS.TIPO_CURVA — 2 em todas as conexões da Amanco.
+# DADOS_HIDRAULICOS.TIPO_CURVA — 2 em todas as conexões observadas.
 TIPO_CURVA_CONEXAO = 2
 
-# GRUPO_ITEM.UNIDADE_GI — 1 nos três grupos de tubo da Amanco, 0 no resto.
+# GRUPO_ITEM.UNIDADE_GI — 1 nos grupos de tubo, 0 no resto.
 # ITEM_ASSOCIADO.MEDICAO_PECA — 1 nas peças de tubo, 2 nas conexões.
 UNIDADE_METRO, UNIDADE_PECA = 1, 0
 MEDICAO_TUBO, MEDICAO_CONEXAO = 1, 2
 
 # CODIGO_DIAMETRO — o código que o AltoQi usa em `PECA.DIAMETRO_PECA` e
 # `ENTRADA_PECA.DIAMETRO_EP`. NÃO é o diâmetro em centímetro, como a versão
-# 2.2.0 da skill `leitor-biblioteca-aq` diz: na Amanco a peça `50 mm - 2"` tem
+# `docs/conhecimento/aq-formato.md` diz: numa biblioteca real a peça `50 mm - 2"` tem
 # `DIAMETRO_PECA = 9`, e a `100 mm - 4"` tem 12.
 #
-# Só estes seis pares foram observados. Na Amanco, 112 das 1.168 peças trazem código
+# Só estes seis pares foram observados. Numa biblioteca de conexões real, ~10 % das peças trazem código
 # (48 de tubo, 52 de caixa sifonada e afins, 12 de ralo), 963 trazem a sentinela
-# -DBL_MAX e 93 trazem zero; nenhuma das 700 conexões traz código. A Dancor usa os códigos
+# -DBL_MAX e algumas trazem zero; nenhuma conexão traz código. Uma biblioteca de bombas usa os códigos
 # 7 a 11 nos bocais das bombas, cujas sucções e recalques vão de 1.1/4" a 3" —
 # consistente com a mesma escala, e é de onde vem o 10.
 #
 # Os códigos das bitolas de água fria abaixo de 40 mm (20, 25, 32) NÃO
 # aparecem em nenhuma das 12 bibliotecas. Ficam fora: uma peça sem código de
-# diâmetro usa a sentinela, exatamente como as conexões da Amanco.
+# diâmetro usa a sentinela, exatamente como as conexões das bibliotecas reais.
 CODIGO_DIAMETRO = {40: 8, 50: 9, 60: 10, 75: 11, 100: 12, 150: 14, 200: 15}
 
 
@@ -104,13 +104,13 @@ def _sem_acento(texto):
 # É o vocabulário de um catálogo hidráulico em PVC; a primeira regra que casa (palavra
 # inteira) vence, e sem regra a peça entra como conexão genérica (luva), que é o caso mais
 # comum e o mais inofensivo. Nasceu da tabela `REGRAS_TIPO` do gerador daquele estudo
-# (Akato) e foi AJUSTADA contra os 192 grupos com 3D da Amanco (2026-09-05): reproduz 189 deles
+# e foi AJUSTADA contra os 192 grupos com 3D de uma biblioteca de conexões real (2026-09-05): reproduz 189 deles
 # ("Junção … com Joelho" é tê, não curva; caixa sifonada é 2085/1/9; terminal de ventilação é
 # 2079; ralo pluvial é 2085/0/10; adaptador é luva; sifão é cap). Os 3 restantes são
-# inconsistências da própria Amanco ('Caixa Sifonada' e 'Chuveiro Residencial' com códigos
+# inconsistências da própria biblioteca ('Caixa Sifonada' e 'Chuveiro Residencial' com códigos
 # diferentes dos irmãos). Serve a quem escreve um
 # `.aq` a partir de um catálogo que não guardou esses códigos (o `catalogo_to_aq.py`).
-IFC_TERMINAL_VENT = (2079, 4121, 2092)   # terminal de ventilação (Amanco)
+IFC_TERMINAL_VENT = (2079, 4121, 2092)   # terminal de ventilação
 REGRAS_GRUPO = (
     (('TUBO',),                              IFC_TUBO,          SUB_TUBO,    APL_TUBO),
     (('BOMBA', 'PRESSURIZADOR', 'MOTOBOMBA'), IFC_BOMBA,         SUB_BOMBA,   APL_BOMBA),
@@ -206,7 +206,7 @@ class EscritorAq:
         texto. Numa biblioteca real:
 
             SELECT NOME_CP FROM CLASSE_PECA
-            → b'Bomba de Combate a Inc\\xeancio - Dancor'
+            → b'Bomba de Combate a Inc\\xeancio - Fabricante'
 
         `\\xea` é `ê` em cp1252 e não é UTF-8 válido. O `typeof()` continua
         `'text'`: o SQLite não valida a codificação do que se manda gravar.

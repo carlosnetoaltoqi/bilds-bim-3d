@@ -327,7 +327,7 @@ def emit_uniform(coord_list, face_indices, lp_matrix, default_rgb, pos_out, col_
 def _parse_ifc_brep(ifc_path, default_rgb):
     """
     Tesselliza geometria IFCADVANCEDBREP usando ifcopenshell.
-    Usado quando o IFC não contém IFCTRIANGULATEDFACESET (ex: Amanco/AltoQi Hidráulico).
+    Usado quando o IFC não contém IFCTRIANGULATEDFACESET (ex.: exportação B-rep do AltoQi).
     Requer: pip install ifcopenshell
     """
     settings = ifcopenshell.geom.settings()
@@ -395,7 +395,7 @@ def parse_ifc_file(ifc_path, default_rgb=None):
         content = f.read()
 
     # Se não há geometria tessellada (IFCTRIANGULATEDFACESET), usar ifcopenshell.
-    # Cobre IFCADVANCEDBREP, IFCFACETEDBREP e outros tipos B-rep da Amanco/AltoQi.
+    # Cobre IFCADVANCEDBREP, IFCFACETEDBREP e outros tipos B-rep do exportador do AltoQi.
     if 'IFCTRIANGULATEDFACESET' not in content:
         if HAS_IFCOPENSHELL:
             return _parse_ifc_brep(ifc_path, default_rgb)

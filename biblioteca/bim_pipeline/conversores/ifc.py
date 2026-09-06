@@ -6,7 +6,7 @@ Y-up, indexado e deduplicado. É a porta de entrada de IFC no editor 3D da POC
 (`POST /cad/importar`), ao lado do STEP.
 
 Não reimplementa nada: a geometria vem do `parse_ifc.py` do projeto — o parser
-STEP/IFC4 validado nas bibliotecas da Dancor (tessellated) e da Amanco (B-rep via
+STEP/IFC4 validado numa biblioteca de bombas (tessellated) e numa de conexões (B-rep via
 `ifcopenshell`), com LocalPlacement, MappedItem, cores por face
 (`IFCINDEXEDCOLOURMAP`) e a troca de eixos Z-up → Y-up. Aqui só se acrescenta:
 

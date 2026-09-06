@@ -6,7 +6,7 @@ miniaturas.py — pré-renderiza uma miniatura WebP por geometria no Chromium
 
 Por que existe: sem isso o browser do visitante baixa o JSON de geometria de
 cada card visível (324 KB a 3,5 MB cada) e roda um render WebGL só para desenhar
-o thumbnail. Medido em produção na página da Dancor: o elemento LCP É essa
+o thumbnail. Medido em produção numa página de catálogo publicada: o elemento LCP É essa
 miniatura, com 7.230 ms de render delay.
 
 Quem usa: `scripts/build.py` (ZIP para a bilds.com) e `catalogo_de_aq.py --thumbs-dir`.
@@ -95,7 +95,7 @@ def build_thumbs(catalog, geo_dir, thumbs_dir, vendor_dir=None, node_modules_dir
     """
     Pré-renderiza uma miniatura por geometria e anota `thumb` nos produtos.
 
-    Uma miniatura por GEOMETRIA, não por produto: 856 produtos da Amanco
+    Uma miniatura por GEOMETRIA, não por produto: numa biblioteca de conexões real, 856 produtos
     compartilham 448 geometrias.
 
     NÃO degrada em silêncio (desde 2026-09-03): sem Node >= 20, sem Playwright,

@@ -199,8 +199,7 @@ def parse(buf):
 
     Avisa quando a contagem de raízes não bate com o que o cabeçalho declara.
     Medido em todas as 783 geometrias das 12 bibliotecas de fabricante: 54
-    divergem (6,9%), em 6 bibliotecas — as cinco da Intelbras com geometria e a
-    Maxbar, esta com 31 de 135. O parse encontra sempre MAIS raízes, de +2 a
+    divergem (6,9%), em 6 bibliotecas de dois fabricantes. O parse encontra sempre MAIS raízes, de +2 a
     +10, e a diferença não é sempre par: um `0x5D` que cai dentro de um
     `double` desempilha um nível, e isso acontece em quantidade variável.
 
@@ -327,7 +326,7 @@ def _read_mesh(buf, off, node, n):
         raise OQ3DError('blob truncado: cabeçalho de malha além do buffer')
     ver, n_coord, _ = struct.unpack_from('<3I', buf, off)
     # Versões 2 e 3 têm layout idêntico (doubles, u32, mesma cauda de 19 bytes).
-    # A 3 aparece na Maxbar (arquivo também versão 3): 31 das 135 simbologias.
+    # A 3 aparece numa biblioteca de barramentos (arquivo também versão 3): 31 das 135 simbologias.
     # Até 2026-09-03 o parser só aceitava a 2 e essas 31 saíam SEM geometria,
     # contadas como "peça sem 3D" — e a contagem de raízes divergia porque o
     # bloco não consumido deixava 0x5B/0x5D dos doubles à vista do scanner.

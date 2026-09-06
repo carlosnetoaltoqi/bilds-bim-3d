@@ -85,7 +85,7 @@ def peek_aq(aq_path, nome_original=None):
     upload com nome temporário (`bim-<uuid>.aq`); sem ele, usa-se o do caminho.
 
     Fabricante, em ordem de confiança:
-      1. Prefixo de CLASSE_SIMBOLOGIA_3D.NOME_CLASSE ("AMANCO - PVC Esgoto SN")
+      1. Prefixo de CLASSE_SIMBOLOGIA_3D.NOME_CLASSE ("FABRICANTE - PVC Esgoto SN")
       2. PECA.BIBLIOTECA (quase sempre vazia na prática)
       3. Pasta avô, quando descritiva
       4. Pasta pai, quando bate com o primeiro token do nome do arquivo
@@ -93,7 +93,7 @@ def peek_aq(aq_path, nome_original=None):
 
     Título, em ordem:
       1. Pasta pai, quando descritiva e diferente do fabricante
-         (input/Amanco/PVC Esgoto SN, SR e Silentium/pecas.aq)
+         (input/Fabricante/PVC Esgoto SN, SR e Silentium/pecas.aq)
       2. Tokens do nome do arquivo, menos o fabricante — exceto quando o
          único token restante é um bloco todo-minúsculo > 10 chars (palavra
          composta sem separador, ex: 'barramentoblindado'); nesse caso pula.
@@ -127,7 +127,7 @@ def peek_aq(aq_path, nome_original=None):
         hints['fabricante'] = grandpa_dir
     if not hints['fabricante'] and fn_tokens:
         # A pasta pai é o fabricante quando repete o primeiro token do arquivo
-        # (input/Intelbras/pecas_Intelbras_....aq)
+        # (input/Fabricante/pecas_Fabricante_....aq)
         if not _is_generic(parent_dir) and slugify(parent_dir) == slugify(fn_tokens[0]):
             hints['fabricante'] = parent_dir
         else:
@@ -186,7 +186,7 @@ def find_aq_paths(input_dir):
 
 def infer_titulo(grupos):
     """Extrai o prefixo comum entre todos os nomes de grupo como título do catálogo.
-    Dancor: ['Bombas de Combate a Incêndio CAM-W10', 'Bombas de Combate a Incêndio CAM-W14', ...]
+    Ex.: ['Bombas de Combate a Incêndio CAM-W10', 'Bombas de Combate a Incêndio CAM-W14', ...]
              → 'Bombas de Combate a Incêndio'
     Catálogos heterogêneos: prefixo curto → retorna ''
     """

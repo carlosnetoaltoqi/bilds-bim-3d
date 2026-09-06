@@ -33,11 +33,11 @@ IGES — FACES SOLTAS E COSTURA. O IGES não tem sólido (o tipo 186 MSBO quase 
 usado): o SolidWorks exporta cada face como superfície aparada (tipo 144) e o leitor
 devolve N formas livres, uma por face, sem orientação consistente — tesselar assim dá
 metade das normais para dentro (o viewer mostra a peça escura, e o volume assinado da
-malha sai negativo; visto nos 10 IGES da Tupy, S7.17). O que se faz: `BRepBuilderAPI_Sewing`
+malha sai negativo; visto em todos os IGES de um catálogo real, S7.17). O que se faz: `BRepBuilderAPI_Sewing`
 (tolerância 0,01 mm) costura as faces em cascas, `BRepBuilderAPI_MakeSolid` +
 `ShapeFix_Solid` fecham cada casca num sólido, e o **volume assinado decide a orientação**:
 negativo → `Reverse()`. Isso cobre o caso em que a casca não fecha de todo (o TAMPÃO da
-Tupy fica com 10 arestas livres e o `ShapeFix_Solid` não inverte). O mesmo caminho vale
+de tampão fica com 10 arestas livres e o `ShapeFix_Solid` não inverte). O mesmo caminho vale
 para um STEP que venha só com cascas. As cores por face sobrevivem à costura porque as
 faces costuradas são mapeadas de volta às originais (`Sewing.Modified`).
 
@@ -56,7 +56,7 @@ metade do sólido fica com a normal ao contrário e o viewer a mostra escura.
 QUALIDADE. `--deflexao` (mm) é a distância máxima entre a malha e a superfície;
 `--angulo` (rad) o desvio angular. 0,2 mm / 0,35 rad dá densidade parecida com
 a das malhas do AltoQi (a peça 2831A09 de 152 mm sai com ~7.500 triângulos;
-0,05 mm dobra para ~20.000). Peças com rosca (o adaptador Tupy) passam de 50.000 a 0,2 mm.
+0,05 mm dobra para ~20.000). Peças com rosca (um adaptador roscado) passam de 50.000 a 0,2 mm.
 
 Uso:
     python3 -m bim_pipeline.cli.step_iges peca.stp saida.json [--deflexao 0.2] [--angulo 0.35]

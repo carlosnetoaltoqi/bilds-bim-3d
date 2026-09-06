@@ -8,7 +8,7 @@ personalizadas que vierem junto.
 É o inverso de `read_aq.py` + `oq3d.py`, para geometria que NÃO nasceu no
 AltoQi — um STEP tesselado pelo `step_to_geo.py`, ou uma peça editada no editor
 3D da POC (`www/apps/web/src/components/bim-editor/`). Reaproveita, sem
-modificar, o que a engenharia reversa da Akato deixou pronto em
+modificar, o que o estudo de escrita de `.aq` deixou pronto em
 este diretório: o schema 607 completo (`schema-aq-607.sql`), o
 escritor OQ3D (`oq3d_writer.py`) e o `Gerador` do `aq_writer.py`, que grava
 texto em cp1252 via `CAST(? AS TEXT)` — a armadilha que corrompe nomes em
@@ -35,12 +35,12 @@ O QUE FICA DE FORA. `ENTRADA_PECA` (bocais e comprimentos equivalentes),
 `ITEM` (insumo de orçamento) e simbologia 2D: não há de onde tirar isso de uma
 malha. A peça entra como equipamento genérico (`TIPO_APLICACAO_PECA = 2`,
 conexão), sem código de diâmetro (sentinela `-DBL_MAX`, como as 700 conexões
-da Amanco). A origem fica gravada numa propriedade personalizada "Geometria
+de uma biblioteca real). A origem fica gravada numa propriedade personalizada "Geometria
 3D", como se faz com uma forma representativa (`docs/conhecimento/formas-representativas.md`).
 
 Uso:
     python3 -m bim_pipeline.cli.gerar_aq entrada.json saida.aq
-    python3 -m bim_pipeline.cli.gerar_aq entrada.json saida.aq --fabricante Dancor --linha "Bombas" --nome "2831A09"
+    python3 -m bim_pipeline.cli.gerar_aq entrada.json saida.aq --fabricante "Fabricante" --linha "Bombas" --nome "B-100"
     (os argumentos de linha de comando sobrepõem `info` do JSON)
 """
 import argparse
@@ -110,7 +110,7 @@ def gerar(entrada, saida, info):
           TIPO_CURVA=aq_writer.TIPO_CURVA_CONEXAO, ID_PECA=id_peca)
 
     # -- insumo de orçamento: é em ITEM.CODIGO_ITEM que o AltoQi guarda o código
-    #    comercial (o 14808 da Amanco, o 21011 da Akato) ------------------------
+    #    comercial (o código de catálogo do fabricante) --------------------------
     codigo = str(info.get('codigo') or nome)
     id_ci = g.novo('CLASSE_ITEM')
     g.ins('CLASSE_ITEM', ID_CLASSE_ITEM=id_ci, NOME_CI=f'{fabricante} - {linha}', CODIGO_ELLO=0, ATIVO=1)

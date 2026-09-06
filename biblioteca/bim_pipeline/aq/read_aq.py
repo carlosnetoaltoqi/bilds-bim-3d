@@ -176,7 +176,7 @@ def _sem_sentinela(v):
     Sentinela do AltoQi → None.
 
     O AltoQi não usa `NULL` para "não definido": grava `-2147483647` em coluna
-    inteira e `-1.7976931348623157e+308` (`-DBL_MAX`) em coluna real. Na Amanco
+    inteira e `-1.7976931348623157e+308` (`-DBL_MAX`) em coluna real. Numa biblioteca de conexões real
     são 963 das 1.168 peças em `DIAMETRO_PECA` e 963 em `COMPRIMENTO_PECA`.
 
     Sem esta conversão o mapa entrega `-1.8e308` como se fosse medida, e
@@ -253,7 +253,7 @@ def build_product_map(aq_data):
 def read_classes(con):
     """
     NOME_CLASSE de CLASSE_SIMBOLOGIA_3D — o padrão observado é
-    "FABRICANTE - Linha de Produto" (ex: 'AMANCO - PVC Esgoto SN').
+    "FABRICANTE - Linha de Produto" (ex: 'FABRICANTE - PVC Esgoto SN').
 
     É a fonte mais confiável de fabricante: presente nas três bibliotecas
     testadas, enquanto PECA.BIBLIOTECA estava vazia em todas elas.
@@ -267,7 +267,7 @@ def read_classes(con):
 
 
 def _titlecase(s):
-    """DANCOR → Dancor; preserva palavras que já têm capitalização mista."""
+    """FABRICANTE → Fabricante; preserva palavras que já têm capitalização mista."""
     out = []
     for w in s.split():
         out.append(w.capitalize() if (w.isupper() or w.islower()) else w)
