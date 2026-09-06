@@ -102,8 +102,6 @@ export function BotaoGerarZip() {
     xhr.send(form)
   }
 
-  const emAndamento = estado === 'enviando' || estado === 'processando'
-
   return (
     <span className="inline-flex items-center gap-1.5">
       <input
@@ -114,7 +112,7 @@ export function BotaoGerarZip() {
         onChange={onArquivo}
       />
 
-      {!emAndamento && (
+      {estado === 'idle' && (
         <button
           onClick={iniciar}
           className="px-3 py-1.5 rounded border border-gray-300 text-[12px] font-semibold text-gray-700 hover:bg-gray-50"
@@ -125,17 +123,13 @@ export function BotaoGerarZip() {
 
       {estado === 'enviando' && (
         <>
-          <span className="text-[12px] text-gray-600">
-            Enviando… {progresso}%
-          </span>
+          <span className="text-[12px] text-gray-600">Enviando… {progresso}%</span>
           <button onClick={cancelar} className="text-[11px] text-gray-400 hover:text-gray-700">cancelar</button>
         </>
       )}
 
       {estado === 'processando' && (
-        <span className="text-[12px] text-gray-600 italic">
-          Processando… (pode levar alguns minutos)
-        </span>
+        <span className="text-[12px] text-gray-600 italic">Processando… (pode levar alguns minutos)</span>
       )}
 
       {estado === 'erro' && (
