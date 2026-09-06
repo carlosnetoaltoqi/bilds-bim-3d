@@ -1,7 +1,7 @@
 ---
 name: leitor-step
-description: Lê arquivos STEP (.stp/.step — ISO 10303 AP203/AP214/AP242, B-rep paramétrico de CAD como Inventor, SolidWorks, CATIA) e os tessela para o JSON de geometria do viewer ({pos, col, idx} em metros, Y-up) com OpenCASCADE em Python (OCP). Cobre unidades, nomes e cores via XCAF, sentido dos triângulos, montagens, deflexão, e as armadilhas de referência morta que dão segfault. O caminho de saída para IFC4 e .aq está nas skills irmãs.
-version: 1.0.0
+description: Lê arquivos STEP (.stp/.step — ISO 10303 AP203/AP214/AP242) e IGES (.igs/.iges — faces soltas do SolidWorks, costuradas em sólido) — B-rep paramétrico de CAD como Inventor, SolidWorks, CATIA — e os tessela para o JSON de geometria do viewer ({pos, col, idx} em metros, Y-up) com OpenCASCADE em Python (OCP). Cobre unidades, nomes e cores via XCAF, sentido dos triângulos, montagens, deflexão, e as armadilhas de referência morta que dão segfault. O caminho de saída para IFC4 e .aq está nas skills irmãs.
+version: 1.1.0
 author: Bilds / carlosnetoaltoqi
 ---
 
@@ -117,6 +117,31 @@ Emita **expandido** (3 vértices por triângulo) e deduplique no fim com a quant
 float32 do pipeline (`www/apps/ingestao/pipeline/dedup.py`): a chave inclui a cor, então faces de cores
 diferentes não se soldam — e é isso que permite ao editor re-segmentar por componentes.
 
+## IGES — faces soltas, costura e orientação pelo volume (1.1.0)
+
+O IGES (`.igs/.iges`) é o formato irmão mais velho. O SolidWorks exporta "using analytic
+representation for surfaces": **uma superfície aparada (tipo 144) por face, sem sólido** (o MSBO
+186 quase nunca é usado). `IGESCAFControl_Reader` devolve N formas livres — 160 a 639 nas
+conexões da Tupy — sem orientação consistente: tesselar assim dá metade das normais para dentro
+(peça escura no viewer; o volume assinado da malha sai negativo em 8 de 10 arquivos).
+
+A receita que o `step_to_geo.py` aplica quando não encontra sólido (vale para STEP só com cascas):
+
+1. juntar todas as formas livres num `TopoDS_Compound` — são as faces de UMA peça, não peças;
+2. `BRepBuilderAPI_Sewing(0.01)` (mm) com todas as faces → `SewedShape()` com 1 casca (ou N, nas
+   montagens: acoplamento angular e tê mecânico têm 6);
+3. por casca: `BRepBuilderAPI_MakeSolid` + `ShapeFix_Solid().Perform()`;
+4. **`BRepGProp.VolumeProperties_s` — volume negativo → `solid.Reverse()`.** O `ShapeFix_Solid`
+   não inverte casca que não fechou (o TAMPÃO da Tupy fica com 10 arestas livres — `sew.NbFreeEdges()`);
+   o volume decide sempre;
+5. cores: as faces costuradas são objetos novos, fora do documento XCAF — `color_tool.GetColor`
+   não as conhece. Mapear `sew.Modified(face_original)` (ou `ModifiedSubShape`) → cor, num
+   `TopTools_IndexedMapOfShape`, antes de tesselar; senão a peça cai no cinza padrão.
+
+Conferência: volume da malha (soma de `a·(b×c)/6`) ≈ volume B-rep (±1 %), positivo. Saída extra:
+`formato: 'iges'`, `costurado`, `arestas_livres`, `volume_cm3`. Custo: 3 a 22 s por peça a 0,2 mm
+(a rosca do adaptador e um flange passam de 55 mil triângulos).
+
 ## Saída
 
 O mesmo contrato das outras skills — `{ pos, col, idx }`, metros, Y-up — mais metadados
@@ -152,3 +177,8 @@ skill `leitor-biblioteca-aq`).
 Inventor, AP214, mm) no editor 3D do `bilds-bim-3d`: receita XCAF completa, as duas
 armadilhas de referência morta (documento e explorer) que deram segfault na primeira
 versão, unidade/eixos/sentido, e a conferência por round-trip pelos parsers do projeto.
+
+**1.1.0** — 2026-09-05 (S7.17): IGES. Dez arquivos do catálogo Tupy (SolidWorks 2017, faces
+soltas) tesselados pelo `step_to_geo.py` do projeto: costura, sólido, orientação pelo volume
+assinado, cores por face preservadas depois da costura; teste com uma caixa escrita pelo próprio
+OCC (`tests/test_step_to_geo.py`). Ver `eng-reversa/tupy/estudo/01-plugin-tupycad-e-catalogo-web.md`.

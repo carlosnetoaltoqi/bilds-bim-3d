@@ -36,7 +36,8 @@ agente e skills fora do repo são auxiliares. **Toda sessão termina assim:**
 | Formato binário **OQ3D** (cabeçalho, classes, instâncias, unidades, escrever) | `docs/conhecimento/oq3d.md` + docstring de `www/apps/ingestao/pipeline/oq3d.py` + skill `leitor-biblioteca-aq` |
 | Schema do `.aq`, **cp1252**, sentinelas, `DIAMETRO_PECA` é código, escrever `.aq` | `docs/conhecimento/read-aq.md` + skill `leitor-biblioteca-aq` |
 | IFC4 → geometria (conversor da POC `ifc_to_geo.py`, round-trip do exportador do editor) | `docs/conhecimento/parse-ifc.md` + skill `leitor-ifc` |
-| STEP → malha (OpenCASCADE), armadilhas de segfault | skill `docs/skills/leitor-step/` + `www/apps/ingestao/pipeline/step_to_geo.py` |
+| STEP e **IGES** → malha (OpenCASCADE), costura de faces soltas, orientação pelo volume, armadilhas de segfault | skill `docs/skills/leitor-step/` + `www/apps/ingestao/pipeline/step_to_geo.py` |
+| **Plugin de AutoCAD** (plataforma Catallog/Collabo — TupyCAD) → catálogo: a DLL é casca de um catálogo web, API pública, formulário de download, IGES/RFA, Termos de Uso e escopo autorizado | `eng-reversa/tupy/estudo/01-plugin-tupycad-e-catalogo-web.md` + `www/apps/ingestao/pipeline/{catallog,rfa_partatom}.py` + `www/README.md` (rotas `plugin-autocad`) |
 | Templates HTML, Three.js self-hosted, escape, design tokens | `docs/conhecimento/templates-html.md` + skill `pagina-biblioteca` |
 | **Sintoma → causa** (tabela de diagnóstico, ~70 linhas) | `docs/conhecimento/diagnostico.md` |
 | Contrato do ZIP consumido pela bilds.com | `docs/bilds-bim-3d-zip-spec.md` |
@@ -57,7 +58,7 @@ agente e skills fora do repo são auxiliares. **Toda sessão termina assim:**
 |---|---|
 | `leitor-biblioteca-aq` | ler e escrever `.aq`, schema, OQ3D |
 | `leitor-ifc` | IFC4: parse, escrita, cores, armadilhas STEP |
-| `leitor-step` | STEP B-rep → malha com OpenCASCADE |
+| `leitor-step` | STEP e IGES B-rep → malha com OpenCASCADE (1.1.0: costura do IGES) |
 | `pagina-biblioteca` | páginas de catálogo com viewer 3D e miniaturas |
 
 `bash scripts/link_skills.sh` cria symlinks de `~/.claude/skills/` para cá (idempotente; preserva
@@ -121,7 +122,20 @@ no serviço (stream, nada fica no servidor) e o botão **"baixar .aq (AltoQi Bui
 original — e **o arquivo foi aceito pelo AltoQi Builder** (usuário, fim da sessão). Registro:
 `docs/sessoes/S7.16-exportar-catalogo-aq.md`. Suíte **121**.
 
-**Próxima sessão:** `docs/sessoes/S7.14-www-servico-de-ingestao.md`, seção 7 — build do `dist/` com o `@bim/dominio`, e2e reexecutados,
+**S7.17 (2026-09-05, noite) — missão do usuário: plugin de AutoCAD → `.aq`.** O plugin TupyCAD (plataforma
+**Catallog**) instalado no Windows é uma DLL .NET de 35 KB **sem geometria**: abre um catálogo web com API pública
+que serve um **IGES** (SolidWorks, faces soltas) por produto e um `.rfa` Revit por família, atrás de um formulário
+de lead. Os Termos de Uso do site proíbem redistribuição — a sessão parou e perguntou; o usuário autorizou **18
+grupos (TupyGrooved)** com os dados reais dele. Feito: `step_to_geo.py` lê IGES (costura + **orientação pelo volume
+assinado**, cor por face preservada); `catallog.py` (DLL → host/categorias; categoria → downloads + tesselação → o
+mesmo JSON do `catalogo_de_aq.py`); `rfa_partatom.py`; import tipo **`plugin`** (`POST /importacoes/plugin-autocad[/inspecionar]`,
+`processarCatalogo` comum ao `.aq`); botão **"Importar plugin do AutoCAD"** na home (`/importar/plugin`); `.igs` aceito
+como peça CAD. Estudo e ferramentas em `eng-reversa/tupy/` (22 arquivos baixados, gitignored) →
+`Tupy-TupyGrooved.aq` (10 peças) validado pelos leitores; ponta a ponta pelo serviço em 294 s, `.aq` exportado relido.
+**Não aberto no AltoQi Builder ainda.** Registro: `docs/sessoes/S7.17-plugin-autocad-tupy.md`. Suíte **136**.
+
+**Próxima sessão:** abrir o `.aq` da Tupy no AltoQi Builder (aceitação, como a Amanco na S7.16); depois
+`docs/sessoes/S7.14-www-servico-de-ingestao.md`, seção 7 — build do `dist/` com o `@bim/dominio`, e2e reexecutados,
 aceitação automatizada, Nest 11; depois o isolamento do serviço. Decisão antiga ainda em aberto: LICENSE.
 
 **Estado da base:** em `www/README.md`, "Estado da base e do storage" — única versão.
@@ -174,7 +188,7 @@ geometria que o parser não leu (foi assim que apareceu a malha OQ3D versão 3 d
 bilds-bim-3d/
 ├── CLAUDE.md · README.md · CONCEPTS.md
 ├── .nvmrc (24) · .python-version (3.12) · package.json (packageManager pnpm@11, playwright para as miniaturas)
-├── requirements.txt (jinja2, numpy) · requirements-dev.txt (pytest) · requirements-cad.txt (ifcopenshell, OCP, pypdf)
+├── requirements.txt (jinja2, numpy) · requirements-dev.txt (pytest) · requirements-cad.txt (ifcopenshell, OCP, pypdf, olefile)
 ├── .github/workflows/ci.yml     ← pytest -m "not thumbs" + py_compile; pnpm -r build em www/
 ├── config.example.json
 ├── scripts/
@@ -189,10 +203,12 @@ bilds-bim-3d/
 │   ├── auditoria-2026-09-03-pendencias.md · bilds-bim-3d-zip-spec.md · estudo-oq3d/ · solutions/ · saida-bilds-com/
 │   └── plano-*.md, plans/       ← históricos
 ├── eng-reversa/                 ← escrever .aq/OQ3D, formas paramétricas, PDF → catálogo (README próprio)
+│   └── tupy/                    ← S7.17: plugin de AutoCAD (Catallog) → IGES → .aq; estudo/, tools/, dados/ (downloads/ e saida/ gitignored)
 ├── www/                         ← em reestruturação (docs/arquitetura-www-servico-de-ingestao.md) — README próprio
 │   ├── apps/ingestao/pipeline/  ← ★ O PIPELINE PYTHON: read_aq.py, oq3d.py, dedup.py, catalogo.py, inferencia.py, miniaturas.py,
-│   │                               catalogo_de_aq.py (CLI), step_to_geo.py, ifc_to_geo.py, parse_ifc.py, geo_to_aq.py, aq_writer.py,
-│   │                               oq3d_writer.py, catalogo_to_aq.py (catálogo salvo → .aq novo), schema-aq-607.sql, thumbs.mjs + harness.html
+│   │                               catalogo_de_aq.py (CLI), step_to_geo.py (STEP+IGES), ifc_to_geo.py, parse_ifc.py, geo_to_aq.py, aq_writer.py,
+│   │                               oq3d_writer.py, catalogo_to_aq.py (catálogo salvo → .aq novo), catallog.py (plugin de AutoCAD → catálogo),
+│   │                               rfa_partatom.py, schema-aq-607.sql, thumbs.mjs + harness.html
 │   ├── apps/api (Nest :4000) · apps/web (Next :3000) · tools/ (testes do editor)
 ├── input/                       ← .aq do usuário — gitignored
 └── output/                      ← gerado; só preview/index.html (landing feita à mão) é versionado
@@ -221,7 +237,7 @@ esperadas estão **nos arquivos**, não em texto: `.python-version`, `.nvmrc`, `
 | `node_modules/playwright` + Chromium + libs `libnss3 libnspr4 libasound2t64` | miniaturas (o build **falha** sem) | `ls node_modules/playwright; ldconfig -p \| grep libnss3` |
 | `requirements-dev.txt` (pytest) | `tests/` | `python3 -m pytest -q` |
 | `www/` com `pnpm install` e `www/.env` (Mongo, `STORAGE_PATH`) | serviço de ingestão, API e web | `bash scripts/bootstrap.sh --www --check`; subir com `pnpm dev:ingestao`, `dev:api`, `dev:web` |
-| `requirements-cad.txt` (ifcopenshell, cadquery-ocp, pypdf) | importar/tesselar STEP e IFC no serviço (`step_to_geo.py`, `ifc_to_geo.py`), PDF | `python3 -c 'import OCP, ifcopenshell'` |
+| `requirements-cad.txt` (ifcopenshell, cadquery-ocp, pypdf, olefile) | importar/tesselar STEP, IGES e IFC no serviço (`step_to_geo.py`, `ifc_to_geo.py`), plugin de AutoCAD (`catallog.py`; `olefile` só para os tipos do `.rfa`), PDF | `python3 -c 'import OCP, ifcopenshell, olefile'` |
 
 **Armadilhas de ambiente que já custaram tempo:**
 - **Dois Node na máquina.** O do apt (`/usr/bin/node`, v18) e o do nvm; o nvm só entra no PATH
@@ -239,7 +255,7 @@ esperadas estão **nos arquivos**, não em texto: `.python-version`, `.nvmrc`, `
 ## Testes — `tests/`
 
 ```bash
-python3 -m pytest                                   # 121 testes, 1–4 min (abre o Chromium duas vezes; ida e volta da Akato)
+python3 -m pytest                                   # 136 testes, 1–4 min (abre o Chromium duas vezes; ida e volta da Akato; IGES da Tupy se baixados)
 python3 -m pytest -m "not thumbs"                   # sem Chromium — é o que o CI roda
 python3 -m pytest -m "not thumbs and not paridade"  # só Python, sem Node
 ```
@@ -250,13 +266,15 @@ python3 -m pytest -m "not thumbs and not paridade"  # só Python, sem Node
 | `test_read_aq.py` | `open_aq` não cria arquivo, read-only, rejeita lixo; contagens da Akato; cp1252 sem `\x80–\x9f`/U+FFFD |
 | `test_build.py` | `auto_config` (só chaves do `.aq`; `--ifc` recusado — I6); `build_catalog_from_aq` + `diag` em Akato corrompida; render dos dois layouts com `1" x 1" <script>`; sem Jinja2/template → `RuntimeError`; `thumbCount`; `ThumbsError` sem Node, `--allow-no-thumbs`, `--skip-thumbs`, `run_all` exit 1; uma miniatura real |
 | `test_geo_to_aq.py` | I4: o pipeline não importa nada de fora do próprio diretório; `geo_to_aq.py` gera um `.aq` de uma malha que `read_aq.py` e `oq3d.py` leem de volta (nome com acento em cp1252, specs, um triângulo, cores) |
+| `test_step_to_geo.py` | S7.17: IGES de uma caixa escrita pelo próprio OCC (6 faces soltas) → `costurado`, volume igual ao da caixa, 12 △ com as normais para fora (volume assinado da malha positivo); o STEP da mesma caixa não costura; CLI; IGES da Tupy (se baixados): sólido fechado, volume > 0, cor preservada. Pula sem OCP |
+| `test_catallog.py` | S7.17, sem rede: `inspecionar_dll` numa DLL sintética (host, plugin, versão) e na TupyCAD.dll real (se instalada); não-PE/sem URL acusam; `validar_lead`; `specs_do_produto` (tabela Dimensionais com cabeçalho `colspan`/`rowspan`, Tipos Revit); `catalogo_de_downloads` com um IGES real → JSON do `catalogo_de_aq.py`, avisos de grupo sem IGES, idempotente; manifesto real da Tupy |
 | `test_catalogo_to_aq.py` | S7.16: `catalogo_to_aq.py` — manifesto com geometria compartilhada, cores, acentos, curva Q-H → relido por `read_aq`/`oq3d`/`catalogo.py` (uma simbologia por geometria, uma propriedade por chave, bomba 2075, cp1252 nos bytes); `--manter-prefixo-serie`; geometria ausente, caractere fora do cp1252 e catálogo vazio → exit 1 sem arquivo parcial; **ida e volta com a Akato inteira** (262 peças: nomes, séries, specs, bbox e triângulos iguais) |
 | `test_oq3d_roundtrip.py` | `eng-reversa/tools/oq3d_roundtrip.py` como processo: caminho padrão da Amanco, seis casos, `.aq` ausente → exit 1, `--sem-real` |
 | `test_editor_roundtrips.py` | `www/tools/testes-editor.sh`: round-trip do `mesh-model` por agrupamento a 2 µm; IFC exportado → `parse_ifc.py` com todo vértice pareado a ≤ 2 µm nos dois sentidos; `ROUNDTRIP_SABOTAR=1` e `ROUNDTRIP_SABOTAR_IFC=1` têm de falhar |
 | `test_processo.py` | E3: `executar()` do serviço — saída ≠ 0 com o stderr, sinal, timeout, ocioso, comando inexistente, stdin do filho aberto enquanto o pai vive; `vigiar_stdin` sai com 2 no EOF e continua com o stdin aberto; `thumbs.mjs` com `sairComStdin` para sem renderizar (marcador `thumbs`) |
 | `test_www_config.py` | I17/E3: só `lib/api.ts` conhece `localhost:4000`/`4100`; só `common/ingestao-client.ts` da API conhece o serviço, e a API não roda processo filho; só `dominio/src/storage-path.ts` lê `STORAGE_PATH` (mesma pasta para api e ingestao); cada serviço escuta a porta do env; `PIPELINE_DIR`/`--sair-com-stdin` só no `pipeline.service.ts`. I30: `nomeOriginalUtf8` e todo `originalname` passa por ele |
 | `test_geometrias_thumb.py` | I14/A5/A6: geometria exclusiva → `.orig.json` e miniatura pedida ao serviço no `PUT` e no `restaurar`; geometria compartilhada → copy-on-write (`geo/<importId>/<productId>.json`, `geoKeyCompartilhada`, irmão intacto, restaurar desfaz); serviço fora → `thumbErro` no produto e `miniatura: 'nao-solicitada'`; `GET /produtos/:id` devolve `thumbAtualizadaEm`/`thumbErro` (I31) |
-| `test_www_validacao.py` | I16: 37 corpos pelo mesmo `ValidationPipe` (agora em `@bim/dominio`) contra cada DTO da API e do serviço (`ImportarDto`, `ExportarAqDto`, `PatchProdutoDto`…) — aceitos saem normalizados, rejeitados dão 400; campo fora do DTO é 400 |
+| `test_www_validacao.py` | I16: 47 corpos pelo mesmo `ValidationPipe` (agora em `@bim/dominio`) contra cada DTO da API e do serviço (`ImportarDto`, `ImportarPluginDto`, `ExportarAqDto`, `PatchProdutoDto`…) — aceitos saem normalizados, rejeitados dão 400; campo fora do DTO é 400 |
 | `test_www_importacao.py` | I11 (no serviço de ingestão): `Fila` (FIFO, posição informada, rejeição repassada, concorrência 2, `IMPORTACOES_CONCORRENCIA` inválida derruba); recuperação no boot marca `falhou` todo não terminal, limpa produtos/`geo/`, apaga só `bim-*.aq|.zip`/`cad-*` do tmp |
 | `test_www_remocao.py` | apagar em cascata (`dominio/remocao.ts`): produto que compartilha geometria deixa a geometria; exclusivo leva geometria, `.orig` e miniatura; copy-on-write leva só a cópia; catálogo leva produtos, storage e imports; importação terminada e recontagem; em andamento → recusada; empresa leva tudo; inexistentes → `NaoEncontrado` |
 | `test_www_mongo_guard.py` | I32: `MongoProntoGuard` — conectado passa; `readyState` 0/2/3 → 503 na hora com o estado e o ponteiro para `/health`; `/health` passa desconectado; registrado como `APP_GUARD` nos dois apps |
