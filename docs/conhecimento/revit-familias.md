@@ -170,9 +170,13 @@ diferentes dão a mesma malha — o catálogo guarda uma só. Identidade, na ord
 Um produto por (família, tipo): série = família humanizada, nome = tipo, geometria da primeira instância,
 `Instâncias no projeto` contadas. As specs são os psets achatados (Identity Data, Dimensions, códigos do
 fabricante…), **sem** as propriedades de instância (Mark, Level, Host, Offset, Phase, Design Option…), sem
-GUIDs e sem "n/a"; `Category` vira "Categoria Revit". Um modelo de amostra costuma trazer também famílias
-auxiliares (vista de abertura, adaptadores de teste) — elas entram como produtos e quem importa apaga o que não
-é produto.
+GUIDs e sem "n/a"; `Category` vira "Categoria Revit". Um modelo de amostra costuma trazer também peças
+auxiliares de montagem (parafusos, flanges, juntas, conectores genéricos): na importação existe a opção
+`filtrarAuxiliares` (flag `--filtrar-auxiliares` na CLI, checkbox na página `/importar/revit`), que exclui
+automaticamente as que seguem a convenção Revit — nome de família ou tipo com prefixo `x_` ou `x ` (itens
+marcados para não entrar em schedules) e famílias de segmento genérico (`Pipe Types`, `Pipe Segments`).
+A detecção fica em `catalogo/fontes/familias_revit.py: eh_auxiliar`; o total filtrado aparece em
+`hints.origem.projetos.filtrados_auxiliares`.
 
 ## O catálogo que sai
 

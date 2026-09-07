@@ -156,7 +156,7 @@ Identidade `carlosnetoaltoqi`; branch `main`, histórico linear; nada de push se
 ## 👉 Estado atual e pendências
 
 **Estado (2026-09-06, tarde):** arquitetura de `docs/arquitetura.md` implementada por inteiro; suíte com
-199 testes (coleta) verde — nesta máquina 17 pulam porque as fixtures `.aq` de `tests/fixtures.local.json`
+201 testes (coleta) verde — nesta máquina 17 pulam porque as fixtures `.aq` de `tests/fixtures.local.json`
 não estão em `input/`; `pnpm -r build` e `pnpm start:*` funcionam do `dist/`. Fonte nova **famílias Revit**
 (ADR-018): `.rfa`/`.zip` → catálogo pelo criador (`POST /importacoes/familias-revit`, página
 `/importar/revit`), geometria do IFC/STEP/IGES irmão ou forma representativa; testado com um pacote real
@@ -166,6 +166,9 @@ compartilhada). **Projetos `.rvt`** entram pelo IFC irmão ou traduzidos pela AP
 na página (ADR-019; credenciais só no `.env` do criador; cache em `storage/bim/aps/`); testado com um modelo
 de amostra real de fabricante (fixture `rvt_projeto`, 61 elementos → 8 tipos/produtos, um job na APS de 157 s,
 depois tudo do cache) até o `.aq`. A APS **não aceita `.rfa`** — famílias continuam pela forma representativa.
+**Peças auxiliares** de projetos `.rvt` (prefixo `x_`, Pipe Types) podem ser filtradas na importação via opção
+`filtrarAuxiliares` (flag CLI `--filtrar-auxiliares`, checkbox na página — marcado por padrão); detecção em
+`catalogo/fontes/familias_revit.py: eh_auxiliar`; documentado em `revit-familias.md` e ADR-019.
 O `storage/` não tem os downloads do plugin web de CAD (`catallog/`) — refazê-los exige baixar do catálogo do
 fabricante, o que depende de autorização explícita (Termos de Uso). Commits desta sessão só locais
 (`git rev-list --count origin/main..HEAD`).
@@ -177,7 +180,6 @@ fabricante, o que depende de autorização explícita (Termos de Uso). Commits d
   (aceitação final, `docs/aceitacao.md` §4).
 - Famílias Revit: se as formas representativas de equipamentos (caixa) bastam; se o trecho padrão de
   1000 mm é o desejado para o catálogo. APS: revogar e regerar o client secret que passou pelo chat da
-  sessão de 2026-09-06; decidir se produtos auxiliares de um modelo de amostra (vista de abertura,
-  adaptadores de teste) devem ser filtrados por regra ou apagados à mão.
+  sessão de 2026-09-06.
 - LICENSE (decisão em aberto).
 - Push, quando autorizado.

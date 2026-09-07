@@ -30,6 +30,7 @@ export default function ImportarRevitPage() {
   const [file, setFile] = useState<File | null>(null)
   const [apsDisponivel, setApsDisponivel] = useState<boolean | null>(null)
   const [usarAps, setUsarAps] = useState(false)
+  const [filtrarAuxiliares, setFiltrarAuxiliares] = useState(true)
   const [catalogo, setCatalogo] = useState('')
   const [fabricante, setFabricante] = useState('')
   const [comprimento, setComprimento] = useState('1000')
@@ -56,6 +57,7 @@ export default function ImportarRevitPage() {
     fd.append('file', file)
     if (empresa) fd.append('empresa', empresa)
     fd.append('usarAps', usarAps && apsDisponivel ? 'true' : 'false')
+    fd.append('filtrarAuxiliares', filtrarAuxiliares ? 'true' : 'false')
     if (catalogo.trim()) fd.append('catalogo', catalogo.trim())
     if (fabricante.trim()) fd.append('fabricante', fabricante.trim())
     if (comprimento.trim()) fd.append('comprimentoMm', comprimento.trim())
@@ -122,6 +124,13 @@ export default function ImportarRevitPage() {
               </span>
             </label>
             <p className="text-[12px] text-gray-500">Sem marcar, um projeto só entra se houver um <code>.ifc</code> de mesmo nome ao lado; famílias <code>.rfa</code> não passam pela APS (o Model Derivative não as aceita).</p>
+            <label className="flex items-start gap-2 text-[13px] mt-1">
+              <input type="checkbox" checked={filtrarAuxiliares} disabled={enviando} onChange={(e) => setFiltrarAuxiliares(e.target.checked)} className="mt-0.5" />
+              <span>
+                Filtrar peças auxiliares de projetos <code>.rvt</code>{' '}
+                <span className="text-gray-500">(famílias/tipos com prefixo <code>x_</code> ou <code>x </code> e segmentos de tubo genérico — parafusos, flanges, juntas e similares colocados apenas para montar o modelo)</span>
+              </span>
+            </label>
           </fieldset>
           <div className="grid grid-cols-2 gap-3">
             <label className="flex flex-col gap-1"><span className="text-[12px] text-gray-600">Catálogo (título; vazio = nome do arquivo)</span><input value={catalogo} onChange={(e) => setCatalogo(e.target.value)} className={inputCls} placeholder={file ? file.name.replace(EXT_OK, '') : ''} /></label>

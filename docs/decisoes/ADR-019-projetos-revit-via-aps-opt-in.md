@@ -29,6 +29,10 @@ serviço e não no repositório, cache para não pagar duas vezes.
   explicação e a alternativa (o IFC irmão).
 - Os produtos de um projeto trazem os psets do Revit como specs (Identity Data, dimensões, códigos do fabricante),
   filtradas as propriedades de instância; a série é o nome da família e "Instâncias no projeto" fica registrado.
+- Peças auxiliares de montagem (parafusos, flanges, juntas, conectores genéricos de tubo) podem ser excluídas com
+  a opção `filtrarAuxiliares` (flag `--filtrar-auxiliares`, checkbox na página): detecta prefixo `x_`/`x ` e
+  famílias `Pipe Types`/`Pipe Segments` — convenção Revit para itens que não entram em schedules. Padrão: false
+  (inclui tudo); a página marca por padrão como true.
 - Dependência nova de rede na biblioteca, isolada em `conversores/aps.py` e só acionada com credenciais; o cliente
   HTTP é injetável e a suíte prova o fluxo contra um servidor falso, sem job.
 - Quando alguém tiver o Revit, exportar o IFC do projeto e colocá-lo ao lado continua sendo o caminho gratuito.

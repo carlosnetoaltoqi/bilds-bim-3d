@@ -214,6 +214,8 @@ export class Biblioteca extends BibliotecaCli {
     entrada: string; geoDir: string; titulo?: string; fabricante?: string; comprimentoMm?: number; deflexao?: number;
     /** projetos .rvt → IFC pela APS (cobrado por projeto); `apsCache` evita pagar duas vezes pelo mesmo .rvt */
     aps?: CredenciaisAps | null; apsCache?: string;
+    /** excluir peças auxiliares de projetos .rvt: famílias/tipos com prefixo x_ e segmentos genéricos (Pipe Types) */
+    filtrarAuxiliares?: boolean;
     onProgresso?: (linha: string) => void;
   }): Promise<ResultadoCatalogo> {
     const id = crypto.randomUUID();
@@ -224,6 +226,7 @@ export class Biblioteca extends BibliotecaCli {
     if (opts.fabricante) args.push('--fabricante', opts.fabricante);
     if (opts.comprimentoMm) args.push('--comprimento-mm', String(opts.comprimentoMm));
     if (opts.deflexao) args.push('--deflexao', String(opts.deflexao));
+    if (opts.filtrarAuxiliares) args.push('--filtrar-auxiliares');
     if (opts.aps) {
       await fsp.writeFile(credPath, JSON.stringify(opts.aps), { mode: 0o600 });
       args.push('--aps-credenciais', credPath);

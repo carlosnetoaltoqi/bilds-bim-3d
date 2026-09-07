@@ -236,7 +236,8 @@ export class ImportacoesService {
       rotulo: 'familias_revit importar',
       produzir: (geoDir, onProgresso) => this.pipeline.catalogoDeFamiliasRevit({
         entrada: arquivo.path, geoDir, titulo, fabricante: body.fabricante, comprimentoMm: body.comprimentoMm, deflexao: body.deflexao,
-        aps, apsCache: aps ? path.join(storagePath(), 'aps') : undefined, onProgresso,
+        aps, apsCache: aps ? path.join(storagePath(), 'aps') : undefined,
+        filtrarAuxiliares: body.filtrarAuxiliares, onProgresso,
       }),
       aoTerminar: () => fs.unlink(arquivo.path),
       notaExtra: (r) => {

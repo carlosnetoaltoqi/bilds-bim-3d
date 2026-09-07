@@ -547,6 +547,21 @@ def _fabricante(familias, produtos=()):
 
 # ─── Projetos .rvt → produtos (via IFC) ───────────────────────────────────────
 
+def eh_auxiliar(fam, tipo):
+    """
+    True se o par (família, tipo) é uma peça auxiliar de montagem — não o produto principal.
+    Regras: prefixo `x_` ou `x ` no nome da família ou do tipo (convenção Revit: componentes
+    que não entram em schedules), ou família de segmento de tubo genérico (Pipe Types).
+    """
+    fam_l = (fam or '').lower().strip()
+    tipo_l = (tipo or '').lower().strip()
+    if fam_l.startswith(('x_', 'x ')) or tipo_l.startswith(('x_', 'x ')):
+        return True
+    if fam_l in ('pipe types', 'pipe segments'):
+        return True
+    return False
+
+
 def ifc_do_projeto(proj, aps, trabalho, progresso=avisar):
     """
     O IFC de um projeto: o irmão de mesmo nome (grátis) ou, com `aps = {'cliente', 'cache'}`, a tradução pela
@@ -567,10 +582,12 @@ def ifc_do_projeto(proj, aps, trabalho, progresso=avisar):
     return destino, ('aps-cache' if r.get('cache') else 'aps')
 
 
-def produtos_de_projeto(proj, caminho_ifc, origem, geo_dir, texto, progresso=avisar):
+def produtos_de_projeto(proj, caminho_ifc, origem, geo_dir, texto, progresso=avisar, filtrar_auxiliares=False):
     """
-    Um projeto (via seu IFC) → `(produtos, series, n_geo, avisos)`: um produto por tipo de família, geometria da
-    primeira instância (local, na origem da família), specs dos psets do Revit + identidade do projeto.
+    Um projeto (via seu IFC) → `(produtos, series, n_geo, avisos, n_filtrados)`: um produto por tipo
+    de família, geometria da primeira instância (local, na origem da família), specs dos psets do
+    Revit + identidade do projeto. Com `filtrar_auxiliares=True`, peças com prefixo `x_`/`x ` ou
+    categorias de segmento genérico (Pipe Types) são excluídas e contadas em `n_filtrados`.
     """
     from bim_pipeline.conversores import ifc_elementos
     nome_proj = os.path.splitext(os.path.basename(proj['rvt']))[0]
@@ -587,10 +604,14 @@ def produtos_de_projeto(proj, caminho_ifc, origem, geo_dir, texto, progresso=avi
              'aps-cache': 'IFC do projeto traduzido pela Autodesk Platform Services (cache)'}[origem]
     produtos, series, avisos = [], [], []
     n_geo = 0
+    n_filtrados = 0
     for (fam, tipo), g in grupos.items():
         el = g['primeiro']
         if not fam and not tipo:
             avisos.append(f'{nome_proj}: elemento {el["guid"]} sem família/tipo — fora')
+            continue
+        if filtrar_auxiliares and eh_auxiliar(fam, tipo):
+            n_filtrados += 1
             continue
         serie = texto(humanizar(fam or tipo))
         if serie not in series:
@@ -618,11 +639,14 @@ def produtos_de_projeto(proj, caminho_ifc, origem, geo_dir, texto, progresso=avi
             'id': pid, 'nome': texto(tipo or fam), 'serie': serie, 'geo': nome_geo, 'potencia': None,
             'conexoes': specs.get('Categoria Revit') or el['classe'], 'specs': specs, 'curva': None, 'codigo': codigo,
         })
-    return produtos, series, n_geo, avisos
+    if filtrar_auxiliares and n_filtrados:
+        avisos.append(f'{nome_proj}: {n_filtrados} tipo(s) auxiliar(es) filtrado(s) (prefixo x_, Pipe Types)')
+    return produtos, series, n_geo, avisos, n_filtrados
 
 
 def catalogo_de_familias(familias, geo_dir, titulo=None, fabricante=None, comprimento_mm=None, deflexao=0.2,
-                         progresso=avisar, origem=None, projetos=(), aps=None, trabalho=None):
+                         progresso=avisar, origem=None, projetos=(), aps=None, trabalho=None,
+                         filtrar_auxiliares=False):
     """
     Famílias lidas (`ler_familia`) e projetos (`descobrir()['projetos']`) → o resultado do contrato `catalogo`,
     com um `<geo>.json` por geometria em `geo_dir`. Uma família com geometria irmã compartilha a geometria
@@ -639,7 +663,7 @@ def catalogo_de_familias(familias, geo_dir, titulo=None, fabricante=None, compri
     mudou_cp1252 = 0
     versoes = {}
     representativas = {}   # chave de forma → nome do arquivo de geometria
-    proj_stats = {'projetos': len(projetos), 'traduzidos_aps': 0, 'do_cache': 0, 'ifc_irmao': 0, 'fora': 0, 'produtos': 0}
+    proj_stats = {'projetos': len(projetos), 'traduzidos_aps': 0, 'do_cache': 0, 'ifc_irmao': 0, 'fora': 0, 'produtos': 0, 'filtrados_auxiliares': 0}
 
     def texto(s):
         nonlocal mudou_cp1252
@@ -658,7 +682,8 @@ def catalogo_de_familias(familias, geo_dir, titulo=None, fabricante=None, compri
             continue
         proj_stats[{'irmao': 'ifc_irmao', 'aps': 'traduzidos_aps', 'aps-cache': 'do_cache'}[origem_ifc]] += 1
         try:
-            prods, sers, ng, avs = produtos_de_projeto(proj, caminho_ifc, origem_ifc, geo_dir, texto, progresso)
+            prods, sers, ng, avs, nf = produtos_de_projeto(proj, caminho_ifc, origem_ifc, geo_dir, texto, progresso, filtrar_auxiliares)
+            proj_stats['filtrados_auxiliares'] += nf
         except ImportError:
             avisos.append(f"{proj['rel']}: ifcopenshell não instalado — o IFC do projeto não pôde ser lido")
             proj_stats['fora'] += 1
@@ -864,7 +889,7 @@ def cliente_aps(credenciais_json=None, usar_env=False):
 
 
 def importar(entrada, geo_dir, titulo=None, fabricante=None, comprimento_mm=None, deflexao=0.2, trabalho=None, progresso=avisar,
-             aps=None):
+             aps=None, filtrar_auxiliares=False):
     """`aps = {'cliente': ClienteAPS, 'cache': dir|None}` autoriza traduzir projetos .rvt pela APS; None = projetos só com IFC irmão."""
     raiz, ignorados, temp = preparar(entrada, trabalho, progresso)
     trabalho_aps = tempfile.mkdtemp(prefix='familias-revit-ifc-')
@@ -886,7 +911,7 @@ def importar(entrada, geo_dir, titulo=None, fabricante=None, comprimento_mm=None
         titulo = titulo or (os.path.splitext(os.path.basename(entrada))[0] if not os.path.isdir(entrada) else os.path.basename(entrada.rstrip('/')))
         r = catalogo_de_familias(familias, geo_dir, titulo, fabricante, comprimento_mm, deflexao, progresso,
                                  origem={'entrada': os.path.basename(entrada), 'bytes': _tamanho(entrada), 'ignorados': len(ignorados)},
-                                 projetos=d['projetos'], aps=aps, trabalho=trabalho_aps)
+                                 projetos=d['projetos'], aps=aps, trabalho=trabalho_aps, filtrar_auxiliares=filtrar_auxiliares)
         r['diag']['avisos'] = avisos_leitura + r['diag']['avisos']
         return r
     finally:
@@ -915,6 +940,8 @@ def main():
     m.add_argument('--aps', action='store_true', help='traduzir projetos .rvt pela APS com APS_CLIENT_ID/APS_CLIENT_SECRET do ambiente (cobrado)')
     m.add_argument('--aps-credenciais', help='JSON {client_id, client_secret} — o mesmo que --aps, com as credenciais em arquivo')
     m.add_argument('--aps-cache', help='pasta de cache dos IFC traduzidos, por SHA-256 do .rvt (o mesmo projeto não paga duas vezes)')
+    m.add_argument('--filtrar-auxiliares', action='store_true',
+                   help='excluir peças auxiliares de projetos .rvt: famílias/tipos com prefixo x_ ou x  e segmentos de tubo genérico (Pipe Types)')
     m.add_argument('--sair-com-stdin', action='store_true', help='termina com 2 quando o processo pai fecha o stdin')
     args = ap.parse_args()
 
@@ -928,7 +955,7 @@ def main():
     cli = cliente_aps(args.aps_credenciais, args.aps)
     aps = {'cliente': cli, 'cache': args.aps_cache} if cli else None
     r = importar(args.entrada, os.path.abspath(args.geo_dir), args.titulo, args.fabricante, args.comprimento_mm,
-                 args.deflexao, args.trabalho, aps=aps)
+                 args.deflexao, args.trabalho, aps=aps, filtrar_auxiliares=args.filtrar_auxiliares)
     with open(args.saida, 'w', encoding='utf-8') as f:
         json.dump(r, f, ensure_ascii=False)
     o = r['hints']['origem']

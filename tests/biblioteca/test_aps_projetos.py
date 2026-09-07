@@ -278,7 +278,7 @@ def test_projeto_via_ifc_irmao_e_via_aps(tmp_path):
     assert p['specs']['Fonte 3D'].startswith('IFC do projeto (') and p['specs']['Projeto Revit'] == 'Modelo_Empresa'
     assert p['specs']['Família Revit'] == 'Caixa' and p['specs']['Tipo Revit'] == '500 L' and p['conexoes'] == 'Plumbing Fixtures'
     assert r['config']['fabricante'] == 'Empresa' and r['n_geometrias'] == 2 and r['hints']['origem']['projetos'] == {
-        'projetos': 1, 'traduzidos_aps': 0, 'do_cache': 0, 'ifc_irmao': 1, 'fora': 0, 'produtos': 2}
+        'projetos': 1, 'traduzidos_aps': 0, 'do_cache': 0, 'ifc_irmao': 1, 'fora': 0, 'produtos': 2, 'filtrados_auxiliares': 0}
     for q in prods:
         contratos.validar('geometria', json.loads((tmp_path / 'geo' / q['geo']).read_text()))
     # sem IFC irmão e sem APS: fora, com a explicação; com APS falsa: traduzido
@@ -296,6 +296,67 @@ def test_projeto_via_ifc_irmao_e_via_aps(tmp_path):
     r4 = fr.catalogo_de_familias([], str(tmp_path / 'geo4'), projetos=d2['projetos'], aps={'cliente': falso, 'cache': str(tmp_path / 'cache')},
                                  trabalho=str(tmp_path / 'trab2'), progresso=lambda _m: None)
     assert falso.jobs == 1 and r4['hints']['origem']['projetos']['do_cache'] == 1
+
+
+def test_eh_auxiliar():
+    assert fr.eh_auxiliar('x Bolts - DIN 931', 'x Bolts - DIN 931')
+    assert fr.eh_auxiliar('x_Gasket', 'x_Gasket')
+    assert fr.eh_auxiliar('HVAC Pipe Connections', 'x_SE - Pipe Connections')   # x_ no tipo
+    assert fr.eh_auxiliar('Pipe Types', 'Default')
+    assert fr.eh_auxiliar('pipe segments', 'Generic')
+    assert not fr.eh_auxiliar('Caixa', '500 L')
+    assert not fr.eh_auxiliar('HVAC Valve', 'Actuator MP300')
+    assert not fr.eh_auxiliar('', '')
+    assert not fr.eh_auxiliar(None, None)
+
+
+def _ifc_com_auxiliares(caminho):
+    """IFC com dois tipos reais ('Valvula:MP300', 'Valvula:MP500') e dois auxiliares ('x Bolts:DIN 931', 'Pipe Types:Default')."""
+    ifcopenshell = pytest.importorskip('ifcopenshell')
+    import ifcopenshell.api
+    import numpy as np
+    f = ifcopenshell.api.run('project.create_file', version='IFC4')
+    proj = ifcopenshell.api.run('root.create_entity', f, ifc_class='IfcProject', name='P')
+    ifcopenshell.api.run('unit.assign_unit', f)
+    ctx = ifcopenshell.api.run('context.add_context', f, context_type='Model')
+    body = ifcopenshell.api.run('context.add_context', f, context_type='Model', context_identifier='Body', target_view='MODEL_VIEW', parent=ctx)
+    site = ifcopenshell.api.run('root.create_entity', f, ifc_class='IfcSite', name='S')
+    ifcopenshell.api.run('aggregate.assign_object', f, products=[site], relating_object=proj)
+    elementos = [
+        ('Valvula:MP300:1', (0.3, 0.3, 0.4), 0),
+        ('Valvula:MP500:2', (0.4, 0.4, 0.5), 2),
+        ('x Bolts - DIN 931:DIN 931:3', (0.02, 0.02, 0.08), 4),
+        ('Pipe Types:Default:4', (0.05, 0.05, 1.0), 6),
+    ]
+    for nome, dims, x in elementos:
+        e = ifcopenshell.api.run('root.create_entity', f, ifc_class='IfcFlowTerminal', name=nome)
+        e.ObjectType = nome.rsplit(':', 1)[0]
+        m = np.eye(4); m[0, 3] = x
+        ifcopenshell.api.run('geometry.edit_object_placement', f, product=e, matrix=m)
+        rep = ifcopenshell.api.run('geometry.add_wall_representation', f, context=body, length=dims[0], height=dims[2], thickness=dims[1])
+        ifcopenshell.api.run('geometry.assign_representation', f, product=e, representation=rep)
+        ifcopenshell.api.run('spatial.assign_container', f, products=[e], relating_structure=site)
+    f.write(str(caminho))
+    return str(caminho)
+
+
+def test_filtrar_auxiliares_em_projeto(tmp_path):
+    ifc = _ifc_com_auxiliares(tmp_path / 'aux' / 'Modelo.ifc') if (tmp_path / 'aux').mkdir() is None else None
+    (tmp_path / 'aux' / 'Modelo.rvt').write_bytes(b'nao e OLE')
+    d = fr.descobrir(str(tmp_path / 'aux'))
+    # sem filtro: 4 produtos
+    r_todos = fr.catalogo_de_familias([], str(tmp_path / 'geo_todos'), projetos=d['projetos'],
+                                      progresso=lambda _m: None)
+    assert len(r_todos['catalog']['produtos']) == 4
+    assert r_todos['hints']['origem']['projetos']['filtrados_auxiliares'] == 0
+    # com filtro: 2 produtos (Valvula:MP300 e Valvula:MP500), 2 auxiliares fora
+    r_filtrado = fr.catalogo_de_familias([], str(tmp_path / 'geo_filtrado'), projetos=d['projetos'],
+                                         filtrar_auxiliares=True, progresso=lambda _m: None)
+    prods = r_filtrado['catalog']['produtos']
+    assert len(prods) == 2
+    assert {p['serie'] for p in prods} == {'Valvula'}
+    assert r_filtrado['hints']['origem']['projetos']['filtrados_auxiliares'] == 2
+    assert any('filtrado' in a for a in r_filtrado['diag']['avisos'])
 
 
 @pytest.mark.skipif(not PROJETO_REAL, reason='fixture "rvt_projeto" não configurada (tests/fixtures.py)')

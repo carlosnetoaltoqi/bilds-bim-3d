@@ -17,6 +17,9 @@ export class ImportarRevitDto {
   /** traduzir projetos .rvt pela APS (exige APS_CLIENT_ID/APS_CLIENT_SECRET no serviço); padrão false */
   @IsOptional() @Transform(booleano) @IsBoolean({ message: '"usarAps" deve ser true ou false' }) usarAps?: boolean;
 
+  /** excluir peças auxiliares de projetos .rvt (prefixo x_, Pipe Types); padrão false */
+  @IsOptional() @Transform(booleano) @IsBoolean({ message: '"filtrarAuxiliares" deve ser true ou false' }) filtrarAuxiliares?: boolean;
+
   /** customUrl da empresa dona do catálogo; vazio = a primeira cadastrada */
   @IsOptional() @IsString() @Transform(trim) @MaxLength(LIMITES.customUrl) empresa?: string;
 
