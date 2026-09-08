@@ -1,17 +1,21 @@
-"""bim_pipeline.cli.ferramentas (validar_aq, aq_referencia, oq3d_anatomy) e bim_pipeline.aq.formas_parametricas.
+"""bim_pipeline.cli.ferramentas (validar_aq, aq_referencia, oq3d_anatomy, preencher_entradas_aq) e bim_pipeline.aq.formas_parametricas.
 
-As ferramentas são só leitura e rodam sobre um .aq escrito pela própria biblioteca (geo_to_aq), então o
+As ferramentas rodam sobre um .aq escrito pela própria biblioteca (geo_to_aq), então o
 teste não depende de fixture real. As formas paramétricas têm de gerar malhas fechadas que o escritor
-OQ3D grava e o leitor relê.
+OQ3D grava e o leitor relê. A `preencher_entradas_aq` é a única que escreve: ela conserta um
+`.aq` exportado antes de 2026-09-09, quando nenhum ponto de ligação era gravado.
 """
 import json
+import sqlite3
 import subprocess
 import sys
 
+import numpy as np
 import pytest
 
 from bim_pipeline.aq import formas_parametricas as fp
 from bim_pipeline.aq import oq3d, oq3d_writer
+from malhas_sinteticas import tubo
 
 
 @pytest.fixture(scope='module')
@@ -40,6 +44,44 @@ def test_validar_aq_aceita_um_aq_da_biblioteca(aq_gerado):
     # as conferências de tamanho só rodam quando pedidas, e falham quando não batem
     codigo, out = _roda('validar_aq', aq_gerado, '--max-conexao-cm', '0.001')
     assert codigo == 1 and 'nenhuma conexão maior que 0.001 cm' in out
+
+
+def test_preencher_entradas_aq_recupera_os_bocais_de_um_aq_sem_entradas(tmp_path):
+    """O `.aq` de quem exportou antes da correção não tem ponto de ligação nenhum. A
+    ferramenta acha os bocais na malha que já está no arquivo, e não duplica se rodar de
+    novo."""
+    (V, F, _), = tubo(r_int=2.56, r_ext=2.80, comprimento=20.0)
+    pos = np.stack([V[:, 0] / 100.0, V[:, 2] / 100.0, -V[:, 1] / 100.0], axis=1)
+    geo = {'info': {'fabricante': 'Fabricante Exemplo', 'linha': 'Linha Exemplo', 'nome': 'Tubo'},
+           'pos': pos.ravel().tolist(), 'col': [0.5, 0.5, 0.5] * len(V), 'idx': F.ravel().tolist()}
+    (tmp_path / 'geo.json').write_text(json.dumps(geo), encoding='utf8')
+    aq = str(tmp_path / 'tubo.aq')
+    r = subprocess.run([sys.executable, '-m', 'bim_pipeline.cli.gerar_aq',
+                        str(tmp_path / 'geo.json'), aq, '--quiet'],
+                       capture_output=True, text=True, timeout=300)
+    assert r.returncode == 0, r.stderr
+
+    def conta():
+        con = sqlite3.connect(aq)
+        try:
+            return tuple(con.execute(f'SELECT COUNT(*) FROM {t}').fetchone()[0]
+                         for t in ('ENTRADA_3D', 'ENTRADA_PECA'))
+        finally:
+            con.close()
+
+    con = sqlite3.connect(aq)                      # o estado de quem exportou antes
+    con.execute('DELETE FROM ENTRADA_3D')
+    con.execute('DELETE FROM ENTRADA_PECA')
+    con.commit()
+    con.close()
+    assert conta() == (0, 0)
+
+    codigo, out = _roda('preencher_entradas_aq', aq, '--quiet')
+    assert codigo == 0, out
+    assert conta() == (2, 2)
+    codigo, out = _roda('preencher_entradas_aq', aq, '--quiet')     # idempotente
+    assert codigo == 0, out
+    assert conta() == (2, 2)
 
 
 def test_aq_referencia_e_anatomy_leem_o_aq(aq_gerado):
