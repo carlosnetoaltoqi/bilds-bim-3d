@@ -19,7 +19,8 @@ import numpy as np
 import pytest
 
 from bim_pipeline.aq.aq_writer import SENT_INT
-from bim_pipeline.aq.entradas_aq import azimute, codigo_diametro, derivar
+from bim_pipeline.aq.entradas_aq import (LIMITE_POR_SIMBOLOGIA, azimute, codigo_diametro,
+                                          derivar, plausivel)
 from conftest import ROOT
 from malhas_sinteticas import tubo
 
@@ -92,3 +93,16 @@ def test_gerar_aq_grava_as_duas_tabelas_de_entrada(tmp_path):
     assert all(round(r[0], 4) == 0.0 and round(r[1], 4) == 0.0 for r in e3)
     assert {r[4] for r in e3} == {9}                            # bitola de 50 mm
     assert {r[1] for r in ep} == {9} and SENT_INT not in {r[1] for r in ep}
+
+
+@pytest.mark.parametrize('n, ok', [
+    (2, True),                             # uma luva
+    (LIMITE_POR_SIMBOLOGIA, True),         # o máximo que uma simbologia nativa tem
+    (LIMITE_POR_SIMBOLOGIA + 1, False),
+    (107, False),                          # um projeto .rvt inteiro numa simbologia
+])
+def test_quantidade_de_bocais_fora_da_distribuicao_nativa_e_descartada(n, ok):
+    """107 bocais não são uma peça: é um projeto inteiro virando simbologia, e a malha tem
+    dezenas de pontas de tubo que não ligam em nada. Quem chama descarta e reporta, em vez
+    de truncar — escolher 38 dos 107 seria inventar quais são ponto de ligação."""
+    assert plausivel([{'posicao': (0, 0, 0)}] * n) is ok

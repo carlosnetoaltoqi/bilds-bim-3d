@@ -151,6 +151,12 @@ def gerar(entrada, saida, info):
     # -- pontos de ligação: sem eles a peça não encaixa em tubulação e o Builder não
     #    gera o wireframe de planta/corte ---------------------------------
     entradas = entradas_aq.derivar(malhas)
+    if not entradas_aq.plausivel(entradas):
+        # malha de projeto inteiro, não de peça: dezenas de pontas de tubo que não são
+        # ponto de ligação de nada. Melhor sem entrada nenhuma que com 107 inventadas.
+        print(f'  {len(entradas)} bocais na malha — fora do que uma peça tem; '
+              f'entradas não gravadas', file=sys.stderr)
+        entradas = []
     entradas_aq.gravar(g, entradas, id_simbologia=id_simb, ids_peca=(id_peca,))
 
     # -- propriedades personalizadas --------------------------------------

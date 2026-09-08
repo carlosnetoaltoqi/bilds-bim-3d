@@ -282,7 +282,14 @@ azimute do bocal em grau (derivado da normal, que o detector orienta para fora �
 ortogonais dá 0/90/180/270) e o **código** de bitola em `DIAMETRO_EP`/`DIAMETRO`, pelo nominal
 mais próximo do raio interno com 8 % de tolerância.
 
-Dois limites conhecidos, e nenhum dos dois é silencioso:
+Três limites conhecidos, e nenhum dos três é silencioso:
+
+- **Simbologia com mais de 38 bocais fica sem entrada nenhuma.** 38 é o máximo que uma simbologia
+  nativa tem (a distribuição das 634 linhas é 2 em metade dos casos, 4 em dois terços, cauda até
+  38). Acima disso a "peça" não é peça: um projeto `.rvt` inteiro virando uma simbologia deu 107
+  bocais, que são pontas de tubo do projeto e não ponto de ligação de nada. O descarte é reportado
+  (`geometrias_sem_entrada` no resumo do catálogo, falha na ferramenta) e **não** truncado —
+  escolher 38 dos 107 seria inventar quais valem.
 
 - **`LIGACAO_EP` fica em 0.** O enum vai de 0 a 3, a tabela `TIPO_LIGACAO` está vazia em toda
   nativa e o significado não está determinado — 0 é o valor mais comum (1.675 de 3.405). Numa

@@ -97,6 +97,10 @@ def preencher(caminho, refazer=False, progresso=None):
             if not entradas:
                 sem_bocal.append(sid)
                 continue
+            if not entradas_aq.plausivel(entradas):
+                falhas.append((sid, f'{len(entradas)} bocais na malha — fora do que uma peça '
+                                    f'tem (projeto inteiro numa simbologia?); nada gravado'))
+                continue
             pecas = [r[0] for r in con.execute(
                 'SELECT ID_PECA FROM PECA_SIMBOLOGIA_3D WHERE ID_SIMBOLOGIA_3D = ?', (sid,))]
             n_entradas += entradas_aq.gravar(g, entradas, id_simbologia=sid, ids_peca=pecas)

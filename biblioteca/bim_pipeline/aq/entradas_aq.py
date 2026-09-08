@@ -40,6 +40,12 @@ from bim_pipeline.geometria.bocais import bocais
 # sem deixar um bocal de 60 mm virar 50.
 TOLERANCIA_NOMINAL = 0.08
 
+# Máximo de bocais que uma simbologia nativa tem: 38 (as 634 linhas nativas se distribuem em
+# 2 na metade dos casos, 4 em dois terços, e a cauda vai até 38). Acima disso a "peça" não é
+# peça conectável — é um projeto inteiro virando uma simbologia, e a malha tem dezenas de pontas
+# de tubo que não são ponto de ligação de nada.
+LIMITE_POR_SIMBOLOGIA = 38
+
 TIPO_SECAO_PADRAO = 0
 SECAO_EP_PADRAO = 10
 LIGACAO_EP_PADRAO = 0
@@ -83,6 +89,15 @@ def derivar(malhas, **limites):
             'normal': tuple(float(c) for c in bocal['normal']),
         })
     return saida
+
+
+def plausivel(entradas, limite=LIMITE_POR_SIMBOLOGIA):
+    """A quantidade de bocais cabe no que uma peça de verdade tem?
+
+    Quem chama **reporta** o descarte em vez de gravar, e não trunca: escolher 38 de 107
+    bocais seria inventar quais deles são ponto de ligação.
+    """
+    return len(entradas) <= limite
 
 
 def gravar(g, entradas, id_simbologia=None, ids_peca=()):

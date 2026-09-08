@@ -73,7 +73,7 @@ caractere fora do cp1252 num nome ou spec (o `.aq` não o representa), chave est
 
 SAÍDA: progresso no stderr (uma linha a cada 50 geometrias) e, no stdout, a última linha é um
 JSON com o resumo: `{pecas, grupos, simbologias, triangulos, propriedades, valores, curvas,
-entradas, bytes, segundos}`.
+entradas, geometrias_sem_entrada, bytes, segundos}`.
 
 Uso:
     python3 -m bim_pipeline.cli.catalogo_para_aq manifesto.json saida.aq [--quiet] [--manter-prefixo-serie]
@@ -243,7 +243,7 @@ def gerar(manifesto, saida, manter_prefixo=False, progresso=avisar):
         simb_por_geo = {}          # caminho absoluto da geometria → id da simbologia
         entradas_por_geo = {}      # a mesma geometria dá os mesmos bocais: detecta uma vez
         props = {}                 # chave de spec → id da propriedade
-        n_valores = n_curvas = n_tri = n_entradas = 0
+        n_valores = n_curvas = n_tri = n_entradas = n_sem_entrada = 0
         for i, p in enumerate(produtos, 1):
             serie = (p.get('serie') or '').strip() or 'Outros'
             grp = grupos[serie]
@@ -316,9 +316,15 @@ def gerar(manifesto, saida, manter_prefixo=False, progresso=avisar):
                 simb_por_geo[geo_abs] = id_simb
                 # pontos de ligação: a ENTRADA_3D é da simbologia (posição da geometria),
                 # a ENTRADA_PECA é de cada peça que usa essa geometria (bitola da peça).
-                entradas_por_geo[geo_abs] = entradas_aq.derivar(malhas)
-                entradas_aq.gravar(g, entradas_por_geo[geo_abs], id_simbologia=id_simb)
-                n_entradas += len(entradas_por_geo[geo_abs])
+                achados = entradas_aq.derivar(malhas)
+                if not entradas_aq.plausivel(achados):
+                    progresso(f'{onde}: {len(achados)} bocais na malha — fora do que uma peça '
+                              f'tem; entradas não gravadas')
+                    achados = []
+                    n_sem_entrada += 1
+                entradas_por_geo[geo_abs] = achados
+                entradas_aq.gravar(g, achados, id_simbologia=id_simb)
+                n_entradas += len(achados)
                 if len(simb_por_geo) % 50 == 0:
                     progresso(f'{len(simb_por_geo)} geometrias gravadas ({i}/{len(produtos)} produtos)')
             g.ins('PECA_SIMBOLOGIA_3D', ID_PECA_SIMBOLOGIA_3D=g.novo('PECA_SIMBOLOGIA_3D'),
@@ -356,7 +362,7 @@ def gerar(manifesto, saida, manter_prefixo=False, progresso=avisar):
         'fabricante': fabricante, 'titulo': titulo,
         'pecas': len(produtos), 'grupos': len(grupos), 'simbologias': len(simb_por_geo),
         'triangulos': n_tri, 'propriedades': len(props), 'valores': n_valores, 'curvas': n_curvas,
-        'entradas': n_entradas,
+        'entradas': n_entradas, 'geometrias_sem_entrada': n_sem_entrada,
         'bytes': os.path.getsize(saida), 'segundos': round(time.time() - t0, 1),
     }
     progresso(f"{resumo['pecas']} peças, {resumo['grupos']} grupos, {resumo['simbologias']} simbologias, "
