@@ -10,6 +10,27 @@ bibliotecas pelo criador de catálogos (produtos e miniaturas voltaram); os down
 (`catallog/<importId>/`) não voltaram, porque refazê-los exigiria baixar de novo do catálogo do fabricante
 sem autorização. Detalhe em `sessoes/S8.4-f4-servicos-com-dados-e-web.md` §6.
 
+## Aceitação que só abre a biblioteca não prova nada (2026-09-08)
+
+Duas aceitações manuais de `.aq` foram registradas como boas por **abrir** no AltoQi Builder: a árvore de
+classes/grupos/peças correta, propriedades visíveis, acentos íntegros. Nenhuma das duas olhou a janela 3D
+nem lançou a peça num projeto — e a `SIMBOLOGIA_3D.IMAGEM` faltando em todas as bibliotecas exportadas
+passou meses sem ser vista, porque a peça sem `IMAGEM` mostra **todos os dados** e não desenha nada. O
+sintoma só aparece no passo que ninguém dava. `docs/aceitacao.md` §4 agora exige os dois passos, e o
+`validar_aq` acusa o campo. Lição geral: quando o critério de aceitação é "abriu", o que se prova é o
+parser da outra ponta, não o produto — o critério tem de ser o uso final (aqui: a peça lançada no
+projeto). Detalhe em `sessoes/2026-09-08-imagem-obrigatoria-o-aq-que-abria-e-nao-desenhava.md`.
+
+## Teorizar sobre um formato binário sem experimento subtrativo (2026-09-08)
+
+No mesmo defeito, o diff entre as nossas saídas e 16 bibliotecas nativas apontou cinco suspeitos, e
+quatro eram falsos positivos — sentinela em `TIPO_CONFIGURACAO_GP`, `SIMBOLO_SELECIONADO` apontando para
+tabela vazia, `PECA.BIBLIOTECA` preenchida, um nível a menos na árvore do OQ3D: tudo isso aparece em
+nativas que funcionam. "Difere da nativa" não é prova de nada num formato proprietário. O que fechou em
+uma rodada foi montar cópias de uma nativa que funciona apagando **um** campo por arquivo e pedir ao
+usuário para abrir cada uma — mais um transplante de geometria nativa para o nosso cadastro, que separou
+defeito de geometria de defeito de cadastro.
+
 ## Uma suíte "verde" com menos testes do que deveria (S8.5)
 
 Uma exclusão de diretório do coletor (`norecursedirs` com `biblioteca`) casou com `tests/biblioteca/` e 71

@@ -189,9 +189,12 @@ fabricante, o que depende de autorização explícita (Termos de Uso). Commits d
 - Conferir no Builder as quatro bibliotecas de 2026-09-08 corrigidas com `preencher_imagem_aq` (as duas
   de famílias Revit, a de conexões e a do projeto `.rvt`) — a de conexões já foi verificada, com peça
   lançada no projeto.
-- Decidir se `WIREFRAME` (planta/corte) e `ENTRADA_PECA`/`ENTRADA_3D` (conectividade da peça numa rede)
-  entram no escopo: a peça desenha em 3D sem os dois, mas a representação em planta e o encaixe numa
-  tubulação seguem sem prova.
+- **Próxima sessão, decidido em 2026-09-08:** (1) `WIREFRAME` — a representação em planta e corte;
+  antes de reverter o formato, conferir no Builder se uma peça nossa **já com `IMAGEM`** aparece em
+  planta, porque o campo pode ser só cache das arestas. (2) `ENTRADA_PECA`/`ENTRADA_3D` — bocais e
+  encaixe numa tubulação; o schema é conhecido, o problema é a origem das posições. Ponto de partida,
+  suspeitos já descartados e armadilhas em
+  `docs/historico/sessoes/2026-09-08-imagem-obrigatoria-o-aq-que-abria-e-nao-desenhava.md` §7.
 - Leitura humana dos 17 documentos de `docs/conhecimento/` e das quatro skills (escritos por agentes sob
   a guarda de termos; ninguém os leu de ponta a ponta ainda).
 - Abrir no AltoQi Builder o `.aq` exportado do catálogo de plugin web e o do catálogo de famílias Revit
