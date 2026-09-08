@@ -185,9 +185,10 @@ A peça entra como equipamento genérico: `TIPO_APLICACAO_PECA = 2` (conexão),
 numa propriedade personalizada própria, não inventada: `specs['Geometria 3D'] = 'malha
 importada — <origem>; N malha(s), T triângulos'`.
 
-**O que fica de fora:** `ENTRADA_PECA` (bocais, comprimentos equivalentes), `WIREFRAME`
-(arestas de planta/corte) e a simbologia 2D — não há de onde tirar isso de uma malha solta, e a
-peça desenha sem os três. **A `IMAGEM` não fica de fora** (seção acima): é gerada da própria malha
+**As entradas não ficam de fora:** `ENTRADA_3D` e `ENTRADA_PECA` saem da própria malha, pelos
+bocais que `entradas_aq.derivar(malhas)` acha (seção das entradas, abaixo) — sem elas o Builder
+não gera a representação de planta e corte, e a peça sai com o símbolo padrão. **O que fica de
+fora** é o `WIREFRAME` (o Builder gera, dados os pontos de ligação) e a simbologia 2D. **A `IMAGEM` não fica de fora** (seção acima): é gerada da própria malha
 por `imagem_aq.render`, porque sem ela o Builder não desenha. **O código comercial (`ITEM.CODIGO_ITEM`)
 não fica de fora**: `CLASSE_ITEM → GRUPO_ITEM → ITEM → ITEM_ASSOCIADO` são gravados também
 para a peça única, com `CODIGO_ITEM` vindo de `info['codigo']` ou, na falta dele, do nome da
@@ -242,8 +243,8 @@ separadamente, abriram no Builder.)
 
 **O que um catálogo salvo não guarda, e portanto o `.aq` gerado não tem:** as peças sem
 simbologia 3D do arquivo original (tubos e kits — cerca de um quarto das peças numa
-biblioteca real de conexões), `ENTRADA_PECA`/`ENTRADA_3D` (bocais e conectividade
-hidráulica), simbologia 2D, `WIREFRAME`, e o **código comercial original**
+biblioteca real de conexões), a simbologia 2D, o `WIREFRAME` (que o Builder gera) e o
+**código comercial original**
 (`ITEM.CODIGO_ITEM` sai preenchido, mas com a spec "Código" se existir, senão o slug do
 produto — nunca o código de catálogo de origem, que o catálogo salvo não guarda).
 
@@ -265,6 +266,33 @@ A última linha do `stdout` de `catalogo_to_aq` é sempre um resumo em JSON —
 — para quem chama de outro processo (o serviço de ingestão) parsear sem depender do texto
 de progresso, que vai no `stderr`.
 
+## As entradas — `ENTRADA_3D` e `ENTRADA_PECA`, achadas na malha
+
+Os dois escritores gravam os pontos de ligação desde 2026-09-09 (ADR-021), derivados da própria
+malha por `entradas_aq.derivar(malhas)` — a `ENTRADA_3D` na simbologia (posição), a `ENTRADA_PECA`
+em cada peça que a usa (bitola e ângulo). Sem elas a peça abre com "Pontos de ligação 3D: Não",
+não encaixa em tubulação e o Builder não gera a representação de planta e corte.
+
+O detector está em `bim_pipeline.geometria.bocais` (a forma, os filtros e o placar contra as
+nativas estão em `geometria.md`). O que a escrita acrescenta a ele são os valores das colunas que
+não são posição, cada um medido nas 634 linhas de `ENTRADA_3D` e 3.405 de `ENTRADA_PECA` das
+nativas: `TIPO_SECAO = 0`, `BASE`/`ALTURA` e `COMPRIMENTO_EP`/`BASE_EP`/`ALTURA_EP` em zero,
+`SECAO_EP = 10` (o valor das entradas com geometria na nativa de conexões), `ANGULO_EP` = o
+azimute do bocal em grau (derivado da normal, que o detector orienta para fora — nas nativas
+ortogonais dá 0/90/180/270) e o **código** de bitola em `DIAMETRO_EP`/`DIAMETRO`, pelo nominal
+mais próximo do raio interno com 8 % de tolerância.
+
+Dois limites conhecidos, e nenhum dos dois é silencioso:
+
+- **`LIGACAO_EP` fica em 0.** O enum vai de 0 a 3, a tabela `TIPO_LIGACAO` está vazia em toda
+  nativa e o significado não está determinado — 0 é o valor mais comum (1.675 de 3.405). Numa
+  nativa de conexões a mesma peça usa 0 e 1 em pontas do mesmo diâmetro, o que sugere ponta ×
+  bolsa; enquanto não se souber, escrever um valor inventado seria pior que escrever o comum.
+- **Bitola fora da escala do AltoQi fica sem código** (`DIAMETRO_EP` na sentinela, `DIAMETRO` em 0,
+  que é o valor de 608 das 634 linhas nativas). Acontece com sistema que não é PVC: numa conexão
+  *press* de aço a face anelar dá o bore do encaixe, que é o **diâmetro externo do tubo**
+  (76,3 mm para DN65, 89,2 para DN80), e a escala conhecida vai de 40 a 200 em passos de PVC.
+
 ## O que só o Builder pode dizer
 
 O leitor do projeto (`read_aq.py`/`oq3d.py`) confere que o arquivo é consistente consigo
@@ -277,9 +305,13 @@ por isso que a `IMAGEM` faltando passou batido: **a peça abria com todos os dad
 
 Aceitação de 2026-09-08, com os dois lados verificados na janela 3D: uma biblioteca de conexões
 gerada aqui, com a `IMAGEM` de `imagem_aq`, desenha no Cadastro **e** lança a peça no projeto com a
-geometria real. É o primeiro registro de peça nossa desenhada no ambiente do Builder. O que segue
-sem prova: planta e corte (o `WIREFRAME` continua nulo) e a conectividade hidráulica da peça numa
-rede (sem `ENTRADA_PECA`/`ENTRADA_3D`).
+geometria real. É o primeiro registro de peça nossa desenhada no ambiente do Builder.
+
+Em 2026-09-09 o usuário verificou o que faltava do outro lado: uma peça nossa lançada em **planta**
+saía com o símbolo padrão do Builder, e três experimentos em nativas de fabricante mostraram que
+planta e corte vêm da simbologia 2D **ou** do `WIREFRAME` — que o Builder gera, desde que a peça
+tenha pontos de ligação 3D (`aq-formato.md`, seção da planta). O que segue sem prova: a planta de
+uma peça nossa **com** as entradas escritas, e o encaixe dela numa tubulação.
 
 ## Ferramentas
 

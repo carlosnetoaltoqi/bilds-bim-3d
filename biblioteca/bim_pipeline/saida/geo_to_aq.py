@@ -31,10 +31,12 @@ UNIDADES E EIXOS. O OQ3D é centímetros, Z-up. Do viewer (metros, Y-up):
 `oq3d = (x·100, −z·100, y·100)` — a conversão documentada no CLAUDE.md,
 seção "Unidades" do OQ3D.
 
-O QUE FICA DE FORA. `ENTRADA_PECA` (bocais e comprimentos equivalentes), `WIREFRAME`
-(arestas para planta/corte) e a simbologia 2D: não há de onde tirar isso de uma malha —
-e o Builder desenha a peça sem os três (experimento em `bim_pipeline.aq.imagem_aq`). A
-`IMAGEM` **entra**: é o BMP de preview sem o qual o Builder não desenha nada. (`ITEM`/`ITEM_ASSOCIADO` entram, com o código
+O QUE FICA DE FORA. `WIREFRAME` (arestas para planta/corte) e a simbologia 2D: o Builder
+gera o primeiro sozinho, desde que a peça tenha pontos de ligação 3D. A `IMAGEM` **entra**:
+é o BMP de preview sem o qual o Builder não desenha nada (experimento em
+`bim_pipeline.aq.imagem_aq`). As `ENTRADA_3D`/`ENTRADA_PECA` também entram, quando a malha
+tem bocal reconhecível — ponta de tubo ou face de flange (`bim_pipeline.aq.entradas_aq`);
+malha sem bocal sai sem entrada, e aí a peça não encaixa em tubulação. (`ITEM`/`ITEM_ASSOCIADO` entram, com o código
 comercial de `info.codigo` ou o nome da peça.) A peça entra como equipamento genérico (`TIPO_APLICACAO_PECA = 2`,
 conexão), sem código de diâmetro (sentinela `-DBL_MAX`, como as 700 conexões
 de uma biblioteca real). A origem fica gravada numa propriedade personalizada "Geometria
@@ -54,6 +56,7 @@ import sys
 AQUI = os.path.dirname(os.path.abspath(__file__))
 
 from bim_pipeline.aq import aq_writer
+from bim_pipeline.aq import entradas_aq
 from bim_pipeline.aq import imagem_aq
 from bim_pipeline.aq import oq3d_writer
 
@@ -145,6 +148,11 @@ def gerar(entrada, saida, info):
     g.ins('PECA_SIMBOLOGIA_3D', ID_PECA_SIMBOLOGIA_3D=g.novo('PECA_SIMBOLOGIA_3D'),
           ID_PECA=id_peca, ID_SIMBOLOGIA_3D=id_simb)
 
+    # -- pontos de ligação: sem eles a peça não encaixa em tubulação e o Builder não
+    #    gera o wireframe de planta/corte ---------------------------------
+    entradas = entradas_aq.derivar(malhas)
+    entradas_aq.gravar(g, entradas, id_simbologia=id_simb, ids_peca=(id_peca,))
+
     # -- propriedades personalizadas --------------------------------------
     id_gp = g.novo('GRUPO_PROPRIEDADE_PERSONALIZADA')
     g.ins('GRUPO_PROPRIEDADE_PERSONALIZADA', ID_GRUPO_PROPRIEDADE_PERSONALIZADA=id_gp,
@@ -167,7 +175,7 @@ def gerar(entrada, saida, info):
     con.close()
     return {
         'peca': nome, 'fabricante': fabricante, 'linha': linha,
-        'malhas': len(malhas),
+        'malhas': len(malhas), 'entradas': len(entradas),
         'triangulos': sum(len(t) for _, t, _, _ in malhas),
         'oq3d_bytes': len(blob),
         'bytes': os.path.getsize(saida),

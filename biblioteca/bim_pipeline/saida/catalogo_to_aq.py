@@ -54,9 +54,16 @@ O QUE O ARQUIVO GERADO TEM — e de onde vem cada coisa:
                        UMA POR CHAVE DE SPEC distinta (uma dúzia numa biblioteca real), num grupo "Fabricante:
                        Título"; VALOR_PROPRIEDADE_PERSONALIZADA por (produto, chave) não vazia
 
+ENTRADA_3D + ENTRADA_PECA  os pontos de ligação, achados na própria malha por
+                       `bim_pipeline.aq.entradas_aq` (ponta de tubo ou face de flange). A
+                       `ENTRADA_3D` é da simbologia e a `ENTRADA_PECA` de cada peça que a
+                       usa. Sem eles a peça não encaixa em tubulação e o Builder não gera
+                       o wireframe de planta/corte. Geometria sem bocal reconhecível sai
+                       sem entrada — o detector não inventa ponto de ligação.
+
 O QUE FICA DE FORA, porque o catálogo não tem de onde tirar: as peças sem simbologia 3D do
-`.aq` original (tubos e kits — cerca de um quarto das peças numa biblioteca de conexões), `ENTRADA_PECA`/`ENTRADA_3D` (bocais e
-conectividade), simbologia 2D, `WIREFRAME` (arestas de planta/corte), os códigos comerciais
+`.aq` original (tubos e kits — cerca de um quarto das peças numa biblioteca de conexões),
+simbologia 2D, `WIREFRAME` (o Builder gera), os códigos comerciais
 originais. A `IMAGEM` **não** fica de fora: é o BMP de preview que o Builder exige para
 desenhar a peça, gerado por `bim_pipeline.aq.imagem_aq`.
 
@@ -66,7 +73,7 @@ caractere fora do cp1252 num nome ou spec (o `.aq` não o representa), chave est
 
 SAÍDA: progresso no stderr (uma linha a cada 50 geometrias) e, no stdout, a última linha é um
 JSON com o resumo: `{pecas, grupos, simbologias, triangulos, propriedades, valores, curvas,
-bytes, segundos}`.
+entradas, bytes, segundos}`.
 
 Uso:
     python3 -m bim_pipeline.cli.catalogo_para_aq manifesto.json saida.aq [--quiet] [--manter-prefixo-serie]
@@ -85,6 +92,7 @@ import numpy as np
 AQUI = os.path.dirname(os.path.abspath(__file__))
 
 from bim_pipeline.aq import aq_writer
+from bim_pipeline.aq import entradas_aq
 from bim_pipeline.aq import imagem_aq
 from bim_pipeline.aq import oq3d_writer
 
@@ -233,8 +241,9 @@ def gerar(manifesto, saida, manter_prefixo=False, progresso=avisar):
 
         # ── peças ─────────────────────────────────────────────────────────────
         simb_por_geo = {}          # caminho absoluto da geometria → id da simbologia
+        entradas_por_geo = {}      # a mesma geometria dá os mesmos bocais: detecta uma vez
         props = {}                 # chave de spec → id da propriedade
-        n_valores = n_curvas = n_tri = 0
+        n_valores = n_curvas = n_tri = n_entradas = 0
         for i, p in enumerate(produtos, 1):
             serie = (p.get('serie') or '').strip() or 'Outros'
             grp = grupos[serie]
@@ -305,10 +314,16 @@ def gerar(manifesto, saida, manter_prefixo=False, progresso=avisar):
                       DESLOCAMENTO_X=0.0, DESLOCAMENTO_Y=0.0, DESLOCAMENTO_Z=0.0,
                       ANGULO_PLANO_XY=0.0, ANGULO_PLANO_XZ=0.0, ANGULO_PLANO_YZ=0.0)
                 simb_por_geo[geo_abs] = id_simb
+                # pontos de ligação: a ENTRADA_3D é da simbologia (posição da geometria),
+                # a ENTRADA_PECA é de cada peça que usa essa geometria (bitola da peça).
+                entradas_por_geo[geo_abs] = entradas_aq.derivar(malhas)
+                entradas_aq.gravar(g, entradas_por_geo[geo_abs], id_simbologia=id_simb)
+                n_entradas += len(entradas_por_geo[geo_abs])
                 if len(simb_por_geo) % 50 == 0:
                     progresso(f'{len(simb_por_geo)} geometrias gravadas ({i}/{len(produtos)} produtos)')
             g.ins('PECA_SIMBOLOGIA_3D', ID_PECA_SIMBOLOGIA_3D=g.novo('PECA_SIMBOLOGIA_3D'),
                   ID_PECA=id_peca, ID_SIMBOLOGIA_3D=id_simb)
+            entradas_aq.gravar(g, entradas_por_geo.get(geo_abs, ()), ids_peca=(id_peca,))
 
             # propriedades personalizadas — uma PROPRIEDADE por chave, um VALOR por (peça, chave)
             for chave, valor in (p.get('specs') or {}).items():
@@ -341,6 +356,7 @@ def gerar(manifesto, saida, manter_prefixo=False, progresso=avisar):
         'fabricante': fabricante, 'titulo': titulo,
         'pecas': len(produtos), 'grupos': len(grupos), 'simbologias': len(simb_por_geo),
         'triangulos': n_tri, 'propriedades': len(props), 'valores': n_valores, 'curvas': n_curvas,
+        'entradas': n_entradas,
         'bytes': os.path.getsize(saida), 'segundos': round(time.time() - t0, 1),
     }
     progresso(f"{resumo['pecas']} peças, {resumo['grupos']} grupos, {resumo['simbologias']} simbologias, "
