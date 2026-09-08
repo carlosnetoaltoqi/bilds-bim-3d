@@ -1,7 +1,7 @@
 ---
 name: leitor-biblioteca-aq
 description: Lê E ESCREVE arquivos de biblioteca BIM do AltoQi Builder (.aq) — SQLite com geometria 3D embutida. Extrai peças, dados hidráulicos, curvas de bomba, propriedades, miniaturas e a malha 3D completa (formato OQ3D), dispensando os IFCs; e gera um .aq do zero, com o schema, os enums, o encoding cp1252 e o binário OQ3D corretos.
-version: 2.10.0
+version: 2.11.0
 author: Bilds / carlosnetoaltoqi
 ---
 
@@ -20,6 +20,7 @@ Você é especialista em ler e escrever bibliotecas BIM do AltoQi Builder (`.aq`
 
 - Um `.aq` é um ZIP renomeado contendo um SQLite (versões recentes distribuem o SQLite puro, sem ZIP) — tente abrir direto e caia para ZIP só se falhar.
 - A geometria 3D mora no BLOB `SIMBOLOGIA_3D.SIMBOLOGIA_3D`, num formato binário próprio (OQ3D) — a mesma malha que o AltoQi exporta como IFC, o que dispensa os IFCs.
+- **Ao escrever: `SIMBOLOGIA_3D.IMAGEM` é obrigatória.** Sem esse BMP de preview (100×100, 24 bits, 30.054 bytes) o Builder mostra os dados da peça e **não desenha a geometria**, nem em 3D. `WIREFRAME` e entradas não são necessários — isolado por experimento no Builder.
 - O texto é **cp1252**, não latin-1 nem UTF-8 — mesmo o `.aq` declarando `PRAGMA encoding = UTF-8` — e isso afeta leitura, escrita e literais de query.
 
 ## Workflow de leitura
@@ -34,7 +35,8 @@ Você é especialista em ler e escrever bibliotecas BIM do AltoQi Builder (`.aq`
 1. Criar o schema a partir do DDL de referência do projeto — nunca escrever as 77 tabelas à mão.
 2. Inserir na ordem que fecha as FKs; gravar texto em cp1252 (`CAST(? AS TEXT)` com bytes já codificados).
 3. Escrever o BLOB OQ3D: uma `SIMBOLOGIA_3D` por geometria **distinta** (não por peça) — várias peças podem apontar para a mesma.
-4. Validar lendo de volta com o leitor do projeto e, quando possível, abrindo no AltoQi Builder.
+4. Gravar a `IMAGEM` de cada simbologia (BMP 100×100 rasterizado da própria malha) — sem ela o arquivo abre e a peça não desenha.
+5. Validar lendo de volta com o leitor do projeto e, quando possível, abrindo no AltoQi Builder — **e lançando a peça num projeto**, não só abrindo a biblioteca: é o passo que revela a peça sem forma.
 
 ## Armadilhas essenciais (uma linha cada)
 
@@ -45,10 +47,12 @@ Você é especialista em ler e escrever bibliotecas BIM do AltoQi Builder (`.aq`
 - Sentinelas substituem `NULL` no AltoQi: `-2147483647` e `-1.7976931348623157e+308`.
 - Trocar `text_factory` sem `CAST(col AS BLOB)` na query corrompe o BLOB da geometria — o round-trip via latin-1 não sobrevive à troca para cp1252.
 - Deduplique vértices só na malha **gerada** — a malha de fabricante já vem como sopa de triângulos e não é estanque.
+- `.aq` com MB de geometria válida e peça sem forma nenhuma no Builder: é a `IMAGEM` nula, não o OQ3D — o `WIREFRAME` no lugar dela não resolve.
 
 ## Pontos de entrada neste repo
 
 - Ler: `biblioteca/bim_pipeline/aq/read_aq.py`, `biblioteca/bim_pipeline/aq/oq3d.py` — CLI `python -m bim_pipeline.cli.read_aq <arquivo.aq> [saida.json] [--meta]`.
+- O BMP de `SIMBOLOGIA_3D.IMAGEM`: `biblioteca/bim_pipeline/aq/imagem_aq.py` (`render(malhas)`, mesmo argumento do `oq3d_writer.escrever`); num `.aq` já exportado, CLI `python -m bim_pipeline.cli.ferramentas.preencher_imagem_aq <arquivo.aq>`.
 - Escrever uma peça: `biblioteca/bim_pipeline/saida/geo_to_aq.py` — CLI `python -m bim_pipeline.cli.gerar_aq entrada.json saida.aq [--fabricante] [--linha] [--nome] [--codigo]`.
 - Escrever um catálogo inteiro: `biblioteca/bim_pipeline/saida/catalogo_to_aq.py` — CLI `python -m bim_pipeline.cli.catalogo_para_aq manifesto.json saida.aq [--manter-prefixo-serie] [--quiet]`.
 - Schema e escritores binários: `biblioteca/bim_pipeline/aq/aq_writer.py`, `biblioteca/bim_pipeline/aq/oq3d_writer.py`.

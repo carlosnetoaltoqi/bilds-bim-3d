@@ -91,7 +91,7 @@ prefixo de `CLASSE_SIMBOLOGIA_3D.NOME_CLASSE` (abaixo).
 
 | Tabela | Papel |
 |---|---|
-| **`SIMBOLOGIA_3D`** | a geometria. `SIMBOLOGIA_3D` (BLOB OQ3D — a malha), `IMAGEM` (BMP 100×100 24-bit pré-renderizado), `WIREFRAME` (arestas para planta/corte no CAD — **~70 % do arquivo, inútil para viewer**), `NOME` (muitas vezes só a dimensão: `'100MM'`), `USA_CORES_PECA`, `DESLOCAMENTO_X/Y/Z`, `ANGULO_PLANO_*`. `SIMBOLOGIA_3D_SIMPLIFICADA` e `IMAGEM_SIMPLIFICADA` nulas nas bibliotecas observadas |
+| **`SIMBOLOGIA_3D`** | a geometria. `SIMBOLOGIA_3D` (BLOB OQ3D — a malha), `IMAGEM` (BMP 100×100 24-bit pré-renderizado — **obrigatório: sem ele o Builder não desenha a peça**, ver abaixo), `WIREFRAME` (arestas para planta/corte no CAD — **~70 % do arquivo, inútil para viewer**), `NOME` (muitas vezes só a dimensão: `'100MM'`), `USA_CORES_PECA`, `DESLOCAMENTO_X/Y/Z`, `ANGULO_PLANO_*`. `SIMBOLOGIA_3D_SIMPLIFICADA` e `IMAGEM_SIMPLIFICADA` nulas nas bibliotecas observadas |
 | **`PECA_SIMBOLOGIA_3D`** | o vínculo peça → geometria (`ID_PECA`, `ID_SIMBOLOGIA_3D`). **É chave estrangeira: dispensa qualquer matching por nome** — a diferença central em relação ao caminho via IFC. Várias peças compartilham a mesma malha (numa biblioteca de conexões, ~2 peças por simbologia; as variantes "DESCE"/"COLUNA"/"SOBE" mudam a orientação de inserção, não a forma) |
 | `GRUPO_SIMBOLOGIA_3D` | agrupa geometrias (`NOME_GRUPO`, `ID_CLASSE`) |
 | **`CLASSE_SIMBOLOGIA_3D`** | `NOME_CLASSE` segue `"FABRICANTE - Linha de Produto"` (`'FABRICANTE - PVC Esgoto SN'`) — **a fonte confiável de fabricante** |
@@ -104,6 +104,28 @@ prefixo de `CLASSE_SIMBOLOGIA_3D.NOME_CLASSE` (abaixo).
 > as colunas explicitamente, com `CAST(... AS BLOB)`.
 
 > A imagem do produto é **sempre** `SIMBOLOGIA_3D.IMAGEM`, nunca a tabela `IMAGEM`.
+
+### `SIMBOLOGIA_3D.IMAGEM` é requisito do Builder, não enfeite
+
+Uma simbologia com `IMAGEM` nula **não é desenhada pelo AltoQi Builder** — nem no ambiente 3D,
+nem na planta. A peça aparece no Cadastro com nome, código, descrição e propriedades, e sem
+forma nenhuma, por mais válido que seja o OQ3D ao lado. Isolado por experimento no Builder em
+2026-09-08, numa nativa que funciona e numa gerada aqui:
+
+| | `IMAGEM` | `WIREFRAME` | entradas | desenha? |
+|---|---|---|---|---|
+| nativa intocada | sim | sim | sim | **sim** |
+| nativa despida das três | — | — | — | não |
+| nosso cadastro + geometria nativa | sim | sim | — | **sim** |
+| o mesmo, só sem a `IMAGEM` | — | sim | — | não |
+| o mesmo, só sem o `WIREFRAME` | sim | — | — | **sim** |
+| nossa geometria + `IMAGEM` gerada aqui | sim | — | — | **sim**, e lança no projeto |
+
+Ou seja: o campo que destrava o desenho é a `IMAGEM`. O `WIREFRAME` (arestas de planta/corte) e
+as `ENTRADA_PECA`/`ENTRADA_3D` (bocais) **não** são necessários para a peça desenhar. Nas 16
+bibliotecas nativas medidas a `IMAGEM` está preenchida em praticamente toda simbologia — era a
+única diferença sistemática entre elas e as nossas. Escrita em
+`docs/conhecimento/aq-escrita.md`, seção da `IMAGEM`.
 
 ### `DIAMETRO_PECA` é um CÓDIGO, não uma medida
 

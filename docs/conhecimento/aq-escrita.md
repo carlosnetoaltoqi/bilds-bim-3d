@@ -135,6 +135,35 @@ mais inofensivo para um grupo que o vocabulário não reconheceu. Ajustadas cont
 com 3D de uma biblioteca real de conexões: reproduz cerca de 98% deles (189 de 192) — os
 que não batem têm códigos diferentes dos irmãos no próprio arquivo original.
 
+## A `IMAGEM` da simbologia — sem ela o Builder não desenha
+
+`SIMBOLOGIA_3D.IMAGEM` é o **BMP de preview**, e é requisito do Builder: com o campo nulo a peça
+entra no Cadastro com nome, código, descrição e propriedades e **não é desenhada** — nem no
+ambiente 3D, nem na planta —, por mais válido que seja o OQ3D ao lado. A tabela do experimento
+que isolou o campo (e mostra que `WIREFRAME` e entradas **não** são necessários) está em
+`aq-formato.md`, seção "`SIMBOLOGIA_3D.IMAGEM` é requisito do Builder".
+
+O formato é o mesmo nas 16 bibliotecas nativas medidas: BMP **100×100, 24 bits**, sem paleta e sem
+compressão — 54 bytes de cabeçalho + 100 linhas de 300 bytes = **30.054 bytes** exatos, linhas de
+baixo para cima e canais em BGR. A linha de 300 bytes é múltiplo de 4, então não há padding; é a
+única resolução em que dá essa sorte, e mudar o lado reintroduz o padding do BMP.
+
+Quem gera: `bim_pipeline.aq.imagem_aq.render(malhas)` — **o mesmo argumento de
+`oq3d_writer.escrever(malhas)`**, para os dois caminhos ficarem simétricos. É um rasterizador em
+software, em numpy: projeção ortográfica isométrica (azimute 35°, elevação 20° sobre a geometria
+Z-up do OQ3D), z-buffer por lista de trabalho e sombreamento plano pela normal da face, com a cor
+da malha. Cada triângulo entra pelos pixels da sua *bounding box* e a profundidade se resolve
+empacotando `(profundidade, índice do triângulo)` num int64 — sem laço em Python, ~140 ms para uma
+simbologia de 111 mil triângulos e 42 s para as 1.399 simbologias de um pacote de famílias Revit.
+
+**Não é o harness de miniaturas** (`bim_pipeline.miniaturas`): aquele existe para a imagem do site,
+roda o mesmo Three.js do viewer no Chromium e depende de Node. A `IMAGEM` é requisito do formato do
+arquivo, tem de sair no mesmo processo que escreve o `.aq` — inclusive no CI, onde não há navegador
+— e a 2 s de Chromium por peça um catálogo de 1.399 simbologias não fecha.
+
+Bibliotecas exportadas **antes** desta correção não precisam ser reimportadas: a ferramenta
+`preencher_imagem_aq` rasteriza a partir do OQ3D que já está no arquivo (ver "Ferramentas").
+
 ## `geo_to_aq.py` — uma peça a partir de qualquer malha
 
 Quando a geometria não nasceu no AltoQi — um STEP tesselado, uma peça editada num viewer
@@ -156,8 +185,10 @@ A peça entra como equipamento genérico: `TIPO_APLICACAO_PECA = 2` (conexão),
 numa propriedade personalizada própria, não inventada: `specs['Geometria 3D'] = 'malha
 importada — <origem>; N malha(s), T triângulos'`.
 
-**O que fica de fora:** `ENTRADA_PECA` (bocais, comprimentos equivalentes) e a simbologia
-2D — não há de onde tirar isso de uma malha solta. **O código comercial (`ITEM.CODIGO_ITEM`)
+**O que fica de fora:** `ENTRADA_PECA` (bocais, comprimentos equivalentes), `WIREFRAME`
+(arestas de planta/corte) e a simbologia 2D — não há de onde tirar isso de uma malha solta, e a
+peça desenha sem os três. **A `IMAGEM` não fica de fora** (seção acima): é gerada da própria malha
+por `imagem_aq.render`, porque sem ela o Builder não desenha. **O código comercial (`ITEM.CODIGO_ITEM`)
 não fica de fora**: `CLASSE_ITEM → GRUPO_ITEM → ITEM → ITEM_ASSOCIADO` são gravados também
 para a peça única, com `CODIGO_ITEM` vindo de `info['codigo']` ou, na falta dele, do nome da
 peça — é o mesmo lugar onde o catálogo inteiro grava o código (abaixo).
@@ -212,7 +243,7 @@ separadamente, abriram no Builder.)
 **O que um catálogo salvo não guarda, e portanto o `.aq` gerado não tem:** as peças sem
 simbologia 3D do arquivo original (tubos e kits — cerca de um quarto das peças numa
 biblioteca real de conexões), `ENTRADA_PECA`/`ENTRADA_3D` (bocais e conectividade
-hidráulica), simbologia 2D, `IMAGEM`, `WIREFRAME`, e o **código comercial original**
+hidráulica), simbologia 2D, `WIREFRAME`, e o **código comercial original**
 (`ITEM.CODIGO_ITEM` sai preenchido, mas com a spec "Código" se existir, senão o slug do
 produto — nunca o código de catálogo de origem, que o catálogo salvo não guarda).
 
@@ -240,8 +271,15 @@ O leitor do projeto (`read_aq.py`/`oq3d.py`) confere que o arquivo é consistent
 mesmo; só o AltoQi Builder confirma que ele é aceito de verdade. Duas aceitações manuais
 registradas até aqui: um `.aq` de uma peça só, gerado do zero — árvore de
 classes/grupos/peças correta, propriedades personalizadas visíveis, acentos íntegros; e um
-catálogo inteiro reconstruído a partir do que estava salvo — aberto e conferido pelo usuário. Nenhum dos dois testes tem registro detalhado do que foi olhado na janela 3D ou do
-lançamento da peça numa rede — só o veredito de abertura.
+catálogo inteiro reconstruído a partir do que estava salvo — aberto e conferido pelo usuário.
+Nenhum dos dois olhou a janela 3D nem lançou a peça numa rede — só o veredito de abertura, e foi
+por isso que a `IMAGEM` faltando passou batido: **a peça abria com todos os dados e não desenhava**.
+
+Aceitação de 2026-09-08, com os dois lados verificados na janela 3D: uma biblioteca de conexões
+gerada aqui, com a `IMAGEM` de `imagem_aq`, desenha no Cadastro **e** lança a peça no projeto com a
+geometria real. É o primeiro registro de peça nossa desenhada no ambiente do Builder. O que segue
+sem prova: planta e corte (o `WIREFRAME` continua nulo) e a conectividade hidráulica da peça numa
+rede (sem `ENTRADA_PECA`/`ENTRADA_3D`).
 
 ## Ferramentas
 
@@ -249,6 +287,7 @@ lançamento da peça numa rede — só o veredito de abertura.
 |---|---|
 | `python3 -m bim_pipeline.cli.ferramentas.validar_aq <arquivo.aq> [--tubo-cm N] [--max-conexao-cm N]` | Valida um `.aq` gerado **com o leitor do próprio projeto** — não é uma checagem de SQLite genérica, é a prova de que `read_aq`/`oq3d` leem o arquivo sem saber que ele não veio do AltoQi: abre e confere a versão do schema, integridade e FKs, `extract`, a cascata de fabricante/título (não pode sair vazia nem em slug), o mapa peça→grupo, a geometria parseada, o cp1252 (nunca UTF-8, nenhum byte de controle) e o código comercial em `ITEM.CODIGO_ITEM`. As duas flags ligam checagens de tamanho que dependem do catálogo (comprimento de barra de tubo, maior conexão plausível) — sem elas não rodam |
 | `python3 -m bim_pipeline.cli.ferramentas.aq_referencia <arquivo.aq> [--tabela NOME] [--limite N]` | Só leitura: extrai de um `.aq` real os valores concretos que um gerador precisa — os enums (`PROJETO_APLICACAO`, `TIPO_APLICACAO_PECA`, `ENTIDADE_IFC`, `TIPO_SECAO_GP`...) e quais das 77 tabelas ficam de fato preenchidas. Usar antes de confiar nos valores observados acima numa biblioteca nova |
+| `python3 -m bim_pipeline.cli.ferramentas.preencher_imagem_aq <arquivo.aq> [--saida copia.aq] [--refazer]` | Preenche `SIMBOLOGIA_3D.IMAGEM` num `.aq` **já exportado**, rasterizando o OQ3D que está no próprio arquivo. Para bibliotecas geradas antes da correção de 2026-09-08, sem repetir a importação (que exige serviços e banco de pé) |
 | `oq3d_roundtrip` (`biblioteca/bim_pipeline/cli/ferramentas/oq3d_roundtrip.py`) | Prova que `oq3d_writer.py` grava um blob que o próprio `oq3d.py` lê de volta idêntico — vértice a vértice, triângulo a triângulo, cor a cor — inclusive o caso de rotação não simétrica, que pega o bug de gravar a matriz transposta sem mudar nenhuma contagem |
 
 ## Onde está no código
@@ -257,13 +296,16 @@ lançamento da peça numa rede — só o veredito de abertura.
   (`ins`, `cp1252`, `versao`), as constantes de enum, `classificar_grupo`, `aplicacao_de`.
 - `biblioteca/bim_pipeline/aq/schema-aq-607.sql` — o DDL das 77 tabelas e 84 índices.
 - `biblioteca/bim_pipeline/aq/oq3d_writer.py` — o escritor do BLOB binário (ver `oq3d.md`).
+- `biblioteca/bim_pipeline/aq/imagem_aq.py` — o BMP de `SIMBOLOGIA_3D.IMAGEM` (rasterizador em numpy).
 - `biblioteca/bim_pipeline/saida/geo_to_aq.py` — `gerar()`, uma peça. CLI:
   `python3 -m bim_pipeline.cli.gerar_aq entrada.json saida.aq [--fabricante] [--linha] [--nome] [--codigo]`.
 - `biblioteca/bim_pipeline/saida/catalogo_to_aq.py` — `gerar()`, o catálogo inteiro. CLI:
   `python3 -m bim_pipeline.cli.catalogo_para_aq manifesto.json saida.aq [--manter-prefixo-serie] [--quiet]`.
 - `biblioteca/bim_pipeline/cli/ferramentas/validar_aq.py` — validação com o leitor do projeto.
 - `biblioteca/bim_pipeline/cli/ferramentas/aq_referencia.py` — extração de enums de um `.aq` real.
+- `biblioteca/bim_pipeline/cli/ferramentas/preencher_imagem_aq.py` — `IMAGEM` em `.aq` já exportado.
 - `biblioteca/bim_pipeline/cli/ferramentas/oq3d_roundtrip.py` — prova do escritor OQ3D.
+- `tests/biblioteca/test_imagem_aq.py` — o formato do BMP, a `IMAGEM` nos dois escritores, o `validar_aq` acusando a biblioteca invisível.
 - `tests/biblioteca/test_geo_to_aq.py`, `test_catalogo_to_aq.py`, `test_ferramentas.py` — a
   suíte que cobre os três escritores e as duas ferramentas de validação.
 

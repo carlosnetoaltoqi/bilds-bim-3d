@@ -18,6 +18,7 @@ estão em `docs/conhecimento/servicos-web.md` — ver a seção final deste docu
 
 | Sintoma | Causa | O que fazer |
 |---|---|---|
+| **Peça abre no Cadastro do Builder com nome, código e propriedades e SEM FORMA NENHUMA** (o arquivo tem MB de sobra, o viewer mostra a geometria) | `SIMBOLOGIA_3D.IMAGEM` nula — o BMP de preview é requisito do Builder para desenhar, e o `WIREFRAME` no lugar dele não resolve | Gerar a `IMAGEM` na escrita (`imagem_aq.render`, já ligado aos dois escritores) ou, num `.aq` já exportado, rodar `ferramentas.preencher_imagem_aq`. O `validar_aq` acusa desde 2026-09-08 |
 | `.aq` não abre como SQLite | Pode ser ZIP, ou arquivo corrompido | Tentar abrir como ZIP primeiro; se falhar, é corrompido. Caminho inexistente deve lançar erro explícito de arquivo ausente — nunca criar um `.aq` vazio no lugar |
 | Texto com lixo no meio do nome | Lido como latin-1 ou UTF-8 | Ler sempre como **cp1252** — é o encoding real, mesmo o SQLite declarando UTF-8 |
 | `WHERE NOME_x = 'algo acentuado'` volta vazio, sem erro | O `sqlite3` do Python vincula `str` como UTF-8; o texto armazenado é cp1252 | `CAST(? AS TEXT)` com o parâmetro já `.encode('cp1252')` |

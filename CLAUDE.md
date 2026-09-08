@@ -53,7 +53,7 @@ bash scripts/bootstrap.sh --check        # a tabela do ambiente; sem --check ins
 sudo apt-get install -y libnss3 libnspr4 libasound2t64     # libs do Chromium — único passo com sudo
 python3 -m bim_pipeline.cli.zip_bilds biblioteca.aq --saida saida.zip   # só o ZIP, sem serviços
 cp .env.example .env && pnpm dev          # cinco serviços + web (compila os pacotes antes)
-python3 -m pytest                         # 199 testes, ≈ 4 min; -m "not thumbs" sem Chromium
+python3 -m pytest                         # 207 testes, ≈ 4 min; -m "not thumbs" sem Chromium
 ```
 
 Detalhes de uso em `README.md`; rotas e variáveis de cada serviço no `README.md` dele; roteiro de
@@ -137,7 +137,7 @@ com `termos_efemeros.txt`, `test_contratos`, `test_deps`). O que cada arquivo pr
 dele. Fixtures reais por **papel** em `tests/fixtures.local.json` (gitignored; modelo
 `fixtures.example.json`; papéis em `tests/fixtures.py`) — sem elas os testes pulam com motivo.
 **Regra:** comportamento novo entra em `tests/` no mesmo commit. Depois de mexer na configuração do
-pytest, confira a contagem de coleta (199).
+pytest, confira a contagem de coleta (207).
 
 ## CI — `.github/workflows/ci.yml`
 
@@ -155,8 +155,20 @@ Identidade `carlosnetoaltoqi`; branch `main`, histórico linear; nada de push se
 
 ## 👉 Estado atual e pendências
 
-**Estado (2026-09-06, tarde):** arquitetura de `docs/arquitetura.md` implementada por inteiro; suíte com
-201 testes (coleta) verde — nesta máquina 17 pulam porque as fixtures `.aq` de `tests/fixtures.local.json`
+**Estado (2026-09-08):** o defeito que tornava toda biblioteca exportada **invisível no Builder** está
+corrigido (ADR-020): `SIMBOLOGIA_3D.IMAGEM` — o BMP 100×100 de preview — é requisito do AltoQi Builder
+para desenhar a peça, e os dois escritores a deixavam nula. Sem ela a peça abre no Cadastro com nome,
+código, descrição e propriedades e **não desenha**, nem em 3D, com o OQ3D íntegro ao lado. O campo foi
+isolado por experimento no Builder (nativa despida × cadastro nosso com geometria nativa × só sem
+`IMAGEM` × só sem `WIREFRAME`); `WIREFRAME` e `ENTRADA_PECA`/`ENTRADA_3D` **não** são necessários para
+desenhar. Agora `bim_pipeline.aq.imagem_aq.render(malhas)` rasteriza o BMP em numpy (sem Chromium; 42 s
+para 1.399 simbologias), ligado ao `geo_to_aq` e ao `catalogo_to_aq`; o `validar_aq` falha se alguma
+simbologia estiver sem `IMAGEM`; `ferramentas.preencher_imagem_aq` conserta um `.aq` já exportado sem
+repetir a importação. Aceitação: peça nossa desenhada no ambiente 3D e lançada num projeto — o primeiro
+registro disso (`docs/aceitacao.md` §4 agora exige o lançamento, não só a abertura).
+
+**Arquitetura e fontes de entrada:** a arquitetura de `docs/arquitetura.md` está implementada por inteiro; suíte com
+207 testes (coleta) verde — nesta máquina 17 pulam porque as fixtures `.aq` de `tests/fixtures.local.json`
 não estão em `input/`; `pnpm -r build` e `pnpm start:*` funcionam do `dist/`. Fonte nova **famílias Revit**
 (ADR-018): `.rfa`/`.zip` → catálogo pelo criador (`POST /importacoes/familias-revit`, página
 `/importar/revit`), geometria do IFC/STEP/IGES irmão ou forma representativa; testado com um pacote real
@@ -174,6 +186,12 @@ fabricante, o que depende de autorização explícita (Termos de Uso). Commits d
 (`git rev-list --count origin/main..HEAD`).
 
 **Pendências do usuário:**
+- Conferir no Builder as quatro bibliotecas de 2026-09-08 corrigidas com `preencher_imagem_aq` (as duas
+  de famílias Revit, a de conexões e a do projeto `.rvt`) — a de conexões já foi verificada, com peça
+  lançada no projeto.
+- Decidir se `WIREFRAME` (planta/corte) e `ENTRADA_PECA`/`ENTRADA_3D` (conectividade da peça numa rede)
+  entram no escopo: a peça desenha em 3D sem os dois, mas a representação em planta e o encaixe numa
+  tubulação seguem sem prova.
 - Leitura humana dos 17 documentos de `docs/conhecimento/` e das quatro skills (escritos por agentes sob
   a guarda de termos; ninguém os leu de ponta a ponta ainda).
 - Abrir no AltoQi Builder o `.aq` exportado do catálogo de plugin web e o do catálogo de famílias Revit

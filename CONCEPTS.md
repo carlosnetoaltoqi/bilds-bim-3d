@@ -50,6 +50,8 @@ do `.aq`. Árvore serializada estilo Delphi com malhas, cores e transformações
 ### Simbologia 3D
 A linha da tabela `SIMBOLOGIA_3D` que carrega um OQ3D. Várias peças podem apontar para a mesma
 (`PECA_SIMBOLOGIA_3D`): é a origem da **geometria compartilhada** e do copy-on-write no editor.
+Além do OQ3D a linha carrega a **imagem de preview** (`IMAGEM`), obrigatória: sem ela o AltoQi
+Builder mostra os dados da peça e não desenha a geometria (ADR-020).
 
 ### Código de diâmetro
 O número em `PECA.DIAMETRO_PECA`, `ENTRADA_PECA.DIAMETRO_EP` e `ENTRADA_3D.DIAMETRO`. **Não é medida**:

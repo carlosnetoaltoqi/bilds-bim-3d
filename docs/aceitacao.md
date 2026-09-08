@@ -91,8 +91,20 @@ CAT=<id do catálogo>
 curl -s -D h.txt -o exportado.aq localhost:4100/exportar/catalogo/$CAT; grep -i "x-aq-resumo\|content-disposition" h.txt
 python3 -m bim_pipeline.cli.ferramentas.validar_aq exportado.aq
 ```
-Esperado: 200, `pecas_<Fabricante>_<Titulo>.aq`, resumo no header; o validador lê o arquivo sem `FALHA`.
-Aceitação final é abrir o `.aq` no AltoQi Builder (passo manual).
+Esperado: 200, `pecas_<Fabricante>_<Titulo>.aq`, resumo no header; o validador lê o arquivo sem `FALHA`
+— inclusive a checagem `toda simbologia tem IMAGEM`, que é o que separa um `.aq` que abre de um `.aq`
+que **desenha**.
+
+Aceitação final no AltoQi Builder (passo manual), em **dois** passos — abrir a biblioteca não basta:
+
+1. Cadastro → Peças: a árvore traz classe, grupos e peças, e o painel de preview mostra a miniatura
+   de cada peça (é a `SIMBOLOGIA_3D.IMAGEM`; painel vazio = biblioteca que não vai desenhar).
+2. **Lançar a peça num projeto** e olhar o ambiente 3D: a geometria real tem de aparecer. Foi o
+   passo que faltava nas aceitações anteriores — uma biblioteca sem `IMAGEM` abre, mostra todos os
+   dados de cada peça e não desenha nada (ADR-020, `docs/conhecimento/aq-formato.md`).
+
+Um `.aq` exportado antes de 2026-09-08 se conserta sem repetir a importação:
+`python3 -m bim_pipeline.cli.ferramentas.preencher_imagem_aq exportado.aq`.
 
 ## 5. Gerador de ZIP — stateless
 
