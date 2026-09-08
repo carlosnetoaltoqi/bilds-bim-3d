@@ -56,7 +56,9 @@ O QUE O ARQUIVO GERADO TEM — e de onde vem cada coisa:
 
 O QUE FICA DE FORA, porque o catálogo não tem de onde tirar: as peças sem simbologia 3D do
 `.aq` original (tubos e kits — cerca de um quarto das peças numa biblioteca de conexões), `ENTRADA_PECA`/`ENTRADA_3D` (bocais e
-conectividade), simbologia 2D, `IMAGEM`/`WIREFRAME`, os códigos comerciais originais.
+conectividade), simbologia 2D, `WIREFRAME` (arestas de planta/corte), os códigos comerciais
+originais. A `IMAGEM` **não** fica de fora: é o BMP de preview que o Builder exige para
+desenhar a peça, gerado por `bim_pipeline.aq.imagem_aq`.
 
 ERROS — tudo acusa, nada é engolido: geometria ausente no storage, JSON de geometria inválido,
 caractere fora do cp1252 num nome ou spec (o `.aq` não o representa), chave estrangeira órfã
@@ -83,6 +85,7 @@ import numpy as np
 AQUI = os.path.dirname(os.path.abspath(__file__))
 
 from bim_pipeline.aq import aq_writer
+from bim_pipeline.aq import imagem_aq
 from bim_pipeline.aq import oq3d_writer
 
 from bim_pipeline.geometria.malhas import GeometriaInvalida, malhas_por_cor
@@ -290,11 +293,15 @@ def gerar(manifesto, saida, manter_prefixo=False, progresso=avisar):
             if id_simb is None:
                 malhas = malhas_de_geometria(carregar_geometria(geo_abs, onde), onde)
                 blob = oq3d_writer.escrever(malhas)
+                # o BMP de preview NÃO é enfeite: sem ele o Builder não desenha a peça (ver imagem_aq)
+                imagem = imagem_aq.render(malhas)
                 n_tri += sum(len(t) for _, t, _, _ in malhas)
                 id_simb = g.novo('SIMBOLOGIA_3D')
                 g.ins('SIMBOLOGIA_3D', ID_SIMBOLOGIA_3D=id_simb, ID_GRUPO_SIMBOLOGIA_3D=grp['id_gs'],
                       NOME=nome_da_simbologia(geo_abs, nome), CODIGO_ELLO=0, ATIVO=1,
-                      SIMBOLOGIA_3D=sqlite3.Binary(blob), REFERENCIA_CORTE=0, EMBUTIMENTO=1.0, USA_CORES_PECA=1,
+                      SIMBOLOGIA_3D=sqlite3.Binary(blob),
+                      IMAGEM=sqlite3.Binary(imagem) if imagem else None,
+                      REFERENCIA_CORTE=0, EMBUTIMENTO=1.0, USA_CORES_PECA=1,
                       DESLOCAMENTO_X=0.0, DESLOCAMENTO_Y=0.0, DESLOCAMENTO_Z=0.0,
                       ANGULO_PLANO_XY=0.0, ANGULO_PLANO_XZ=0.0, ANGULO_PLANO_YZ=0.0)
                 simb_por_geo[geo_abs] = id_simb

@@ -18,9 +18,11 @@ Os dois módulos são importados sem modificação nenhuma. O que se confere:
 5. `build_product_map` monta o mapa peça → grupo
 6. `extract_simbologias` lê as geometrias, e o `oq3d.py` parseia cada blob,
    confere unidades e bounding box
-7. o texto acentuado está em cp1252, não em UTF-8 — o erro de escrita mais
+7. toda simbologia tem `IMAGEM` — o BMP 100×100 sem o qual o Builder mostra os
+   dados da peça e NÃO desenha a geometria
+8. o texto acentuado está em cp1252, não em UTF-8 — o erro de escrita mais
    perigoso, porque não levanta exceção em lugar nenhum
-8. o código comercial chegou a `ITEM.CODIGO_ITEM`, e nenhum texto tem byte de
+9. o código comercial chegou a `ITEM.CODIGO_ITEM`, e nenhum texto tem byte de
    controle
 
 Uso:
@@ -31,6 +33,7 @@ Uso:
 """
 import os
 import sqlite3
+import struct
 import sys
 
 import argparse
@@ -47,6 +50,17 @@ def checar(nome, ok, detalhe=''):
           + (f' — {detalhe}' if detalhe else ''))
     if not ok:
         falhas.append(nome)
+
+
+def bmp_nativo(blob):
+    """
+    O BMP de `SIMBOLOGIA_3D.IMAGEM` no layout das bibliotecas nativas: 'BM',
+    100×100, 24 bits, sem compressão — 54 + 100×300 = 30.054 bytes.
+    """
+    if not blob or len(blob) != 30054 or blob[:2] != b'BM':
+        return False
+    largura, altura, planos, bits, compressao = struct.unpack_from('<iiHHI', blob, 18)
+    return (largura, altura, planos, bits, compressao) == (100, 100, 1, 24, 0)
 
 
 def integridade(caminho):
@@ -246,6 +260,20 @@ def main(argv=None):
         checar('vínculo peça → simbologia é chave estrangeira',
                len(por_peca) == len(dados['pecas']) and usadas == set(simbs),
                f'{len(por_peca)}/{len(dados["pecas"])} peças ligadas a {len(usadas)}/{len(simbs)} simbologias')
+        # A IMAGEM não é enfeite: sem o BMP de preview o Builder mostra a peça no
+        # Cadastro com todos os dados e NÃO DESENHA a geometria, nem em 3D. Foi assim
+        # que as quatro bibliotecas de 2026-09-08 saíram invisíveis no Builder mesmo
+        # com o OQ3D perfeito — ver `bim_pipeline.aq.imagem_aq`.
+        sem_imagem = [s['nome'] for s in simbs.values() if not s['imagem']]
+        checar('toda simbologia tem IMAGEM — o Builder não desenha sem ela',
+               not sem_imagem,
+               f'{len(simbs) - len(sem_imagem)}/{len(simbs)} com BMP'
+               + (('; sem: ' + ', '.join(str(n) for n in sem_imagem[:3])) if sem_imagem else ''))
+        fora = [s['nome'] for s in simbs.values() if s['imagem'] and not bmp_nativo(s['imagem'])]
+        checar('a IMAGEM está no formato dos nativos (BMP 100×100, 24 bits)', not fora,
+               ('fora do formato: ' + ', '.join(str(n) for n in fora[:3])) if fora
+               else f'{len(simbs) - len(sem_imagem)} BMPs conferidos')
+
         if args.tubo_cm is not None:
             checar(f'barras de tubo com {args.tubo_cm:g} cm no eixo Z',
                    bool(tubos) and all(abs(b[2] - args.tubo_cm) < 0.01 for _, b in tubos),

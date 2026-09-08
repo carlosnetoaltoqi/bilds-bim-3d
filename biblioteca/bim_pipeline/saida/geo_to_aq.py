@@ -31,8 +31,10 @@ UNIDADES E EIXOS. O OQ3D é centímetros, Z-up. Do viewer (metros, Y-up):
 `oq3d = (x·100, −z·100, y·100)` — a conversão documentada no CLAUDE.md,
 seção "Unidades" do OQ3D.
 
-O QUE FICA DE FORA. `ENTRADA_PECA` (bocais e comprimentos equivalentes) e a simbologia
-2D: não há de onde tirar isso de uma malha. (`ITEM`/`ITEM_ASSOCIADO` entram, com o código
+O QUE FICA DE FORA. `ENTRADA_PECA` (bocais e comprimentos equivalentes), `WIREFRAME`
+(arestas para planta/corte) e a simbologia 2D: não há de onde tirar isso de uma malha —
+e o Builder desenha a peça sem os três (experimento em `bim_pipeline.aq.imagem_aq`). A
+`IMAGEM` **entra**: é o BMP de preview sem o qual o Builder não desenha nada. (`ITEM`/`ITEM_ASSOCIADO` entram, com o código
 comercial de `info.codigo` ou o nome da peça.) A peça entra como equipamento genérico (`TIPO_APLICACAO_PECA = 2`,
 conexão), sem código de diâmetro (sentinela `-DBL_MAX`, como as 700 conexões
 de uma biblioteca real). A origem fica gravada numa propriedade personalizada "Geometria
@@ -52,6 +54,7 @@ import sys
 AQUI = os.path.dirname(os.path.abspath(__file__))
 
 from bim_pipeline.aq import aq_writer
+from bim_pipeline.aq import imagem_aq
 from bim_pipeline.aq import oq3d_writer
 
 from bim_pipeline.geometria.malhas import GeometriaInvalida, malhas_de_partes, malhas_por_cor
@@ -131,9 +134,12 @@ def gerar(entrada, saida, info):
     g.ins('GRUPO_SIMBOLOGIA_3D', ID_GRUPO_SIMBOLOGIA_3D=id_gs, NOME_GRUPO=linha,
           CODIGO_ELLO=0, ATIVO=1, ID_CLASSE=id_cs)
     blob = oq3d_writer.escrever(malhas)
+    # o BMP de preview NÃO é enfeite: sem ele o Builder não desenha a peça (ver imagem_aq)
+    imagem = imagem_aq.render(malhas)
     id_simb = g.novo('SIMBOLOGIA_3D')
     g.ins('SIMBOLOGIA_3D', ID_SIMBOLOGIA_3D=id_simb, ID_GRUPO_SIMBOLOGIA_3D=id_gs, NOME=nome,
-          CODIGO_ELLO=0, ATIVO=1, SIMBOLOGIA_3D=sqlite3.Binary(blob), REFERENCIA_CORTE=0,
+          CODIGO_ELLO=0, ATIVO=1, SIMBOLOGIA_3D=sqlite3.Binary(blob),
+          IMAGEM=sqlite3.Binary(imagem) if imagem else None, REFERENCIA_CORTE=0,
           EMBUTIMENTO=1.0, USA_CORES_PECA=1, DESLOCAMENTO_X=0.0, DESLOCAMENTO_Y=0.0,
           DESLOCAMENTO_Z=0.0, ANGULO_PLANO_XY=0.0, ANGULO_PLANO_XZ=0.0, ANGULO_PLANO_YZ=0.0)
     g.ins('PECA_SIMBOLOGIA_3D', ID_PECA_SIMBOLOGIA_3D=g.novo('PECA_SIMBOLOGIA_3D'),
