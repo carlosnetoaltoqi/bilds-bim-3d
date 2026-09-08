@@ -182,8 +182,8 @@ depois tudo do cache) até o `.aq`. A APS **não aceita `.rfa`** — famílias c
 `filtrarAuxiliares` (flag CLI `--filtrar-auxiliares`, checkbox na página — marcado por padrão); detecção em
 `catalogo/fontes/familias_revit.py: eh_auxiliar`; documentado em `revit-familias.md` e ADR-019.
 O `storage/` não tem os downloads do plugin web de CAD (`catallog/`) — refazê-los exige baixar do catálogo do
-fabricante, o que depende de autorização explícita (Termos de Uso). Commits desta sessão só locais
-(`git rev-list --count origin/main..HEAD`).
+fabricante, o que depende de autorização explícita (Termos de Uso). Nada pendente de push — confira com
+`git rev-list --count origin/main..HEAD`.
 
 **Pendências do usuário:**
 - Conferir no Builder as quatro bibliotecas de 2026-09-08 corrigidas com `preencher_imagem_aq` (as duas
