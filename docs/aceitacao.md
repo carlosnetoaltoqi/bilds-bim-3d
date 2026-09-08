@@ -95,16 +95,23 @@ Esperado: 200, `pecas_<Fabricante>_<Titulo>.aq`, resumo no header; o validador l
 — inclusive a checagem `toda simbologia tem IMAGEM`, que é o que separa um `.aq` que abre de um `.aq`
 que **desenha**.
 
-Aceitação final no AltoQi Builder (passo manual), em **dois** passos — abrir a biblioteca não basta:
+Aceitação final no AltoQi Builder (passo manual), em **quatro** passos — abrir a biblioteca não
+basta, e desenhar em 3D também não:
 
 1. Cadastro → Peças: a árvore traz classe, grupos e peças, e o painel de preview mostra a miniatura
    de cada peça (é a `SIMBOLOGIA_3D.IMAGEM`; painel vazio = biblioteca que não vai desenhar).
-2. **Lançar a peça num projeto** e olhar o ambiente 3D: a geometria real tem de aparecer. Foi o
-   passo que faltava nas aceitações anteriores — uma biblioteca sem `IMAGEM` abre, mostra todos os
-   dados de cada peça e não desenha nada (ADR-020, `docs/conhecimento/aq-formato.md`).
+2. No Cadastro, na peça: **"Pontos de ligação 3D" tem de estar "Sim"** e "Bifiliar realista" fora de
+   "Simbologia 2D" — as duas condições de o Builder gerar o wireframe (ADR-021).
+3. **Lançar a peça num projeto** e olhar o ambiente 3D: a geometria real tem de aparecer. Foi o
+   passo que faltava até 2026-09-08 — uma biblioteca sem `IMAGEM` abre, mostra todos os dados de
+   cada peça e não desenha nada (ADR-020, `docs/conhecimento/aq-formato.md`).
+4. **Olhar a mesma peça em planta e em corte**: tem de sair o desenho da peça, não o símbolo padrão
+   (círculo com triângulo vermelho), que é o que aparece sem ponto de ligação. Verificado em nativa
+   de fabricante nos três arranjos possíveis; numa biblioteca **nossa**, é a aceitação pendente.
 
-Um `.aq` exportado antes de 2026-09-08 se conserta sem repetir a importação:
-`python3 -m bim_pipeline.cli.ferramentas.preencher_imagem_aq exportado.aq`.
+Um `.aq` exportado antes de 2026-09-08 se conserta sem repetir a importação, e são duas ferramentas:
+`preencher_imagem_aq` (a `IMAGEM`) e `preencher_entradas_aq` (os pontos de ligação), as duas em
+`python3 -m bim_pipeline.cli.ferramentas.<nome> exportado.aq`.
 
 ## 5. Gerador de ZIP — stateless
 

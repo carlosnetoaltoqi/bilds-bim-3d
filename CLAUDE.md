@@ -205,10 +205,21 @@ fabricante, o que depende de autorização explícita (Termos de Uso). Nada pend
 - Conferir no Builder as quatro bibliotecas de 2026-09-08 corrigidas com `preencher_imagem_aq` (as duas
   de famílias Revit, a de conexões e a do projeto `.rvt`) — a de conexões já foi verificada, com peça
   lançada no projeto.
+- **Próxima sessão: comece listando estas pendências e pergunte ao usuário por onde seguir (ou o
+  que ele já testou) antes de executar qualquer coisa** — pedido dele ao encerrar 2026-09-09. O
+  registro da sessão, com as tentativas que falharam e as armadilhas, está em
+  `docs/historico/sessoes/2026-09-09-a-peca-que-nao-saia-em-planta.md` §5 e §7.
 - **Aceitação de ADR-021, no Builder:** abrir
   `Downloads/teste-geometria-aq/G_nosso_com_entradas.aq` (nossa biblioteca de conexões, 10 entradas
   em 4 simbologias, gerada por `preencher_entradas_aq`), conferir "Pontos de ligação 3D: Sim" no
-  Cadastro, lançar a peça **em planta** e ver se o Builder gerou o wireframe.
+  Cadastro, lançar a peça **em planta** e ver se o Builder gerou o wireframe (`aceitacao.md` §4,
+  agora com quatro passos). Na mesma pasta estão `H_gerado_do_zero_com_entradas.aq` (ida e volta
+  completa a partir de uma nativa pequena de dispositivos elétricos: 32 peças, 3,3 MB em 9,4 s) e
+  `ENTRADAS_CORRIGIDO_pecas_Schneider_*.aq` (válvulas, 14 entradas em 19 simbologias).
+- **Se a planta não sair nem com as entradas:** o outro caminho é escrever a **simbologia 2D** —
+  blob Delphi próprio, mas o menor exemplar nativo tem 6.088 bytes contra 0,4–2 MB do `WIREFRAME`,
+  e `TIPO_SIMBOLOGIA` é `'INTERNO'` em todas as 1.164 linhas nativas (não há rota por referência a
+  arquivo externo).
 - **Duas perguntas para a engenharia**, que decidem o que ainda está chutado no escritor:
   (1) o que significa "Ligação" na aba de entradas do Cadastro — é o enum `LIGACAO_EP`, 0 a 3, que
   gravamos fixo em 0 porque `TIPO_LIGACAO` está vazia em toda nativa; (2) a lista de diâmetros do

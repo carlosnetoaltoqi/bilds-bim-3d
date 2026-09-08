@@ -59,3 +59,31 @@ rodada anterior de um script de reorganização que deixou o destino já criado 
 dentro, por exemplo) faz a rodada seguinte empilhar um diretório dentro do outro sem erro nenhum
 — o comando "funciona", só que não do jeito pretendido. Limpar (ou renomear) o destino antes de
 repetir a operação evita o aninhamento.
+
+## "Difere da nativa" não é prova — e a lição reincide (2026-09-08 e 2026-09-09)
+
+Comparar um arquivo nosso com um de fabricante produz uma lista de diferenças, e a maior parte
+delas é irrelevante: sentinela, campo vazio e enum de valor incomum aparecem em nativa que
+funciona. Em 2026-09-08 isso custou quatro falsos positivos; em 2026-09-09, outros quatro
+(`SIMBOLO_SELECIONADO`, `INDICE_SIMBOLO3D_SELECIONADO`, dimensões na sentinela,
+`POSICIONAR_SIMBOLOGIA_3D`) — todos descartados ao medir a **distribuição** do campo nas 15
+nativas, e todos presentes em pelo menos uma que funciona. O que fecha o caso é experimento no
+alvo (abrir no Builder um arquivo por hipótese) ou informação de quem opera a ferramenta. Medir a
+distribuição antes de teorizar custa minutos; teorizar em cima de uma diferença custa a sessão.
+
+## Um experimento natural vale mais que um arquivo fabricado
+
+Antes de montar arquivo de teste para isolar um campo, vale procurar o par que **já existe** nos
+dados: em 2026-09-09 a pergunta "o que desenha a planta" foi decidida por três nativas de
+fabricante que já vinham em arranjos diferentes (uma só com wireframe, uma só com simbologia 2D),
+sem fabricar nada. E a evidência tem de ser boa: uma das bibliotecas usadas como referência tinha
+sido gerada a partir de PDF, o que o usuário sabia e o arquivo não dizia — sempre confirmar a
+procedência de uma "verdade de campo" antes de construir argumento sobre ela.
+
+## Otimizar sem oráculo quebra em silêncio
+
+Trocar o agrupamento exato de triângulos coplanares por baldes quantizados (2026-09-09) deixou o
+código igualmente rápido e **errado** — grupo que cruza a fronteira do balde sai partido — e
+nenhum dos testes sintéticos acusou; o que acusou foi o placar contra as bibliotecas nativas, que
+caiu de 10/16 para 7/16 numa delas. Antes de otimizar heurística geométrica, tenha uma medição de
+qualidade rodando, não só testes de exemplo.
