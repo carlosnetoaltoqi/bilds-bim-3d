@@ -82,8 +82,11 @@ cor está na chave, triângulos de cores diferentes nunca compartilham vértice 
 editor re-segmentar uma malha em **Partes**. Não solda costuras de malha de fabricante.
 
 ### Bocal
-Marcador de ponto de conexão do AltoQi dentro da geometria (cores fixas verde e azuis). Não é
-produto: fica fora do bbox e vira `marker` no editor.
+O ponto onde a peça se liga à rede — a `ENTRADA_3D` do `.aq`. Na malha é a **face anelar** da ponta
+de um tubo, e a entrada fica no centro dela com o raio interno como bitola
+(`bim_pipeline.geometria.bocais`). Não confundir com o **marcador** de conexão (cores fixas verde e
+azul dentro da geometria de algumas nativas), que não é produto, fica fora do bbox, vira `marker` no
+editor e **não** é de onde sai a posição. (`docs/conhecimento/geometria.md`)
 
 ### Forma representativa
 Malha gerada por parâmetro quando o fabricante não publica cota: diâmetro nominal (dado), espessura

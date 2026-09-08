@@ -123,9 +123,45 @@ importação, reaplicada na saída.
 
 ## Bocais
 
-Marcador de ponto de conexão do AltoQi dentro da geometria OQ3D (cores fixas verde e
-azuis — ver `oq3d.md`). Não é produto: fica fora do bbox da peça e vira `marker` no
-editor, nunca uma Parte editável.
+Duas coisas diferentes levam esse nome, e é preciso não confundi-las:
+
+**O marcador** — cores fixas verde e azul dentro da geometria OQ3D de algumas nativas (ver
+`oq3d.md`). Não é produto: fica fora do bbox da peça e vira `marker` no editor, nunca uma
+Parte editável. **Não é a fonte da posição de conexão**: nenhuma das nativas que têm
+`ENTRADA_3D` tem uma única malha com cor de marcador.
+
+**O ponto de ligação** — a `ENTRADA_3D` do `.aq`, achada na malha por
+`bim_pipeline.geometria.bocais.bocais(malhas)`. A forma, medida em nativas de aquecedor, de
+conexão de esgoto e de bomba: é a **face anelar** na ponta de um tubo — dois círculos
+concêntricos coplanares, separados pela espessura da parede — e a entrada nativa fica no
+centro dela, com o **raio interno** valendo a bitola. Três coisas que o detector tem de
+tratar, cada uma medida antes de virar filtro:
+
+- a malha pode ser **estanque** (numa nativa de aquecedores, zero arestas de borda): a ponta
+  do tubo é fechada por triângulos coplanares, não por um buraco, então procurar buraco acha
+  zero bocal — o critério é geométrico, nunca topológico;
+- um tubo tem faces circulares **no meio do caminho** (tampa interna, degrau de parede,
+  friso): bocal é a face extrema de cada lado do eixo, e um tubo reto tem bocal nas duas
+  pontas;
+- o *winding* de malha de fabricante **não** é consistente, então o lado de fora se decide
+  pela distância ao centro do corpo, não pelo sinal da normal (e a normal do bocal sai
+  reorientada para fora, porque é dela que vem o `ANGULO_EP`).
+
+Placar contra as entradas nativas, tolerância de 0,5 cm — o detector reencontra o que foi
+encaixado na geometria e não o que foi clicado à mão:
+
+| nativa | entradas | reencontradas | candidatos | erro mediano |
+|---|---|---|---|---|
+| aquecedores de passagem | 21 | **21** | 23 | 0,00 cm |
+| conexões de esgoto | 16 | **14** | 16 | 0,06 cm |
+| bombas pressurizadoras | 16 | 10 | 33 | 0,40 cm |
+| bombas de incêndio | 16 | 1 | 31 | — |
+| rack de dados | 105 | 0 | 178 | — |
+
+As duas últimas linhas são o limite, e são conhecidos: na biblioteca de bombas de incêndio a
+entrada nativa está **recuada** 0,6 a 4,5 cm atrás da face do flange (cadastro feito à mão, o
+que a engenharia confirma); num rack, "ponto de ligação" é entrada de cabo, não abertura de
+malha — a heurística é hidráulica. Custo: ~2 s numa simbologia de 56 mil triângulos.
 
 ## Arestas de borda — métrica só em malha gerada
 
