@@ -42,8 +42,8 @@ Chromium por peça um pacote de 1.399 simbologias não fecha (em numpy são 42 s
   Three.js). São propósitos diferentes: 100×100 num diálogo de cadastro e a miniatura do catálogo
   web. Se algum dia a diferença visual incomodar, o caminho é alimentar `imagem_aq` com o PNG do
   harness quando ele existir — não trocar o rasterizador.
-- `WIREFRAME` e `ENTRADA_PECA`/`ENTRADA_3D` seguem fora de escopo, agora com prova de que a peça
-  desenha sem eles. Falta prova em planta/corte (o `WIREFRAME` é o que o CAD desenha lá) e da
-  conectividade da peça numa rede.
+- A prova aqui é do ambiente **3D**: a peça desenha sem `WIREFRAME` e sem entradas. Planta e corte
+  são outra coisa, resolvida por ADR-021 — as entradas passam a ser escritas e o Builder gera o
+  `WIREFRAME` a partir delas.
 - A aceitação de `.aq` passa a exigir **peça lançada no projeto**, não só a biblioteca aberta: foi
   exatamente o passo que faltava para o defeito ter sido visto antes (`docs/aceitacao.md` §4).

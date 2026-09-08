@@ -95,7 +95,7 @@ prefixo de `CLASSE_SIMBOLOGIA_3D.NOME_CLASSE` (abaixo).
 | **`PECA_SIMBOLOGIA_3D`** | o vínculo peça → geometria (`ID_PECA`, `ID_SIMBOLOGIA_3D`). **É chave estrangeira: dispensa qualquer matching por nome** — a diferença central em relação ao caminho via IFC. Várias peças compartilham a mesma malha (numa biblioteca de conexões, ~2 peças por simbologia; as variantes "DESCE"/"COLUNA"/"SOBE" mudam a orientação de inserção, não a forma) |
 | `GRUPO_SIMBOLOGIA_3D` | agrupa geometrias (`NOME_GRUPO`, `ID_CLASSE`) |
 | **`CLASSE_SIMBOLOGIA_3D`** | `NOME_CLASSE` segue `"FABRICANTE - Linha de Produto"` (`'FABRICANTE - PVC Esgoto SN'`) — **a fonte confiável de fabricante** |
-| `ENTRADA_3D` | pontos de conexão hidráulica: `POSICAO_X/Y/Z`, `DIAMETRO` (código; **só no schema 607**), `TIPO_SECAO`, `ID_SIMBOLOGIA_3D`. O IFC não carrega isso. Ainda não consumido pelo pipeline |
+| **`ENTRADA_3D`** | pontos de conexão hidráulica: `POSICAO_X/Y/Z` (**centímetro, Z-up, no frame da peça** — ver abaixo), `DIAMETRO` (código; **só no schema 607**; 0 em 608 das 634 linhas nativas), `TIPO_SECAO` (0 em 608), `BASE`/`ALTURA` (0 em todas), `ID_SIMBOLOGIA_3D`. Nenhuma fonte de geometria carrega isso; o pipeline **deriva da malha** (`bim_pipeline.aq.entradas_aq`) |
 | `CLASSE_SIMBOLOGIA` → `GRUPO_SIMBOLOGIA` → `CONTEUDO_SIMBOLOGIA` → `SIMBOLOGIA` → `PECA_SIMBOLOGIA` | simbologia **2D** (planta e corte), formato binário próprio, distinto do OQ3D e não decifrado |
 | `IMAGEM` | **ícones da interface do AltoQi**, não fotos de produto. Vazia nas bibliotecas hidráulicas; preenchida nas elétricas (onde há `SUB_TIPO_PONTO`) |
 | `CLASSIFICACAO_IFC` / `CLASSIFICACAO_IFC_PECA` | vazias nas bibliotecas observadas |
@@ -121,11 +121,78 @@ forma nenhuma, por mais válido que seja o OQ3D ao lado. Isolado por experimento
 | o mesmo, só sem o `WIREFRAME` | sim | — | — | **sim** |
 | nossa geometria + `IMAGEM` gerada aqui | sim | — | — | **sim**, e lança no projeto |
 
-Ou seja: o campo que destrava o desenho é a `IMAGEM`. O `WIREFRAME` (arestas de planta/corte) e
-as `ENTRADA_PECA`/`ENTRADA_3D` (bocais) **não** são necessários para a peça desenhar. Nas 16
-bibliotecas nativas medidas a `IMAGEM` está preenchida em praticamente toda simbologia — era a
+Ou seja: o campo que destrava o desenho **no ambiente 3D** é a `IMAGEM`. O `WIREFRAME` e as
+entradas não são necessários lá — mas são o que resolve **planta e corte**, na seção seguinte. Nas
+16 bibliotecas nativas medidas a `IMAGEM` está preenchida em praticamente toda simbologia — era a
 única diferença sistemática entre elas e as nossas. Escrita em
 `docs/conhecimento/aq-escrita.md`, seção da `IMAGEM`.
+
+### Planta e corte: o `WIREFRAME` é gerado pelo Builder, a partir dos pontos de ligação
+
+Uma peça com `IMAGEM` desenha em 3D e, em planta, ainda pode sair como o **símbolo padrão** do
+Builder (um círculo com um triângulo vermelho) — que é o que ele mostra para peça sem
+representação 2D. Quem resolve a planta é um destes dois, e **qualquer um dos dois basta** (três
+experimentos no Builder, 2026-09-09, cada um numa nativa de fabricante):
+
+| nativa | simbologia 2D | `WIREFRAME` | planta |
+|---|---|---|---|
+| aquecedor de passagem | não | sim | **desenha** |
+| conexão de esgoto (sifão) | não | sim | **desenha** |
+| rack de piso | sim | não | **desenha** |
+| nossas 3.089 peças até 2026-09-09 | não | não | símbolo padrão |
+
+E o quadrante "nenhum dos dois" não existe em nativa de fabricante. Por peça com geometria 3D, nas
+15 nativas de fabricante disponíveis:
+
+| | 2D + `WIREFRAME` | só 2D | só `WIREFRAME` | **nenhum** |
+|---|---|---|---|---|
+| 1.410 peças nativas | 1.261 | 38 | 111 | **0** |
+| nossas saídas | 0 | 0 | 0 | **3.089** |
+
+**O `WIREFRAME` não precisa ser escrito: o Builder o gera** — informação da engenharia que cadastra
+as bibliotecas, confirmada pelo que se vê nos arquivos. Duas condições, as duas legíveis no
+Cadastro:
+
+1. a peça tem **pontos de ligação 3D** (`ENTRADA_PECA`/`ENTRADA_3D`; sem elas o Cadastro mostra
+   "Pontos de ligação 3D: Não");
+2. a opção **"Bifiliar realista"** — a coluna `PECA.OPCAO_RENDERIZACAO_PLANIFICADA`, domínio
+   `0 = Realista`, `1 = Simbologia 2D`, `2 = Ambas` (o default do schema) — **não** está em
+   "Simbologia 2D". Com ela em 1, o Builder desenha os pontos de ligação e usa a simbologia 2D
+   cadastrada, sem gerar wireframe; é o que a engenharia faz quando o wireframe fica pesado.
+
+Por isso a presença do blob numa nativa **não** correlaciona com nada do formato: há nativa com
+entradas e sem `WIREFRAME` (16 simbologias em duas bibliotecas) e nativa com `WIREFRAME` e sem
+entrada nenhuma (13). O blob é resíduo do fluxo que montou aquele arquivo.
+
+Suspeitos levantados e **descartados** por medição, todos campos onde nossa saída difere de alguma
+nativa mas coincide com outra que funciona: `SIMBOLO_SELECIONADO` (1 em três nativas de conexão),
+`INDICE_SIMBOLO3D_SELECIONADO` (1 nas 700 conexões de uma nativa), as seis dimensões na sentinela
+(680 de 700 numa nativa) e `POSICIONAR_SIMBOLOGIA_3D = 3` (139 peças de uma nativa). Este último
+guarda um achado lateral: é enum de 0 a 6 que **varia entre peças que compartilham a simbologia** —
+a orientação de inserção (as variantes "DESCE"/"COLUNA"/"SOBE"), e não a representação. Nós
+gravamos um valor fixo nos dois escritores (3 no de catálogo, 0 no de uma peça); os dois desenham.
+
+### O frame das `ENTRADA_3D`: a malha **com** o *placement* da simbologia
+
+`POSICAO_X/Y/Z` está em centímetro, Z-up, no frame da **peça** — não no da malha. Entre os dois há o
+*placement* que a própria `SIMBOLOGIA_3D` carrega:
+
+```
+peça = malha_oq3d · Rᵗ + (DESLOCAMENTO_X, DESLOCAMENTO_Y, DESLOCAMENTO_Z)
+R    = Rz(ANGULO_PLANO_XY) · Ry(ANGULO_PLANO_XZ) · Rx(ANGULO_PLANO_YZ)
+```
+
+com os ângulos em radiano e **sinal positivo**. Medido em 48 simbologias de 4 nativas, testando as
+6 ordens de composição × 2 sinais: o sinal positivo com `Rz` à esquerda ganha em mediana (2,37 cm),
+média (2,45) e p90 (5,08) da distância entrada→malha; o sinal negativo perde por 3 a 4×. A posição
+do `Ry` na ordem fica **indeterminada** — `ANGULO_PLANO_XZ` é 0 em toda simbologia medida. Nas
+simbologias que este projeto escreve o *placement* é identidade (deslocamento 0, ângulos 0), então
+malha e peça coincidem.
+
+Aplicado o *placement*, a entrada cai no **centro de uma face circular da malha**, e a distância
+dela ao vértice mais próximo é o **raio nominal do bocal**: numa nativa de esgoto, entradas de
+`DIAMETRO_EP` 11 e 9 dão 3,78 e 2,56 cm (75/2 e 50/2 mm); 12 dá 5,08; 14 dá 7,50; 15 dá 10,00. É o
+que `bim_pipeline.geometria.bocais` reencontra na malha (ver `geometria.md`).
 
 ### `DIAMETRO_PECA` é um CÓDIGO, não uma medida
 

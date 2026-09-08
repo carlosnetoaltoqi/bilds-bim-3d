@@ -53,7 +53,7 @@ bash scripts/bootstrap.sh --check        # a tabela do ambiente; sem --check ins
 sudo apt-get install -y libnss3 libnspr4 libasound2t64     # libs do Chromium — único passo com sudo
 python3 -m bim_pipeline.cli.zip_bilds biblioteca.aq --saida saida.zip   # só o ZIP, sem serviços
 cp .env.example .env && pnpm dev          # cinco serviços + web (compila os pacotes antes)
-python3 -m pytest                         # 207 testes, ≈ 4 min; -m "not thumbs" sem Chromium
+python3 -m pytest                         # 234 testes, ≈ 4 min; -m "not thumbs" sem Chromium
 ```
 
 Detalhes de uso em `README.md`; rotas e variáveis de cada serviço no `README.md` dele; roteiro de
@@ -63,11 +63,11 @@ aceitação com tudo de pé em `docs/aceitacao.md`.
 
 | Assunto | Onde |
 |---|---|
-| **Arquitetura**: camadas, sete regras de fronteira, quem grava o quê, guia de porte, regras de mudança | `docs/arquitetura.md`; decisões em `docs/decisoes/` (ADR-001…019) |
-| Formato `.aq` (SQLite/ZIP, cp1252, sentinelas, código de diâmetro, enums, versões de schema, leitura) | `docs/conhecimento/aq-formato.md` |
+| **Arquitetura**: camadas, sete regras de fronteira, quem grava o quê, guia de porte, regras de mudança | `docs/arquitetura.md`; decisões em `docs/decisoes/` (ADR-001…021) |
+| Formato `.aq` (SQLite/ZIP, cp1252, sentinelas, código de diâmetro, enums, versões de schema, leitura; **o que desenha em planta**) | `docs/conhecimento/aq-formato.md` |
 | Escrever `.aq` — uma peça e o catálogo inteiro (cinco regras, erros que abortam, validação) | `docs/conhecimento/aq-escrita.md` |
 | Formato binário **OQ3D** — leitura tolerante e escrita | `docs/conhecimento/oq3d.md` |
-| Contrato de geometria `{pos,col,idx}`, eixos, dedup, partes, bocais | `docs/conhecimento/geometria.md` |
+| Contrato de geometria `{pos,col,idx}`, eixos, dedup, partes, **bocais** (achar na malha os pontos de ligação) | `docs/conhecimento/geometria.md` |
 | IFC4 — leitura (placement, cores, unidades), escrita (o exportador do editor), verificação a 2 µm | `docs/conhecimento/ifc.md` |
 | STEP e IGES → malha (OpenCASCADE), costura de faces soltas, orientação pelo volume | `docs/conhecimento/step-iges.md` |
 | Plugin de CAD que é casca de um catálogo web (DLL, API, formulário de lead, IGES/RFA, termos de uso) | `docs/conhecimento/plugin-cad-catalogo-web.md` |
@@ -137,7 +137,7 @@ com `termos_efemeros.txt`, `test_contratos`, `test_deps`). O que cada arquivo pr
 dele. Fixtures reais por **papel** em `tests/fixtures.local.json` (gitignored; modelo
 `fixtures.example.json`; papéis em `tests/fixtures.py`) — sem elas os testes pulam com motivo.
 **Regra:** comportamento novo entra em `tests/` no mesmo commit. Depois de mexer na configuração do
-pytest, confira a contagem de coleta (207).
+pytest, confira a contagem de coleta (234).
 
 ## CI — `.github/workflows/ci.yml`
 
@@ -154,6 +154,22 @@ Identidade `carlosnetoaltoqi`; branch `main`, histórico linear; nada de push se
 ---
 
 ## 👉 Estado atual e pendências
+
+**Estado (2026-09-09):** a peça exportada agora tem **pontos de ligação**, e com eles a planta
+(ADR-021). Uma peça nossa desenhava em 3D e, lançada em **planta**, saía com o símbolo padrão do
+Builder — porque planta e corte vêm da simbologia 2D **ou** do `WIREFRAME`, e nossas 3.089 peças não
+tinham nenhum dos dois (nas 15 nativas de fabricante, **zero** das 1.410 peças com 3D está sem os
+dois). O `WIREFRAME` não precisa ser escrito: o Builder o gera, desde que a peça tenha
+`ENTRADA_3D`/`ENTRADA_PECA` e "Bifiliar realista" (`OPCAO_RENDERIZACAO_PLANIFICADA`) não esteja em
+"Simbologia 2D". Então o pipeline passou a escrever as entradas, derivadas da própria malha:
+`geometria/bocais.py` acha o bocal (a face **anelar** na ponta de um tubo; a entrada nativa fica no
+centro dela e o raio interno é a bitola) e `aq/entradas_aq.py` grava as duas tabelas nos dois
+escritores. Medido contra as nativas: 21 de 21 entradas reencontradas numa de aquecedores (erro
+mediano 0,00 cm) e 14 de 16 numa de conexões de esgoto (0,06 cm); onde a entrada foi clicada à mão
+(uma de bombas, recuada atrás do flange) ou não é abertura de malha (rack), o detector não acha e
+não inventa. `ferramentas.preencher_entradas_aq` conserta `.aq` já exportado. Suíte em 234 na coleta.
+Também ficou medido o frame das `ENTRADA_3D` (centímetro Z-up, malha **com** o *placement* da
+simbologia: `Rz(XY)·Ry(XZ)·Rx(YZ)` com ângulo positivo mais `DESLOCAMENTO_*`).
 
 **Estado (2026-09-08):** o defeito que tornava toda biblioteca exportada **invisível no Builder** está
 corrigido (ADR-020): `SIMBOLOGIA_3D.IMAGEM` — o BMP 100×100 de preview — é requisito do AltoQi Builder
@@ -189,12 +205,17 @@ fabricante, o que depende de autorização explícita (Termos de Uso). Nada pend
 - Conferir no Builder as quatro bibliotecas de 2026-09-08 corrigidas com `preencher_imagem_aq` (as duas
   de famílias Revit, a de conexões e a do projeto `.rvt`) — a de conexões já foi verificada, com peça
   lançada no projeto.
-- **Próxima sessão, decidido em 2026-09-08:** (1) `WIREFRAME` — a representação em planta e corte;
-  antes de reverter o formato, conferir no Builder se uma peça nossa **já com `IMAGEM`** aparece em
-  planta, porque o campo pode ser só cache das arestas. (2) `ENTRADA_PECA`/`ENTRADA_3D` — bocais e
-  encaixe numa tubulação; o schema é conhecido, o problema é a origem das posições. Ponto de partida,
-  suspeitos já descartados e armadilhas em
-  `docs/historico/sessoes/2026-09-08-imagem-obrigatoria-o-aq-que-abria-e-nao-desenhava.md` §7.
+- **Aceitação de ADR-021, no Builder:** abrir
+  `Downloads/teste-geometria-aq/G_nosso_com_entradas.aq` (nossa biblioteca de conexões, 10 entradas
+  em 4 simbologias, gerada por `preencher_entradas_aq`), conferir "Pontos de ligação 3D: Sim" no
+  Cadastro, lançar a peça **em planta** e ver se o Builder gerou o wireframe.
+- **Duas perguntas para a engenharia**, que decidem o que ainda está chutado no escritor:
+  (1) o que significa "Ligação" na aba de entradas do Cadastro — é o enum `LIGACAO_EP`, 0 a 3, que
+  gravamos fixo em 0 porque `TIPO_LIGACAO` está vazia em toda nativa; (2) a lista de diâmetros do
+  Builder **na ordem**, que decodifica a escala inteira de `DIAMETRO_EP` (temos 40→8, 50→9, 60→10,
+  75→11, 100→12, 150→14, 200→15; falta o resto, e sem ele bitola de sistema não-PVC fica sem código).
+- Como o cadastro nativo coloca as entradas — a engenharia clica ou o Builder deriva da geometria?
+  A resposta diz se a heurística é necessária ou se existe rota automática no próprio Builder.
 - Leitura humana dos 17 documentos de `docs/conhecimento/` e das quatro skills (escritos por agentes sob
   a guarda de termos; ninguém os leu de ponta a ponta ainda).
 - Abrir no AltoQi Builder o `.aq` exportado do catálogo de plugin web e o do catálogo de famílias Revit

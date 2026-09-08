@@ -1,7 +1,7 @@
 ---
 name: leitor-biblioteca-aq
 description: Lê E ESCREVE arquivos de biblioteca BIM do AltoQi Builder (.aq) — SQLite com geometria 3D embutida. Extrai peças, dados hidráulicos, curvas de bomba, propriedades, miniaturas e a malha 3D completa (formato OQ3D), dispensando os IFCs; e gera um .aq do zero, com o schema, os enums, o encoding cp1252 e o binário OQ3D corretos.
-version: 2.11.0
+version: 2.12.0
 author: Bilds / carlosnetoaltoqi
 ---
 
@@ -20,7 +20,9 @@ Você é especialista em ler e escrever bibliotecas BIM do AltoQi Builder (`.aq`
 
 - Um `.aq` é um ZIP renomeado contendo um SQLite (versões recentes distribuem o SQLite puro, sem ZIP) — tente abrir direto e caia para ZIP só se falhar.
 - A geometria 3D mora no BLOB `SIMBOLOGIA_3D.SIMBOLOGIA_3D`, num formato binário próprio (OQ3D) — a mesma malha que o AltoQi exporta como IFC, o que dispensa os IFCs.
-- **Ao escrever: `SIMBOLOGIA_3D.IMAGEM` é obrigatória.** Sem esse BMP de preview (100×100, 24 bits, 30.054 bytes) o Builder mostra os dados da peça e **não desenha a geometria**, nem em 3D. `WIREFRAME` e entradas não são necessários — isolado por experimento no Builder.
+- **Ao escrever: `SIMBOLOGIA_3D.IMAGEM` é obrigatória.** Sem esse BMP de preview (100×100, 24 bits, 30.054 bytes) o Builder mostra os dados da peça e **não desenha a geometria**, nem em 3D — isolado por experimento no Builder.
+- **Ao escrever: sem `ENTRADA_3D`/`ENTRADA_PECA` a peça não sai em planta.** Ela desenha em 3D e, na planta, aparece o símbolo padrão do Builder (círculo com triângulo). Planta e corte vêm da simbologia 2D **ou** do `WIREFRAME`, e o `WIREFRAME` o Builder **gera** — desde que a peça tenha pontos de ligação 3D e "Bifiliar realista" (`OPCAO_RENDERIZACAO_PLANIFICADA`: 0 Realista / 1 Simbologia 2D / 2 Ambas) não esteja em "Simbologia 2D". Então escreva as entradas e não o blob.
+- **As entradas saem da malha**, porque nenhuma fonte de geometria marca bocal: o bocal é a face **anelar** na ponta de um tubo (dois círculos concêntricos coplanares), a entrada fica no centro dela e o **raio interno** é a bitola. `ENTRADA_3D.POSICAO_*` está em centímetro Z-up no frame da peça — a malha **com** o *placement* da simbologia aplicado (`Rz(XY)·Ry(XZ)·Rx(YZ)` com ângulo positivo, mais `DESLOCAMENTO_*`).
 - O texto é **cp1252**, não latin-1 nem UTF-8 — mesmo o `.aq` declarando `PRAGMA encoding = UTF-8` — e isso afeta leitura, escrita e literais de query.
 
 ## Workflow de leitura
@@ -48,6 +50,8 @@ Você é especialista em ler e escrever bibliotecas BIM do AltoQi Builder (`.aq`
 - Trocar `text_factory` sem `CAST(col AS BLOB)` na query corrompe o BLOB da geometria — o round-trip via latin-1 não sobrevive à troca para cp1252.
 - Deduplique vértices só na malha **gerada** — a malha de fabricante já vem como sopa de triângulos e não é estanque.
 - `.aq` com MB de geometria válida e peça sem forma nenhuma no Builder: é a `IMAGEM` nula, não o OQ3D — o `WIREFRAME` no lugar dela não resolve.
+- Peça que desenha em 3D e sai como círculo com triângulo em planta: faltam os pontos de ligação (e, com eles, o `WIREFRAME` que o Builder geraria).
+- Procurar bocal como "buraco na malha" acha zero: malha de fabricante pode ser estanque, com a ponta do tubo fechada por triângulos coplanares.
 
 ## Pontos de entrada neste repo
 
