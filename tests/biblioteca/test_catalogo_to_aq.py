@@ -49,8 +49,9 @@ def _manifesto(tmp_path):
     (geo_dir / '50mm.json').write_text(json.dumps(_geo(0.0, [(1, 0, 0), (0, 0, 1)])), encoding='utf8')
     (geo_dir / 'bomba.json').write_text(json.dumps(_geo(1.0, [(0, 1, 0)])), encoding='utf8')
     return {
+        # a disciplina é obrigatória desde ADR-024 e vem de quem importa, não do título
         'catalogo': {'fabricante': 'Fábrica Ç', 'titulo': 'Esgoto Série Teste', 'slug': 'esgoto-teste',
-                     'origem': 'teste'},
+                     'origem': 'teste', 'disciplina': 'sanitario'},
         'geo_dir': str(geo_dir),
         'produtos': [
             # duas peças da mesma série compartilham a geometria (uma simbologia, duas PECA_SIMBOLOGIA_3D)

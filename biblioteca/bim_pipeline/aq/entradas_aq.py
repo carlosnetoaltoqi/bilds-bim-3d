@@ -30,21 +30,20 @@ disponíveis, 634 linhas de `ENTRADA_3D` e 3.405 de `ENTRADA_PECA`):
 | `PECA.CONEXAO_VOLUMETRICA` | **1** | é o "Pontos de ligação 3D: Sim" do Cadastro; 4.206 de 4.206 peças com ele no catálogo oficial têm `ENTRADA_3D` |
 | `PECA.SECAO` e `PECA.DIAMETRO_INTERNO` | **NULL** | 15.321 de 15.321 peças com `ENTRADA_PECA` no catálogo oficial (1.441/1.441 nas nativas de fabricante) |
 
-O código de bitola é o índice da escala nominal do AltoQi (`aq_writer.CODIGO_DIAMETRO`),
-não uma medida. O raio interno do bocal cai em cima do nominal nas nativas de conexão
-(2,56 cm ↔ 50 mm, 5,08 ↔ 100, 10,00 ↔ 200), por isso a conversão é por nominal mais
-próximo, com tolerância — bocal fora da escala fica **sem** código (sentinela), como as
-conexões nativas cujo diâmetro só existe na entrada.
+O código de bitola é o índice de uma escala **em polegada** (`cadastro.ESCALA_POLEGADA`),
+não uma medida. O raio interno do bocal cai em cima da bitola nominal nas nativas de conexão
+(2,56 cm ↔ 50 mm, 5,08 ↔ 100, 10,00 ↔ 200), por isso a conversão é por nominal mais próximo,
+com tolerância — e daí para o código pela escala. Três bitolas em milímetro (40, 50 e 75) são
+uma polegada em PVC soldável e outra em PVC esgoto: nelas o código **depende da série**, que
+vem do título da biblioteca (`cadastro.serie_do_titulo`). Sem série reconhecida o bocal fica
+**sem** código (sentinela) e o `Diagnostico` avisa — como as conexões nativas cujo diâmetro só
+existe na entrada. Gravar o palpite poria a peça na bitola errada em silêncio.
 """
 import math
 
-from bim_pipeline.aq.aq_writer import CODIGO_DIAMETRO, SENT_INT
+from bim_pipeline.aq import cadastro
+from bim_pipeline.aq.aq_writer import SENT_INT
 from bim_pipeline.geometria.bocais import bocais
-
-# Tolerância da conversão raio → nominal: o raio interno da malha nativa fica a menos de
-# 3 % do nominal (2,56 cm para 50 mm é +2,4 %). 8 % dá folga para tesselação grosseira
-# sem deixar um bocal de 60 mm virar 50.
-TOLERANCIA_NOMINAL = 0.08
 
 # Máximo de bocais que uma simbologia nativa tem: 38 (as 634 linhas nativas se distribuem em
 # 2 na metade dos casos, 4 em dois terços, e a cauda vai até 38). Acima disso a "peça" não é
@@ -57,15 +56,15 @@ SECAO_EP_PADRAO = 10
 LIGACAO_EP_PADRAO = 0
 
 
-def codigo_diametro(raio_cm):
-    """Raio interno em cm → código de bitola do AltoQi, ou `None` fora da escala."""
-    diametro_mm = 2.0 * float(raio_cm) * 10.0
-    melhor, erro_melhor = None, None
-    for nominal, codigo in CODIGO_DIAMETRO.items():
-        erro = abs(diametro_mm - nominal) / nominal
-        if erro <= TOLERANCIA_NOMINAL and (erro_melhor is None or erro < erro_melhor):
-            melhor, erro_melhor = codigo, erro
-    return melhor
+def codigo_diametro(raio_cm, serie=None):
+    """Raio interno em cm → código de bitola do AltoQi, ou `None` fora da escala.
+
+    Delega em `cadastro.codigo_de_raio`, que é onde mora a escala. A tolerância da conversão
+    raio → nominal é 8 %: o raio interno da malha nativa fica a menos de 3 % do nominal
+    (2,56 cm para 50 mm é +2,4 %), e 8 % dá folga para tesselação grosseira sem deixar um
+    bocal de 60 mm virar 50.
+    """
+    return cadastro.codigo_de_raio(raio_cm, serie)
 
 
 def azimute(normal):
@@ -80,17 +79,24 @@ def azimute(normal):
     return math.degrees(math.atan2(y, x)) % 360.0
 
 
-def derivar(malhas, **limites):
+def derivar(malhas, serie=None, diag=None, onde=None, **limites):
     """Malhas em cm Z-up (frame da peça) → `[{posicao, raio, codigo, angulo, normal}]`.
 
+    `serie` (`'soldavel'`/`'esgoto'`) desempata as bitolas em milímetro que colidem; `diag`
+    é um `cadastro.Diagnostico`, que recebe o aviso de cada bocal que ficou sem código.
     Os `limites` vão para `bocais.bocais` (`raio_min`, `raio_max`, `folga_area`).
     """
     saida = []
     for bocal in bocais(malhas, **limites):
+        codigo = codigo_diametro(bocal['raio'], serie)
+        if codigo is None and diag is not None:
+            diag.bitola(onde or 'peça sem nome',
+                        f'bocal de raio {float(bocal["raio"]):.2f} cm fora da escala'
+                        + ('' if serie else ' (série da biblioteca não reconhecida)'))
         saida.append({
             'posicao': tuple(float(c) for c in bocal['centro']),
             'raio': float(bocal['raio']),
-            'codigo': codigo_diametro(bocal['raio']),
+            'codigo': codigo,
             'angulo': azimute(bocal['normal']),
             'normal': tuple(float(c) for c in bocal['normal']),
         })

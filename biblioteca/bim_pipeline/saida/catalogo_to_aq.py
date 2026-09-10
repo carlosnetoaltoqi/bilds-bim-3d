@@ -92,6 +92,7 @@ import numpy as np
 AQUI = os.path.dirname(os.path.abspath(__file__))
 
 from bim_pipeline.aq import aq_writer
+from bim_pipeline.aq import cadastro
 from bim_pipeline.aq import entradas_aq
 from bim_pipeline.aq import imagem_aq
 from bim_pipeline.aq import oq3d_writer
@@ -164,10 +165,39 @@ def codigo_do_produto(p):
     return nome_da_peca(p.get('nome'), p.get('serie'))
 
 
+def entidade_da_serie(produtos, serie):
+    """Entidade IFC que a **fonte** declarou para os produtos da série, se declarou.
+
+    É o passo 1 do ADR-024: a classe IFC uma família Revit, um IFC ou um catálogo de plugin
+    sempre tem, e ela prevê a aplicação com pouca ambiguidade. Vale a mais frequente da série;
+    `None` quando nenhum produto declara, e aí o vocabulário da disciplina é que classifica.
+    """
+    contagem = {}
+    for p in produtos:
+        if ((p.get('serie') or '').strip() or 'Outros') != serie:
+            continue
+        ent = p.get('entidadeIfc') or (p.get('specs') or {}).get('entidadeIfc')
+        if ent is None:
+            continue
+        try:
+            ent = int(ent)
+        except (TypeError, ValueError):
+            continue
+        contagem[ent] = contagem.get(ent, 0) + 1
+    if not contagem:
+        return None
+    return max(contagem, key=contagem.get)
+
+
 # ─── O gerador ────────────────────────────────────────────────────────────────
 
-def gerar(manifesto, saida, manter_prefixo=False, progresso=avisar):
-    """Grava `saida` e devolve o resumo. `progresso(linha)` recebe o andamento (None = silencioso)."""
+def gerar(manifesto, saida, manter_prefixo=False, progresso=avisar, disciplina=None):
+    """Grava `saida` e devolve o resumo. `progresso(linha)` recebe o andamento (None = silencioso).
+
+    `disciplina` é obrigatória (ADR-024) e vale para a biblioteca inteira: é ela que decide
+    `PROJETO_APLICACAO` e qual vocabulário classifica os grupos. Pode vir no manifesto, em
+    `catalogo.disciplina`.
+    """
     t0 = time.time()
     silencioso = progresso is None
     progresso = progresso or (lambda _m: None)
@@ -191,7 +221,18 @@ def gerar(manifesto, saida, manter_prefixo=False, progresso=avisar):
         s = (p.get('serie') or '').strip() or 'Outros'
         if s not in series:
             series.append(s)
-    aplicacao = aq_writer.aplicacao_de(titulo, cat.get('descricao'), *series)
+    disciplina = disciplina or cat.get('disciplina')
+    if not disciplina:
+        raise ExportacaoError(
+            'falta a disciplina da biblioteca (ADR-024): o Builder põe a peça no projeto pela '
+            'disciplina, e adivinhá-la pelo nome é o que fazia peça elétrica sair como conexão '
+            'hidráulica. Escolha uma de: ' + ', '.join(sorted(cadastro.DISCIPLINAS)))
+    try:
+        cadastro.mascara_da_disciplina(disciplina)
+    except ValueError as e:
+        raise ExportacaoError(str(e))
+    diag = cadastro.Diagnostico()
+    serie_bitola = cadastro.serie_do_titulo(titulo, cat.get('descricao'), *series)
     series_com_curva = {(p.get('serie') or '').strip() or 'Outros' for p in produtos if p.get('curva')}
 
     # `criar_schema` imprime no stdout; o stdout deste script é o resumo JSON
@@ -218,19 +259,14 @@ def gerar(manifesto, saida, manter_prefixo=False, progresso=avisar):
         # ── grupos: um por série ──────────────────────────────────────────────
         grupos = {}
         for serie in series:
-            (ifc, tipo_ent, ifc2x3), sub, apl = aq_writer.classificar_grupo(serie)
-            if serie in series_com_curva:
-                (ifc, tipo_ent, ifc2x3), sub, apl = aq_writer.IFC_BOMBA, aq_writer.SUB_BOMBA, aq_writer.APL_BOMBA
-            tubo = apl == aq_writer.APL_TUBO
             id_gp = g.novo('GRUPO_PECA')
-            g.ins('GRUPO_PECA', ID_GRUPO_PECA=id_gp, NOME_GP=serie, TIPO_SECAO_GP=0,
-                  RUGOSIDADE_GP=aq_writer.RUGOSIDADE_PVC, RUGOSIDADE_EQUIVALENTE=aq_writer.RUGOSIDADE_EQUIV_PVC,
-                  TIPO_FWH=aq_writer.TIPO_FWH_PVC, COEFICIENTE_MANNING=aq_writer.MANNING_PVC,
-                  TIPO_MATERIAL=0, PROJETO_APLICACAO=aplicacao,
-                  ELEMENTO_APLICACAO=1 if tubo else 0, TIPO_CONFIGURACAO_GP=aq_writer.SENT_INT,
-                  REPRESENTACAO_GP=2 if tubo else 0, ID_CLASSE_PECA=id_classe, CODIGO_ELLO=0, ATIVO=1,
-                  ENTIDADE_IFC=ifc, SUBTIPO_IFC=sub, TIPO_ENTIDADE_IFC=tipo_ent,
-                  ENTIDADE_IFC_2X3=ifc2x3, SUBTIPO_IFC_2X3=sub, TIPO_ENTIDADE_IFC_2X3=tipo_ent)
+            # série com curva Q-H é bomba, venha o nome que vier: a curva é prova, o nome não.
+            entidade = 2075 if serie in series_com_curva else entidade_da_serie(produtos, serie)
+            campos_gp, apl = cadastro.linha_grupo(
+                id_grupo=id_gp, nome=serie, disciplina=disciplina, id_classe=id_classe,
+                entidade_ifc=entidade, diag=diag)
+            tubo = apl == cadastro.APL_TUBO
+            g.ins('GRUPO_PECA', **campos_gp)
             id_gi = g.novo('GRUPO_ITEM')
             g.ins('GRUPO_ITEM', ID_GRUPO_ITEM=id_gi, ID_CLASSE_ITEM=id_ci, NOME_GI=serie,
                   UNIDADE_GI=aq_writer.UNIDADE_METRO if tubo else aq_writer.UNIDADE_PECA, CODIGO_ELLO=0, ATIVO=1)
@@ -252,16 +288,15 @@ def gerar(manifesto, saida, manter_prefixo=False, progresso=avisar):
             geo_abs = caminho_geo(p)
 
             id_peca = g.novo('PECA')
-            g.ins('PECA', ID_PECA=id_peca, NOME_PECA=nome, BIBLIOTECA=fabricante, SIMBOLO_SELECIONADO=1,
-                  DESCRICAO_DADOS=(p.get('conexoes') or '').strip() or serie, POSICIONAR_SIMBOLOGIA=0,
-                  POSICAO_DADOS=0, INDICACAO_DADOS=nome, POSICIONA_CAMPOS=1, DESENHA_SIMBOLOGIA=2,
-                  DIAMETRO_PECA=aq_writer.SENT_REAL, COMPRIMENTO_PECA=aq_writer.SENT_REAL,
-                  ID_GRUPO_PECA=grp['id_gp'], TIPO_APLICACAO_PECA=grp['apl'], CODIGO_ELLO=0, ATIVO=1,
-                  DESCRICAO_DADOS_SIMBOLOGIA=serie, POSICIONAR_SIMBOLOGIA_3D=3,
-                  ESPESSURA_PECA=aq_writer.SENT_REAL, LARGURA_PECA=aq_writer.SENT_REAL,
-                  ALTURA_PECA=aq_writer.SENT_REAL, PROFUNDIDADE_PECA=aq_writer.SENT_REAL,
-                  FORMATO_PECA=-1, OPCAO_RENDERIZACAO_PLANIFICADA=0, INCLUIR_REPRESENTACAO3D_PARAMETRICA=0,
-                  CONEXAO_VOLUMETRICA=0, INDICE_SIMBOLO3D_SELECIONADO=1)
+            campos_peca = cadastro.linha_peca(
+                id_peca=id_peca, nome=nome, id_grupo=grp['id_gp'], aplicacao=grp['apl'],
+                fabricante=fabricante,
+                descricao=(p.get('conexoes') or '').strip() or serie,
+                descricao_simbologia=serie)
+            campos_peca.update(
+                ESPESSURA_PECA=aq_writer.SENT_REAL, LARGURA_PECA=aq_writer.SENT_REAL,
+                ALTURA_PECA=aq_writer.SENT_REAL, PROFUNDIDADE_PECA=aq_writer.SENT_REAL)
+            g.ins('PECA', **campos_peca)
 
             # curva Q-H → MODELO_BOMBA + pontos; a DADOS_HIDRAULICOS aponta para ele
             curva = p.get('curva') or []
@@ -316,7 +351,7 @@ def gerar(manifesto, saida, manter_prefixo=False, progresso=avisar):
                 simb_por_geo[geo_abs] = id_simb
                 # pontos de ligação: a ENTRADA_3D é da simbologia (posição da geometria),
                 # a ENTRADA_PECA é de cada peça que usa essa geometria (bitola da peça).
-                achados = entradas_aq.derivar(malhas)
+                achados = entradas_aq.derivar(malhas, serie=serie_bitola, diag=diag, onde=onde)
                 if not entradas_aq.plausivel(achados):
                     progresso(f'{onde}: {len(achados)} bocais na malha — fora do que uma peça '
                               f'tem; entradas não gravadas')
@@ -364,7 +399,10 @@ def gerar(manifesto, saida, manter_prefixo=False, progresso=avisar):
         'triangulos': n_tri, 'propriedades': len(props), 'valores': n_valores, 'curvas': n_curvas,
         'entradas': n_entradas, 'geometrias_sem_entrada': n_sem_entrada,
         'bytes': os.path.getsize(saida), 'segundos': round(time.time() - t0, 1),
+        'disciplina': disciplina, 'avisos': diag.linhas(), **diag.resumo(),
     }
+    for aviso in diag.linhas():
+        progresso(aviso)
     progresso(f"{resumo['pecas']} peças, {resumo['grupos']} grupos, {resumo['simbologias']} simbologias, "
               f"{resumo['triangulos']} triângulos, {resumo['bytes'] / 1024 / 1024:.1f} MB em {resumo['segundos']}s")
     return resumo
@@ -376,12 +414,14 @@ def main():
     ap.add_argument('saida', help='caminho do .aq a gravar (sobrescreve)')
     ap.add_argument('--manter-prefixo-serie', action='store_true',
                     help='NOME_PECA igual ao nome da tela, sem tirar o prefixo da série')
+    ap.add_argument('--disciplina', choices=sorted(cadastro.DISCIPLINAS),
+                    help='disciplina da biblioteca (ADR-024); obrigatória se não vier no manifesto')
     ap.add_argument('--quiet', action='store_true', help='sem progresso no stderr')
     args = ap.parse_args()
     with open(args.manifesto, encoding='utf-8') as f:
         manifesto = json.load(f)
     resumo = gerar(manifesto, args.saida, manter_prefixo=args.manter_prefixo_serie,
-                   progresso=None if args.quiet else avisar)
+                   progresso=None if args.quiet else avisar, disciplina=args.disciplina)
     print(json.dumps(resumo, ensure_ascii=False))
 
 

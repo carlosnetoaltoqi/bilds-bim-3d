@@ -63,7 +63,7 @@ class _Escritor:
                          tuple(campos.values()))
 
 
-def preencher(caminho, refazer=False, progresso=None):
+def preencher(caminho, refazer=False, progresso=None, serie=None):
     """
     Devolve `(entradas, simbologias_com_bocal, simbologias_sem_bocal, falhas, secao)`,
     onde `secao` é `{'com_entrada': …, 'corrigidas': …}` — quantas peças ficaram marcadas
@@ -98,7 +98,7 @@ def preencher(caminho, refazer=False, progresso=None):
             # zero, então a malha do OQ3D já está no frame da peça, que é o da ENTRADA_3D.
             malhas = [(v, t, rgba, None) for v, t, rgba in oq3d.extract(bytes(blob))]
             try:
-                entradas = entradas_aq.derivar(malhas)
+                entradas = entradas_aq.derivar(malhas, serie=serie)
             except Exception as e:                     # noqa: BLE001 — a malha é de terceiro
                 falhas.append((sid, f'{type(e).__name__}: {e}'))
                 continue
@@ -142,6 +142,10 @@ def main(argv=None):
     ap.add_argument('--saida', default=None, help='grava numa cópia em vez de alterar no lugar')
     ap.add_argument('--refazer', action='store_true',
                     help='apaga as entradas existentes e detecta tudo de novo')
+    ap.add_argument('--serie', choices=('soldavel', 'esgoto'), default=None,
+                    help='série de bitolas da biblioteca — desempata 40, 50 e 75 mm, que são uma '
+                         'polegada em PVC soldável e outra em esgoto; sem ela essas bitolas ficam '
+                         'sem código, com a sentinela')
     ap.add_argument('--quiet', action='store_true')
     args = ap.parse_args(argv)
 
@@ -154,7 +158,7 @@ def main(argv=None):
             print(f'  {msg}', flush=True)
 
     entradas, com_bocal, sem_bocal, falhas, secao = preencher(destino, refazer=args.refazer,
-                                                              progresso=progresso)
+                                                              progresso=progresso, serie=args.serie)
     if not args.quiet:
         print(f'{destino}: {entradas} entradas em {com_bocal} simbologias; '
               f'{len(sem_bocal)} sem bocal reconhecível, {len(falhas)} falhas; '

@@ -56,6 +56,7 @@ import sys
 AQUI = os.path.dirname(os.path.abspath(__file__))
 
 from bim_pipeline.aq import aq_writer
+from bim_pipeline.aq import cadastro
 from bim_pipeline.aq import entradas_aq
 from bim_pipeline.aq import imagem_aq
 from bim_pipeline.aq import oq3d_writer
@@ -72,6 +73,16 @@ def gerar(entrada, saida, info):
     descricao = info.get('descricao') or nome
     specs = dict(info.get('specs') or {})
     origem = info.get('origem') or 'geo_to_aq.py'
+    # A disciplina é obrigatória e vem de quem importa (ADR-024): sem ela a peça entrava
+    # como hidráulica calada, que é como uma válvula de HVAC virou "conexão de água fria".
+    disciplina = info.get('disciplina')
+    if not disciplina:
+        raise SystemExit(
+            'falta a disciplina da peça (ADR-024). Passe --disciplina com uma de: '
+            + ', '.join(sorted(cadastro.DISCIPLINAS)))
+    cadastro.mascara_da_disciplina(disciplina)
+    diag = cadastro.Diagnostico()
+    serie = cadastro.serie_do_titulo(linha, fabricante, nome)
 
     partes = entrada.get('partes') or []
     # `step_to_geo.py` também grava `partes`, mas só como metadados (nome, cor,
@@ -94,24 +105,17 @@ def gerar(entrada, saida, info):
     id_classe = g.novo('CLASSE_PECA')
     g.ins('CLASSE_PECA', ID_CLASSE_PECA=id_classe, NOME_CP=f'{fabricante} - {linha}',
           INDICACAO_CP='', CODIGO_ELLO=0, ATIVO=1)
-    ifc, tipo_ent, ifc2x3 = aq_writer.IFC_CONEXAO
     id_grupo = g.novo('GRUPO_PECA')
-    g.ins('GRUPO_PECA', ID_GRUPO_PECA=id_grupo, NOME_GP=linha, TIPO_SECAO_GP=0,
-          RUGOSIDADE_GP=aq_writer.RUGOSIDADE_PVC, RUGOSIDADE_EQUIVALENTE=aq_writer.RUGOSIDADE_EQUIV_PVC,
-          TIPO_FWH=aq_writer.TIPO_FWH_PVC, COEFICIENTE_MANNING=aq_writer.MANNING_PVC,
-          TIPO_MATERIAL=0, PROJETO_APLICACAO=aq_writer.APLICACAO_AGUA_FRIA, ELEMENTO_APLICACAO=0,
-          TIPO_CONFIGURACAO_GP=aq_writer.SENT_INT, REPRESENTACAO_GP=0, ID_CLASSE_PECA=id_classe,
-          CODIGO_ELLO=0, ATIVO=1, ENTIDADE_IFC=ifc, SUBTIPO_IFC=aq_writer.SUB_LUVA,
-          TIPO_ENTIDADE_IFC=tipo_ent, ENTIDADE_IFC_2X3=ifc2x3, SUBTIPO_IFC_2X3=aq_writer.SUB_LUVA,
-          TIPO_ENTIDADE_IFC_2X3=tipo_ent)
+    campos_grupo, aplicacao = cadastro.linha_grupo(
+        id_grupo=id_grupo, nome=linha, disciplina=disciplina, id_classe=id_classe,
+        entidade_ifc=info.get('entidadeIfc'), diag=diag)
+    g.ins('GRUPO_PECA', **campos_grupo)
     id_peca = g.novo('PECA')
-    g.ins('PECA', ID_PECA=id_peca, NOME_PECA=nome, BIBLIOTECA=fabricante, SIMBOLO_SELECIONADO=1,
-          DESCRICAO_DADOS=descricao, POSICIONAR_SIMBOLOGIA=0, POSICAO_DADOS=0, POSICIONA_CAMPOS=1,
-          DESENHA_SIMBOLOGIA=2, DIAMETRO_PECA=aq_writer.SENT_REAL, INDICACAO_PLANTA=nome,
-          INDICACAO_DETALHE=nome, COMPRIMENTO_PECA=0, ID_GRUPO_PECA=id_grupo,
-          TIPO_APLICACAO_PECA=aq_writer.APL_CONEXAO, CODIGO_ELLO=0, ATIVO=1,
-          POSICIONAR_SIMBOLOGIA_3D=0, FORMATO_PECA=-1, OPCAO_RENDERIZACAO_PLANIFICADA=0,
-          INCLUIR_REPRESENTACAO3D_PARAMETRICA=0, CONEXAO_VOLUMETRICA=0, INDICE_SIMBOLO3D_SELECIONADO=-1)
+    campos_peca = cadastro.linha_peca(
+        id_peca=id_peca, nome=nome, id_grupo=id_grupo, aplicacao=aplicacao,
+        fabricante=fabricante, descricao=descricao, comprimento=0)
+    campos_peca.update(INDICACAO_PLANTA=nome, INDICACAO_DETALHE=nome)
+    g.ins('PECA', **campos_peca)
     g.ins('DADOS_HIDRAULICOS', ID_DADOS_HIDRAULICOS=g.novo('DADOS_HIDRAULICOS'),
           TIPO_CURVA=aq_writer.TIPO_CURVA_CONEXAO, ID_PECA=id_peca)
 
@@ -150,7 +154,7 @@ def gerar(entrada, saida, info):
 
     # -- pontos de ligação: sem eles a peça não encaixa em tubulação e o Builder não
     #    gera o wireframe de planta/corte ---------------------------------
-    entradas = entradas_aq.derivar(malhas)
+    entradas = entradas_aq.derivar(malhas, serie=serie, diag=diag, onde=nome)
     if not entradas_aq.plausivel(entradas):
         # malha de projeto inteiro, não de peça: dezenas de pontas de tubo que não são
         # ponto de ligação de nada. Melhor sem entrada nenhuma que com 107 inventadas.
@@ -185,6 +189,9 @@ def gerar(entrada, saida, info):
         'triangulos': sum(len(t) for _, t, _, _ in malhas),
         'oq3d_bytes': len(blob),
         'bytes': os.path.getsize(saida),
+        'disciplina': disciplina,
+        'avisos': diag.linhas(),
+        **diag.resumo(),
     }
 
 
@@ -197,13 +204,15 @@ def main():
     ap.add_argument('--nome')
     ap.add_argument('--descricao')
     ap.add_argument('--codigo')
+    ap.add_argument('--disciplina', choices=sorted(cadastro.DISCIPLINAS),
+                    help='disciplina da peça (ADR-024); obrigatória se não vier no info do JSON')
     ap.add_argument('--quiet', action='store_true')
     args = ap.parse_args()
 
     with open(args.entrada, encoding='utf-8') as f:
         entrada = json.load(f)
     info = dict(entrada.get('info') or {})
-    for k in ('fabricante', 'linha', 'nome', 'descricao', 'codigo'):
+    for k in ('fabricante', 'linha', 'nome', 'descricao', 'codigo', 'disciplina'):
         v = getattr(args, k)
         if v:
             info[k] = v
@@ -215,6 +224,8 @@ def main():
         print(f"{args.saida}: peça '{r['peca']}' ({r['fabricante']} / {r['linha']}), "
               f"{r['malhas']} malha(s), {r['triangulos']:,} triângulos, "
               f"OQ3D {r['oq3d_bytes'] / 1024:.0f} KB, arquivo {r['bytes'] / 1024:.0f} KB".replace(',', '.'))
+        for aviso in r['avisos']:
+            print(f'  {aviso}', file=sys.stderr)
     print(json.dumps(r))
 
 

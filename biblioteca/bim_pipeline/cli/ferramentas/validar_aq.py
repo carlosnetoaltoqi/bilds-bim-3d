@@ -27,6 +27,10 @@ Os dois módulos são importados sem modificação nenhuma. O que se confere:
 10. peça com `ENTRADA_PECA` está marcada com `CONEXAO_VOLUMETRICA = 1` ("Pontos de
    ligação 3D: Sim") e com `SECAO`/`DIAMETRO_INTERNO` nulas — é das entradas que o
    Builder tira a seção quando a peça liga por pontos
+11. a disciplina do grupo (`PROJETO_APLICACAO`, bitmask) e a aplicação da peça
+   (`TIPO_APLICACAO_PECA`, enum 1…84) estão dentro do que o Builder conhece, o
+   `POSICIONAR_SIMBOLOGIA_3D` é nulo só em tubo, e **avisa** quando uma disciplina inteira
+   ficou na aplicação genérica — o defeito que a engenharia do Builder encontrou
 
 Uso:
     python3 -m bim_pipeline.cli.ferramentas.validar_aq <arquivo.aq> [--tubo-cm 600] [--max-conexao-cm 120]
@@ -42,10 +46,12 @@ import sys
 import argparse
 
 from bim_pipeline.aq import oq3d
+from bim_pipeline.aq import cadastro
 from bim_pipeline.aq import read_aq
 from bim_pipeline.catalogo.inferencia import peek_aq
 
 falhas = []
+avisos = []
 
 
 def checar(nome, ok, detalhe=''):
@@ -53,6 +59,77 @@ def checar(nome, ok, detalhe=''):
           + (f' — {detalhe}' if detalhe else ''))
     if not ok:
         falhas.append(nome)
+
+
+def avisar_val(nome, detalhe=''):
+    """Aviso não é falha: é o que a exportação não soube decidir e gravou no genérico.
+
+    A decisão de 2026-09-10 é **avisar e gravar**, não abortar — mas o aviso tem de aparecer
+    aqui também, porque foi passando calado por três aceitações no Builder que uma biblioteca
+    de HVAC saiu inteira cadastrada como conexão hidráulica.
+    """
+    print(f'  [aviso] {nome}' + (f' — {detalhe}' if detalhe else ''))
+    avisos.append(nome)
+
+
+def aplicacao_e_disciplina(caminho):
+    """A disciplina do grupo e a aplicação da peça estão dentro do que o Builder conhece?
+
+    Confere o que o ADR-024 passou a escrever:
+
+    - `GRUPO_PECA.PROJETO_APLICACAO` é bitmask e só pode ter bits de disciplina conhecidos
+      (4, 8, 16, 32, 64, 256, 512). O 12 e o 22 que gravávamos antes passam nesta conferência
+      — são bits válidos — e é por isso que ela **não** substitui a escolha de quem importa;
+    - `PECA.TIPO_APLICACAO_PECA` está no enum 1…84;
+    - `POSICIONAR_SIMBOLOGIA_3D` é nulo em tubo e 0…6 no resto (2.104 de 2.104 tubos nulos no
+      catálogo oficial);
+    - quantas peças ficaram no genérico da disciplina — **aviso**, não falha.
+    """
+    print('\n10. aplicação e disciplina')
+    con = sqlite3.connect(f'file:{caminho}?mode=ro', uri=True)
+    con.text_factory = read_aq._decode_texto
+    bits = (cadastro.BIT_HIDRAULICO | cadastro.BIT_SANITARIO | cadastro.BIT_INCENDIO
+            | cadastro.BIT_GAS | cadastro.BIT_ELETRICO | cadastro.BIT_SPDA
+            | cadastro.BIT_CLIMATIZACAO)
+    grupos = con.execute('SELECT NOME_GP, PROJETO_APLICACAO FROM GRUPO_PECA').fetchall()
+    fora = [(n, v) for n, v in grupos if not v or (v & ~bits)]
+    checar('PROJETO_APLICACAO só com bits de disciplina conhecidos', not fora,
+           '; '.join(f'{n!r}={v}' for n, v in fora[:3]) if fora
+           else f'{len(grupos)} grupos, máscaras '
+                + ', '.join(str(v) for v in sorted({v for _, v in grupos})))
+
+    apls = con.execute('SELECT TIPO_APLICACAO_PECA, COUNT(*) FROM PECA GROUP BY 1').fetchall()
+    invalidas = [(a, n) for a, n in apls if a is None or not (1 <= a <= 84)]
+    checar('TIPO_APLICACAO_PECA dentro do enum 1…84', not invalidas,
+           '; '.join(f'{a}({n})' for a, n in invalidas[:3]) if invalidas
+           else ', '.join(f'{a}: {n}' for a, n in sorted(apls)))
+
+    pos_errado = con.execute(
+        'SELECT COUNT(*) FROM PECA WHERE (TIPO_APLICACAO_PECA = 1 AND'
+        ' POSICIONAR_SIMBOLOGIA_3D IS NOT NULL) OR (TIPO_APLICACAO_PECA <> 1 AND'
+        ' (POSICIONAR_SIMBOLOGIA_3D IS NULL OR POSICIONAR_SIMBOLOGIA_3D NOT BETWEEN 0 AND 6))'
+    ).fetchone()[0]
+    checar('POSICIONAR_SIMBOLOGIA_3D nulo em tubo e 0…6 no resto', pos_errado == 0,
+           f'{pos_errado} peças fora da regra' if pos_errado
+           else 'como no catálogo oficial')
+
+    # peça no genérico da disciplina: aviso, com o nome dos grupos
+    for disc, cfg in cadastro.DISCIPLINAS.items():
+        generico = cadastro.GENERICO_DA_DISCIPLINA[disc]
+        no_generico = con.execute(
+            'SELECT COUNT(*) FROM PECA p JOIN GRUPO_PECA g ON g.ID_GRUPO_PECA = p.ID_GRUPO_PECA'
+            ' WHERE g.PROJETO_APLICACAO = ? AND p.TIPO_APLICACAO_PECA = ?',
+            (cfg['mascara'], generico)).fetchone()[0]
+        total = con.execute('SELECT COUNT(*) FROM PECA p JOIN GRUPO_PECA g'
+                            ' ON g.ID_GRUPO_PECA = p.ID_GRUPO_PECA'
+                            ' WHERE g.PROJETO_APLICACAO = ?', (cfg['mascara'],)).fetchone()[0]
+        if total and no_generico == total:
+            avisar_val(f'toda peça de {disc} está na aplicação genérica ({generico})',
+                       f'{total} peças — nenhuma foi reconhecida pela entidade IFC nem pelo '
+                       f'vocabulário; confira se a disciplina escolhida é a certa')
+        elif no_generico:
+            print(f'         {no_generico}/{total} peças de {disc} no genérico ({generico})')
+    con.close()
 
 
 def bmp_nativo(blob):
@@ -330,8 +407,11 @@ def main(argv=None):
     encoding_cp1252(caminho)
     texto_limpo(caminho)
     pontos_de_ligacao(caminho)
+    aplicacao_e_disciplina(caminho)
 
     print()
+    if avisos:
+        print(f'{len(avisos)} AVISO(S): ' + ', '.join(avisos))
     if falhas:
         print(f'{len(falhas)} FALHA(S): ' + ', '.join(falhas))
         return 1

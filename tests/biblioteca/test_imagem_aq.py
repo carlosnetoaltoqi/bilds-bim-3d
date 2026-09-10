@@ -74,7 +74,7 @@ def test_geo_to_aq_grava_a_imagem_de_toda_simbologia(tmp_path):
     entrada = tmp_path / 'geo.json'; saida = tmp_path / 'peca.aq'
     entrada.write_text(json.dumps(geo), encoding='utf8')
     proc = subprocess.run([sys.executable, '-m', 'bim_pipeline.cli.gerar_aq',
-                           str(entrada), str(saida), '--quiet'],
+                           str(entrada), str(saida), '--disciplina', 'hidraulico', '--quiet'],
                           capture_output=True, text=True, cwd=ROOT, timeout=120)
     assert proc.returncode == 0, proc.stderr[-2000:]
 
@@ -92,7 +92,7 @@ def test_validar_aq_falha_quando_a_imagem_e_apagada(tmp_path):
     entrada = tmp_path / 'geo.json'; saida = tmp_path / 'peca.aq'
     entrada.write_text(json.dumps(geo), encoding='utf8')
     assert subprocess.run([sys.executable, '-m', 'bim_pipeline.cli.gerar_aq',
-                           str(entrada), str(saida), '--quiet'],
+                           str(entrada), str(saida), '--disciplina', 'hidraulico', '--quiet'],
                           capture_output=True, text=True, cwd=ROOT, timeout=120).returncode == 0
 
     def validar():

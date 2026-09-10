@@ -25,7 +25,7 @@ def aq_gerado(tmp_path_factory):
                     'specs': {'Material': 'PVC'}},
            'pos': [0, 0, 0, 0.1, 0, 0, 0, 0.1, 0], 'col': [1, 0, 0] * 3, 'idx': [0, 1, 2]}
     (d / 'geo.json').write_text(json.dumps(geo), encoding='utf8')
-    r = subprocess.run([sys.executable, '-m', 'bim_pipeline.cli.gerar_aq', str(d / 'geo.json'), str(d / 'p.aq'), '--quiet'],
+    r = subprocess.run([sys.executable, '-m', 'bim_pipeline.cli.gerar_aq', str(d / 'geo.json'), str(d / 'p.aq'), '--disciplina', 'hidraulico', '--quiet'],
                        capture_output=True, text=True, timeout=120)
     assert r.returncode == 0, r.stderr
     return str(d / 'p.aq')
@@ -57,7 +57,7 @@ def test_preencher_entradas_aq_recupera_os_bocais_de_um_aq_sem_entradas(tmp_path
     (tmp_path / 'geo.json').write_text(json.dumps(geo), encoding='utf8')
     aq = str(tmp_path / 'tubo.aq')
     r = subprocess.run([sys.executable, '-m', 'bim_pipeline.cli.gerar_aq',
-                        str(tmp_path / 'geo.json'), aq, '--quiet'],
+                        str(tmp_path / 'geo.json'), aq, '--disciplina', 'sanitario', '--quiet'],
                        capture_output=True, text=True, timeout=300)
     assert r.returncode == 0, r.stderr
 

@@ -23,7 +23,7 @@ def test_geo_to_aq_gera_um_aq_que_o_leitor_do_projeto_le(tmp_path):
            'pos': [0, 0, 0, 0.1, 0, 0, 0, 0.1, 0], 'col': [1, 0, 0] * 3, 'idx': [0, 1, 2]}
     entrada = tmp_path / 'geo.json'; saida = tmp_path / 'peca.aq'
     entrada.write_text(json.dumps(geo), encoding='utf8')
-    proc = subprocess.run([sys.executable, '-m', 'bim_pipeline.cli.gerar_aq', str(entrada), str(saida), '--quiet'],
+    proc = subprocess.run([sys.executable, '-m', 'bim_pipeline.cli.gerar_aq', str(entrada), str(saida), '--disciplina', 'hidraulico', '--quiet'],
                           capture_output=True, text=True, cwd=ROOT, timeout=120)
     assert proc.returncode == 0, proc.stderr[-2000:]
     resumo = json.loads([l for l in proc.stdout.splitlines() if l.startswith('{')][-1])
