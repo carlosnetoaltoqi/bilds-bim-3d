@@ -24,8 +24,9 @@ Os dois módulos são importados sem modificação nenhuma. O que se confere:
    perigoso, porque não levanta exceção em lugar nenhum
 9. o código comercial chegou a `ITEM.CODIGO_ITEM`, e nenhum texto tem byte de
    controle
-10. peça com `ENTRADA_PECA` está com `SECAO`/`DIAMETRO_INTERNO` nulas — é de lá que
-   o Builder tira a seção quando a peça tem ponto de ligação 3D
+10. peça com `ENTRADA_PECA` está marcada com `CONEXAO_VOLUMETRICA = 1` ("Pontos de
+   ligação 3D: Sim") e com `SECAO`/`DIAMETRO_INTERNO` nulas — é das entradas que o
+   Builder tira a seção quando a peça liga por pontos
 
 Uso:
     python3 -m bim_pipeline.cli.ferramentas.validar_aq <arquivo.aq> [--tubo-cm 600] [--max-conexao-cm 120]
@@ -135,13 +136,14 @@ def _decodifica_cp1252(b):
 
 
 def pontos_de_ligacao(caminho):
-    """Peça com entrada tem de estar com `SECAO`/`DIAMETRO_INTERNO` nulas.
+    """Peça com entrada tem de estar marcada e sem seção no cadastro.
 
-    Peça com ponto de ligação 3D tira seção e diâmetro das entradas, não do cadastro:
-    nas 14 nativas as duas colunas estão nulas em 1.441 de 1.441 peças com
-    `ENTRADA_PECA`. Deixar o *default* 10 do schema é o que fazia a peça abrir com
-    "Pontos de ligação 3D: Não" mesmo com as entradas no lugar certo — ver
-    `bim_pipeline.aq.entradas_aq.secao_para_as_entradas`.
+    `CONEXAO_VOLUMETRICA = 1` é o "Pontos de ligação 3D: Sim" do Cadastro (4.206 de 4.206
+    peças com ele no catálogo oficial do Builder têm `ENTRADA_3D`), e `SECAO`/
+    `DIAMETRO_INTERNO` ficam nulas na peça com entrada (15.321 de 15.321 no mesmo
+    catálogo). Sem a marca, a peça abre com "Pontos de ligação 3D: Não" mesmo com os
+    pontos desenhados no lugar certo — ver
+    `bim_pipeline.aq.entradas_aq.marcar_pontos_de_ligacao`.
     """
     print('\n9. pontos de ligação 3D')
     con = sqlite3.connect(f'file:{caminho}?mode=ro', uri=True)
@@ -153,11 +155,19 @@ def pontos_de_ligacao(caminho):
         'SELECT COUNT(*) FROM PECA p WHERE EXISTS'
         ' (SELECT 1 FROM ENTRADA_PECA e WHERE e.ID_PECA = p.ID_PECA)'
         ' AND (p.SECAO IS NOT NULL OR p.DIAMETRO_INTERNO IS NOT NULL)').fetchone()[0]
+    sem_marca = con.execute(
+        'SELECT COUNT(*) FROM PECA p WHERE EXISTS'
+        ' (SELECT 1 FROM ENTRADA_PECA e WHERE e.ID_PECA = p.ID_PECA)'
+        ' AND p.CONEXAO_VOLUMETRICA IS NOT 1').fetchone()[0]
     orfas = con.execute(
         'SELECT COUNT(*) FROM ENTRADA_PECA e WHERE NOT EXISTS'
         ' (SELECT 1 FROM PECA p WHERE p.ID_PECA = e.ID_PECA)').fetchone()[0]
     con.close()
     print(f'         {n_ent} entradas em {com_entrada}/{n_pecas} peças')
+    checar('peça com entrada tem CONEXAO_VOLUMETRICA = 1 (Pontos de ligação 3D: Sim)',
+           sem_marca == 0,
+           f'{sem_marca} peças com entrada e sem a marca' if sem_marca
+           else 'as peças com entrada estão marcadas')
     checar('peça com entrada tem SECAO e DIAMETRO_INTERNO nulas', sujas == 0,
            f'{sujas} peças com a seção ainda no cadastro' if sujas
            else 'a seção vem das entradas, como nas nativas')

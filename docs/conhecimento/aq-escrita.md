@@ -274,12 +274,14 @@ em cada peça que a usa (bitola e ângulo). Sem elas a peça não encaixa em tub
 não desenha a peça em planta e corte — sai o símbolo padrão. Com elas, sai (medido no Builder em
 2026-09-10, ADR-021).
 
-**A peça que ganha entrada sai com `PECA.SECAO` e `PECA.DIAMETRO_INTERNO` nulas** (ADR-022): seção
-e diâmetro de peça conectável moram nas entradas, e nas nativas as duas colunas estão nulas em
-1.441 de 1.441 peças com `ENTRADA_PECA`. Deixar o *default* 10 do schema entrar é o que fazia a
-peça abrir com "Pontos de ligação 3D: Não" mesmo com os pontos desenhados no lugar certo. Quem faz
-é `entradas_aq.secao_para_as_entradas`, chamada de dentro do `gravar`, e `validar_aq` (conferência
-9) falha se sobrar peça com entrada e seção no cadastro.
+**A peça que ganha entrada sai marcada com `PECA.CONEXAO_VOLUMETRICA = 1`** — que é a propriedade
+"Pontos de ligação 3D: Sim" do Cadastro (ADR-023) — **e com `PECA.SECAO`/`PECA.DIAMETRO_INTERNO`
+nulas** (ADR-022), porque seção e diâmetro de peça conectável moram nas entradas. Os números do
+catálogo oficial do Builder: `CONEXAO_VOLUMETRICA = 1` implica `ENTRADA_3D` em 4.206 de 4.206
+peças; `SECAO`/`DIAMETRO_INTERNO` nulas em 15.321 de 15.321 peças com `ENTRADA_PECA`. Sem a marca,
+a peça abre com "Pontos de ligação 3D: Não" mesmo com os pontos desenhados no lugar certo. Quem faz
+é `entradas_aq.marcar_pontos_de_ligacao`, chamada de dentro do `gravar`, e `validar_aq`
+(conferência 9) confere as duas coisas.
 
 O detector está em `bim_pipeline.geometria.bocais` (a forma, os filtros e o placar contra as
 nativas estão em `geometria.md`). O que a escrita acrescenta a ele são os valores das colunas que
@@ -334,7 +336,8 @@ desenharam a simbologia 3D, foram lançadas em projeto e **saíram em planta na 
 unifiliar**. É a prova que faltava para ADR-021. Duas ressalvas do mesmo teste: o `WIREFRAME`
 continua nulo no arquivo depois disso (o Builder o monta em tempo de execução e não grava de
 volta — equipe do Builder), e o Cadastro mostrava "Pontos de ligação 3D: **Não**" ao mesmo tempo
-em que desenhava os pontos no lugar certo — o rótulo vem de `SECAO`/`DIAMETRO_INTERNO`, ADR-022.
+em que desenhava os pontos no lugar certo. O rótulo é `PECA.CONEXAO_VOLUMETRICA` (ADR-023), que
+gravávamos em 0.
 O que segue sem prova: o rótulo em "Sim" depois da correção, e o encaixe da peça numa tubulação.
 
 ## Ferramentas

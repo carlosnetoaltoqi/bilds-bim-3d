@@ -10,7 +10,7 @@ própria equipe do Builder; o `WIREFRAME` gravado no `.aq` não é requisito. Ne
 de geometria marca bocal, então a posição vem da malha, por `bim_pipeline.geometria.bocais`.
 
 O rótulo **"Pontos de ligação 3D: Sim/Não"** do Cadastro **não** vem destas tabelas: vem
-de `PECA.SECAO`/`PECA.DIAMETRO_INTERNO` estarem nulas — ver `secao_para_as_entradas`.
+de `PECA.CONEXAO_VOLUMETRICA` — ver `marcar_pontos_de_ligacao`.
 
 O QUE CADA COLUNA RECEBE, e de onde vem o valor (medido nas 15 bibliotecas nativas
 disponíveis, 634 linhas de `ENTRADA_3D` e 3.405 de `ENTRADA_PECA`):
@@ -27,7 +27,8 @@ disponíveis, 634 linhas de `ENTRADA_3D` e 3.405 de `ENTRADA_PECA`):
 | `ENTRADA_PECA.ANGULO_EP` | azimute do bocal em grau | derivado da normal do bocal; nas nativas é 0/90/180/270 nas conexões ortogonais |
 | `ENTRADA_PECA.COMPRIMENTO_EP` | 0 | comprimento equivalente, que a malha não dá |
 | `ENTRADA_PECA.BASE_EP`/`ALTURA_EP` | 0 | 2.887 de 3.405 |
-| `PECA.SECAO` e `PECA.DIAMETRO_INTERNO` | **NULL** | 1.441 de 1.441 peças nativas com entrada; é o que acende "Pontos de ligação 3D: Sim" |
+| `PECA.CONEXAO_VOLUMETRICA` | **1** | é o "Pontos de ligação 3D: Sim" do Cadastro; 4.206 de 4.206 peças com ele no catálogo oficial têm `ENTRADA_3D` |
+| `PECA.SECAO` e `PECA.DIAMETRO_INTERNO` | **NULL** | 15.321 de 15.321 peças com `ENTRADA_PECA` no catálogo oficial (1.441/1.441 nas nativas de fabricante) |
 
 O código de bitola é o índice da escala nominal do AltoQi (`aq_writer.CODIGO_DIAMETRO`),
 não uma medida. O raio interno do bocal cai em cima do nominal nas nativas de conexão
@@ -105,8 +106,19 @@ def plausivel(entradas, limite=LIMITE_POR_SIMBOLOGIA):
     return len(entradas) <= limite
 
 
-def secao_para_as_entradas(con, ids_peca):
-    """Anula `PECA.SECAO` e `PECA.DIAMETRO_INTERNO` das peças que ganharam entrada.
+def marcar_pontos_de_ligacao(con, ids_peca):
+    """Liga "Pontos de ligação 3D" e tira a seção do cadastro das peças que ganharam entrada.
+
+    `PECA.CONEXAO_VOLUMETRICA = 1` é a propriedade **"Pontos de ligação 3D: Sim"** do Cadastro:
+    com ela a ligação passa a ser feita nos pontos da peça, e não mais só no centro
+    (`peca.htm` da ajuda do Builder). No catálogo oficial do Builder (`Catalog.db`, schema
+    625, 31.611 peças), `CONEXAO_VOLUMETRICA = 1` implica ter `ENTRADA_3D` em **4.206 de
+    4.206** peças, sem exceção. A identificação é por eliminação: a lista de propriedades da
+    peça em `peca.htm` bate uma a uma com as colunas da tabela, e sobra este único booleano
+    para esta única propriedade booleana. Os dois escritores gravavam 0, e era por isso que a
+    peça saía com "Pontos de ligação 3D: Não" **com os pontos desenhados no lugar certo** — o
+    Builder lia as `ENTRADA_3D` e desenhava, mas a peça não estava marcada como peça de
+    ligação por pontos.
 
     Peça com ponto de ligação 3D tira seção e diâmetro **das entradas**, não do cadastro
     da peça: nas 14 bibliotecas nativas, as duas colunas estão nulas em **1.441 de 1.441**
@@ -119,12 +131,13 @@ def secao_para_as_entradas(con, ids_peca):
     certo) — medido no Builder em 2026-09-10, nas bibliotecas de conexões, de válvulas e
     de esgoto.
 
-    Que anular as duas **acenda** o "Sim" é hipótese até o próximo teste no Builder: o que
-    está medido é a correlação (1.441/1.441, dentro da mesma biblioteca) e que as entradas
-    já são lidas, porque os pontos vermelhos saem no lugar certo. Depois de anular não
-    sobra diferença sistemática entre peça nossa com entrada e peça nativa com entrada.
+    Anular a seção **não** acende o rótulo — testado no Builder em 2026-09-10, a peça seguiu
+    em "Não". A regra da seção continua valendo como formato (é o que a nativa faz: nulas em
+    15.321 de 15.321 peças com `ENTRADA_PECA` no catálogo oficial), mas quem acende o rótulo
+    é o `CONEXAO_VOLUMETRICA`.
     """
-    con.executemany('UPDATE PECA SET SECAO = NULL, DIAMETRO_INTERNO = NULL WHERE ID_PECA = ?',
+    con.executemany('UPDATE PECA SET CONEXAO_VOLUMETRICA = 1, SECAO = NULL,'
+                    ' DIAMETRO_INTERNO = NULL WHERE ID_PECA = ?',
                     [(int(i),) for i in ids_peca])
 
 
@@ -134,11 +147,11 @@ def gravar(g, entradas, id_simbologia=None, ids_peca=()):
     `id_simbologia` recebe as `ENTRADA_3D` (a posição é da geometria); cada peça de
     `ids_peca` recebe uma `ENTRADA_PECA` por bocal (a bitola é da peça). Uma peça sem
     geometria não tem de onde tirar entrada e não entra aqui. Quem recebe entrada tem a
-    seção anulada na `PECA` — ver `secao_para_as_entradas`.
+    marcada com "Pontos de ligação 3D" e sem seção no cadastro — ver `marcar_pontos_de_ligacao`.
     """
     n = 0
     if entradas and ids_peca:
-        secao_para_as_entradas(g.con, ids_peca)
+        marcar_pontos_de_ligacao(g.con, ids_peca)
     for entrada in entradas:
         codigo = entrada['codigo']
         if id_simbologia is not None:

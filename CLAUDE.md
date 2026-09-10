@@ -63,7 +63,7 @@ aceitação com tudo de pé em `docs/aceitacao.md`.
 
 | Assunto | Onde |
 |---|---|
-| **Arquitetura**: camadas, sete regras de fronteira, quem grava o quê, guia de porte, regras de mudança | `docs/arquitetura.md`; decisões em `docs/decisoes/` (ADR-001…022) |
+| **Arquitetura**: camadas, sete regras de fronteira, quem grava o quê, guia de porte, regras de mudança | `docs/arquitetura.md`; decisões em `docs/decisoes/` (ADR-001…023) |
 | Formato `.aq` (SQLite/ZIP, cp1252, sentinelas, código de diâmetro, enums, versões de schema, leitura; **o que desenha em planta**) | `docs/conhecimento/aq-formato.md` |
 | Escrever `.aq` — uma peça e o catálogo inteiro (cinco regras, erros que abortam, validação) | `docs/conhecimento/aq-escrita.md` |
 | Formato binário **OQ3D** — leitura tolerante e escrita | `docs/conhecimento/oq3d.md` |
@@ -160,17 +160,19 @@ Builder, em três bibliotecas: desenharam a simbologia 3D, foram lançadas em pr
 representação **unifiliar**. Duas coisas vieram do mesmo teste. O `WIREFRAME` não aparece no arquivo
 depois, e não é defeito: o Builder o monta **em tempo de execução** e não grava de volta (equipe do
 Builder) — o que encerra o plano B de escrever simbologia 2D. E o Cadastro mostrava **"Pontos de
-ligação 3D: Não"** ao mesmo tempo em que desenhava os pontos no lugar certo. O rótulo não vem das
-tabelas de entrada: medindo as 14 nativas peça a peça, `PECA.SECAO` e `PECA.DIAMETRO_INTERNO` estão
-nulas em **1.441 de 1.441** peças com `ENTRADA_PECA` e valem 10 (o *default* do schema, que os dois
-escritores deixavam entrar) só em peça sem entrada — e isso **dentro da mesma biblioteca**. Seção e
-diâmetro de peça conectável moram nas entradas. Corrigido em ADR-022:
-`entradas_aq.secao_para_as_entradas` anula as duas de dentro do `gravar` (vale nos dois escritores),
-`preencher_entradas_aq` varre também `.aq` que **já** tinha entradas — que é o caso das bibliotecas
-de 2026-09-09 — e `validar_aq` ganhou a conferência 9. Que isso acenda o "Sim" é o que falta
-verificar no Builder. Suíte em 239 na coleta. Descartado por medição: `LIGACAO_EP` não é índice da
-entrada (dentro da mesma peça as nativas trazem `(0,0,0)`, `(2,1)`, `(0,3)`), segue enum
-indeterminado.
+ligação 3D: Não"** ao mesmo tempo em que desenhava os pontos no lugar certo. O rótulo é
+**`PECA.CONEXAO_VOLUMETRICA`** (ADR-023), que os dois escritores gravavam em 0: a ajuda do Builder
+(`peca.htm`) nomeia a propriedade e diz que ela é alternativa à propriedade *Entradas*, e no
+catálogo oficial do Builder (`Catalog.db`, schema 625, 31.611 peças) `CONEXAO_VOLUMETRICA = 1`
+implica ter `ENTRADA_3D` em **4.206 de 4.206** peças — a coluna sai por eliminação, porque a lista
+de propriedades da peça bate uma a uma com as colunas e sobra um único booleano. Agora
+`entradas_aq.marcar_pontos_de_ligacao` grava a marca de dentro do `gravar` (vale nos dois
+escritores), junto com as colunas de seção de ADR-022, que continuam valendo como formato
+(15.321/15.321 no catálogo oficial) mas **não** eram a causa do rótulo — hipótese testada e caída
+no mesmo dia. `preencher_entradas_aq` varre também `.aq` que **já** tinha entradas; `validar_aq`
+confere as duas coisas na conferência 9. Suíte em 239 na coleta. Também descartado por medição:
+`LIGACAO_EP` não é índice da entrada (dentro da mesma peça as nativas trazem `(0,0,0)`, `(2,1)`,
+`(0,3)`), segue enum indeterminado.
 
 **Estado (2026-09-09):** a peça exportada agora tem **pontos de ligação**, e com eles a planta
 (ADR-021). Uma peça nossa desenhava em 3D e, lançada em **planta**, saía com o símbolo padrão do
@@ -229,20 +231,24 @@ fabricante, o que depende de autorização explícita (Termos de Uso). Nada pend
   as tentativas que falharam e as armadilhas, estão em
   `docs/historico/sessoes/2026-09-09-a-peca-que-nao-saia-em-planta.md` §5 e §7 e
   `docs/historico/sessoes/2026-09-10-a-planta-saiu-e-o-rotulo-nao.md` §5 e §7.
-- **Aceitação de ADR-022, no Builder:** abrir `Downloads/teste-geometria-aq/SECAO_*.aq` e olhar
-  **só** o rótulo "Pontos de ligação 3D" no Cadastro — a planta já está aceita. São cinco cópias
-  com o prefixo `SECAO_`: as duas do teste de 2026-09-09, a biblioteca inteira de conexões *press*
-  (que ganhou também as entradas: 20 em 4 simbologias), a de válvulas e a do projeto `.rvt`. **Não use** `SECAO_ENTRADAS_CORRIGIDO_Projeto4.aq` para julgar: ele tem 107 entradas
-  numa simbologia só, artefato anterior à guarda de 38 bocais. Se o rótulo continuar em "Não", não
-  sobra diferença sistemática de coluna — o caminho é experimento subtrativo no Builder.
+- **Aceitação de ADR-023, no Builder:** abrir `Downloads/teste-geometria-aq/PONTOS_*.aq` e olhar o
+  rótulo "Pontos de ligação 3D" numa peça cujo campo **Entradas** seja maior que zero — a planta já
+  está aceita, o que falta é o rótulo. São dois arquivos: `PONTOS_aquecedores_ida_e_volta.aq` (ida e
+  volta de uma nativa que no original tem `CONEXAO_VOLUMETRICA = 1` nas 12 peças — é o controle mais
+  limpo) e `PONTOS_conexoes_pvc.aq` (262 conexões, 194 com pontos). Atenção: peça com `Entradas: 0`
+  não testa nada, e a ajuda avisa que "algumas aplicações que geram desenhos apresentando volumes no
+  croqui e detalhes não permitem definir esta propriedade como Sim" — nessas o campo aparece
+  **desabilitado**.
 - **Duas perguntas para a engenharia**, que decidem o que ainda está chutado no escritor:
   (1) o que significa "Ligação" na aba de entradas do Cadastro — é o enum `LIGACAO_EP`, 0 a 3, que
   gravamos fixo em 0 porque `TIPO_LIGACAO` está vazia em toda nativa (medido: **não** é índice da
   entrada); (2) a lista de diâmetros do
   Builder **na ordem**, que decodifica a escala inteira de `DIAMETRO_EP` (temos 40→8, 50→9, 60→10,
   75→11, 100→12, 150→14, 200→15; falta o resto, e sem ele bitola de sistema não-PVC fica sem código).
-- Como o cadastro nativo coloca as entradas — a engenharia clica ou o Builder deriva da geometria?
-  A resposta diz se a heurística é necessária ou se existe rota automática no próprio Builder.
+- ~~Como o cadastro nativo coloca as entradas~~ — **respondido pela ajuda do Builder**
+  (`entradas_3d.htm`): é à mão, "clicando diretamente sobre a simbologia 3D, através do comando
+  Adicionar Entradas 3D, na janela de Posicionamento da simbologia 3D". Não há rota automática, o
+  que confirma a necessidade do nosso detector de bocais.
 - Leitura humana dos 17 documentos de `docs/conhecimento/` e das quatro skills (escritos por agentes sob
   a guarda de termos; ninguém os leu de ponta a ponta ainda).
 - Abrir no AltoQi Builder o `.aq` exportado do catálogo de plugin web e o do catálogo de famílias Revit

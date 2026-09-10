@@ -170,23 +170,33 @@ Por isso a presença do blob numa nativa **não** correlaciona com nada do forma
 entradas e sem `WIREFRAME` (16 simbologias em duas bibliotecas) e nativa com `WIREFRAME` e sem
 entrada nenhuma (13). O blob é resíduo do fluxo que montou aquele arquivo.
 
-### O rótulo "Pontos de ligação 3D: Sim/Não" não sai das tabelas de entrada
+### O rótulo "Pontos de ligação 3D: Sim/Não" é `PECA.CONEXAO_VOLUMETRICA`
 
-O rótulo do Cadastro é outra coisa: em 2026-09-10 as peças nossas apareceram com **"Pontos de
-ligação 3D: Não"** ao mesmo tempo em que o Builder desenhava os pontos no lugar certo (as bolinhas
-vermelhas) e a planta saía. Quem separa peça com e sem ponto de ligação nas nativas são duas
-colunas da `PECA`:
+O rótulo do Cadastro não sai das tabelas de entrada: em 2026-09-10 as peças nossas apareceram com
+**"Pontos de ligação 3D: Não"** ao mesmo tempo em que o Builder desenhava os pontos no lugar certo
+(as bolinhas vermelhas) e a planta saía — inclusive numa biblioteca de conexões com entrada em
+todas as peças.
 
-| coluna | peça nativa **com** `ENTRADA_PECA` | peça nativa **sem** | nossa saída até 2026-09-10 |
-|---|---|---|---|
-| `SECAO` | NULL em 1.441/1.441 | 10 em 80, NULL em 290 | 10 |
-| `DIAMETRO_INTERNO` | NULL em 1.441/1.441 | 10 em 80, NULL em 290 | 10 |
+A ajuda do Builder (`peca.htm`) descreve a propriedade — "quando definida como Sim, a ligação passa
+a ser efetuada em pontos apresentados nas peças, e não mais somente no centro das mesmas" — e diz
+que ela é **alternativa** à propriedade *Entradas*: "Quando a propriedade Pontos de ligação 3D
+estiver definida como Sim, a propriedade Entradas não é apresentada". Também avisa que "algumas
+aplicações que geram desenhos apresentando volumes no croqui e detalhes não permitem definir esta
+propriedade como Sim" — ou seja, o campo pode aparecer **desabilitado**, o que não é o mesmo que
+estar em "Não".
 
-Não é convenção de fabricante — o corte acontece **dentro da mesma biblioteca** (na de esgoto,
-1.115 peças com entrada nulas contra 48 sem entrada em 10; na de barramento, 220 contra 32). Seção
-e diâmetro de peça conectável moram nas entradas (`SECAO_EP`, `DIAMETRO_EP`); os dois escritores
-não nomeavam as colunas e o *default* 10 do schema entrava sozinho. Corrigido em ADR-022
-(`entradas_aq.secao_para_as_entradas`); que isso acenda o "Sim" é o que falta confirmar no Builder.
+A coluna é `PECA.CONEXAO_VOLUMETRICA`, por eliminação mais medição: a lista de propriedades da peça
+em `peca.htm` bate uma a uma com as colunas da tabela e sobra um único booleano para uma única
+propriedade booleana. No catálogo oficial do Builder (`Catalog.db`, schema 625, 31.611 peças),
+`CONEXAO_VOLUMETRICA = 1` implica ter `ENTRADA_3D` em **4.206 de 4.206** peças; 3.820 delas não têm
+`ENTRADA_PECA` (bate com a interface esconder uma quando a outra está ligada) e 386 têm as duas.
+Corrigido em ADR-023 (`entradas_aq.marcar_pontos_de_ligacao`).
+
+Duas colunas andam junto com o flag, e valem como formato mesmo não sendo a causa do rótulo
+(ADR-022): numa peça com `ENTRADA_PECA`, `SECAO` e `DIAMETRO_INTERNO` ficam **nulas** — 15.321 de
+15.321 no catálogo oficial, 1.441 de 1.441 nas nativas de fabricante, e o corte acontece dentro da
+mesma biblioteca. Seção e diâmetro de peça conectável moram nas entradas (`SECAO_EP`,
+`DIAMETRO_EP`); os dois escritores não nomeavam as colunas e o *default* 10 do schema entrava.
 
 Suspeitos levantados e **descartados** por medição, todos campos onde nossa saída difere de alguma
 nativa mas coincide com outra que funciona: `SIMBOLO_SELECIONADO` (1 em três nativas de conexão),

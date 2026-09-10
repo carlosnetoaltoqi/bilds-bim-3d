@@ -12,11 +12,11 @@ Não inventa ponto de ligação: lê o OQ3D de cada simbologia e procura bocal n
 malha (`bim_pipeline.geometria.bocais` — ponta de tubo ou face de flange). Simbologia sem
 bocal reconhecível fica sem entrada, e a ferramenta diz quantas foram.
 
-Também anula `PECA.SECAO`/`PECA.DIAMETRO_INTERNO` de toda peça com entrada — inclusive
-num `.aq` que **já** tinha entradas, que é o caso das bibliotecas de 2026-09-09: elas
-desenham os pontos de ligação no lugar certo e mesmo assim abrem com "Pontos de ligação
-3D: Não", porque a seção ficou no cadastro da peça (ver
-`bim_pipeline.aq.entradas_aq.secao_para_as_entradas`).
+Também marca `PECA.CONEXAO_VOLUMETRICA = 1` — a propriedade "Pontos de ligação 3D: Sim" do
+Cadastro — e anula `PECA.SECAO`/`PECA.DIAMETRO_INTERNO` de toda peça com entrada, inclusive
+num `.aq` que **já** tinha entradas: é o caso das bibliotecas de 2026-09-09, que desenham os
+pontos de ligação no lugar certo e mesmo assim abrem com "Pontos de ligação 3D: Não" (ver
+`bim_pipeline.aq.entradas_aq.marcar_pontos_de_ligacao`).
 
 Depois de preencher, o Builder ainda precisa da opção "Bifiliar realista" diferente de
 "Simbologia 2D" para desenhar a peça em planta (`PECA.OPCAO_RENDERIZACAO_PLANIFICADA`, que
@@ -66,8 +66,8 @@ class _Escritor:
 def preencher(caminho, refazer=False, progresso=None):
     """
     Devolve `(entradas, simbologias_com_bocal, simbologias_sem_bocal, falhas, secao)`,
-    onde `secao` é `{'com_entrada': …, 'corrigidas': …}` — quantas peças ficaram com a
-    seção nas entradas e quantas delas precisaram da varredura de conserto.
+    onde `secao` é `{'com_entrada': …, 'corrigidas': …}` — quantas peças ficaram marcadas
+    com pontos de ligação e quantas delas precisaram da varredura de conserto.
 
     Um `.aq` que é ZIP não é aceito: a escrita exige o SQLite direto, que é o que os dois
     escritores produzem.
@@ -117,14 +117,16 @@ def preencher(caminho, refazer=False, progresso=None):
                 progresso(f'{i}/{len(alvos)} simbologias, {n_entradas} entradas')
 
         # Uma varredura sobre TODAS as peças com entrada, não só as desta rodada: o `.aq`
-        # que já saiu com entradas (as bibliotecas de 2026-09-09) tem a seção no cadastro
-        # da peça e por isso abre com "Pontos de ligação 3D: Não" mesmo com os pontos
-        # certos. Sem isto, `ja_tem` faria a ferramenta pular justamente esses arquivos.
+        # que já saiu com entradas (as bibliotecas de 2026-09-09) está sem o
+        # CONEXAO_VOLUMETRICA e com a seção no cadastro, e por isso abre com "Pontos de
+        # ligação 3D: Não" mesmo com os pontos desenhados no lugar certo. Sem isto, o
+        # `ja_tem` faria a ferramenta pular justamente esses arquivos.
         pendentes = [r[0] for r in con.execute(
             'SELECT ID_PECA FROM PECA p WHERE EXISTS'
             ' (SELECT 1 FROM ENTRADA_PECA e WHERE e.ID_PECA = p.ID_PECA)'
-            ' AND (p.SECAO IS NOT NULL OR p.DIAMETRO_INTERNO IS NOT NULL)')]
-        entradas_aq.secao_para_as_entradas(con, pendentes)
+            ' AND (p.CONEXAO_VOLUMETRICA IS NOT 1 OR p.SECAO IS NOT NULL'
+            '      OR p.DIAMETRO_INTERNO IS NOT NULL)')]
+        entradas_aq.marcar_pontos_de_ligacao(con, pendentes)
         com_entrada = con.execute('SELECT COUNT(DISTINCT ID_PECA) FROM ENTRADA_PECA').fetchone()[0]
         con.commit()
     finally:
@@ -156,7 +158,7 @@ def main(argv=None):
     if not args.quiet:
         print(f'{destino}: {entradas} entradas em {com_bocal} simbologias; '
               f'{len(sem_bocal)} sem bocal reconhecível, {len(falhas)} falhas; '
-              f"{secao['com_entrada']} peças com a seção nas entradas"
+              f"{secao['com_entrada']} peças com pontos de ligação 3D"
               + (f" ({secao['corrigidas']} corrigidas agora)" if secao['corrigidas'] else ''))
         for sid, motivo in falhas[:10]:
             print(f'  FALHA simbologia {sid}: {motivo}')
