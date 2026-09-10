@@ -348,8 +348,8 @@ que a malha versão 3 apareceu. Teste:
 ### As duas fontes externas de verdade, e como não se enganar com elas
 
 Nada do que está neste documento saiu de especificação: o formato foi reconstruído contra dois
-acervos que **não são do repositório** e vivem na máquina de quem opera (ADR-016 — o caminho
-concreto fica no `--ajuda`/no argumento da ferramenta, não aqui).
+acervos que **não são do repositório** e vivem na máquina de quem opera — onde eles ficam está em
+`aplicacoes-builder.md` §"Como medir de novo".
 
 | fonte | o que ela responde | o que ela **não** responde |
 |---|---|---|

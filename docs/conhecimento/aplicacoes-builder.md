@@ -214,8 +214,20 @@ A correção é ADR-024. Três regras que a medição acima sustenta:
 
 ## Como medir de novo
 
-O `Catalog.db` fica em `Documents/BIM/Catalog_PC81_Ativo/` na máquina do usuário (5,8 GB, fora do
-repositório). É SQLite com o mesmo schema do `.aq` — abra somente-leitura, use `text_factory` do
-`read_aq` (há texto cp1252 apesar do cabeçalho dizer UTF-8) e **nunca** `SELECT *` nas tabelas de
-geometria. A ajuda do Builder (`Documents/BIM/Docs QiBuilder/QiBuilder/`, 2.565 `.htm`, 4,1 MB de
-texto) responde o que as colunas significam; `peca.htm` é a página das propriedades da peça.
+Os dois acervos ficam **fora do repositório**, na máquina de quem opera, sob `Documents/BIM/`:
+
+- `Catalog_PC81_Ativo/Catalog.db` — 5,8 GB num arquivo só, SQLite com o mesmo schema do `.aq`.
+  Abra **somente-leitura**, use o `text_factory` de `read_aq` (há texto cp1252 apesar de o
+  cabeçalho declarar UTF-8) e **nunca** `SELECT *` nas tabelas de geometria — o `WIREFRAME` sozinho
+  traz centenas de MB. Só agregados: `COUNT`, `GROUP BY`, e o cruzamento com `ENTRADA_PECA`/
+  `ENTRADA_3D` por `EXISTS`.
+- `Docs QiBuilder/QiBuilder/` — 2.565 páginas `.htm` (123 MB com imagens, 4,1 MB de texto). Leia
+  com `python3 -m bim_pipeline.cli.ferramentas.ajuda_builder --ajuda <esse dir> --indexar <regex>`:
+  ele extrai o texto uma vez para um JSONL e busca sobre ele, o que faz 4,1 MB caberem em algumas
+  dezenas de linhas. `peca.htm` é a página das propriedades da peça e traz a tabela
+  Projeto × Aplicações.
+
+Uma medição inteira destas (as duas tabelas acima) custa poucos minutos e nenhuma leitura de
+arquivo grande — o caro é esquecer de filtrar e trazer geometria junto. Antes de somar qualquer
+distribuição, confira que os arquivos são mesmo nativos: `aq-formato.md` §"As duas fontes externas
+de verdade" traz a assinatura que separa nativa de saída nossa.
