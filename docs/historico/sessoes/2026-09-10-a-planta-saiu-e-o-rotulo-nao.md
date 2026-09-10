@@ -125,6 +125,19 @@ O que veio de lá, em ordem de valor:
 4. **Entrada 3D é colocada à mão** no Builder ("clicando diretamente sobre a simbologia 3D") — não há
    rota automática, o que fecha uma das perguntas abertas para a engenharia e justifica o detector.
 
+## 6c. Duas armadilhas do acervo, para não repetir
+
+- **O usuário apagou as bibliotecas do sistema e a pasta de teste.** `Downloads/teste-geometria-aq/`
+  ficou vazia: os `.aq` de origem das saídas de 2026-09-08/09 (`CORRIGIDO_*`, `A`…`H`) não existem
+  mais nesta máquina. Os dois arquivos de teste atuais foram **regerados do zero** — um por ida e
+  volta de uma nativa pequena de aquecedores (`catalogo_de_aq` → manifesto → `catalogo_para_aq`),
+  outro por `preencher_entradas_aq` sobre uma exportação nossa de conexões de PVC.
+- **Três arquivos guardados junto das nativas eram saídas nossas** (as duas versões de uma
+  biblioteca de conexões de PVC de um fabricante e um `pecas_IFC_*.aq`): `PECA.BIBLIOTECA`
+  preenchida, `WIREFRAME` nulo em toda simbologia. O prefixo `pecas_` não distingue. É a explicação
+  provável de este repositório ter afirmações contra "16", "15" e "14 bibliotecas nativas" — a
+  assinatura agora está documentada em `aq-formato.md`.
+
 ## 7. Onde a próxima sessão começa
 
 1. **A verificação no Builder** (do usuário): abrir `PONTOS_aquecedores_ida_e_volta.aq` ou
@@ -147,7 +160,7 @@ O que veio de lá, em ordem de valor:
 | O quê | Estado | Como conferir |
 |---|---|---|
 | árvore | limpa | `git status --short` |
-| suíte | 239 na coleta | `python3 -m pytest --collect-only -q \| tail -1` |
-| biblioteca + arquitetura | 171 passam, 19 pulam (fixtures ausentes aqui) | `python3 -m pytest tests/biblioteca tests/arquitetura -m "not thumbs" -q` |
+| suíte | 240 na coleta | `python3 -m pytest --collect-only -q \| tail -1` |
+| biblioteca + arquitetura | 172 passam, 19 pulam (fixtures ausentes aqui) | `python3 -m pytest tests/biblioteca tests/arquitetura -m "not thumbs" -q` |
 | saídas para o Builder | `PONTOS_aquecedores_ida_e_volta.aq` (12 peças, 40 entradas) e `PONTOS_conexoes_pvc.aq` (262 peças, 194 com pontos) | `python3 -m bim_pipeline.cli.ferramentas.validar_aq …/PONTOS_*.aq` |
 | ADRs | até ADR-024 | `ls docs/decisoes/` |

@@ -345,6 +345,41 @@ conexões). Nenhum dos dois pode ficar só em `warnings.warn` — foi colhendo o
 que a malha versão 3 apareceu. Teste:
 `tests/biblioteca/test_catalogo.py::test_diag_separa_tubos_de_simbologia_descartada`.
 
+### As duas fontes externas de verdade, e como não se enganar com elas
+
+Nada do que está neste documento saiu de especificação: o formato foi reconstruído contra dois
+acervos que **não são do repositório** e vivem na máquina de quem opera (ADR-016 — o caminho
+concreto fica no `--ajuda`/no argumento da ferramenta, não aqui).
+
+| fonte | o que ela responde | o que ela **não** responde |
+|---|---|---|
+| **Bibliotecas nativas de fabricante** (`.aq` baixados do AltoQi) e o **catálogo oficial do Builder** (`Catalog.db`, um SQLite de ~6 GB com o mesmo schema, dezenas de milhares de peças) | que valor uma coluna costuma ter, e o que anda junto com o quê | o que a coluna **significa** |
+| **A ajuda do Builder** (~2.500 páginas `.htm`; leia com `ferramentas.ajuda_builder`) | o que cada propriedade da tela é, e a qual coluna ela corresponde | quais valores são obrigatórios na prática |
+
+**Distinguir nativa de saída nossa antes de medir.** Elas convivem na mesma pasta, e o prefixo
+`pecas_` **não** distingue — nosso gerador imita a convenção do nome. A assinatura é:
+`PECA.BIBLIOTECA` preenchida com `SIMBOLOGIA_3D.WIREFRAME` nulo em toda simbologia é saída nossa.
+Em 2026-09-10, três arquivos guardados junto das nativas eram exportações antigas do próprio
+pipeline; tomá-los por verdade de campo teria contaminado a medição.
+
+Por isso **o número de nativas varia entre as medições deste repositório** — há afirmações contra
+"16", "15" e "14 bibliotecas nativas", e as maiores provavelmente incluíram saídas nossas. Nenhuma
+foi reescrita: valem como o que se mediu naquele dia. Ao repetir uma medição, **conte de novo** e
+aplique a assinatura acima antes de somar; o acervo também muda de tamanho entre sessões.
+
+**O método que funciona, na ordem que funciona:**
+
+1. **Meça a distribuição** da coluna nas nativas, separando as peças pelo comportamento que se quer
+   explicar. Sentinela e campo vazio aparecem em nativa que funciona (`TIPO_CONFIGURACAO_GP`,
+   `SIMBOLO_SELECIONADO`, `PECA.BIBLIOTECA`), então "difere da nativa" não prova nada sozinho.
+2. **Procure o nome da propriedade na ajuda.** Correlação, por mais perfeita que seja, não separa
+   causa de irmã-de-causa: `SECAO`/`DIAMETRO_INTERNO` nulas correlacionam com "ter ponto de ligação"
+   em 15.321 de 15.321 peças do catálogo oficial e **não** são o que acende o rótulo (ADR-022 ×
+   ADR-023). As duas são consequência da mesma causa.
+3. **Feche com experimento subtrativo no Builder**: copiar uma nativa que funciona, apagar **um**
+   campo por arquivo e mandar abrir. Transplantar geometria nativa para o nosso cadastro separa
+   defeito de geometria de defeito de cadastro. Foi assim que a `IMAGEM` foi isolada (ADR-020).
+
 ### Como o pipeline lê
 
 | Função (`read_aq.py`) | O que devolve | Toca a geometria? |

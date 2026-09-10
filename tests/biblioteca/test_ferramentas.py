@@ -111,6 +111,35 @@ def test_preencher_entradas_aq_recupera_os_bocais_de_um_aq_sem_entradas(tmp_path
     assert conta() == (2, 2) and cadastro() == [(1, None, None)]
 
 
+def test_ajuda_builder_indexa_e_busca(tmp_path):
+    """A ajuda do Builder é a única fonte que diz o que um campo significa.
+
+    Sem o índice a busca não roda, e a indexação precisa aguentar as duas codificações que
+    a ajuda mistura entre páginas (UTF-8 com BOM e cp1252) — página lida como latin-1
+    chegaria com o acento quebrado justamente nos termos que se procura.
+    """
+    ajuda = tmp_path / 'ajuda'
+    ajuda.mkdir()
+    (ajuda / 'peca.htm').write_bytes(
+        '<html><body><p>Home &gt; Cadastro &gt; Peças</p><p>Pontos de ligação 3D: '
+        'define a ligação por pontos.</p></body></html>'.encode('utf8'))
+    (ajuda / 'outra.htm').write_bytes(
+        '<html><body><p>Seção do condutor</p></body></html>'.encode('cp1252'))
+    indice = tmp_path / 'ajuda.jsonl'
+
+    codigo, out = _roda('ajuda_builder', 'pontos de liga', '--ajuda', str(ajuda),
+                        '--indice', str(indice), '--indexar')
+    assert codigo == 0, out
+    assert 'Pontos de ligação 3D' in out and 'peca.htm' in out
+    assert indice.is_file()
+
+    # o índice fica: a segunda busca não precisa do diretório da ajuda
+    codigo, out = _roda('ajuda_builder', 'Seção do condutor', '--indice', str(indice))
+    assert codigo == 0 and 'outra.htm' in out, out      # cp1252 decodificado certo
+    codigo, out = _roda('ajuda_builder', 'não existe em lugar nenhum', '--indice', str(indice))
+    assert codigo == 0 and '(nada)' in out
+
+
 def test_aq_referencia_e_anatomy_leem_o_aq(aq_gerado):
     codigo, out = _roda('aq_referencia', aq_gerado, '--limite', '2')
     assert codigo == 0, out

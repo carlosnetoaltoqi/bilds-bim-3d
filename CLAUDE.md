@@ -53,7 +53,7 @@ bash scripts/bootstrap.sh --check        # a tabela do ambiente; sem --check ins
 sudo apt-get install -y libnss3 libnspr4 libasound2t64     # libs do Chromium — único passo com sudo
 python3 -m bim_pipeline.cli.zip_bilds biblioteca.aq --saida saida.zip   # só o ZIP, sem serviços
 cp .env.example .env && pnpm dev          # cinco serviços + web (compila os pacotes antes)
-python3 -m pytest                         # 239 testes, ≈ 4 min; -m "not thumbs" sem Chromium
+python3 -m pytest                         # 240 testes, ≈ 4 min; -m "not thumbs" sem Chromium
 ```
 
 Detalhes de uso em `README.md`; rotas e variáveis de cada serviço no `README.md` dele; roteiro de
@@ -81,6 +81,7 @@ aceitação com tudo de pé em `docs/aceitacao.md`.
 | Processos filhos — stdin EOF, stdout × stderr, timeouts, códigos | `docs/conhecimento/processos-filhos.md` |
 | Fatos de serviço Nest/Next e de ferramentas (201, Ajv 2020, tsbuildinfo, project references, Atlas) | `docs/conhecimento/servicos-web.md` |
 | Formato do ZIP (pacote genérico, com exemplo completo) · lado consumidor (bilds.com) | `docs/conhecimento/zip-bilds-formato.md` · `docs/integracoes/bilds-com.md` |
+| **As duas fontes externas de verdade** (bibliotecas nativas + catálogo oficial do Builder; a ajuda em HTML), como distinguir nativa de saída nossa, e o método: medir → ajuda → experimento subtrativo | `docs/conhecimento/aq-formato.md` §"As duas fontes externas"; ferramenta `ferramentas.ajuda_builder` |
 | **Sintoma → causa** (formatos e biblioteca) | `docs/conhecimento/diagnostico.md` |
 | Contratos biblioteca ↔ serviços (JSON Schema) | `biblioteca/bim_pipeline/contratos/README.md` |
 | Biblioteca: mapa de módulos, CLIs, regras | `biblioteca/README.md` |
@@ -138,7 +139,7 @@ com `termos_efemeros.txt`, `test_contratos`, `test_deps`). O que cada arquivo pr
 dele. Fixtures reais por **papel** em `tests/fixtures.local.json` (gitignored; modelo
 `fixtures.example.json`; papéis em `tests/fixtures.py`) — sem elas os testes pulam com motivo.
 **Regra:** comportamento novo entra em `tests/` no mesmo commit. Depois de mexer na configuração do
-pytest, confira a contagem de coleta (239).
+pytest, confira a contagem de coleta (240).
 
 ## CI — `.github/workflows/ci.yml`
 
@@ -171,7 +172,7 @@ de propriedades da peça bate uma a uma com as colunas e sobra um único boolean
 escritores), junto com as colunas de seção de ADR-022, que continuam valendo como formato
 (15.321/15.321 no catálogo oficial) mas **não** eram a causa do rótulo — hipótese testada e caída
 no mesmo dia. `preencher_entradas_aq` varre também `.aq` que **já** tinha entradas; `validar_aq`
-confere as duas coisas na conferência 9. Suíte em 239 na coleta. Também descartado por medição:
+confere as duas coisas na conferência 9. Suíte em 240 na coleta. A ajuda em HTML do Builder entrou como fonte de consulta pela ferramenta `ferramentas.ajuda_builder`, e o método de engenharia reversa (medir → ajuda → experimento subtrativo) está em `aq-formato.md`. Também descartado por medição:
 `LIGACAO_EP` não é índice da entrada (dentro da mesma peça as nativas trazem `(0,0,0)`, `(2,1)`,
 `(0,3)`), segue enum indeterminado.
 
@@ -218,15 +219,14 @@ depois tudo do cache) até o `.aq`. A APS **não aceita `.rfa`** — famílias c
 `filtrarAuxiliares` (flag CLI `--filtrar-auxiliares`, checkbox na página — marcado por padrão); detecção em
 `catalogo/fontes/familias_revit.py: eh_auxiliar`; documentado em `revit-familias.md` e ADR-019.
 O `storage/` não tem os downloads do plugin web de CAD (`catallog/`) — refazê-los exige baixar do catálogo do
-fabricante, o que depende de autorização explícita (Termos de Uso). Nada pendente de push — confira com
-`git rev-list --count origin/main..HEAD`.
+fabricante, o que depende de autorização explícita (Termos de Uso).
 
 **Pendências do usuário:**
 - Conferir no Builder as quatro bibliotecas de 2026-09-08 corrigidas com `preencher_imagem_aq` (as duas
   de famílias Revit, a de conexões e a do projeto `.rvt`) — a de conexões já foi verificada, com peça
   lançada no projeto e, em 2026-09-10, em planta.
-- Nada pendente de push: os 6 commits de 2026-09-09 foram enviados (`main` == `origin/main` em
-  `178f062`). Confira com `git rev-list --count origin/main..HEAD`.
+- **Push pendente:** os commits de 2026-09-10 **não foram enviados** (`main` está à frente de
+  `origin/main`, que parou em `2f94e6c`). Confira com `git rev-list --count origin/main..HEAD`.
 - **Próxima sessão: comece listando estas pendências e pergunte ao usuário por onde seguir (ou o
   que ele já testou) antes de executar qualquer coisa.** Os registros das duas últimas sessões, com
   as tentativas que falharam e as armadilhas, estão em
