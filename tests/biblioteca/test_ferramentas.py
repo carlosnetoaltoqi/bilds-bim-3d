@@ -69,19 +69,45 @@ def test_preencher_entradas_aq_recupera_os_bocais_de_um_aq_sem_entradas(tmp_path
         finally:
             con.close()
 
+    def secao():
+        con = sqlite3.connect(aq)
+        try:
+            return con.execute('SELECT SECAO, DIAMETRO_INTERNO FROM PECA').fetchall()
+        finally:
+            con.close()
+
     con = sqlite3.connect(aq)                      # o estado de quem exportou antes
     con.execute('DELETE FROM ENTRADA_3D')
     con.execute('DELETE FROM ENTRADA_PECA')
+    con.execute('UPDATE PECA SET SECAO = 10, DIAMETRO_INTERNO = 10')
     con.commit()
     con.close()
     assert conta() == (0, 0)
+    assert secao() == [(10, 10.0)]
 
     codigo, out = _roda('preencher_entradas_aq', aq, '--quiet')
     assert codigo == 0, out
     assert conta() == (2, 2)
+    # a ferramenta também devolve a seção para as entradas, senão o Cadastro continua
+    # dizendo "Pontos de ligação 3D: Não" com os pontos gravados
+    assert secao() == [(None, None)]
     codigo, out = _roda('preencher_entradas_aq', aq, '--quiet')     # idempotente
     assert codigo == 0, out
     assert conta() == (2, 2)
+    assert secao() == [(None, None)]
+
+    # O caso das bibliotecas de 2026-09-09: as entradas JÁ estão gravadas e desenham os
+    # pontos, mas a seção ficou no cadastro da peça e o Builder diz "Pontos de ligação
+    # 3D: Não". A ferramenta pula a detecção (a simbologia já tem entrada) e ainda assim
+    # tem de devolver a seção para as entradas.
+    con = sqlite3.connect(aq)
+    con.execute('UPDATE PECA SET SECAO = 10, DIAMETRO_INTERNO = 10')
+    con.commit()
+    con.close()
+    codigo, out = _roda('preencher_entradas_aq', aq)
+    assert codigo == 0, out
+    assert '1 peças com a seção nas entradas (1 corrigidas agora)' in out
+    assert conta() == (2, 2) and secao() == [(None, None)]
 
 
 def test_aq_referencia_e_anatomy_leem_o_aq(aq_gerado):

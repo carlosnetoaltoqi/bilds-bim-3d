@@ -95,19 +95,23 @@ Esperado: 200, `pecas_<Fabricante>_<Titulo>.aq`, resumo no header; o validador l
 — inclusive a checagem `toda simbologia tem IMAGEM`, que é o que separa um `.aq` que abre de um `.aq`
 que **desenha**.
 
-Aceitação final no AltoQi Builder (passo manual), em **quatro** passos — abrir a biblioteca não
+Aceitação final no AltoQi Builder (passo manual), em **cinco** passos — abrir a biblioteca não
 basta, e desenhar em 3D também não:
 
 1. Cadastro → Peças: a árvore traz classe, grupos e peças, e o painel de preview mostra a miniatura
    de cada peça (é a `SIMBOLOGIA_3D.IMAGEM`; painel vazio = biblioteca que não vai desenhar).
 2. No Cadastro, na peça: **"Pontos de ligação 3D" tem de estar "Sim"** e "Bifiliar realista" fora de
-   "Simbologia 2D" — as duas condições de o Builder gerar o wireframe (ADR-021).
+   "Simbologia 2D". Em 2026-09-10 o rótulo saiu "Não" com os pontos desenhados no lugar certo, o que
+   levou a ADR-022 (`SECAO`/`DIAMETRO_INTERNO` nulas na peça com entrada); que a correção acenda o
+   "Sim" é o que este passo verifica agora.
 3. **Lançar a peça num projeto** e olhar o ambiente 3D: a geometria real tem de aparecer. Foi o
    passo que faltava até 2026-09-08 — uma biblioteca sem `IMAGEM` abre, mostra todos os dados de
    cada peça e não desenha nada (ADR-020, `docs/conhecimento/aq-formato.md`).
 4. **Olhar a mesma peça em planta e em corte**: tem de sair o desenho da peça, não o símbolo padrão
-   (círculo com triângulo vermelho), que é o que aparece sem ponto de ligação. Verificado em nativa
-   de fabricante nos três arranjos possíveis; numa biblioteca **nossa**, é a aceitação pendente.
+   (círculo com triângulo vermelho), que é o que aparece sem ponto de ligação. **Verificado numa
+   biblioteca nossa em 2026-09-10** — saiu a representação unifiliar (ADR-021). Não procure o
+   `WIREFRAME` no arquivo depois: o Builder o monta em tempo de execução e não grava de volta.
+5. **Encaixar a peça numa tubulação** — o outro uso dos pontos de ligação, ainda sem registro.
 
 Um `.aq` exportado antes de 2026-09-08 se conserta sem repetir a importação, e são duas ferramentas:
 `preencher_imagem_aq` (a `IMAGEM`) e `preencher_entradas_aq` (os pontos de ligação), as duas em

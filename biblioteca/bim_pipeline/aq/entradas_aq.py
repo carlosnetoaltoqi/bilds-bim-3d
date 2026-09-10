@@ -1,12 +1,16 @@
 """
 entradas_aq.py — as `ENTRADA_3D`/`ENTRADA_PECA` do `.aq` a partir da malha.
 
-Sem estas duas tabelas a peça abre no Cadastro com "Pontos de ligação 3D: Não", não
-encaixa numa tubulação e o Builder **não gera o wireframe** que desenha a peça em planta
-e corte (a geração é condicionada aos pontos de ligação e à opção "Bifiliar realista"
-diferente de "Simbologia 2D" — `OPCAO_RENDERIZACAO_PLANIFICADA`, que os dois escritores
-já gravam em 0 = Realista). Nenhuma fonte de geometria marca bocal, então a posição vem
-da malha, por `bim_pipeline.geometria.bocais`.
+Sem estas duas tabelas a peça não encaixa numa tubulação e o Builder **não desenha a
+peça em planta e corte** — sai o símbolo padrão. Com elas, e com "Bifiliar realista"
+diferente de "Simbologia 2D" (`OPCAO_RENDERIZACAO_PLANIFICADA`, que os dois escritores
+gravam em 0 = Realista), o Builder monta o wireframe **em tempo de execução** e a peça
+sai em planta na representação unifiliar — confirmado no Builder em 2026-09-10 e pela
+própria equipe do Builder; o `WIREFRAME` gravado no `.aq` não é requisito. Nenhuma fonte
+de geometria marca bocal, então a posição vem da malha, por `bim_pipeline.geometria.bocais`.
+
+O rótulo **"Pontos de ligação 3D: Sim/Não"** do Cadastro **não** vem destas tabelas: vem
+de `PECA.SECAO`/`PECA.DIAMETRO_INTERNO` estarem nulas — ver `secao_para_as_entradas`.
 
 O QUE CADA COLUNA RECEBE, e de onde vem o valor (medido nas 15 bibliotecas nativas
 disponíveis, 634 linhas de `ENTRADA_3D` e 3.405 de `ENTRADA_PECA`):
@@ -17,12 +21,13 @@ disponíveis, 634 linhas de `ENTRADA_3D` e 3.405 de `ENTRADA_PECA`):
 | `ENTRADA_3D.TIPO_SECAO` | 0 | 608 de 634 linhas nativas |
 | `ENTRADA_3D.DIAMETRO` | código de bitola | só existe no schema 607; nativa que preenche usa o mesmo código de `DIAMETRO_EP` |
 | `ENTRADA_3D.BASE`/`ALTURA` | 0 | 634 de 634 |
-| `ENTRADA_PECA.LIGACAO_EP` | 0 | o enum vai de 0 a 3, `TIPO_LIGACAO` está vazia nas nativas e o significado **não está determinado**; 0 é o valor mais comum (1.675 de 3.405) |
+| `ENTRADA_PECA.LIGACAO_EP` | 0 | o enum vai de 0 a 3, `TIPO_LIGACAO` está vazia nas nativas e o significado **não está determinado**; 0 é o valor mais comum (1.675 de 3.405). Não é índice da entrada: dentro da mesma peça aparecem `(0,0,0)`, `(1,1)`, `(2,1)` e `(0,3)` |
 | `ENTRADA_PECA.DIAMETRO_EP` | código de bitola | é aqui que mora o diâmetro de uma conexão, não em `PECA.DIAMETRO_PECA` |
 | `ENTRADA_PECA.SECAO_EP` | 10 | valor das entradas com geometria na nativa de conexões; a sentinela aparece onde a seção não é definida |
 | `ENTRADA_PECA.ANGULO_EP` | azimute do bocal em grau | derivado da normal do bocal; nas nativas é 0/90/180/270 nas conexões ortogonais |
 | `ENTRADA_PECA.COMPRIMENTO_EP` | 0 | comprimento equivalente, que a malha não dá |
 | `ENTRADA_PECA.BASE_EP`/`ALTURA_EP` | 0 | 2.887 de 3.405 |
+| `PECA.SECAO` e `PECA.DIAMETRO_INTERNO` | **NULL** | 1.441 de 1.441 peças nativas com entrada; é o que acende "Pontos de ligação 3D: Sim" |
 
 O código de bitola é o índice da escala nominal do AltoQi (`aq_writer.CODIGO_DIAMETRO`),
 não uma medida. O raio interno do bocal cai em cima do nominal nas nativas de conexão
@@ -100,14 +105,40 @@ def plausivel(entradas, limite=LIMITE_POR_SIMBOLOGIA):
     return len(entradas) <= limite
 
 
+def secao_para_as_entradas(con, ids_peca):
+    """Anula `PECA.SECAO` e `PECA.DIAMETRO_INTERNO` das peças que ganharam entrada.
+
+    Peça com ponto de ligação 3D tira seção e diâmetro **das entradas**, não do cadastro
+    da peça: nas 14 bibliotecas nativas, as duas colunas estão nulas em **1.441 de 1.441**
+    peças com `ENTRADA_PECA`, e valem 10 (o *default* do schema) só em peças sem entrada
+    nenhuma — e isso dentro da mesma biblioteca, não por convenção de fabricante (na de
+    esgoto, 1.115 peças com entrada têm as duas nulas e 48 sem entrada têm 10; na de
+    barramento, 220 contra 32). Os dois escritores não nomeavam as colunas, então o
+    *default* entrava, e a peça abria no Cadastro com **"Pontos de ligação 3D: Não"**
+    mesmo com as entradas gravadas e desenhadas (os pontos vermelhos apareciam no lugar
+    certo) — medido no Builder em 2026-09-10, nas bibliotecas de conexões, de válvulas e
+    de esgoto.
+
+    Que anular as duas **acenda** o "Sim" é hipótese até o próximo teste no Builder: o que
+    está medido é a correlação (1.441/1.441, dentro da mesma biblioteca) e que as entradas
+    já são lidas, porque os pontos vermelhos saem no lugar certo. Depois de anular não
+    sobra diferença sistemática entre peça nossa com entrada e peça nativa com entrada.
+    """
+    con.executemany('UPDATE PECA SET SECAO = NULL, DIAMETRO_INTERNO = NULL WHERE ID_PECA = ?',
+                    [(int(i),) for i in ids_peca])
+
+
 def gravar(g, entradas, id_simbologia=None, ids_peca=()):
     """Grava as entradas com o `EscritorAq` `g`. Devolve quantas linhas escreveu.
 
     `id_simbologia` recebe as `ENTRADA_3D` (a posição é da geometria); cada peça de
     `ids_peca` recebe uma `ENTRADA_PECA` por bocal (a bitola é da peça). Uma peça sem
-    geometria não tem de onde tirar entrada e não entra aqui.
+    geometria não tem de onde tirar entrada e não entra aqui. Quem recebe entrada tem a
+    seção anulada na `PECA` — ver `secao_para_as_entradas`.
     """
     n = 0
+    if entradas and ids_peca:
+        secao_para_as_entradas(g.con, ids_peca)
     for entrada in entradas:
         codigo = entrada['codigo']
         if id_simbologia is not None:

@@ -8,7 +8,10 @@ estes testes provam:
   escala fica sem código, em vez de virar o vizinho errado;
 - o `ANGULO_EP` é o azimute do bocal, derivado da normal (que o detector orienta para fora);
 - exportar uma malha de tubo pelo `gerar_aq` grava as duas tabelas, com a `ENTRADA_3D`
-  no centro de cada ponta — em centímetro Z-up, que é o frame da `ENTRADA_3D`.
+  no centro de cada ponta — em centímetro Z-up, que é o frame da `ENTRADA_3D`;
+- a peça que ganha entrada fica com `SECAO`/`DIAMETRO_INTERNO` **nulas** — é de lá que o
+  Builder tira a seção quando há ponto de ligação 3D, e o *default* 10 do schema é o que
+  fazia o Cadastro dizer "Pontos de ligação 3D: Não" com os pontos já no lugar certo.
 """
 import json
 import sqlite3
@@ -93,6 +96,34 @@ def test_gerar_aq_grava_as_duas_tabelas_de_entrada(tmp_path):
     assert all(round(r[0], 4) == 0.0 and round(r[1], 4) == 0.0 for r in e3)
     assert {r[4] for r in e3} == {9}                            # bitola de 50 mm
     assert {r[1] for r in ep} == {9} and SENT_INT not in {r[1] for r in ep}
+
+
+def test_peca_com_entrada_fica_sem_secao_no_cadastro(tmp_path):
+    """A seção de uma peça com ponto de ligação 3D mora nas entradas, não na `PECA`.
+
+    Nas 14 bibliotecas nativas, `SECAO` e `DIAMETRO_INTERNO` estão nulas em 1.441 de 1.441
+    peças com `ENTRADA_PECA`, e valem 10 (o *default* do schema) só em peça sem entrada —
+    dentro da mesma biblioteca. Enquanto os escritores deixavam o *default* entrar, a peça
+    abria no Builder com "Pontos de ligação 3D: Não" mesmo desenhando os pontos.
+    """
+    (V, F, _), = tubo(r_int=2.56, r_ext=2.80, comprimento=20.0)
+    pos = np.stack([V[:, 0] / 100.0, V[:, 2] / 100.0, -V[:, 1] / 100.0], axis=1)
+    geo = {'info': {'fabricante': 'Teste', 'linha': 'Tubos de teste', 'nome': 'Tubo 50'},
+           'pos': pos.ravel().tolist(), 'col': [0.5, 0.5, 0.5] * len(V),
+           'idx': F.ravel().tolist()}
+    entrada, saida = tmp_path / 'geo.json', tmp_path / 'tubo.aq'
+    entrada.write_text(json.dumps(geo), encoding='utf8')
+    proc = subprocess.run([sys.executable, '-m', 'bim_pipeline.cli.gerar_aq',
+                           str(entrada), str(saida), '--quiet'],
+                          capture_output=True, text=True, cwd=ROOT, timeout=300)
+    assert proc.returncode == 0, proc.stderr[-2000:]
+
+    con = sqlite3.connect(saida)
+    pecas = con.execute('SELECT SECAO, DIAMETRO_INTERNO FROM PECA').fetchall()
+    secoes = con.execute('SELECT DISTINCT SECAO_EP FROM ENTRADA_PECA').fetchall()
+    con.close()
+    assert pecas == [(None, None)]        # o default 10 do schema não pode ter entrado
+    assert secoes == [(10,)]              # a seção está na entrada, que é onde a nativa põe
 
 
 @pytest.mark.parametrize('n, ok', [

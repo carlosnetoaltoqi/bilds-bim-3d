@@ -140,6 +140,13 @@ experimentos no Builder, 2026-09-09, cada um numa nativa de fabricante):
 | conexão de esgoto (sifão) | não | sim | **desenha** |
 | rack de piso | sim | não | **desenha** |
 | nossas 3.089 peças até 2026-09-09 | não | não | símbolo padrão |
+| **nossas, com entradas (2026-09-10)** | **não** | **não** | **desenha — unifiliar** |
+
+A última linha é a aceitação, medida no Builder em 2026-09-10 em três bibliotecas nossas: com os
+pontos de ligação gravados, as peças foram lançadas em projeto e saíram em planta na representação
+unifiliar, **sem** simbologia 2D e **sem** `WIREFRAME` no arquivo. O Builder monta o wireframe em
+tempo de execução, a cada uso, e não o grava de volta no `.aq` (equipe do Builder) — não adiante
+procurá-lo no arquivo depois.
 
 E o quadrante "nenhum dos dois" não existe em nativa de fabricante. Por peça com geometria 3D, nas
 15 nativas de fabricante disponíveis:
@@ -153,8 +160,7 @@ E o quadrante "nenhum dos dois" não existe em nativa de fabricante. Por peça c
 as bibliotecas, confirmada pelo que se vê nos arquivos. Duas condições, as duas legíveis no
 Cadastro:
 
-1. a peça tem **pontos de ligação 3D** (`ENTRADA_PECA`/`ENTRADA_3D`; sem elas o Cadastro mostra
-   "Pontos de ligação 3D: Não");
+1. a peça tem **pontos de ligação 3D** (`ENTRADA_PECA`/`ENTRADA_3D`);
 2. a opção **"Bifiliar realista"** — a coluna `PECA.OPCAO_RENDERIZACAO_PLANIFICADA`, domínio
    `0 = Realista`, `1 = Simbologia 2D`, `2 = Ambas` (o default do schema) — **não** está em
    "Simbologia 2D". Com ela em 1, o Builder desenha os pontos de ligação e usa a simbologia 2D
@@ -163,6 +169,24 @@ Cadastro:
 Por isso a presença do blob numa nativa **não** correlaciona com nada do formato: há nativa com
 entradas e sem `WIREFRAME` (16 simbologias em duas bibliotecas) e nativa com `WIREFRAME` e sem
 entrada nenhuma (13). O blob é resíduo do fluxo que montou aquele arquivo.
+
+### O rótulo "Pontos de ligação 3D: Sim/Não" não sai das tabelas de entrada
+
+O rótulo do Cadastro é outra coisa: em 2026-09-10 as peças nossas apareceram com **"Pontos de
+ligação 3D: Não"** ao mesmo tempo em que o Builder desenhava os pontos no lugar certo (as bolinhas
+vermelhas) e a planta saía. Quem separa peça com e sem ponto de ligação nas nativas são duas
+colunas da `PECA`:
+
+| coluna | peça nativa **com** `ENTRADA_PECA` | peça nativa **sem** | nossa saída até 2026-09-10 |
+|---|---|---|---|
+| `SECAO` | NULL em 1.441/1.441 | 10 em 80, NULL em 290 | 10 |
+| `DIAMETRO_INTERNO` | NULL em 1.441/1.441 | 10 em 80, NULL em 290 | 10 |
+
+Não é convenção de fabricante — o corte acontece **dentro da mesma biblioteca** (na de esgoto,
+1.115 peças com entrada nulas contra 48 sem entrada em 10; na de barramento, 220 contra 32). Seção
+e diâmetro de peça conectável moram nas entradas (`SECAO_EP`, `DIAMETRO_EP`); os dois escritores
+não nomeavam as colunas e o *default* 10 do schema entrava sozinho. Corrigido em ADR-022
+(`entradas_aq.secao_para_as_entradas`); que isso acenda o "Sim" é o que falta confirmar no Builder.
 
 Suspeitos levantados e **descartados** por medição, todos campos onde nossa saída difere de alguma
 nativa mas coincide com outra que funciona: `SIMBOLO_SELECIONADO` (1 em três nativas de conexão),

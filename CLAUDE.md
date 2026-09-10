@@ -53,7 +53,7 @@ bash scripts/bootstrap.sh --check        # a tabela do ambiente; sem --check ins
 sudo apt-get install -y libnss3 libnspr4 libasound2t64     # libs do Chromium — único passo com sudo
 python3 -m bim_pipeline.cli.zip_bilds biblioteca.aq --saida saida.zip   # só o ZIP, sem serviços
 cp .env.example .env && pnpm dev          # cinco serviços + web (compila os pacotes antes)
-python3 -m pytest                         # 234 testes, ≈ 4 min; -m "not thumbs" sem Chromium
+python3 -m pytest                         # 239 testes, ≈ 4 min; -m "not thumbs" sem Chromium
 ```
 
 Detalhes de uso em `README.md`; rotas e variáveis de cada serviço no `README.md` dele; roteiro de
@@ -63,7 +63,7 @@ aceitação com tudo de pé em `docs/aceitacao.md`.
 
 | Assunto | Onde |
 |---|---|
-| **Arquitetura**: camadas, sete regras de fronteira, quem grava o quê, guia de porte, regras de mudança | `docs/arquitetura.md`; decisões em `docs/decisoes/` (ADR-001…021) |
+| **Arquitetura**: camadas, sete regras de fronteira, quem grava o quê, guia de porte, regras de mudança | `docs/arquitetura.md`; decisões em `docs/decisoes/` (ADR-001…022) |
 | Formato `.aq` (SQLite/ZIP, cp1252, sentinelas, código de diâmetro, enums, versões de schema, leitura; **o que desenha em planta**) | `docs/conhecimento/aq-formato.md` |
 | Escrever `.aq` — uma peça e o catálogo inteiro (cinco regras, erros que abortam, validação) | `docs/conhecimento/aq-escrita.md` |
 | Formato binário **OQ3D** — leitura tolerante e escrita | `docs/conhecimento/oq3d.md` |
@@ -137,7 +137,7 @@ com `termos_efemeros.txt`, `test_contratos`, `test_deps`). O que cada arquivo pr
 dele. Fixtures reais por **papel** em `tests/fixtures.local.json` (gitignored; modelo
 `fixtures.example.json`; papéis em `tests/fixtures.py`) — sem elas os testes pulam com motivo.
 **Regra:** comportamento novo entra em `tests/` no mesmo commit. Depois de mexer na configuração do
-pytest, confira a contagem de coleta (234).
+pytest, confira a contagem de coleta (239).
 
 ## CI — `.github/workflows/ci.yml`
 
@@ -154,6 +154,23 @@ Identidade `carlosnetoaltoqi`; branch `main`, histórico linear; nada de push se
 ---
 
 ## 👉 Estado atual e pendências
+
+**Estado (2026-09-10):** a peça nossa **sai em planta** — aceitação de ADR-021 feita pelo usuário no
+Builder, em três bibliotecas: desenharam a simbologia 3D, foram lançadas em projeto e saíram na
+representação **unifiliar**. Duas coisas vieram do mesmo teste. O `WIREFRAME` não aparece no arquivo
+depois, e não é defeito: o Builder o monta **em tempo de execução** e não grava de volta (equipe do
+Builder) — o que encerra o plano B de escrever simbologia 2D. E o Cadastro mostrava **"Pontos de
+ligação 3D: Não"** ao mesmo tempo em que desenhava os pontos no lugar certo. O rótulo não vem das
+tabelas de entrada: medindo as 14 nativas peça a peça, `PECA.SECAO` e `PECA.DIAMETRO_INTERNO` estão
+nulas em **1.441 de 1.441** peças com `ENTRADA_PECA` e valem 10 (o *default* do schema, que os dois
+escritores deixavam entrar) só em peça sem entrada — e isso **dentro da mesma biblioteca**. Seção e
+diâmetro de peça conectável moram nas entradas. Corrigido em ADR-022:
+`entradas_aq.secao_para_as_entradas` anula as duas de dentro do `gravar` (vale nos dois escritores),
+`preencher_entradas_aq` varre também `.aq` que **já** tinha entradas — que é o caso das bibliotecas
+de 2026-09-09 — e `validar_aq` ganhou a conferência 9. Que isso acenda o "Sim" é o que falta
+verificar no Builder. Suíte em 239 na coleta. Descartado por medição: `LIGACAO_EP` não é índice da
+entrada (dentro da mesma peça as nativas trazem `(0,0,0)`, `(2,1)`, `(0,3)`), segue enum
+indeterminado.
 
 **Estado (2026-09-09):** a peça exportada agora tem **pontos de ligação**, e com eles a planta
 (ADR-021). Uma peça nossa desenhava em 3D e, lançada em **planta**, saía com o símbolo padrão do
@@ -204,27 +221,24 @@ fabricante, o que depende de autorização explícita (Termos de Uso). Nada pend
 **Pendências do usuário:**
 - Conferir no Builder as quatro bibliotecas de 2026-09-08 corrigidas com `preencher_imagem_aq` (as duas
   de famílias Revit, a de conexões e a do projeto `.rvt`) — a de conexões já foi verificada, com peça
-  lançada no projeto.
+  lançada no projeto e, em 2026-09-10, em planta.
 - Nada pendente de push: os 6 commits de 2026-09-09 foram enviados (`main` == `origin/main` em
   `178f062`). Confira com `git rev-list --count origin/main..HEAD`.
 - **Próxima sessão: comece listando estas pendências e pergunte ao usuário por onde seguir (ou o
-  que ele já testou) antes de executar qualquer coisa** — pedido dele ao encerrar 2026-09-09. O
-  registro da sessão, com as tentativas que falharam e as armadilhas, está em
-  `docs/historico/sessoes/2026-09-09-a-peca-que-nao-saia-em-planta.md` §5 e §7.
-- **Aceitação de ADR-021, no Builder:** abrir
-  `Downloads/teste-geometria-aq/G_nosso_com_entradas.aq` (nossa biblioteca de conexões, 10 entradas
-  em 4 simbologias, gerada por `preencher_entradas_aq`), conferir "Pontos de ligação 3D: Sim" no
-  Cadastro, lançar a peça **em planta** e ver se o Builder gerou o wireframe (`aceitacao.md` §4,
-  agora com quatro passos). Na mesma pasta estão `H_gerado_do_zero_com_entradas.aq` (ida e volta
-  completa a partir de uma nativa pequena de dispositivos elétricos: 32 peças, 3,3 MB em 9,4 s) e
-  `ENTRADAS_CORRIGIDO_pecas_Schneider_*.aq` (válvulas, 14 entradas em 19 simbologias).
-- **Se a planta não sair nem com as entradas:** o outro caminho é escrever a **simbologia 2D** —
-  blob Delphi próprio, mas o menor exemplar nativo tem 6.088 bytes contra 0,4–2 MB do `WIREFRAME`,
-  e `TIPO_SIMBOLOGIA` é `'INTERNO'` em todas as 1.164 linhas nativas (não há rota por referência a
-  arquivo externo).
+  que ele já testou) antes de executar qualquer coisa.** Os registros das duas últimas sessões, com
+  as tentativas que falharam e as armadilhas, estão em
+  `docs/historico/sessoes/2026-09-09-a-peca-que-nao-saia-em-planta.md` §5 e §7 e
+  `docs/historico/sessoes/2026-09-10-a-planta-saiu-e-o-rotulo-nao.md` §5 e §7.
+- **Aceitação de ADR-022, no Builder:** abrir `Downloads/teste-geometria-aq/SECAO_*.aq` e olhar
+  **só** o rótulo "Pontos de ligação 3D" no Cadastro — a planta já está aceita. São cinco cópias
+  com o prefixo `SECAO_`: as duas do teste de 2026-09-09, a biblioteca inteira de conexões *press*
+  (que ganhou também as entradas: 20 em 4 simbologias), a de válvulas e a do projeto `.rvt`. **Não use** `SECAO_ENTRADAS_CORRIGIDO_Projeto4.aq` para julgar: ele tem 107 entradas
+  numa simbologia só, artefato anterior à guarda de 38 bocais. Se o rótulo continuar em "Não", não
+  sobra diferença sistemática de coluna — o caminho é experimento subtrativo no Builder.
 - **Duas perguntas para a engenharia**, que decidem o que ainda está chutado no escritor:
   (1) o que significa "Ligação" na aba de entradas do Cadastro — é o enum `LIGACAO_EP`, 0 a 3, que
-  gravamos fixo em 0 porque `TIPO_LIGACAO` está vazia em toda nativa; (2) a lista de diâmetros do
+  gravamos fixo em 0 porque `TIPO_LIGACAO` está vazia em toda nativa (medido: **não** é índice da
+  entrada); (2) a lista de diâmetros do
   Builder **na ordem**, que decodifica a escala inteira de `DIAMETRO_EP` (temos 40→8, 50→9, 60→10,
   75→11, 100→12, 150→14, 200→15; falta o resto, e sem ele bitola de sistema não-PVC fica sem código).
 - Como o cadastro nativo coloca as entradas — a engenharia clica ou o Builder deriva da geometria?

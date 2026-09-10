@@ -24,6 +24,8 @@ Os dois módulos são importados sem modificação nenhuma. O que se confere:
    perigoso, porque não levanta exceção em lugar nenhum
 9. o código comercial chegou a `ITEM.CODIGO_ITEM`, e nenhum texto tem byte de
    controle
+10. peça com `ENTRADA_PECA` está com `SECAO`/`DIAMETRO_INTERNO` nulas — é de lá que
+   o Builder tira a seção quando a peça tem ponto de ligação 3D
 
 Uso:
     python3 -m bim_pipeline.cli.ferramentas.validar_aq <arquivo.aq> [--tubo-cm 600] [--max-conexao-cm 120]
@@ -130,6 +132,36 @@ def _decodifica_cp1252(b):
         return True
     except UnicodeDecodeError:
         return False
+
+
+def pontos_de_ligacao(caminho):
+    """Peça com entrada tem de estar com `SECAO`/`DIAMETRO_INTERNO` nulas.
+
+    Peça com ponto de ligação 3D tira seção e diâmetro das entradas, não do cadastro:
+    nas 14 nativas as duas colunas estão nulas em 1.441 de 1.441 peças com
+    `ENTRADA_PECA`. Deixar o *default* 10 do schema é o que fazia a peça abrir com
+    "Pontos de ligação 3D: Não" mesmo com as entradas no lugar certo — ver
+    `bim_pipeline.aq.entradas_aq.secao_para_as_entradas`.
+    """
+    print('\n9. pontos de ligação 3D')
+    con = sqlite3.connect(f'file:{caminho}?mode=ro', uri=True)
+    n_pecas, n_ent = con.execute(
+        'SELECT (SELECT COUNT(*) FROM PECA), (SELECT COUNT(*) FROM ENTRADA_PECA)').fetchone()
+    com_entrada = con.execute(
+        'SELECT COUNT(DISTINCT ID_PECA) FROM ENTRADA_PECA').fetchone()[0]
+    sujas = con.execute(
+        'SELECT COUNT(*) FROM PECA p WHERE EXISTS'
+        ' (SELECT 1 FROM ENTRADA_PECA e WHERE e.ID_PECA = p.ID_PECA)'
+        ' AND (p.SECAO IS NOT NULL OR p.DIAMETRO_INTERNO IS NOT NULL)').fetchone()[0]
+    orfas = con.execute(
+        'SELECT COUNT(*) FROM ENTRADA_PECA e WHERE NOT EXISTS'
+        ' (SELECT 1 FROM PECA p WHERE p.ID_PECA = e.ID_PECA)').fetchone()[0]
+    con.close()
+    print(f'         {n_ent} entradas em {com_entrada}/{n_pecas} peças')
+    checar('peça com entrada tem SECAO e DIAMETRO_INTERNO nulas', sujas == 0,
+           f'{sujas} peças com a seção ainda no cadastro' if sujas
+           else 'a seção vem das entradas, como nas nativas')
+    checar('nenhuma ENTRADA_PECA órfã', orfas == 0, f'{orfas} órfãs' if orfas else '')
 
 
 def texto_limpo(caminho):
@@ -287,6 +319,7 @@ def main(argv=None):
 
     encoding_cp1252(caminho)
     texto_limpo(caminho)
+    pontos_de_ligacao(caminho)
 
     print()
     if falhas:

@@ -3,9 +3,8 @@
 preencher_entradas_aq.py — preenche `ENTRADA_3D`/`ENTRADA_PECA` num `.aq` JÁ EXPORTADO.
 
 Para que existe: até 2026-09-09 os dois escritores gravavam a geometria sem ponto de
-ligação nenhum, e uma peça assim abre no Cadastro com "Pontos de ligação 3D: Não" — não
-encaixa em tubulação e o Builder **não gera o wireframe** que a desenha em planta e corte
-(a peça sai com o símbolo padrão, um círculo com o triângulo). Os escritores já foram
+ligação nenhum, e uma peça assim não encaixa em tubulação e **não é desenhada em planta e
+corte** — sai o símbolo padrão, um círculo com o triângulo. Os escritores já foram
 corrigidos; esta ferramenta serve para as bibliotecas que já estão na mão de alguém, sem
 repetir a importação.
 
@@ -13,9 +12,16 @@ Não inventa ponto de ligação: lê o OQ3D de cada simbologia e procura bocal n
 malha (`bim_pipeline.geometria.bocais` — ponta de tubo ou face de flange). Simbologia sem
 bocal reconhecível fica sem entrada, e a ferramenta diz quantas foram.
 
+Também anula `PECA.SECAO`/`PECA.DIAMETRO_INTERNO` de toda peça com entrada — inclusive
+num `.aq` que **já** tinha entradas, que é o caso das bibliotecas de 2026-09-09: elas
+desenham os pontos de ligação no lugar certo e mesmo assim abrem com "Pontos de ligação
+3D: Não", porque a seção ficou no cadastro da peça (ver
+`bim_pipeline.aq.entradas_aq.secao_para_as_entradas`).
+
 Depois de preencher, o Builder ainda precisa da opção "Bifiliar realista" diferente de
-"Simbologia 2D" para gerar o wireframe (`PECA.OPCAO_RENDERIZACAO_PLANIFICADA`, que os dois
-escritores gravam em 0 = Realista).
+"Simbologia 2D" para desenhar a peça em planta (`PECA.OPCAO_RENDERIZACAO_PLANIFICADA`, que
+os dois escritores gravam em 0 = Realista); o wireframe em si ele monta em tempo de
+execução, não precisa estar no arquivo.
 
 Uso:
     python3 -m bim_pipeline.cli.ferramentas.preencher_entradas_aq <arquivo.aq> [--saida copia.aq]
@@ -59,7 +65,9 @@ class _Escritor:
 
 def preencher(caminho, refazer=False, progresso=None):
     """
-    Devolve `(entradas, simbologias_com_bocal, simbologias_sem_bocal, falhas)`.
+    Devolve `(entradas, simbologias_com_bocal, simbologias_sem_bocal, falhas, secao)`,
+    onde `secao` é `{'com_entrada': …, 'corrigidas': …}` — quantas peças ficaram com a
+    seção nas entradas e quantas delas precisaram da varredura de conserto.
 
     Um `.aq` que é ZIP não é aceito: a escrita exige o SQLite direto, que é o que os dois
     escritores produzem.
@@ -107,10 +115,22 @@ def preencher(caminho, refazer=False, progresso=None):
             com_bocal += 1
             if progresso and (i % 25 == 0 or i == len(alvos)):
                 progresso(f'{i}/{len(alvos)} simbologias, {n_entradas} entradas')
+
+        # Uma varredura sobre TODAS as peças com entrada, não só as desta rodada: o `.aq`
+        # que já saiu com entradas (as bibliotecas de 2026-09-09) tem a seção no cadastro
+        # da peça e por isso abre com "Pontos de ligação 3D: Não" mesmo com os pontos
+        # certos. Sem isto, `ja_tem` faria a ferramenta pular justamente esses arquivos.
+        pendentes = [r[0] for r in con.execute(
+            'SELECT ID_PECA FROM PECA p WHERE EXISTS'
+            ' (SELECT 1 FROM ENTRADA_PECA e WHERE e.ID_PECA = p.ID_PECA)'
+            ' AND (p.SECAO IS NOT NULL OR p.DIAMETRO_INTERNO IS NOT NULL)')]
+        entradas_aq.secao_para_as_entradas(con, pendentes)
+        com_entrada = con.execute('SELECT COUNT(DISTINCT ID_PECA) FROM ENTRADA_PECA').fetchone()[0]
         con.commit()
     finally:
         con.close()
-    return n_entradas, com_bocal, sem_bocal, falhas
+    secao = {'com_entrada': com_entrada, 'corrigidas': len(pendentes)}
+    return n_entradas, com_bocal, sem_bocal, falhas, secao
 
 
 def main(argv=None):
@@ -131,11 +151,13 @@ def main(argv=None):
         if not args.quiet:
             print(f'  {msg}', flush=True)
 
-    entradas, com_bocal, sem_bocal, falhas = preencher(destino, refazer=args.refazer,
-                                                       progresso=progresso)
+    entradas, com_bocal, sem_bocal, falhas, secao = preencher(destino, refazer=args.refazer,
+                                                              progresso=progresso)
     if not args.quiet:
         print(f'{destino}: {entradas} entradas em {com_bocal} simbologias; '
-              f'{len(sem_bocal)} sem bocal reconhecível, {len(falhas)} falhas')
+              f'{len(sem_bocal)} sem bocal reconhecível, {len(falhas)} falhas; '
+              f"{secao['com_entrada']} peças com a seção nas entradas"
+              + (f" ({secao['corrigidas']} corrigidas agora)" if secao['corrigidas'] else ''))
         for sid, motivo in falhas[:10]:
             print(f'  FALHA simbologia {sid}: {motivo}')
     return 1 if falhas else 0

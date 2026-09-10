@@ -1,6 +1,22 @@
 # ADR-021 — os pontos de ligação vêm da malha; o `WIREFRAME` é do Builder
 
-**Status:** Aceita (2026-09-09)
+**Status:** Aceita (2026-09-09) · **verificada no Builder em 2026-09-10**
+
+## Atualização (2026-09-10)
+
+Testada no Builder em três bibliotecas nossas: as peças desenharam a simbologia 3D, foram
+lançadas em projeto e saíram **em planta**, na representação unifiliar. É a aceitação que
+faltava.
+
+Dois ajustes ao que está escrito abaixo:
+
+- o `WIREFRAME` **não é gravado pelo Builder no `.aq`**: ele o monta em tempo de execução, a
+  cada uso (informação da equipe do Builder, e o arquivo testado continua com o blob nulo
+  depois de a peça sair em planta). A previsão de que "o Builder o gera" estava certa; o que
+  muda é que não adianta procurá-lo no arquivo depois.
+- as peças saíram com **"Pontos de ligação 3D: Não"** no Cadastro mesmo com os pontos
+  desenhados no lugar certo. A causa medida está em ADR-022: `PECA.SECAO`/`DIAMETRO_INTERNO`
+  precisam ficar nulas na peça que tem entrada.
 
 ## Decisão
 
@@ -49,7 +65,7 @@ interno dessa face é a bitola. O detector reencontra 21 de 21 entradas numa nat
 ## Consequências
 
 - Uma peça exportada daqui passa a ter pontos de ligação: encaixa em tubulação e o Builder gera a
-  planta. **Ainda não verificado no Builder** — é a aceitação pendente.
+  planta. **Verificado no Builder em 2026-09-10** — ver a atualização no topo.
 - O detector é hidráulico. Bocal recuado por trás da face (cadastro feito à mão numa nativa de
   bombas) e ponto de ligação que não é abertura de malha (entrada de cabo num rack) ficam fora;
   medidas em `docs/conhecimento/geometria.md`.

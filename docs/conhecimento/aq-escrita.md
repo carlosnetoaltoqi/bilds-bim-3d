@@ -270,8 +270,16 @@ de progresso, que vai no `stderr`.
 
 Os dois escritores gravam os pontos de ligação desde 2026-09-09 (ADR-021), derivados da própria
 malha por `entradas_aq.derivar(malhas)` — a `ENTRADA_3D` na simbologia (posição), a `ENTRADA_PECA`
-em cada peça que a usa (bitola e ângulo). Sem elas a peça abre com "Pontos de ligação 3D: Não",
-não encaixa em tubulação e o Builder não gera a representação de planta e corte.
+em cada peça que a usa (bitola e ângulo). Sem elas a peça não encaixa em tubulação e o Builder
+não desenha a peça em planta e corte — sai o símbolo padrão. Com elas, sai (medido no Builder em
+2026-09-10, ADR-021).
+
+**A peça que ganha entrada sai com `PECA.SECAO` e `PECA.DIAMETRO_INTERNO` nulas** (ADR-022): seção
+e diâmetro de peça conectável moram nas entradas, e nas nativas as duas colunas estão nulas em
+1.441 de 1.441 peças com `ENTRADA_PECA`. Deixar o *default* 10 do schema entrar é o que fazia a
+peça abrir com "Pontos de ligação 3D: Não" mesmo com os pontos desenhados no lugar certo. Quem faz
+é `entradas_aq.secao_para_as_entradas`, chamada de dentro do `gravar`, e `validar_aq` (conferência
+9) falha se sobrar peça com entrada e seção no cadastro.
 
 O detector está em `bim_pipeline.geometria.bocais` (a forma, os filtros e o placar contra as
 nativas estão em `geometria.md`). O que a escrita acrescenta a ele são os valores das colunas que
@@ -294,7 +302,9 @@ Três limites conhecidos, e nenhum dos três é silencioso:
 - **`LIGACAO_EP` fica em 0.** O enum vai de 0 a 3, a tabela `TIPO_LIGACAO` está vazia em toda
   nativa e o significado não está determinado — 0 é o valor mais comum (1.675 de 3.405). Numa
   nativa de conexões a mesma peça usa 0 e 1 em pontas do mesmo diâmetro, o que sugere ponta ×
-  bolsa; enquanto não se souber, escrever um valor inventado seria pior que escrever o comum.
+  bolsa; enquanto não se souber, escrever um valor inventado seria pior que escrever o comum. Não
+  é índice da entrada: dentro da mesma peça as nativas trazem `(0,0,0)`, `(1,1)`, `(2,1)`, `(0,3)`
+  — repetem e pulam.
 - **Bitola fora da escala do AltoQi fica sem código** (`DIAMETRO_EP` na sentinela, `DIAMETRO` em 0,
   que é o valor de 608 das 634 linhas nativas). Acontece com sistema que não é PVC: numa conexão
   *press* de aço a face anelar dá o bore do encaixe, que é o **diâmetro externo do tubo**
@@ -317,8 +327,15 @@ geometria real. É o primeiro registro de peça nossa desenhada no ambiente do B
 Em 2026-09-09 o usuário verificou o que faltava do outro lado: uma peça nossa lançada em **planta**
 saía com o símbolo padrão do Builder, e três experimentos em nativas de fabricante mostraram que
 planta e corte vêm da simbologia 2D **ou** do `WIREFRAME` — que o Builder gera, desde que a peça
-tenha pontos de ligação 3D (`aq-formato.md`, seção da planta). O que segue sem prova: a planta de
-uma peça nossa **com** as entradas escritas, e o encaixe dela numa tubulação.
+tenha pontos de ligação 3D (`aq-formato.md`, seção da planta).
+
+Aceitação de **2026-09-10**, em três bibliotecas nossas com as entradas escritas: as peças
+desenharam a simbologia 3D, foram lançadas em projeto e **saíram em planta na representação
+unifiliar**. É a prova que faltava para ADR-021. Duas ressalvas do mesmo teste: o `WIREFRAME`
+continua nulo no arquivo depois disso (o Builder o monta em tempo de execução e não grava de
+volta — equipe do Builder), e o Cadastro mostrava "Pontos de ligação 3D: **Não**" ao mesmo tempo
+em que desenhava os pontos no lugar certo — o rótulo vem de `SECAO`/`DIAMETRO_INTERNO`, ADR-022.
+O que segue sem prova: o rótulo em "Sim" depois da correção, e o encaixe da peça numa tubulação.
 
 ## Ferramentas
 

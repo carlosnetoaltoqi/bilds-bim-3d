@@ -23,3 +23,6 @@ Uma decisão por arquivo: decisão, por quê, consequências. Uma decisão super
 | [ADR-017](ADR-017-preview-estatico-sai-do-produto.md) | preview estatico sai do produto | Aceita |
 | [ADR-018](ADR-018-familias-revit-hibrido.md) | famílias Revit: metadados do .rfa, geometria irmã ou forma representativa | Aceita |
 | [ADR-019](ADR-019-projetos-revit-via-aps-opt-in.md) | projetos Revit (.rvt) entram por IFC: irmão ou traduzido pela APS, opt-in | Aceita |
+| [ADR-020](ADR-020-imagem-da-simbologia-3d-e-obrigatoria.md) | a `IMAGEM` da simbologia 3D é obrigatória — sem ela o Builder não desenha | Aceita |
+| [ADR-021](ADR-021-entradas-vem-da-malha-e-o-wireframe-e-do-builder.md) | os pontos de ligação vêm da malha; o `WIREFRAME` é do Builder | Aceita |
+| [ADR-022](ADR-022-a-secao-da-peca-com-entrada-mora-nas-entradas.md) | peça com ponto de ligação não guarda seção no cadastro | Aceita |
