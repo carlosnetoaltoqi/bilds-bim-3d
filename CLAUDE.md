@@ -63,7 +63,7 @@ aceitação com tudo de pé em `docs/aceitacao.md`.
 
 | Assunto | Onde |
 |---|---|
-| **Arquitetura**: camadas, sete regras de fronteira, quem grava o quê, guia de porte, regras de mudança | `docs/arquitetura.md`; decisões em `docs/decisoes/` (ADR-001…023) |
+| **Arquitetura**: camadas, sete regras de fronteira, quem grava o quê, guia de porte, regras de mudança | `docs/arquitetura.md`; decisões em `docs/decisoes/` (ADR-001…024) |
 | Formato `.aq` (SQLite/ZIP, cp1252, sentinelas, código de diâmetro, enums, versões de schema, leitura; **o que desenha em planta**) | `docs/conhecimento/aq-formato.md` |
 | Escrever `.aq` — uma peça e o catálogo inteiro (cinco regras, erros que abortam, validação) | `docs/conhecimento/aq-escrita.md` |
 | Formato binário **OQ3D** — leitura tolerante e escrita | `docs/conhecimento/oq3d.md` |
@@ -74,6 +74,7 @@ aceitação com tudo de pé em `docs/aceitacao.md`.
 | Famílias Revit `.rfa` (OLE2, PartAtom, BasicFileInfo, type catalog `.txt`; o que não se lê; geometria irmã ou forma representativa) e projetos `.rvt` via IFC (APS Model Derivative, opt-in; `.rfa` não é aceito pela APS) | `docs/conhecimento/revit-familias.md`; decisões em ADR-018 e ADR-019 |
 | Catálogo comercial em PDF → tabelas; o que um PDF nunca determina | `docs/conhecimento/pdf-catalogo.md` |
 | Forma representativa por parâmetro (dado × norma × invenção; os dois defeitos que passam em teste) | `docs/conhecimento/formas-representativas.md` |
+| **Aplicação e disciplina** — `PROJETO_APLICACAO` (bitmask), `TIPO_APLICACAO_PECA` (enum 1…84), a ponte `ENTIDADE_IFC` → aplicação, e onde nosso classificador erra | `docs/conhecimento/aplicacoes-builder.md`; ADR-024 |
 | Inferência de fabricante, título, slug e layout | `docs/conhecimento/inferencia.md` |
 | Miniaturas — mesma cena do viewer no Chromium, `page.evaluate` com string, harness por `http://` | `docs/conhecimento/miniaturas.md` |
 | Modelo do catálogo — Import como máquina de estados, ponteiro de geometria, copy-on-write, remoção | `docs/conhecimento/catalogo-modelo.md` |

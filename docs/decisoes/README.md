@@ -27,3 +27,4 @@ Uma decisão por arquivo: decisão, por quê, consequências. Uma decisão super
 | [ADR-021](ADR-021-entradas-vem-da-malha-e-o-wireframe-e-do-builder.md) | os pontos de ligação vêm da malha; o `WIREFRAME` é do Builder | Aceita |
 | [ADR-022](ADR-022-a-secao-da-peca-com-entrada-mora-nas-entradas.md) | peça com ponto de ligação não guarda seção no cadastro | Aceita |
 | [ADR-023](ADR-023-conexao-volumetrica-e-o-pontos-de-ligacao-3d.md) | `CONEXAO_VOLUMETRICA` é o "Pontos de ligação 3D" do Cadastro | Aceita |
+| [ADR-024](ADR-024-a-disciplina-vem-da-fonte-nao-do-nome.md) | a disciplina da peça vem da fonte; hidráulico deixa de ser o *default* | **Proposta** |
