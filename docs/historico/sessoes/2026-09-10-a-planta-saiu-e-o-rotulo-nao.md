@@ -92,18 +92,53 @@ dois escritores nomeava as colunas, então o *default* entrava sozinho. Virou AD
 - "O Builder gera o wireframe" estava certo, mas a leitura natural (gera **e grava**) estava
   errada. Não adianta reabrir o `.aq` procurando o blob para conferir que a planta funcionou.
 
+## 6b. Parte 2 da sessão — os dois acervos do Builder
+
+O usuário abriu dois acervos que não existiam antes no projeto, ambos fora do repositório, na
+máquina dele:
+
+- **`Documents/BIM/Catalog_PC81_Ativo/Catalog.db`** — 5,8 GB num arquivo só, SQLite, **o catálogo
+  oficial do Builder**: schema 625, 31.611 peças, 3.929 grupos, 203 classes. Mesmo schema do `.aq`.
+- **`Documents/BIM/Docs QiBuilder/QiBuilder/`** — a ajuda completa, 2.565 `.htm` (123 MB com
+  imagens, **4,1 MB de texto**).
+
+**Método, para caber no contexto:** o texto das 2.565 páginas foi extraído uma vez para um JSONL no
+scratchpad (`indexa_docs.py`) e todas as buscas rodaram sobre ele (`busca.py <regex>`); do banco só
+saíram agregados (`COUNT`/`GROUP BY`) em conexão somente-leitura, com `text_factory` do `read_aq`
+(há texto cp1252 apesar do cabeçalho declarar UTF-8). Nenhum arquivo grande entrou no contexto.
+
+O que veio de lá, em ordem de valor:
+
+1. **O rótulo "Pontos de ligação 3D" é `PECA.CONEXAO_VOLUMETRICA`** — ADR-023. A ajuda nomeia a
+   propriedade, diz que é alternativa à propriedade *Entradas* e avisa que algumas aplicações não a
+   permitem (o campo aparece **desabilitado**, que não é o mesmo que "Não"). A coluna sai por
+   eliminação — a lista de propriedades da peça bate uma a uma com as colunas, e sobra um booleano
+   para uma propriedade booleana — e a medição fecha: 4.206 de 4.206 peças com `CONEXAO_VOLUMETRICA
+   = 1` têm `ENTRADA_3D`.
+2. **Como o Builder classifica aplicação e disciplina** — `docs/conhecimento/aplicacoes-builder.md`
+   e ADR-024 (Proposta). `PROJETO_APLICACAO` é **bitmask** de sete disciplinas identificadas, não
+   enum; `TIPO_APLICACAO_PECA` é enum 1…84 mapeado valor a valor; `ENTIDADE_IFC` prevê a aplicação e
+   é a ponte para fontes que não conhecem o vocabulário do Builder. Nosso classificador é vocabulário
+   de PVC hidráulico com *default* "conexão", o que explica a peça elétrica virar conexão hidráulica.
+3. **`POSICIONAR_SIMBOLOGIA_3D` decodificado** (0…6), com a ordem confirmada por três âncoras. Achado
+   de tabela: `catalogo_to_aq` grava 3 em toda peça quando conexão quer 0 e tubo quer nulo.
+4. **Entrada 3D é colocada à mão** no Builder ("clicando diretamente sobre a simbologia 3D") — não há
+   rota automática, o que fecha uma das perguntas abertas para a engenharia e justifica o detector.
+
 ## 7. Onde a próxima sessão começa
 
-1. **A verificação no Builder** (do usuário): abrir `SECAO_G_nosso_com_entradas.aq` ou
-   `SECAO_pecas_Tupy_TupyPres.aq` e olhar **só** o rótulo "Pontos de ligação 3D" no Cadastro. A
-   planta já está aceita; o que está em teste é ADR-022.
-2. **Se o rótulo acender:** ADR-022 vira fato, e o que sobra do assunto entradas são as perguntas
-   para a engenharia (o enum `LIGACAO_EP`, a escala completa de diâmetros, se o cadastro nativo
-   clica a entrada à mão).
-3. **Se continuar em "Não":** não há mais diferença sistemática de coluna para perseguir — o
-   próximo passo é experimento subtrativo no Builder, transplantando o cadastro de uma peça nativa
-   que mostra "Sim" e removendo um campo por arquivo.
-4. As pendências que não dependem disso continuam onde estavam: aceitação dos `.aq` de plugin web e
+1. **A verificação no Builder** (do usuário): abrir `PONTOS_aquecedores_ida_e_volta.aq` ou
+   `PONTOS_conexoes_pvc.aq` em `Downloads/teste-geometria-aq/` e olhar o rótulo "Pontos de ligação
+   3D" **numa peça cujo campo `Entradas` seja maior que zero** — peça com `Entradas: 0` não testa
+   nada, foi o que aconteceu no primeiro teste. O de aquecedores é o controle mais limpo: é a ida e
+   volta de uma nativa que no original tem `CONEXAO_VOLUMETRICA = 1` nas 12 peças.
+2. **Se o rótulo acender:** ADR-023 vira fato e o assunto entradas fecha, menos as duas perguntas
+   para a engenharia (o enum `LIGACAO_EP` e a escala completa de diâmetros).
+3. **Se continuar em "Não":** o caminho é o experimento subtrativo — transplantar o cadastro de uma
+   peça nativa que mostra "Sim" e remover um campo por arquivo.
+4. **Decidir ADR-024** (aplicação e disciplina), que está Proposta porque toca a interface do
+   criador: quem escolhe a disciplina de uma biblioteca, e quando.
+5. As pendências que não dependem disso continuam onde estavam: aceitação dos `.aq` de plugin web e
    de famílias Revit, leitura humana dos documentos de `docs/conhecimento/`, revogar o secret da
    APS, LICENSE.
 
@@ -114,5 +149,5 @@ dois escritores nomeava as colunas, então o *default* entrava sozinho. Virou AD
 | árvore | limpa | `git status --short` |
 | suíte | 239 na coleta | `python3 -m pytest --collect-only -q \| tail -1` |
 | biblioteca + arquitetura | 171 passam, 19 pulam (fixtures ausentes aqui) | `python3 -m pytest tests/biblioteca tests/arquitetura -m "not thumbs" -q` |
-| seção nas saídas corrigidas | nenhuma peça com entrada e seção no cadastro | `python3 -m bim_pipeline.cli.ferramentas.validar_aq …/SECAO_*.aq` |
-| ADRs | até ADR-022 | `ls docs/decisoes/` |
+| saídas para o Builder | `PONTOS_aquecedores_ida_e_volta.aq` (12 peças, 40 entradas) e `PONTOS_conexoes_pvc.aq` (262 peças, 194 com pontos) | `python3 -m bim_pipeline.cli.ferramentas.validar_aq …/PONTOS_*.aq` |
+| ADRs | até ADR-024 | `ls docs/decisoes/` |

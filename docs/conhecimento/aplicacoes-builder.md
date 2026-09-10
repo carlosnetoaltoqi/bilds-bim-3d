@@ -166,6 +166,33 @@ Nosso escritor já conhece sete dessas entidades (`IFC_TUBO` 2072, `IFC_CONEXAO`
 2075, `IFC_APARELHO` 2076, `IFC_VALVULA` 2084, `IFC_TERMINAL` 2085, `IFC_TERMINAL_VENT` 2079) — todas
 hidráulicas. Não conhece nenhuma elétrica, de SPDA ou de climatização.
 
+## `POSICIONAR_SIMBOLOGIA_3D` — como a peça se orienta ao ser lançada
+
+É o que faz a peça **já entrar certa no projeto**: o modo diz para onde aponta o eixo X da
+simbologia quando o Builder monta o 3D a partir do croqui. A ajuda (`representacao_simbologia_3d.htm`)
+descreve sete modos, nesta ordem, que são os valores 0…6 — a ordem foi confirmada por três âncoras
+independentes: o valor 3 aparece na tela como "Na horizontal, apontando para a tubulação de entrada"
+(visto no Cadastro), e os exemplos da própria ajuda batem com o valor dominante de cada aplicação no
+catálogo oficial.
+
+| valor | modo | eixo X aponta para | exemplo da ajuda | aplicação onde domina |
+|---|---|---|---|---|
+| 0 | No plano formado pelos condutos | entrada/saída; Z é a normal do plano | joelho | conexão (8.039 de 10.467) |
+| 1 | No plano dos condutos e do ponto diretor | um dos condutos; Z no ponto diretor | registro | registro (353 de 733) |
+| 2 | Na horizontal, apontando para o ponto diretor | ponto diretor; Z global | ponto de lâmpada | dispositivo elétrico (1.780), evaporadora (78 de 78) |
+| 3 | Na horizontal, apontando para a **tubulação de entrada** | conduto da entrada; Z global | hidrômetro | bomba (503 de 588) |
+| 4 | Na horizontal, apontando para a **tubulação de saída** | conduto da saída; Z global | caixa sifonada | — (263 peças no total) |
+| 5 | No plano de lançamento, apontando para o ponto diretor | plano do cursor | — | — (50 peças) |
+| 6 | Alinhada ao conduto com saída lateral de trecho reto | conduto da entrada; Y para o lado do outro conduto | junção simples | — (1.397 peças) |
+
+Duas coisas medidas que valem como regra:
+
+- **Tubo (aplicação 1) tem a coluna nula** — 2.104 de 2.104. Conduto não tem simbologia a orientar.
+- **Conexão quer 0**, não 3. Nosso `catalogo_to_aq` grava **3** em toda peça ("apontando para a
+  tubulação de entrada"), o que num joelho ou num tê orienta a peça pelo conduto de entrada em vez
+  do plano dos dois condutos; `geo_to_aq` grava 0, que é o valor certo para conexão. É defeito de
+  orientação no lançamento, não de desenho: a peça aparece, torta.
+
 ## Onde nosso pipeline erra hoje
 
 `aq_writer.REGRAS_GRUPO` classifica **pelo nome do grupo**, com um vocabulário que é de catálogo

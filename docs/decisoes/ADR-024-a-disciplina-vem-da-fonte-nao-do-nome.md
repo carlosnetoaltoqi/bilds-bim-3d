@@ -20,6 +20,12 @@ Os quatro valores de `PROJETO_APLICACAO` do `aq_writer` são corrigidos para o q
 usa: água fria **4** (era 12, que é hidráulico + sanitário) e incêndio **20** (era 22, que carrega um
 bit não identificado); esgoto **8** e gás **36** já estavam certos.
 
+Entra no mesmo pacote o **modo de posicionamento** (`PECA.POSICIONAR_SIMBOLOGIA_3D`), que decide a
+orientação da peça ao ser lançada: `catalogo_to_aq` grava 3 ("na horizontal, apontando para a
+tubulação de entrada") em toda peça, quando conexão quer 0 ("no plano formado pelos condutos" —
+8.039 de 10.467 no catálogo oficial) e tubo quer nulo (2.104 de 2.104). Como as outras duas, é
+escolha por aplicação, não valor fixo.
+
 ## Por quê
 
 A engenharia do Builder, testando nossas bibliotecas, encontrou **peças elétricas cadastradas com
