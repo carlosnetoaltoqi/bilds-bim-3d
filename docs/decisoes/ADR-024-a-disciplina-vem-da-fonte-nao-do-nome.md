@@ -1,6 +1,6 @@
 # ADR-024 — a disciplina da peça vem da fonte; hidráulico deixa de ser o *default*
 
-**Status:** Proposta (2026-09-10)
+**Status:** Aceita (2026-09-10) · implementada no mesmo dia
 
 ## Decisão
 
@@ -58,6 +58,39 @@ Nosso escritor conhece sete entidades IFC, **todas hidráulicas**.
   adivinhar, e adivinhar errado é o defeito que estamos corrigindo.
 - Os `.aq` já entregues continuam com a aplicação errada. Uma ferramenta de conserto é possível pelo
   mesmo caminho das outras (`preencher_*`), mas depende de saber a disciplina de cada biblioteca —
-  ou seja, de perguntar.
-- **Fica proposta, não aceita:** o mapa está medido, mas a decisão toca a interface do criador (quem
-  escolhe a disciplina e quando) e isso é do usuário.
+  ou seja, de perguntar — e a decisão de 2026-09-10 foi **não** fazê-la (ver abaixo).
+
+## O que o usuário decidiu (2026-09-10)
+
+As quatro escolhas que faltavam, e que tiram esta ADR de Proposta:
+
+1. **O criador sempre pergunta**, com o campo pré-preenchido pelo palpite da fonte. Não existe
+   importação sem disciplina: o campo é obrigatório nos três formulários (`POST /importacoes`,
+   `/importacoes/plugin-autocad`, `/importacoes/familias-revit`) e o DTO recusa o corpo sem ele.
+   Custa um clique por importação, e nunca mais exporta uma disciplina que ninguém olhou.
+2. **Uma disciplina por biblioteca**, sem exceção por grupo. É o mais simples de implementar e de
+   explicar; biblioteca mista sai errada em parte das peças, e isso é sabido.
+3. **Sem aplicação reconhecida, avisa e grava o genérico da disciplina** — não aborta. Uma
+   biblioteca de 3.000 peças não fica refém de cinco peças estranhas, e o aviso sai no resumo da
+   exportação e na conferência "aplicação e disciplina" do `validar_aq`.
+4. **As sete disciplinas ganham vocabulário**, derivado dos nomes de grupo mais frequentes de cada
+   aplicação no catálogo oficial. O hidráulico atual vira o da disciplina hidráulica, sem perda.
+
+E uma quinta, sobre os arquivos já entregues: **não** se faz ferramenta de conserto — os catálogos
+seguem no criador e reexportar pelo pipeline corrigido dá o mesmo resultado sem código novo para
+manter. O que a exportação faz com um catálogo antigo, sem disciplina gravada, é **recusar** e
+pedir — não adivinhar.
+
+## Como ficou implementado
+
+`bim_pipeline/aq/cadastro.py` é o construtor único do cadastro (`GRUPO_PECA` + `PECA`) que os dois
+escritores chamam — o que também acaba com as divergências que eles tinham
+(`POSICIONAR_SIMBOLOGIA_3D` 0 × 3, `INDICE_SIMBOLO3D_SELECIONADO` -1 × 1, ambas resolvidas pelo
+valor medido). `aq_writer` ficou com o que é do **arquivo** (schema, sentinelas, `EscritorAq` em
+cp1252); saíram dele `REGRAS_GRUPO`, `classificar_grupo`, `aplicacao_de`, as quatro constantes
+`APLICACAO_*` e a tabela de diâmetro em milímetro (esta virou ADR-025).
+
+A disciplina viaja: formulário → DTO → `bim_catalogs.disciplina` → manifesto (contrato
+`manifesto-catalogo-aq`, onde é campo obrigatório) → `catalogo_to_aq`/`geo_to_aq`. As três listas
+de disciplina (Python, `pacotes/base`, `web`) são cópias deliberadas, e o que as impede de divergir
+é `tests/arquitetura/test_disciplinas.py`.

@@ -74,7 +74,8 @@ aceitação com tudo de pé em `docs/aceitacao.md`.
 | Famílias Revit `.rfa` (OLE2, PartAtom, BasicFileInfo, type catalog `.txt`; o que não se lê; geometria irmã ou forma representativa) e projetos `.rvt` via IFC (APS Model Derivative, opt-in; `.rfa` não é aceito pela APS) | `docs/conhecimento/revit-familias.md`; decisões em ADR-018 e ADR-019 |
 | Catálogo comercial em PDF → tabelas; o que um PDF nunca determina | `docs/conhecimento/pdf-catalogo.md` |
 | Forma representativa por parâmetro (dado × norma × invenção; os dois defeitos que passam em teste) | `docs/conhecimento/formas-representativas.md` |
-| **Aplicação e disciplina** — `PROJETO_APLICACAO` (bitmask), `TIPO_APLICACAO_PECA` (enum 1…84), a ponte `ENTIDADE_IFC` → aplicação, e onde nosso classificador erra | `docs/conhecimento/aplicacoes-builder.md`; ADR-024 |
+| **Aplicação e disciplina** — `PROJETO_APLICACAO` (bitmask), `TIPO_APLICACAO_PECA` (enum 1…84), a ponte `ENTIDADE_IFC` → aplicação, `POSICIONAR_SIMBOLOGIA_3D`, e como o pipeline classifica hoje | `docs/conhecimento/aplicacoes-builder.md`; ADR-024 |
+| **Código de bitola** — a escala é em **polegada** (0…17), e 40/50/75 mm dependem da série | `docs/conhecimento/aq-formato.md` §`DIAMETRO_PECA`; ADR-025 |
 | Inferência de fabricante, título, slug e layout | `docs/conhecimento/inferencia.md` |
 | Miniaturas — mesma cena do viewer no Chromium, `page.evaluate` com string, harness por `http://` | `docs/conhecimento/miniaturas.md` |
 | Modelo do catálogo — Import como máquina de estados, ponteiro de geometria, copy-on-write, remoção | `docs/conhecimento/catalogo-modelo.md` |
@@ -157,6 +158,37 @@ Identidade `carlosnetoaltoqi`; branch `main`, histórico linear; nada de push se
 
 ## 👉 Estado atual e pendências
 
+**Estado (2026-09-10, parte 3):** a exportação `.aq` passou a perguntar a **disciplina** em vez de
+adivinhá-la (ADR-024, aceita e implementada). O cadastro da peça agora é montado num lugar só —
+`biblioteca/bim_pipeline/aq/cadastro.py` —, chamado pelos dois escritores, que antes o montavam em
+duplicata e divergiam. A classificação tem três degraus: entidade IFC que a fonte declara (31
+entidades medidas, contra as 7 hidráulicas que o escritor conhecia) → vocabulário **da disciplina
+escolhida** (sete, um por disciplina) → genérico da disciplina **com aviso**, no resumo da
+exportação e na conferência "aplicação e disciplina" do `validar_aq`. A disciplina é campo obrigatório nos três
+formulários de importação, pré-preenchido pelo palpite da fonte, gravado em
+`bim_catalogs.disciplina`; exportar catálogo sem ela é **recusado**, com a mensagem dizendo o que
+escolher. Entraram junto as correções que a medição sustentava: `PROJETO_APLICACAO` de água fria
+4 (era 12 = hidráulico + sanitário) e de incêndio 20 (era 22), `POSICIONAR_SIMBOLOGIA_3D` por
+aplicação (nulo em tubo, 0 em conexão, 1 em registro, 3 em bomba, 2 no elétrico e na climatização) e
+`INDICE_SIMBOLO3D_SELECIONADO` em -1 nos dois escritores.
+
+**O código de bitola não era o que se pensava (ADR-025).** Medido no catálogo oficial cruzando
+`DIAMETRO_EP` com o **nome** da peça (o cruzamento com `DIAMETRO_PECA` não dá nada, porque essa
+coluna guarda ora medida ora código): a escala é **em polegada** — 0 = 1/4" … 17 = 12". A tabela em
+milímetro que usávamos era a equivalência do PVC esgoto, com `60 → 10` interpolado (não existe em
+série nenhuma), e errava toda bitola de PVC soldável por um degrau. 40, 50 e 75 mm são ambíguos por
+natureza (uma polegada em soldável, outra em esgoto): a série sai do título da biblioteca e, sem
+ela, o bocal fica **sem código, com aviso**.
+
+**ADR-023 aceito no Builder:** seis telas do Cadastro mostram, dentro da mesma biblioteca nossa,
+peça com entradas em **"Pontos de ligação 3D: Sim"** (e a linha *Entradas* some) e peça com
+`Entradas: 0` com o campo **desabilitado** em "Não" — confirma o rótulo e confirma que a propriedade
+é alternativa a *Entradas*, como `peca.htm` diz. As mesmas telas mostram atuadores de HVAC e um
+aquecedor a gás com "Aplicação: Conexão", que é a prova visual do defeito do ADR-024. Registro em
+`docs/historico/sessoes/2026-09-10-b-a-disciplina-e-a-escala-em-polegada.md`.
+
+Suíte em **268** na coleta (era 240); `pnpm -r build` verde nos 9 workspaces.
+
 **Estado (2026-09-10):** a peça nossa **sai em planta** — aceitação de ADR-021 feita pelo usuário no
 Builder, em três bibliotecas: desenharam a simbologia 3D, foram lançadas em projeto e saíram na
 representação **unifiliar**. Duas coisas vieram do mesmo teste. O `WIREFRAME` não aparece no arquivo
@@ -222,6 +254,12 @@ O `storage/` não tem os downloads do plugin web de CAD (`catallog/`) — refaz�
 fabricante, o que depende de autorização explícita (Termos de Uso).
 
 **Pendências do usuário:**
+- **Aceitação de ADR-024 e ADR-025, no Builder:** reexportar as bibliotecas pelo pipeline corrigido,
+  informando a disciplina de cada uma, e conferir no Cadastro que a **Aplicação** agora sai certa —
+  a de válvulas e atuadores de HVAC é o caso de teste, porque tem de deixar de dizer "Conexão". No
+  mesmo arquivo dá para conferir se o **Posicionar simbologia 3D** por aplicação orienta a peça
+  certo no lançamento; os prints de 2026-09-10 mostram três modos diferentes em bibliotecas
+  diferentes e, sem os `.aq` para cruzar, não permitem concluir nada sobre isso.
 - Conferir no Builder as quatro bibliotecas de 2026-09-08 corrigidas com `preencher_imagem_aq` (as duas
   de famílias Revit, a de conexões e a do projeto `.rvt`) — a de conexões já foi verificada, com peça
   lançada no projeto e, em 2026-09-10, em planta.
@@ -232,20 +270,15 @@ fabricante, o que depende de autorização explícita (Termos de Uso).
   as tentativas que falharam e as armadilhas, estão em
   `docs/historico/sessoes/2026-09-09-a-peca-que-nao-saia-em-planta.md` §5 e §7 e
   `docs/historico/sessoes/2026-09-10-a-planta-saiu-e-o-rotulo-nao.md` §5 e §7.
-- **Aceitação de ADR-023, no Builder:** abrir `Downloads/teste-geometria-aq/PONTOS_*.aq` e olhar o
-  rótulo "Pontos de ligação 3D" numa peça cujo campo **Entradas** seja maior que zero — a planta já
-  está aceita, o que falta é o rótulo. São dois arquivos: `PONTOS_aquecedores_ida_e_volta.aq` (ida e
-  volta de uma nativa que no original tem `CONEXAO_VOLUMETRICA = 1` nas 12 peças — é o controle mais
-  limpo) e `PONTOS_conexoes_pvc.aq` (262 conexões, 194 com pontos). Atenção: peça com `Entradas: 0`
-  não testa nada, e a ajuda avisa que "algumas aplicações que geram desenhos apresentando volumes no
-  croqui e detalhes não permitem definir esta propriedade como Sim" — nessas o campo aparece
-  **desabilitado**.
-- **Duas perguntas para a engenharia**, que decidem o que ainda está chutado no escritor:
-  (1) o que significa "Ligação" na aba de entradas do Cadastro — é o enum `LIGACAO_EP`, 0 a 3, que
-  gravamos fixo em 0 porque `TIPO_LIGACAO` está vazia em toda nativa (medido: **não** é índice da
-  entrada); (2) a lista de diâmetros do
-  Builder **na ordem**, que decodifica a escala inteira de `DIAMETRO_EP` (temos 40→8, 50→9, 60→10,
-  75→11, 100→12, 150→14, 200→15; falta o resto, e sem ele bitola de sistema não-PVC fica sem código).
+- ~~Aceitação de ADR-023~~ — **feita** em 2026-09-10, pelas seis telas do Cadastro. Os `.aq` do teste
+  já não estão em `Downloads/teste-geometria-aq/`.
+- **Uma pergunta para a engenharia**, que decide o que ainda está chutado no escritor: o que
+  significa "Ligação" na aba de entradas do Cadastro — é o enum `LIGACAO_EP`, 0 a 3, que gravamos
+  fixo em 0 porque `TIPO_LIGACAO` está vazia em toda nativa (medido: **não** é índice da entrada).
+- ~~A lista de diâmetros do Builder na ordem~~ — **saiu por medição** (ADR-025): a escala é em
+  polegada, 0 = 1/4" … 17 = 12". A pergunta à engenharia vira confirmação, não bloqueio; o que
+  continua fora é o código 1 (5/16" pela posição, mas nenhuma peça do catálogo o usa com nome em
+  polegada).
 - ~~Como o cadastro nativo coloca as entradas~~ — **respondido pela ajuda do Builder**
   (`entradas_3d.htm`): é à mão, "clicando diretamente sobre a simbologia 3D, através do comando
   Adicionar Entradas 3D, na janela de Posicionamento da simbologia 3D". Não há rota automática, o

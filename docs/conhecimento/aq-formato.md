@@ -225,29 +225,45 @@ malha e peça coincidem.
 
 Aplicado o *placement*, a entrada cai no **centro de uma face circular da malha**, e a distância
 dela ao vértice mais próximo é o **raio nominal do bocal**: numa nativa de esgoto, entradas de
-`DIAMETRO_EP` 11 e 9 dão 3,78 e 2,56 cm (75/2 e 50/2 mm); 12 dá 5,08; 14 dá 7,50; 15 dá 10,00. É o
+`DIAMETRO_EP` 11 e 9 dão 3,78 e 2,56 cm (75 e 50 mm de bitola, que nessa série são 3" e 2");
+12 dá 5,08; 14 dá 7,50; 15 dá 10,00. É o
 que `bim_pipeline.geometria.bocais` reencontra na malha (ver `geometria.md`).
 
-### `DIAMETRO_PECA` é um CÓDIGO, não uma medida
+### `DIAMETRO_PECA` é um CÓDIGO, e a escala é **em polegada** (ADR-025)
 
 > Tratar o valor como centímetro erra por ~2× nas peças de tubo e devolve `-1.8e308` em todo o resto.
+> E tratá-lo como escala em **milímetro** — o que este documento dizia até 2026-09-10 — erra por um
+> degrau em toda bitola de PVC soldável.
 
-É um índice na escala de diâmetros nominais do AltoQi. Pares observados:
+É o índice de uma escala de bitolas nominais **em polegada**, medida no catálogo oficial do Builder
+(33.041 linhas de `ENTRADA_PECA`) cruzando o código com o nome da peça:
 
-| `NOME_PECA` | `DIAMETRO_PECA` |
-|---|---|
-| `40 mm - 1.1/2"` | 8 |
-| `50 mm - 2"` | 9 |
-| (60 mm) | 10 |
-| `75 mm - 3"` | 11 |
-| `100 mm - 4"` | 12 |
-| `150 mm - 6"` | 14 |
-| `200 mm - 8"` | 15 |
+| cód | 0 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| pol | 1/4" | 3/8" | 1/2" | 5/8" | 3/4" | 1" | 1.1/4" | 1.1/2" | 2" | 2.1/2" | 3" | 4" | 5" | 6" | 8" | 10" | 12" |
+| peças com esse nome | 8 | 14 | 584 | 8 | 533 | 542 | 364 | 363 | 391 | 187 | 223 | 186 | 55 | 61 | 46 | 42 | 42 |
 
-`ENTRADA_PECA.DIAMETRO_EP` e `ENTRADA_3D.DIAMETRO` usam a **mesma escala**: uma biblioteca de
-bombas grava 7 a 11 nos bocais, cujas sucções e recalques vão de 1.1/4" a 3" — encaixa em 32, 40,
-50, 60 e 75 mm e é de onde vem o 10 = 60 mm. Os códigos 1 a 7 (bitolas de água fria de 20, 25 e
-32 mm) e o 13 (125 mm, por interpolação) **não são observáveis** nas bibliotecas disponíveis.
+O código **1** não aparece com nome em polegada em peça nenhuma; pela posição seria 5/16".
+
+**A bitola em milímetro é ambígua de propósito.** A mesma medida é uma polegada em PVC soldável de
+água fria e outra em PVC esgoto:
+
+| mm | código em soldável | código em esgoto |
+|---|---|---|
+| 40 | 7 (1.1/4") — 80 peças | 8 (1.1/2") — 117 peças |
+| 50 | 8 (1.1/2") — 85 | 9 (2") — 136 |
+| 75 | 10 (2.1/2") — 60 | 11 (3") — 152 |
+
+Fora dessas três, a bitola em milímetro cai num código só: 15→3, 20→3, 22→5, 25→5, 28→6, 32→6,
+35→7, 42→8, 54→9, 60→9, 63→9, 66→10, 73→10, 79→11, 85→11, 89→11, 100→12, 104→12, 110→12, 114→12,
+125→13, 150→14, 200→15, 250→16. As séries de cobre e de aço preenchem a escala inteira sem colidir.
+
+> A tabela que este projeto usava (`{40: 8, 50: 9, 60: 10, 75: 11, …}`) era a equivalência do PVC
+> **esgoto**, com um valor interpolado no meio: **60 → 10 não existe em série nenhuma** (60 mm
+> aparece só no código 9). Foi inferência sobre amostra pequena, e é o tipo de erro que só a
+> medição no catálogo oficial pega.
+
+`ENTRADA_PECA.DIAMETRO_EP` e `ENTRADA_3D.DIAMETRO` usam a **mesma escala**.
 
 Quem traz código: numa biblioteca real de conexões, **~82 % das peças trazem a sentinela**
 `-DBL_MAX`, ~8 % trazem zero e **~10 % trazem código** — só tubos, caixas sifonadas e ralos

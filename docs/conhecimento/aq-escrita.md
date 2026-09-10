@@ -97,43 +97,94 @@ Nada disto está documentado pelo fabricante; são correlações entre o nome do
 códigos, confirmadas em bibliotecas de conexões, bombas, aquecedores e elétrica reais.
 `aq_referencia` (abaixo) extrai os mesmos valores de um `.aq` novo antes de confiar neles.
 
-`GRUPO_PECA.PROJETO_APLICACAO` — tipo de instalação: **8** esgoto · **12** água fria ·
-**22** incêndio · **36** gás · **64/76** elétrico. `aq_writer.aplicacao_de(*textos)` infere
-isso do título e das séries do catálogo por palavra: `ESGOTO`/`PLUVIAL` → 8,
-`INCENDIO`/`SPRINKLER`/`HIDRANTE` → 22, `GAS`/`GLP` → 36, senão 12 (água fria é o padrão).
+`GRUPO_PECA.PROJETO_APLICACAO` — **bitmask** de disciplina, não enum, e **não se infere**: é
+escolha de quem importa (ADR-024). Os bits: **4** hidráulico · **8** sanitário · **16** incêndio ·
+**32** gás · **64** elétrico · **256** SPDA · **512** climatização. O que os escritores gravam por
+disciplina é o que o catálogo oficial usa: hidráulico **4**, sanitário **8**, incêndio **20**
+(=4+16, incêndio com água), gás **36** (=4+32), elétrico **64**, SPDA **256**, climatização **512**.
+Até 2026-09-10 este valor saía de quatro palavras no título (`aplicacao_de`), com água fria por
+omissão — e com dois valores errados (12 é hidráulico **mais** sanitário; 22 carrega um bit não
+identificado). Foi assim que uma biblioteca de válvulas de HVAC saiu inteira como conexão de água
+fria. A distribuição completa das máscaras está em `aplicacoes-builder.md`.
 
-`ENTIDADE_IFC`/`TIPO_ENTIDADE_IFC`/`ENTIDADE_IFC_2X3` andam sempre juntos:
+`ENTIDADE_IFC`/`TIPO_ENTIDADE_IFC`/`ENTIDADE_IFC_2X3` andam sempre juntos, e a tripla de cada
+entidade está medida no catálogo oficial (`cadastro.IFC`, 31 entidades; em 26 delas a tripla é
+única em 100 % das peças):
 
 | IFC4 | tipo | 2×3 | O que é |
 |---|---|---|---|
+| 2051 | 4100 | 2088 | conexão de eletrocalha/perfilado — 5.246 de 5.265 peças |
+| 2052 | 4097 | 2086 | conduto/tubo genérico — 100 % |
+| 2059 | 4106 | 2091 | quadro de medição (barramento blindado) |
+| 2064 | 4120 | 2092 | sprinkler (1.445) e hidrante (96) |
+| 2065 | 4102 | 2091 | entrada de serviço |
+| 2067 | 4132 | 2088 | dispositivo elétrico — tomada, condulete, caixa, rack |
 | 2071 | 4099 | 2088 | `IfcPipeFitting` — curva, luva, cap, tê, redução, ramal |
 | 2072 | 4096 | 2086 | `IfcPipeSegment` — tubo |
+| 2073 | 4105 | 2091 | componente elétrico (41) e captor de SPDA (47) |
 | 2075 | 4118 | 2093 | bomba |
-| 2076 | 4122 | 2092 | aparelho sanitário |
+| 2076 | 4122 | 2092 | peça de utilização e aparelho sanitário |
 | 2079 | 4121 | 2092 | terminal de ventilação |
 | 2084 | 4103 | 2091 | válvula |
 | 2085 | 4123 | 2092 | terminal de descarte — ralo, caixa sifonada |
+| 2096 | 4147 | 2092 | duto e exaustor de climatização |
+| 2102 · 2111 | 4152 · 4161 | 2090 | condensadora · evaporadora — 100 % |
 
 `SUBTIPO_IFC` dentro de `IfcPipeFitting`: **0** curva/joelho · **1** luva · **3** cap ·
 **4** tê/junção · **6** redução · **7** ramal; em tubo só o 3, em bomba só o 5, em válvula
 só o 22. `SUBTIPO_IFC_2X3` é sempre igual ao `SUBTIPO_IFC`.
 
-`PECA.TIPO_APLICACAO_PECA`: **1** tubo · **2** conexão · **6** bomba · **8** aparelho
-sanitário · **9** caixa sifonada/ralo com grelha · **10** ralo · **55** ramal de
-ventilação.
+`PECA.TIPO_APLICACAO_PECA` é um enum de 1 a 84, nomeado por inteiro em `aplicacoes-builder.md`.
+Os mais usados: **1** tubo · **2** conexão · **3** registro · **6** bomba · **8** aparelho
+sanitário · **31** dispositivo elétrico · **34** quadro de medição · **41** componente ·
+**69/70** evaporadora/condensadora.
 
-`aq_writer.classificar_grupo(nome)` decide os três códigos acima **a partir do nome do
-grupo**, para quando não se tem os códigos originais (é o caso do catálogo salvo — ver
-abaixo). Regras **por palavra inteira** (`\b palavra \b` sobre o nome sem acento, em
-maiúsculas), na ordem em que aparecem — a primeira que casa vence: `TUBO` antes de mais
-nada, depois `BOMBA`/`PRESSURIZADOR`, `CAIXA SIFONADA`, `RALO`, `VALVULA`/`REGISTRO`,
-`JUNCAO`/`TE` (tê — casa antes de `CURVA`/`JOELHO`, porque "Junção com Joelho" é tê, não
-curva), `CURVA`/`JOELHO`, `CAP`/`PLUG`/`TAMPAO`, `REDUCAO`/`BUCHA`, e por fim
-`LUVA`/`UNIAO`/`NIPEL`/`ADAPTADOR`. **Sem nenhuma regra casando, a peça vira conexão
-genérica (luva)** — `IFC_CONEXAO, SUB_LUVA, APL_CONEXAO` — o enquadramento mais comum e o
-mais inofensivo para um grupo que o vocabulário não reconheceu. Ajustadas contra os grupos
-com 3D de uma biblioteca real de conexões: reproduz cerca de 98% deles (189 de 192) — os
-que não batem têm códigos diferentes dos irmãos no próprio arquivo original.
+`PECA.POSICIONAR_SIMBOLOGIA_3D` sai da aplicação, não é fixo: **nulo** em tubo (2.104 de 2.104
+no catálogo oficial), **0** em conexão (8.039 de 10.467), **1** em registro, **3** em bomba,
+**2** em dispositivo elétrico e em quase toda a climatização. A tabela é
+`cadastro.POSICIONAR_POR_APLICACAO`, e os sete modos estão descritos em `aplicacoes-builder.md`.
+
+### Quem classifica: `bim_pipeline.aq.cadastro`
+
+`cadastro.classificar(nome, disciplina, entidade_ifc)` decide os códigos acima em **três
+degraus, nesta ordem** (ADR-024):
+
+1. **a entidade IFC que a fonte declarou** — uma família Revit traz a categoria, um IFC traz a
+   entidade, um catálogo de plugin traz a seção; a entidade prevê a aplicação com pouca
+   ambiguidade, e onde não prevê (2073 é componente no elétrico e captor no SPDA) a **disciplina**
+   desempata;
+2. **o vocabulário da disciplina escolhida** — sete tabelas, uma por disciplina, casando por
+   palavra inteira (com plural em `S`) na ordem em que aparecem, a primeira que casa vence. O
+   vocabulário hidráulico é o antigo `classificar_grupo`, sem perda: nasceu calibrado contra os
+   192 grupos com 3D de uma biblioteca de conexões real e reproduz 189 deles;
+3. **o genérico da disciplina, com aviso** — conexão (2) nas quatro hidráulicas, dispositivo
+   elétrico (31) no elétrico, componente (41) no SPDA, equipamento (68) na climatização. O aviso
+   sai no resumo da exportação (`Diagnostico`) e na conferência "aplicação e disciplina" do `validar_aq`, que fala alto
+   quando uma disciplina **inteira** ficou no genérico.
+
+O que **não** existe mais: um vocabulário só, de catálogo hidráulico em PVC, com "conexão
+genérica" como padrão para tudo que ele não reconhecia.
+
+### O código de bitola é em **polegada**
+
+`ENTRADA_PECA.DIAMETRO_EP` e `PECA.DIAMETRO_PECA` não guardam medida: guardam o índice de uma
+escala de bitolas nominais **em polegada** (`cadastro.ESCALA_POLEGADA`), medida no catálogo
+oficial cruzando o código com o nome da peça:
+
+| cód | 0 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| pol | 1/4" | 3/8" | 1/2" | 5/8" | 3/4" | 1" | 1.1/4" | 1.1/2" | 2" | 2.1/2" | 3" | 4" | 5" | 6" | 8" | 10" | 12" |
+
+O código **1** não aparece com nome em polegada em nenhuma peça do catálogo; pela posição seria
+5/16", e escrever isso seria inventar. Uma bitola em **milímetro** só vira código sem ambiguidade
+fora de três valores: **40, 50 e 75 mm** são uma polegada em PVC soldável de água fria (1.1/4",
+1.1/2", 2.1/2") e outra em PVC esgoto (1.1/2", 2", 3"). Nesses três, o escritor precisa da série
+(`cadastro.serie_do_titulo`, tirada do título da biblioteca) e, **sem ela, grava a sentinela e
+avisa** — pôr a peça uma bitola inteira fora, calado, é pior que deixá-la sem bitola.
+
+> A tabela em milímetro que existia aqui (`{40: 8, 50: 9, 60: 10, 75: 11, 100: 12, …}`) era a
+> equivalência do PVC **esgoto** com um valor inventado no meio (60 → 10 não existe em série
+> nenhuma), e errava toda bitola de PVC soldável por um degrau.
 
 ## A `IMAGEM` da simbologia — sem ela o Builder não desenha
 
@@ -227,10 +278,11 @@ nomes do arquivo inteiro (é ambíguo *dentro daquele arquivo*), e um export com
 `--manter-prefixo-serie` desliga a remoção, para quem quer o nome da tela literal.
 
 **4. Um grupo por série, com os códigos IFC inferidos do nome.** O catálogo não guarda os
-códigos originais de grupo, então `classificar_grupo()` (acima) os infere do nome da série
+códigos originais de grupo, então `cadastro.classificar()` (acima) os infere da entidade IFC
+da fonte ou do vocabulário da disciplina
 — por palavra inteira, ~98% dos grupos de uma biblioteca real de conexões reproduzidos.
 **Uma série com curva Q-H promove o grupo inteiro a bomba** (`IFC_BOMBA`, `SUB_BOMBA`,
-`APL_BOMBA`), independente do que `classificar_grupo` teria dito pelo nome — a presença de
+`APL_BOMBA`), independente do que o vocabulário teria dito pelo nome — a presença de
 curva é um sinal mais forte que o vocabulário.
 
 **5. As colunas exatas de uma peça com 3D**, como um fabricante real grava:
@@ -354,7 +406,9 @@ O que segue sem prova: o rótulo em "Sim" depois da correção, e o encaixe da p
 ## Onde está no código
 
 - `biblioteca/bim_pipeline/aq/aq_writer.py` — `SCHEMA_SQL`, `criar_schema`, `EscritorAq`
-  (`ins`, `cp1252`, `versao`), as constantes de enum, `classificar_grupo`, `aplicacao_de`.
+  (`ins`, `cp1252`, `versao`) e as constantes do arquivo (sentinelas, rugosidades, unidades).
+  A regra do **cadastro** — disciplina, aplicação, posicionamento, código de bitola — mora em
+  `bim_pipeline/aq/cadastro.py`, chamada pelos dois escritores.
 - `biblioteca/bim_pipeline/aq/schema-aq-607.sql` — o DDL das 77 tabelas e 84 índices.
 - `biblioteca/bim_pipeline/aq/oq3d_writer.py` — o escritor do BLOB binário (ver `oq3d.md`).
 - `biblioteca/bim_pipeline/aq/imagem_aq.py` — o BMP de `SIMBOLOGIA_3D.IMAGEM` (rasterizador em numpy).

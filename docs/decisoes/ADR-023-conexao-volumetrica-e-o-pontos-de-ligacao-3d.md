@@ -1,6 +1,6 @@
 # ADR-023 — `CONEXAO_VOLUMETRICA` é o "Pontos de ligação 3D" do Cadastro
 
-**Status:** Aceita (2026-09-10)
+**Status:** Aceita (2026-09-10) · **verificada no Builder em 2026-09-10**
 
 ## Decisão
 
@@ -58,3 +58,25 @@ nas 12 peças. Nossos dois escritores gravavam `0` — fixo, desde sempre.
   no Builder decide.
 - Se o rótulo **acender**, cai também a suspeita de que a aplicação errada (ADR-024) fosse a causa —
   ela continua sendo um defeito, mas outro.
+
+## Verificação no Builder (2026-09-10)
+
+O usuário abriu no Cadastro as bibliotecas exportadas depois desta correção e mandou seis telas.
+O que elas mostram, dentro de **uma mesma biblioteca nossa** (as válvulas e atuadores de HVAC
+importados de famílias Revit):
+
+- peça com entradas → **"Pontos de ligação 3D: Sim"**, e a linha *Entradas* **some** da lista de
+  propriedades;
+- peça sem entrada (`Entradas: 0`) → o campo aparece **desabilitado**, em cinza, com "Não".
+
+O par confirma as duas metades: `CONEXAO_VOLUMETRICA = 1` acende o rótulo, e o campo é mesmo
+**alternativo** à propriedade *Entradas*, como `peca.htm` dizia. As outras telas repetem o "Sim"
+em peças de aquecedores a gás e de acessórios sanitários.
+
+Vale registrar o que **não** foi verificado: os `.aq` do teste não estão mais em
+`Downloads/teste-geometria-aq/` (foram importados e removidos), então não deu para cruzar peça a
+peça o valor gravado com o rótulo na tela. A leitura acima se apoia em o contraste "Sim × Não
+desabilitado" aparecer **dentro da mesma biblioteca**, que é nossa.
+
+As mesmas telas trouxeram, de brinde, a prova visual do defeito do ADR-024: os atuadores de HVAC
+e um aquecedor a gás aparecem com **"Aplicação: Conexão"**.

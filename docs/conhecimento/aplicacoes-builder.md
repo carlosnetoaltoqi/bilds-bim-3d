@@ -193,24 +193,43 @@ Duas coisas medidas que valem como regra:
   do plano dos dois condutos; `geo_to_aq` grava 0, que é o valor certo para conexão. É defeito de
   orientação no lançamento, não de desenho: a peça aparece, torta.
 
-## Onde nosso pipeline erra hoje
+## O que o pipeline faz hoje (ADR-024, implementado em 2026-09-10)
 
-`aq_writer.REGRAS_GRUPO` classifica **pelo nome do grupo**, com um vocabulário que é de catálogo
-hidráulico em PVC (tubo, bomba, ralo, sifão, joelho, luva…), e **sem regra que case, a peça vira
-conexão genérica**. `aplicacao_de` escolhe a disciplina por quatro palavras no título (esgoto,
-incêndio, gás, senão água fria). O resultado com um catálogo elétrico ou de climatização é o que a
-engenharia do Builder observou: **peça elétrica cadastrada como conexão hidráulica**. Não é um bug
-pontual — é o padrão errado, herdado de as primeiras bibliotecas importadas serem hidráulicas.
+Até 2026-09-10, `aq_writer.REGRAS_GRUPO` classificava **pelo nome do grupo**, com um vocabulário
+de catálogo hidráulico em PVC (tubo, bomba, ralo, sifão, joelho, luva…) e, **sem regra que
+casasse, a peça virava conexão genérica**; `aplicacao_de` escolhia a disciplina por quatro
+palavras no título (esgoto, incêndio, gás, senão água fria). O resultado com um catálogo elétrico
+ou de climatização é o que a engenharia do Builder observou: **peça elétrica cadastrada como
+conexão hidráulica**. Não era um bug pontual — era o padrão errado, herdado de as primeiras
+bibliotecas importadas serem hidráulicas.
 
-A correção é ADR-024. Três regras que a medição acima sustenta:
+Hoje quem classifica é `bim_pipeline.aq.cadastro`, chamado pelos dois escritores, em três degraus:
 
-1. **A disciplina vem da fonte, não do nome.** Uma família Revit traz a categoria; um IFC traz a
-   entidade; um catálogo de plugin traz a seção. É daí que sai `PROJETO_APLICACAO`, e o *default*
-   não pode ser hidráulico.
-2. **A aplicação vem da entidade IFC quando ela existe** (tabela acima), e só cai no vocabulário por
-   nome quando não existe — e aí o vocabulário tem de ser o da disciplina escolhida no passo 1.
-3. **Sem disciplina reconhecida, é melhor falhar ou avisar do que chutar hidráulico.** Peça no lugar
-   errado do cadastro é defeito que só aparece quando um projetista não acha a peça.
+1. **A disciplina vem de quem importa, não do nome.** É campo **obrigatório** no formulário de
+   importação (`POST /importacoes`, `/importacoes/plugin-autocad`, `/importacoes/familias-revit`),
+   pré-preenchido com o palpite da fonte e confirmado por quem importa; fica gravada no catálogo
+   (`bim_catalogs.disciplina`) e vale para a biblioteca inteira. A exportação de um catálogo sem
+   disciplina — os importados antes desta data — é **recusada**, com a mensagem dizendo o que
+   escolher, em vez de exportar peça no projeto errado.
+2. **A aplicação vem da entidade IFC quando a fonte a declara** (tabela acima, em `cadastro.IFC`),
+   e a disciplina desempata onde a entidade não decide (2073 → 41 componente no elétrico, 47 captor
+   no SPDA). Só na falta dela cai no **vocabulário da disciplina escolhida** — são sete tabelas
+   agora, uma por disciplina; a hidráulica é a antiga, sem perda.
+3. **Sem reconhecer, grava o genérico da disciplina e avisa** — no resumo da exportação e na
+   conferência "aplicação e disciplina" do `validar_aq`, que fala alto quando uma disciplina **inteira** ficou no
+   genérico. Não aborta: uma biblioteca de 3.000 peças não pode ficar refém de cinco peças
+   estranhas, mas o erro não pode mais passar calado, que foi como ele atravessou três aceitações
+   no Builder.
+
+Junto vieram as correções que a medição sustentava: `PROJETO_APLICACAO` de água fria passou de 12
+(hidráulico + sanitário) para **4** e o de incêndio de 22 para **20**; `POSICIONAR_SIMBOLOGIA_3D`
+deixou de ser fixo (3 num escritor, 0 no outro) e sai da aplicação pela tabela medida; e
+`INDICE_SIMBOLO3D_SELECIONADO`, que divergia entre os escritores, ficou em **-1**, o *default* do
+schema.
+
+O que **continua em aberto** é o que a medição não decide: a peça cuja fonte não declara entidade
+IFC e cujo nome está em inglês (`Actuator MP500C-SRD`) cai no genérico e é avisada — o vocabulário
+não cobre outra língua, e inventar sinônimos em inglês seria voltar a adivinhar.
 
 ## Como medir de novo
 

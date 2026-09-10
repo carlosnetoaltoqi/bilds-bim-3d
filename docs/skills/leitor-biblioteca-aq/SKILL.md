@@ -45,7 +45,9 @@ Você é especialista em ler e escrever bibliotecas BIM do AltoQi Builder (`.aq`
 - cp1252 ≠ latin-1: divergem em 0x80–0x9F (travessão, aspas curvas, reticências) — latin-1 nunca lança erro, só corrompe o nome em silêncio.
 - Literal acentuado dentro do SQL também precisa ir em cp1252 — comparar `str` (UTF-8) com os bytes cp1252 do banco nunca casa, e a query volta vazia sem erro.
 - `sqlite3.connect(caminho)` **cria** um arquivo vazio se ele não existir — cheque `os.path.isfile` antes e abra em `mode=ro`.
-- `DIAMETRO_PECA` é um **código** de diâmetro, não centímetro, e a maioria das peças traz a sentinela `-DBL_MAX` em vez de um valor.
+- `DIAMETRO_PECA` é um **código** de bitola, não centímetro, e a maioria das peças traz a sentinela `-DBL_MAX` em vez de um valor.
+- A escala do código é **em polegada** (0 = 1/4"… 17 = 12"), não em milímetro: 40, 50 e 75 mm são uma polegada em PVC soldável e outra em esgoto, e sem saber a série é melhor gravar a sentinela que chutar (ADR-025).
+- A **disciplina** de uma biblioteca (`PROJETO_APLICACAO`, bitmask) não se adivinha pelo nome: quem escolhe é quem importa, e o *default* hidráulico é o que fez uma biblioteca de HVAC sair inteira como conexão de água fria (ADR-024).
 - Sentinelas substituem `NULL` no AltoQi: `-2147483647` e `-1.7976931348623157e+308`.
 - Trocar `text_factory` sem `CAST(col AS BLOB)` na query corrompe o BLOB da geometria — o round-trip via latin-1 não sobrevive à troca para cp1252.
 - Deduplique vértices só na malha **gerada** — a malha de fabricante já vem como sopa de triângulos e não é estanque.
@@ -57,9 +59,10 @@ Você é especialista em ler e escrever bibliotecas BIM do AltoQi Builder (`.aq`
 
 - Ler: `biblioteca/bim_pipeline/aq/read_aq.py`, `biblioteca/bim_pipeline/aq/oq3d.py` — CLI `python -m bim_pipeline.cli.read_aq <arquivo.aq> [saida.json] [--meta]`.
 - O BMP de `SIMBOLOGIA_3D.IMAGEM`: `biblioteca/bim_pipeline/aq/imagem_aq.py` (`render(malhas)`, mesmo argumento do `oq3d_writer.escrever`); num `.aq` já exportado, CLI `python -m bim_pipeline.cli.ferramentas.preencher_imagem_aq <arquivo.aq>`.
-- Escrever uma peça: `biblioteca/bim_pipeline/saida/geo_to_aq.py` — CLI `python -m bim_pipeline.cli.gerar_aq entrada.json saida.aq [--fabricante] [--linha] [--nome] [--codigo]`.
-- Escrever um catálogo inteiro: `biblioteca/bim_pipeline/saida/catalogo_to_aq.py` — CLI `python -m bim_pipeline.cli.catalogo_para_aq manifesto.json saida.aq [--manter-prefixo-serie] [--quiet]`.
+- Escrever uma peça: `biblioteca/bim_pipeline/saida/geo_to_aq.py` — CLI `python -m bim_pipeline.cli.gerar_aq entrada.json saida.aq --disciplina <hidraulico|sanitario|incendio|gas|eletrico|spda|climatizacao> [--fabricante] [--linha] [--nome] [--codigo]`.
+- Escrever um catálogo inteiro: `biblioteca/bim_pipeline/saida/catalogo_to_aq.py` — CLI `python -m bim_pipeline.cli.catalogo_para_aq manifesto.json saida.aq --disciplina <…> [--manter-prefixo-serie] [--quiet]`.
 - Schema e escritores binários: `biblioteca/bim_pipeline/aq/aq_writer.py`, `biblioteca/bim_pipeline/aq/oq3d_writer.py`.
+- A regra do cadastro (disciplina, aplicação, posicionamento, código de bitola), num lugar só: `biblioteca/bim_pipeline/aq/cadastro.py`.
 - Inferência de fabricante/título/slug: `biblioteca/bim_pipeline/catalogo/inferencia.py`; catálogo/prefixo por grupo: `biblioteca/bim_pipeline/catalogo/catalogo.py`.
 - Ferramentas de diagnóstico e validação (fora do caminho padrão): `biblioteca/bim_pipeline/cli/ferramentas/validar_aq.py`, `aq_referencia.py`, `oq3d_anatomy.py`, `oq3d_roundtrip.py`.
 - Testes: `tests/biblioteca/test_*.py`.
@@ -68,7 +71,8 @@ Você é especialista em ler e escrever bibliotecas BIM do AltoQi Builder (`.aq`
 
 | Tópico | Doc |
 |---|---|
-| Schema do `.aq`, encoding, sentinelas, `DIAMETRO_PECA`, versões de schema | `aq-formato.md` |
+| Schema do `.aq`, encoding, sentinelas, `DIAMETRO_PECA` (escala em polegada), versões de schema | `aq-formato.md` |
+| Aplicação e disciplina — bitmask, enum 1…84, a ponte da entidade IFC, posicionamento | `aplicacoes-builder.md` |
 | Escrever um `.aq` — peça e catálogo inteiro, enums, ordem de inserção | `aq-escrita.md` |
 | Formato binário OQ3D — cabeçalho, árvore, instâncias por referência, escrita, validação contra IFC | `oq3d.md` |
 | Contrato de geometria `{pos,col,idx}`, eixos, unidades, dedup | `geometria.md` |
