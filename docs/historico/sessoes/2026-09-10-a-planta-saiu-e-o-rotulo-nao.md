@@ -1,7 +1,7 @@
 # 2026-09-10 — a planta saiu, o rótulo não
 
 **Data:** 2026-09-10 · **Status:** concluída com ressalva (a nova verificação no Builder é do usuário)
-**Commits:** ver `git log`
+**Commits:** `6bd2bbc`, `c595561`, `5a4a446`, `d702007`, `ee5f652`, `edb3a9e` — **enviados**
 
 ---
 
@@ -159,6 +159,7 @@ O que veio de lá, em ordem de valor:
 
 | O quê | Estado | Como conferir |
 |---|---|---|
+| `main` | 6 commits desta sessão, **enviados** | `git rev-list --count origin/main..HEAD` |
 | árvore | limpa | `git status --short` |
 | suíte | 240 na coleta | `python3 -m pytest --collect-only -q \| tail -1` |
 | biblioteca + arquitetura | 172 passam, 19 pulam (fixtures ausentes aqui) | `python3 -m pytest tests/biblioteca tests/arquitetura -m "not thumbs" -q` |

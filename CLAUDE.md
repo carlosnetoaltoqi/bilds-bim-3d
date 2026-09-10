@@ -225,8 +225,8 @@ fabricante, o que depende de autorização explícita (Termos de Uso).
 - Conferir no Builder as quatro bibliotecas de 2026-09-08 corrigidas com `preencher_imagem_aq` (as duas
   de famílias Revit, a de conexões e a do projeto `.rvt`) — a de conexões já foi verificada, com peça
   lançada no projeto e, em 2026-09-10, em planta.
-- **Push pendente:** os commits de 2026-09-10 **não foram enviados** (`main` está à frente de
-  `origin/main`, que parou em `2f94e6c`). Confira com `git rev-list --count origin/main..HEAD`.
+- Nada pendente de push: os 6 commits de 2026-09-10 foram enviados (`main` == `origin/main` em
+  `edb3a9e`). Confira com `git rev-list --count origin/main..HEAD`.
 - **Próxima sessão: comece listando estas pendências e pergunte ao usuário por onde seguir (ou o
   que ele já testou) antes de executar qualquer coisa.** Os registros das duas últimas sessões, com
   as tentativas que falharam e as armadilhas, estão em
