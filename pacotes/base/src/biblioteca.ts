@@ -71,12 +71,14 @@ export interface AqParte { nome: string; pos: number[]; col: number[] | null; id
 
 /** Entrada do `catalogo_to_aq.py` — o que o serviço monta a partir do Mongo (ver docstring do script). */
 export interface ManifestoCatalogoAq {
-  catalogo: { fabricante: string; titulo: string; slug: string; descricao?: string; origem?: string };
+  /** `disciplina` é obrigatória na exportação (ADR-024): decide o `PROJETO_APLICACAO` do .aq */
+  catalogo: { fabricante: string; titulo: string; slug: string; disciplina?: string; descricao?: string; origem?: string };
   geo_dir: string;
   produtos: Array<{
     id: string; nome: string; serie: string; conexoes: string;
     specs: Record<string, string>; curva: number[][] | null; potencia: number | null;
-    codigo?: string; geo: string;
+    /** entidade IFC declarada pela fonte, quando há: é o primeiro degrau da classificação */
+    codigo?: string; entidadeIfc?: number; geo: string;
   }>;
 }
 

@@ -23,6 +23,15 @@ export class BimCatalog {
   @Prop({ required: true })
   layout: string;
 
+  /**
+   * Disciplina do Builder (`hidraulico`, `sanitario`, `incendio`, `gas`, `eletrico`, `spda`,
+   * `climatizacao`) — quem escolhe é quem importa, e é ela que decide o `PROJETO_APLICACAO`
+   * do `.aq` (ADR-024). Fica opcional no schema porque os catálogos importados antes de
+   * 2026-09-10 não a têm; a exportação recusa exportar sem ela, em vez de adivinhar.
+   */
+  @Prop({ type: String })
+  disciplina?: string;
+
   @Prop({ type: [String], default: [] })
   filters: string[];
 

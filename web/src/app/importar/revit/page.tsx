@@ -18,6 +18,7 @@ import { FormEvent, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { CATALOGO_URL } from '@/servicos/catalogo'
 import { CRIADOR_URL } from '@/servicos/criador'
+import { DISCIPLINAS, palpiteDeDisciplina } from '@/disciplinas'
 
 interface Empresa { id: string; name: string; customUrl: string; catalogCount: number }
 
@@ -27,6 +28,7 @@ export default function ImportarRevitPage() {
   const router = useRouter()
   const [empresas, setEmpresas] = useState<Empresa[]>([])
   const [empresa, setEmpresa] = useState('')
+  const [disciplina, setDisciplina] = useState('')   // ADR-024: obrigatória, pré-preenchida
   const [file, setFile] = useState<File | null>(null)
   const [apsDisponivel, setApsDisponivel] = useState<boolean | null>(null)
   const [usarAps, setUsarAps] = useState(false)
@@ -56,6 +58,7 @@ export default function ImportarRevitPage() {
     const fd = new FormData()
     fd.append('file', file)
     if (empresa) fd.append('empresa', empresa)
+    fd.append('disciplina', disciplina)
     fd.append('usarAps', usarAps && apsDisponivel ? 'true' : 'false')
     fd.append('filtrarAuxiliares', filtrarAuxiliares ? 'true' : 'false')
     if (catalogo.trim()) fd.append('catalogo', catalogo.trim())
@@ -103,9 +106,21 @@ export default function ImportarRevitPage() {
             </select>
           </label>
           <label className="flex flex-col gap-1">
+            <span className="text-[12px] text-gray-600 font-medium">Disciplina do Builder <span className="text-red-600">*</span></span>
+            <select value={disciplina} onChange={(e) => setDisciplina(e.target.value)} className={inputCls} required disabled={enviando}>
+              <option value="">(escolha a disciplina)</option>
+              {DISCIPLINAS.map((d) => <option key={d.slug} value={d.slug}>{d.rotulo}</option>)}
+            </select>
+            <span className="text-[12px] text-gray-500">É ela que põe a peça no projeto certo do Builder (ADR-024). O programa não adivinha.</span>
+          </label>
+          <label className="flex flex-col gap-1">
             <span className="text-[12px] text-gray-600 font-medium">Arquivo .rfa, projeto .rvt ou .zip com famílias/projetos</span>
             <input type="file" accept=".rfa,.rvt,.zip,.RFA,.RVT,.ZIP" required disabled={enviando}
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="text-[13px]" />
+              onChange={(e) => {
+                const f = e.target.files?.[0] ?? null
+                setFile(f)
+                if (f && !disciplina) setDisciplina(palpiteDeDisciplina(f.name) ?? '')
+              }} className="text-[13px]" />
           </label>
           {file && (
             <p className="text-[12px] text-gray-500 -mt-2">
@@ -149,7 +164,7 @@ export default function ImportarRevitPage() {
             </label>
           </div>
           <div className="flex items-center gap-3">
-            <button type="submit" disabled={!file || !empresa || enviando} className="px-4 py-2 rounded bg-[#1e40af] text-white text-[13px] font-semibold disabled:opacity-50">
+            <button type="submit" disabled={!file || !empresa || !disciplina || enviando} className="px-4 py-2 rounded bg-[#1e40af] text-white text-[13px] font-semibold disabled:opacity-50">
               {enviando ? (pct != null && pct < 100 ? `Enviando… ${pct}%` : 'Lendo as famílias…') : 'Importar'}
             </button>
             {erro && <span className="text-[12px] text-red-700">{erro}</span>}

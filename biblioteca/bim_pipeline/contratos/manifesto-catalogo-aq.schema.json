@@ -15,7 +15,8 @@
       "required": [
         "fabricante",
         "titulo",
-        "slug"
+        "slug",
+        "disciplina"
       ],
       "properties": {
         "fabricante": {
@@ -26,6 +27,19 @@
         },
         "slug": {
           "type": "string"
+        },
+        "disciplina": {
+          "type": "string",
+          "enum": [
+            "hidraulico",
+            "sanitario",
+            "incendio",
+            "gas",
+            "eletrico",
+            "spda",
+            "climatizacao"
+          ],
+          "description": "disciplina do Builder, escolhida por quem importa (ADR-024): decide o PROJETO_APLICACAO"
         },
         "descricao": {
           "type": "string"
@@ -84,6 +98,13 @@
               "string",
               "null"
             ]
+          },
+          "entidadeIfc": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "entidade IFC declarada pela fonte, quando há: primeiro degrau da classificação (ADR-024)"
           },
           "geo": {
             "type": "string"

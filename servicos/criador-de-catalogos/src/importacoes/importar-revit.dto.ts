@@ -1,6 +1,6 @@
 import { Transform, Type } from 'class-transformer';
-import { IsBoolean, IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
-import { LIMITES } from '@bim/base';
+import { IsBoolean, IsIn, IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import { LIMITES, SLUGS_DISCIPLINA } from '@bim/base';
 
 const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
 const booleano = ({ value }: { value: unknown }) => (typeof value === 'string' ? ['true', '1', 'sim', 'on'].includes(value.trim().toLowerCase()) : value);
@@ -14,6 +14,14 @@ const booleano = ({ value }: { value: unknown }) => (typeof value === 'string' ?
  * por projeto, opt-in de quem importa (`docs/conhecimento/revit-familias.md`, ADR-019).
  */
 export class ImportarRevitDto {
+
+  /**
+   * Disciplina do Builder — **obrigatória** (ADR-024): decide o `PROJETO_APLICACAO` do `.aq` e,
+   * com ele, em que projeto a peça aparece no lançamento. Vem da tela pré-preenchida.
+   */
+  @IsString()
+  @IsIn(SLUGS_DISCIPLINA as string[], { message: `"disciplina" deve ser uma de: ${SLUGS_DISCIPLINA.join(', ')}` })
+  disciplina!: string;
   /** traduzir projetos .rvt pela APS (exige APS_CLIENT_ID/APS_CLIENT_SECRET no serviço); padrão false */
   @IsOptional() @Transform(booleano) @IsBoolean({ message: '"usarAps" deve ser true ou false' }) usarAps?: boolean;
 

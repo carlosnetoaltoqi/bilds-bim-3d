@@ -42,9 +42,10 @@ export class PublicacaoService {
 
   // ── biblioteca .aq / .zip ────────────────────────────────────────────────
 
-  processarAq(importId: string, arquivo: ArquivoRecebido, company: Empresa) {
+  processarAq(importId: string, arquivo: ArquivoRecebido, company: Empresa, body: ImportarDto) {
     return this.processarCatalogo(importId, company, {
       rotulo: 'catalogo_de_aq.py',
+      disciplina: body.disciplina,
       produzir: (geoDir, onProgresso) => this.pipeline.catalogoDeAq({ aqPath: arquivo.path, geoDir, nomeOriginal: arquivo.fileName, onProgresso }),
       aoTerminar: () => fs.unlink(arquivo.path),
     });
@@ -58,6 +59,8 @@ export class PublicacaoService {
    */
   async processarCatalogo(importId: string, company: Empresa, o: {
     rotulo: string;
+    /** disciplina do Builder escolhida na importação (ADR-024) — vai para o catálogo */
+    disciplina: string;
     produzir: (geoDir: string, onProgresso: (linha: string) => void) => Promise<ResultadoCatalogo>;
     aoTerminar: () => Promise<unknown>;
     aoFalhar?: () => Promise<unknown>;
@@ -101,7 +104,9 @@ export class PublicacaoService {
       const existing = await this.catalogModel.findOne({ companyId: company._id, slug: config.slug }).lean().exec();
       let catalogId: string;
       let prevImportId: string | null = null;
-      const meta = { title: config.titulo, manufacturer: config.fabricante, layout: config.layout, filters: catalog.filtros, productCount: catalog.produtos.length };
+      // a disciplina vem do formulário de importação e é gravada no catálogo: é ela que decide
+      // o PROJETO_APLICACAO na exportação para .aq (ADR-024)
+      const meta = { title: config.titulo, manufacturer: config.fabricante, layout: config.layout, filters: catalog.filtros, productCount: catalog.produtos.length, disciplina: o.disciplina };
       if (existing) {
         const oldImports = await this.productModel.find({ catalogId: existing._id }).distinct('importId').exec();
         prevImportId = (oldImports[0] as string) ?? null;
@@ -228,7 +233,7 @@ export class PublicacaoService {
     let catalog = await this.catalogModel.findOne({ companyId: company._id, slug }).lean().exec();
     if (!catalog) {
       const catalogId = crypto.randomUUID();
-      await this.catalogModel.create({ _id: catalogId, companyId: company._id, slug, title: titulo, manufacturer: fabricante, layout: 'catalog-grid', filters: [], productCount: 0 });
+      await this.catalogModel.create({ _id: catalogId, companyId: company._id, slug, title: titulo, manufacturer: fabricante, layout: 'catalog-grid', filters: [], productCount: 0, disciplina: body.disciplina });
       catalog = await this.catalogModel.findById(catalogId).lean().exec();
     }
 

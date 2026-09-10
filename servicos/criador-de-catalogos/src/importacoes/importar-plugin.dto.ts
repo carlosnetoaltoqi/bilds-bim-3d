@@ -1,6 +1,6 @@
 import { Transform, Type } from 'class-transformer';
-import { IsEmail, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, IsUrl, Matches, Max, MaxLength, Min } from 'class-validator';
-import { LIMITES } from '@bim/base';
+import { IsEmail, IsIn, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, IsUrl, Matches, Max, MaxLength, Min } from 'class-validator';
+import { LIMITES, SLUGS_DISCIPLINA } from '@bim/base';
 
 const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
 
@@ -15,6 +15,14 @@ const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? val
  * gravados no Mongo — vão num JSON temporário para a biblioteca e o arquivo é apagado.
  */
 export class ImportarPluginDto {
+
+  /**
+   * Disciplina do Builder — **obrigatória** (ADR-024): decide o `PROJETO_APLICACAO` do `.aq` e,
+   * com ele, em que projeto a peça aparece no lançamento. Vem da tela pré-preenchida.
+   */
+  @IsString()
+  @IsIn(SLUGS_DISCIPLINA as string[], { message: `"disciplina" deve ser uma de: ${SLUGS_DISCIPLINA.join(', ')}` })
+  disciplina!: string;
   /** customUrl da empresa dona do catálogo; vazio = a primeira cadastrada */
   @IsOptional() @IsString() @Transform(trim) @MaxLength(LIMITES.customUrl) empresa?: string;
 

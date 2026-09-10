@@ -58,7 +58,8 @@ export class ImportacoesController {
   async upload(@UploadedFile() file: Express.Multer.File, @Body() body: ImportarDto) {
     if (!file) throw new BadRequestException('campo "file" obrigatório (.aq, .zip, .stp, .step, .igs, .ifc ou .rfa)');
     const fileName = nomeOriginalUtf8(file.originalname, path.basename(file.path));
-    return this.importacoes.create({ path: file.path, size: file.size, fileName }, body ?? {});
+    // o `?? {}` é defensivo: o ValidationPipe global já recusa corpo sem `disciplina` (ADR-024)
+    return this.importacoes.create({ path: file.path, size: file.size, fileName }, body ?? ({} as ImportarDto));
   }
 
   @Post('familias-revit')
@@ -67,7 +68,7 @@ export class ImportacoesController {
   async familiasRevit(@UploadedFile() file: Express.Multer.File, @Body() body: ImportarRevitDto) {
     if (!file) throw new BadRequestException('campo "file" obrigatório — um .rfa, um projeto .rvt ou um .zip com as famílias Revit');
     const fileName = nomeOriginalUtf8(file.originalname, path.basename(file.path));
-    return this.importacoes.createFamiliasRevit({ path: file.path, size: file.size, fileName }, body ?? {});
+    return this.importacoes.createFamiliasRevit({ path: file.path, size: file.size, fileName }, body ?? ({} as ImportarRevitDto));
   }
 
   /** A página pergunta "usar a APS?" só quando o serviço tem credenciais (antes de `:importId`, senão a rota paramétrica engole). */

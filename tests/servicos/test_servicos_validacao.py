@@ -107,8 +107,8 @@ def test_exportar_aq_limites_e_forma(c):
 # ── POST /cad/importar (multipart) ───────────────────────────────────────────
 
 def test_cad_deflexao_vira_numero_entre_0_e_10(c):
-    assert c['cad_ok'] == {'ok': {'deflexao': 0.5, 'nome': 'peça', 'fabricante': 'X'}}
-    assert c['cad_sem_deflexao'] == {'ok': {'nome': 'p'}}          # o controller aplica 0,2 mm
+    assert c['cad_ok'] == {'ok': {'disciplina': 'hidraulico', 'deflexao': 0.5, 'nome': 'peça', 'fabricante': 'X'}}
+    assert c['cad_sem_deflexao'] == {'ok': {'disciplina': 'hidraulico', 'nome': 'p'}}   # o controller aplica 0,2 mm
     assert 'maior que 0' in _erros(c['cad_deflexao_zero'])
     assert 'no máximo 10' in _erros(c['cad_deflexao_grande'])
     assert 'deve ser um número' in _erros(c['cad_deflexao_texto'])
@@ -121,8 +121,13 @@ def test_empresa_e_importar_aq(c):
     assert 'campo "name" obrigatório' in _erros(c['empresa_sem_nome'])
     assert 'campo "customUrl" obrigatório' in _erros(c['empresa_sem_url'])
     # sem auth (S7.14): o import recebe a empresa por `customUrl`; campo fora do DTO é 400
-    assert c['importar_aq_ok'] == {'ok': {'empresa': 'poc'}}
-    assert c['importar_aq_vazio'] == {'ok': {}}
+    assert c['importar_aq_ok'] == {'ok': {'disciplina': 'hidraulico', 'empresa': 'poc'}}
+    # ADR-024: a disciplina é obrigatória e fechada nas sete — corpo sem ela, ou com um slug
+    # inventado, é 400. Antes, a importação sem disciplina passava e a peça saía hidráulica.
+    assert c['importar_aq_vazio']['status'] == 400
+    assert c['importar_aq_sem_disciplina']['status'] == 400
+    assert 'disciplina' in _erros(c['importar_aq_sem_disciplina'])
+    assert c['importar_aq_disciplina_invalida']['status'] == 400
     assert c['importar_aq_campo_estranho']['status'] == 400
 
 
@@ -133,7 +138,7 @@ def test_importar_plugin_lead_categoria_e_limites(c):
     assert ok['empresa'] == 'poc' and ok['categoria'] == 'conexoes-ranhuradas-17' and ok['host'] == 'https://catalogo.exemplo.com.br'
     assert ok['igsPorGrupo'] == 3 and ok['deflexao'] == 0.5          # texto do multipart → número
     assert ok['fullName'] == 'Carlos' and ok['email'] == 'c@x.com'  # trim
-    assert set(c['plugin_minimo']['ok']) == {'categoria', 'fullName', 'email', 'mobile', 'company', 'position'}
+    assert set(c['plugin_minimo']['ok']) == {'disciplina', 'categoria', 'fullName', 'email', 'mobile', 'company', 'position'}
     e = _erros(c['plugin_sem_lead'])
     for campo in ('fullName', 'email', 'mobile', 'company', 'position'):
         assert campo in e

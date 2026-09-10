@@ -78,7 +78,8 @@ export class ImportacoesService {
       await fs.unlink(arquivo.path).catch(() => {});
       throw new BadRequestException(`extensão não suportada em "${arquivo.fileName}" — envie .aq, .zip, .stp, .step, .igs, .ifc ou .rfa`);
     }
-    if (tipo === 'revit') return this.createFamiliasRevit(arquivo, { empresa: body.empresa });
+    // um .rfa solto entra pelo caminho das famílias Revit, levando a disciplina escolhida
+    if (tipo === 'revit') return this.createFamiliasRevit(arquivo, { empresa: body.empresa, disciplina: body.disciplina } as ImportarRevitDto);
     let company;
     try {
       company = await this.empresaDe(body.empresa);
@@ -103,7 +104,7 @@ export class ImportacoesService {
     // Uma importação por vez (I11): as demais esperam em `recebido` com a posição no `note`.
     // O processamento registra as falhas no documento; se nem isso conseguir, fica no log.
     const trabalho = tipo === 'aq'
-      ? () => this.publicacao.processarAq(importId, arquivo, company)
+      ? () => this.publicacao.processarAq(importId, arquivo, company, body)
       : () => this.publicacao.processarCad(importId, arquivo, company, body);
     this.fila
       .executar(importId, trabalho, (naFrente) => {
@@ -157,6 +158,7 @@ export class ImportacoesService {
     const lead = { full_name: body.fullName, email: body.email, mobile: body.mobile, company: body.company, position: body.position };
     const downloads = path.join(storagePath(), 'catallog', importId);
     const trabalho = () => this.publicacao.processarCatalogo(importId, company, {
+      disciplina: body.disciplina,
       rotulo: 'plugin_catalogo_web importar',
       produzir: (geoDir, onProgresso) => this.pipeline.catalogoDePlugin({
         host, categoria: body.categoria, lead, downloads, geoDir, igsPorGrupo: body.igsPorGrupo ?? 1, deflexao: body.deflexao ?? 0.2, plugin: info, onProgresso,
@@ -233,6 +235,7 @@ export class ImportacoesService {
       updatedAt: new Date(),
     });
     const trabalho = () => this.publicacao.processarCatalogo(importId, company, {
+      disciplina: body.disciplina,
       rotulo: 'familias_revit importar',
       produzir: (geoDir, onProgresso) => this.pipeline.catalogoDeFamiliasRevit({
         entrada: arquivo.path, geoDir, titulo, fabricante: body.fabricante, comprimentoMm: body.comprimentoMm, deflexao: body.deflexao,

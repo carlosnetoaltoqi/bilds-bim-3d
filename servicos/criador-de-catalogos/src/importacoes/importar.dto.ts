@@ -1,6 +1,6 @@
 import { Transform, Type } from 'class-transformer';
-import { IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
-import { LIMITES } from '@bim/base';
+import { IsIn, IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import { LIMITES, SLUGS_DISCIPLINA } from '@bim/base';
 
 const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
 
@@ -12,6 +12,16 @@ const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? val
 export class ImportarDto {
   /** customUrl da empresa dona do catálogo; vazio = a primeira cadastrada */
   @IsOptional() @IsString() @Transform(trim) @MaxLength(LIMITES.customUrl) empresa?: string;
+
+  /**
+   * Disciplina do Builder — **obrigatória** (ADR-024). É ela que decide em que projeto a peça
+   * aparece no lançamento; o campo chega da tela pré-preenchido com o palpite da fonte, e quem
+   * importa confirma ou troca. Sem ela a peça entrava como hidráulica calada.
+   */
+  @IsString()
+  @Transform(trim)
+  @IsIn(SLUGS_DISCIPLINA as string[], { message: `"disciplina" deve ser uma de: ${SLUGS_DISCIPLINA.join(', ')}` })
+  disciplina!: string;
 
   /** só CAD: série no catálogo (padrão "STEP"/"IFC") */
   @IsOptional() @IsString() @Transform(trim) @MaxLength(LIMITES.texto) fabricante?: string;

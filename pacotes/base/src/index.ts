@@ -14,3 +14,4 @@ export * from './contratos';
 export * from './geo-buffers';
 export * from './validadores';
 export * from './biblioteca';
+export * from './disciplinas';

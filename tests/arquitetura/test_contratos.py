@@ -59,8 +59,13 @@ def test_conversor_step_emite_o_contrato(tmp_path):
 
 def test_manifesto_e_info_plugin_exemplos_validam():
     contratos.validar('manifesto-catalogo-aq', {
-        'catalogo': {'fabricante': 'F', 'titulo': 'T', 'slug': 't'}, 'geo_dir': '/tmp/x',
+        'catalogo': {'fabricante': 'F', 'titulo': 'T', 'slug': 't', 'disciplina': 'hidraulico'}, 'geo_dir': '/tmp/x',
         'produtos': [{'id': 'a', 'nome': 'A', 'serie': 'S', 'conexoes': '', 'specs': {}, 'curva': None, 'potencia': None, 'geo': 'geo/i/a.json'}]})
+    # a disciplina é obrigatória (ADR-024): sem ela o manifesto não passa
+    with pytest.raises(jsonschema.ValidationError):
+        contratos.validar('manifesto-catalogo-aq', {
+            'catalogo': {'fabricante': 'F', 'titulo': 'T', 'slug': 't'}, 'geo_dir': '/tmp/x',
+            'produtos': [{'id': 'a', 'nome': 'A', 'serie': 'S', 'geo': 'geo/i/a.json'}]})
     contratos.validar('info-plugin', {'arquivo': 'p.dll', 'bytes': 100, 'host': 'https://x', 'hosts': ['https://x'], 'dotnet': True,
                                       'plugin': None, 'empresa': None, 'versao': None})
     contratos.validar('info-familias-revit', {'entrada': 'f.zip', 'bytes': 10, 'n_familias': 1, 'n_tipos': 2, 'com_geometria_irma': 0, 'ignorados': 0,

@@ -12,6 +12,7 @@
  */
 
 import { FormEvent, Suspense, useEffect, useRef, useState } from 'react'
+import { DISCIPLINAS, palpiteDeDisciplina } from '@/disciplinas'
 import { useSearchParams } from 'next/navigation'
 import { CATALOGO_URL } from '@/servicos/catalogo'
 import { CRIADOR_URL } from '@/servicos/criador'
@@ -55,6 +56,9 @@ export default function ImportarPage() {
 function ImportarPageInner() {
   const params = useSearchParams()
   const [empresas, setEmpresas] = useState<Empresa[]>([])
+  // ADR-024: a disciplina decide em que projeto do Builder a peça aparece. O campo é
+  // obrigatório e chega pré-preenchido com o palpite da fonte — quem confirma é a pessoa.
+  const [disciplina, setDisciplina] = useState('')
   const [empresa, setEmpresa] = useState(params.get('empresa') ?? '')
   const tipo = params.get('tipo') === 'aq' || params.get('tipo') === 'cad' ? (params.get('tipo') as 'aq' | 'cad') : null
   const extOk = tipo === 'aq' ? /\.(aq|zip)$/i : tipo === 'cad' ? EXT_CAD : EXT_OK
@@ -118,7 +122,9 @@ function ImportarPageInner() {
     setEnviando(true); setErro(null); setAtual(null); setPct(0)
     const fd = new FormData()
     fd.append('file', file)
+    if (!disciplina) { setErro('escolha a disciplina do Builder — sem ela a peça sai no projeto errado'); setEnviando(false); return }
     if (empresa) fd.append('empresa', empresa)
+    fd.append('disciplina', disciplina)
     if (ehCad) {
       if (fabricante.trim()) fd.append('fabricante', fabricante.trim())
       if (catalogo.trim()) fd.append('catalogo', catalogo.trim())
@@ -181,9 +187,25 @@ function ImportarPageInner() {
             </select>
           </label>
           <label className="flex flex-col gap-1">
+            <span className="text-[12px] text-gray-600 font-medium">Disciplina do Builder <span className="text-red-600">*</span></span>
+            <select value={disciplina} onChange={(e) => setDisciplina(e.target.value)} className={inputCls}
+              required disabled={enviando || emAndamento}>
+              <option value="">(escolha a disciplina)</option>
+              {DISCIPLINAS.map((d) => <option key={d.slug} value={d.slug}>{d.rotulo}</option>)}
+            </select>
+            <span className="text-[12px] text-gray-500">
+              É ela que põe a peça no projeto certo do Builder. O programa não adivinha: uma biblioteca de
+              válvulas de HVAC classificada sozinha sai inteira como conexão hidráulica.
+            </span>
+          </label>
+          <label className="flex flex-col gap-1">
             <span className="text-[12px] text-gray-600 font-medium">Arquivo {tipo === 'aq' ? '.aq / .zip' : tipo === 'cad' ? '.stp / .step / .igs / .ifc' : '.aq / .zip / .stp / .step / .igs / .ifc'}</span>
             <input type="file" accept={accept} required disabled={enviando || emAndamento}
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="text-[13px]" />
+              onChange={(e) => {
+                const f = e.target.files?.[0] ?? null
+                setFile(f)
+                if (f && !disciplina) setDisciplina(palpiteDeDisciplina(f.name) ?? '')
+              }} className="text-[13px]" />
           </label>
           {file && (
             <p className="text-[12px] text-gray-500 -mt-2">

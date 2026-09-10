@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, Logger, NotFoundException } from '@nes
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { BimCatalog, BimCatalogDocument, BimProduct, BimProductDocument, storagePath } from '@bim/dominio';
+import { ehDisciplina, SLUGS_DISCIPLINA } from '@bim/base';
 import { PipelineService, ManifestoCatalogoAq } from '../pipeline/pipeline.service';
 
 /**
@@ -25,12 +26,21 @@ export class ExportacaoService {
     // ordem natural = ordem de inserção do import (a ordem das peças no .aq de origem)
     const produtos = await this.productModel.find({ catalogId }).lean().exec();
     if (!produtos.length) throw new BadRequestException(`o catálogo "${cat.title}" não tem produtos — nada a exportar`);
+    // A disciplina decide o PROJETO_APLICACAO do .aq (ADR-024). Catálogo importado antes de
+    // 2026-09-10 não a tem: recusa e pede, em vez de exportar peça no projeto errado.
+    if (!ehDisciplina(cat.disciplina)) {
+      throw new BadRequestException(
+        `o catálogo "${cat.title}" não tem disciplina definida — sem ela a peça sairia no projeto errado do Builder. ` +
+          `Escolha uma de: ${SLUGS_DISCIPLINA.join(', ')} (reimporte o catálogo informando a disciplina).`,
+      );
+    }
 
     const manifesto: ManifestoCatalogoAq = {
       catalogo: {
         fabricante: cat.manufacturer,
         titulo: cat.title,
         slug: cat.slug,
+        disciplina: cat.disciplina,
         origem: `bilds-bim-3d — catálogo ${cat.slug} exportado em ${new Date().toISOString()}`,
       },
       geo_dir: storagePath(),

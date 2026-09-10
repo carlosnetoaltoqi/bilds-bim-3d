@@ -19,6 +19,7 @@ import { useRouter } from 'next/navigation'
 import { CATALOGO_URL } from '@/servicos/catalogo'
 import { CRIADOR_URL } from '@/servicos/criador'
 import { CONVERSORES_URL, inspecionarPlugin } from '@/servicos/conversores'
+import { DISCIPLINAS, palpiteDeDisciplina } from '@/disciplinas'
 
 interface Empresa { id: string; name: string; customUrl: string; catalogCount: number }
 interface Categoria { slug: string; name: string; grupos: number; grupos_nomes: string[] }
@@ -41,6 +42,7 @@ export default function ImportarPluginPage() {
   const router = useRouter()
   const [empresas, setEmpresas] = useState<Empresa[]>([])
   const [empresa, setEmpresa] = useState('')
+  const [disciplina, setDisciplina] = useState('')   // ADR-024: obrigatória, pré-preenchida
   const [file, setFile] = useState<File | null>(null)
   const [info, setInfo] = useState<PluginInfo | null>(null)
   const [inspecionando, setInspecionando] = useState(false)
@@ -76,6 +78,8 @@ export default function ImportarPluginPage() {
       setHost(i.host)
       const cats = i.categorias ?? []
       setCategoria(cats[0]?.slug ?? '')
+      // a categoria do plugin é a melhor pista de disciplina que esta tela tem — palpite, não decisão
+      if (!disciplina) setDisciplina(palpiteDeDisciplina(cats[0]?.slug, cats[0]?.name, i.plugin) ?? '')
     } catch {
       setErro(`falha de rede — o serviço de conversores está de pé em ${CONVERSORES_URL}?`)
     } finally {
@@ -90,6 +94,7 @@ export default function ImportarPluginPage() {
     const fd = new FormData()
     fd.append('file', file)
     if (empresa) fd.append('empresa', empresa)
+    fd.append('disciplina', disciplina)
     if (host.trim() && host.trim() !== info.host) fd.append('host', host.trim())
     fd.append('categoria', categoria)
     fd.append('igsPorGrupo', igsPorGrupo)
@@ -154,10 +159,21 @@ export default function ImportarPluginPage() {
                   {empresas.map((e) => <option key={e.id} value={e.customUrl}>{e.name} — /{e.customUrl} ({e.catalogCount} catálogo{e.catalogCount === 1 ? '' : 's'})</option>)}
                 </select>
               </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-[12px] text-gray-600 font-medium">Disciplina do Builder <span className="text-red-600">*</span></span>
+              <select value={disciplina} onChange={(e) => setDisciplina(e.target.value)} className={inputCls} required disabled={enviando}>
+                <option value="">(escolha a disciplina)</option>
+                {DISCIPLINAS.map((d) => <option key={d.slug} value={d.slug}>{d.rotulo}</option>)}
+              </select>
+              <span className="text-[12px] text-gray-500">É ela que põe a peça no projeto certo do Builder (ADR-024). O programa não adivinha.</span>
+            </label>
               <div className="grid grid-cols-2 gap-3">
                 <label className="flex flex-col gap-1">
                   <span className="text-[12px] text-gray-600 font-medium">2 · Categoria a importar</span>
-                  <select value={categoria} onChange={(e) => setCategoria(e.target.value)} className={inputCls} disabled={enviando}>
+                  <select value={categoria} onChange={(e) => {
+                    setCategoria(e.target.value)
+                    if (!disciplina) setDisciplina(palpiteDeDisciplina(e.target.value) ?? '')
+                  }} className={inputCls} disabled={enviando}>
                     {cats.map((c) => <option key={c.slug} value={c.slug}>{c.name} — {c.grupos} grupo{c.grupos === 1 ? '' : 's'}</option>)}
                   </select>
                 </label>

@@ -77,32 +77,35 @@ async function main() {
   s.exportar_so_geo = await valida(ExportarAqDto, { pos: parte.pos, col: [], idx: parte.idx });
 
   // ── POST /cad/importar (multipart → tudo texto) ──────────────────────────────
-  s.cad_ok = await valida(ImportarDto, { deflexao: '0.5', nome: ' peça ', fabricante: 'X' });
-  s.cad_sem_deflexao = await valida(ImportarDto, { nome: 'p' });
-  s.cad_deflexao_zero = await valida(ImportarDto, { deflexao: '0' });
-  s.cad_deflexao_grande = await valida(ImportarDto, { deflexao: '11' });
-  s.cad_deflexao_texto = await valida(ImportarDto, { deflexao: 'abc' });
+  s.cad_ok = await valida(ImportarDto, { disciplina: 'hidraulico', deflexao: '0.5', nome: ' peça ', fabricante: 'X' });
+  s.cad_sem_deflexao = await valida(ImportarDto, { disciplina: 'hidraulico', nome: 'p' });
+  s.cad_deflexao_zero = await valida(ImportarDto, { disciplina: 'hidraulico', deflexao: '0' });
+  s.cad_deflexao_grande = await valida(ImportarDto, { disciplina: 'hidraulico', deflexao: '11' });
+  s.cad_deflexao_texto = await valida(ImportarDto, { disciplina: 'hidraulico', deflexao: 'abc' });
 
   // ── POST /empresas e POST /importacoes (sem auth desde S7.14) ────────────────
   s.empresa_ok = await valida(CriarEmpresaDto, { name: ' POC ', customUrl: ' Minha Empresa ' });
   s.empresa_sem_nome = await valida(CriarEmpresaDto, { name: '', customUrl: 'x' });
   s.empresa_sem_url = await valida(CriarEmpresaDto, { name: 'x' });
-  s.importar_aq_ok = await valida(ImportarDto, { empresa: ' poc ' });
+  s.importar_aq_ok = await valida(ImportarDto, { disciplina: 'hidraulico', empresa: ' poc ' });
+  // ADR-024: a disciplina é obrigatória e fechada nas sete — sem ela, 400
+  s.importar_aq_sem_disciplina = await valida(ImportarDto, { empresa: 'poc' });
+  s.importar_aq_disciplina_invalida = await valida(ImportarDto, { empresa: 'poc', disciplina: 'encanamento' });
   s.importar_aq_vazio = await valida(ImportarDto, {});
-  s.importar_aq_campo_estranho = await valida(ImportarDto, { ownerId: 'x' });
+  s.importar_aq_campo_estranho = await valida(ImportarDto, { disciplina: 'hidraulico', ownerId: 'x' });
 
   // ── POST /importacoes/plugin-autocad (multipart → tudo texto) — S7.17 ────────
   const lead = { fullName: ' Carlos ', email: 'c@x.com', mobile: '48 9', company: 'educa', position: 'Consultor' };
-  s.plugin_ok = await valida(ImportarPluginDto, { empresa: ' poc ', categoria: 'conexoes-ranhuradas-17', igsPorGrupo: '3', deflexao: '0.5', host: 'https://catalogo.exemplo.com.br', ...lead });
-  s.plugin_minimo = await valida(ImportarPluginDto, { categoria: 'conexoes-ranhuradas-17', ...lead });
-  s.plugin_sem_lead = await valida(ImportarPluginDto, { categoria: 'conexoes-ranhuradas-17' });
-  s.plugin_email_invalido = await valida(ImportarPluginDto, { categoria: 'x', ...lead, email: 'carlos' });
-  s.plugin_host_http = await valida(ImportarPluginDto, { categoria: 'x', host: 'http://catalogo.exemplo.com.br', ...lead });
-  s.plugin_categoria_invalida = await valida(ImportarPluginDto, { categoria: 'Conexões Ranhuradas!', ...lead });
-  s.plugin_sem_categoria = await valida(ImportarPluginDto, { ...lead });
-  s.plugin_igs_fora = await valida(ImportarPluginDto, { categoria: 'x', igsPorGrupo: '-2', ...lead });
-  s.plugin_igs_fracao = await valida(ImportarPluginDto, { categoria: 'x', igsPorGrupo: '1.5', ...lead });
-  s.plugin_campo_estranho = await valida(ImportarPluginDto, { categoria: 'x', ...lead, ownerId: 'x' });
+  s.plugin_ok = await valida(ImportarPluginDto, { disciplina: 'hidraulico', empresa: ' poc ', categoria: 'conexoes-ranhuradas-17', igsPorGrupo: '3', deflexao: '0.5', host: 'https://catalogo.exemplo.com.br', ...lead });
+  s.plugin_minimo = await valida(ImportarPluginDto, { disciplina: 'hidraulico', categoria: 'conexoes-ranhuradas-17', ...lead });
+  s.plugin_sem_lead = await valida(ImportarPluginDto, { disciplina: 'hidraulico', categoria: 'conexoes-ranhuradas-17' });
+  s.plugin_email_invalido = await valida(ImportarPluginDto, { disciplina: 'hidraulico', categoria: 'x', ...lead, email: 'carlos' });
+  s.plugin_host_http = await valida(ImportarPluginDto, { disciplina: 'hidraulico', categoria: 'x', host: 'http://catalogo.exemplo.com.br', ...lead });
+  s.plugin_categoria_invalida = await valida(ImportarPluginDto, { disciplina: 'hidraulico', categoria: 'Conexões Ranhuradas!', ...lead });
+  s.plugin_sem_categoria = await valida(ImportarPluginDto, { disciplina: 'hidraulico', ...lead });
+  s.plugin_igs_fora = await valida(ImportarPluginDto, { disciplina: 'hidraulico', categoria: 'x', igsPorGrupo: '-2', ...lead });
+  s.plugin_igs_fracao = await valida(ImportarPluginDto, { disciplina: 'hidraulico', categoria: 'x', igsPorGrupo: '1.5', ...lead });
+  s.plugin_campo_estranho = await valida(ImportarPluginDto, { disciplina: 'hidraulico', categoria: 'x', ...lead, ownerId: 'x' });
 
   process.stdout.write(JSON.stringify(s));
 }
