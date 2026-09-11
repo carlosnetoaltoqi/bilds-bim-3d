@@ -140,6 +140,38 @@ def test_ajuda_builder_indexa_e_busca(tmp_path):
     assert codigo == 0 and '(nada)' in out
 
 
+def test_ajuda_builder_descarta_pagina_de_versao_antiga(tmp_path):
+    """A ajuda guarda páginas de versões passadas ao lado das atuais, com nomes quase iguais.
+
+    Citar uma delas é citar o programa de outra época, e foi por isso que o índice passou a
+    classificar cada página pelo alcance a partir do sumário (`contents_data.js`): no sumário,
+    só por link (janela de propriedades) ou órfã. A busca pula a órfã por padrão.
+    """
+    ajuda = tmp_path / 'ajuda'
+    ajuda.mkdir()
+    (ajuda / 'contents_data.js').write_text(
+        "docAux = insDoc(x, gLnk('R', 'Peças', 'peca.htm'))", encoding='utf8')
+    (ajuda / 'peca.htm').write_text(
+        '<html><body><p>Ângulo de rotação: gira a peça no lançamento.</p>'
+        '<p><a href="propriedade_angulo.htm">detalhes</a></p></body></html>', encoding='utf8')
+    (ajuda / 'propriedade_angulo.htm').write_text(          # só por link: vale, com marca
+        '<html><body><p>Ângulo de rotação em graus.</p></body></html>', encoding='utf8')
+    (ajuda / 'angulo_rotacao_antigo.htm').write_text(       # órfã: ninguém aponta para ela
+        '<html><body><p>Ângulo de rotação: o campo saiu na versão nova.</p></body></html>',
+        encoding='utf8')
+    indice = tmp_path / 'ajuda.jsonl'
+
+    codigo, out = _roda('ajuda_builder', 'Ângulo de rotação', '--ajuda', str(ajuda),
+                        '--indice', str(indice), '--indexar')
+    assert codigo == 0, out
+    assert 'peca.htm' in out and 'propriedade_angulo.htm [link]' in out, out
+    assert 'angulo_rotacao_antigo' not in out, out         # a órfã fica fora da conta
+
+    codigo, out = _roda('ajuda_builder', 'Ângulo de rotação', '--indice', str(indice),
+                        '--incluir-orfas')
+    assert codigo == 0 and 'angulo_rotacao_antigo.htm [orfa]' in out, out
+
+
 def test_aq_referencia_e_anatomy_leem_o_aq(aq_gerado):
     codigo, out = _roda('aq_referencia', aq_gerado, '--limite', '2')
     assert codigo == 0, out

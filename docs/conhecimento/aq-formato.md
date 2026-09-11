@@ -372,6 +372,17 @@ acervos que **não são do repositório** e vivem na máquina de quem opera — 
 | **Bibliotecas nativas de fabricante** (`.aq` baixados do AltoQi) e o **catálogo oficial do Builder** (`Catalog.db`, um SQLite de ~6 GB com o mesmo schema, dezenas de milhares de peças) | que valor uma coluna costuma ter, e o que anda junto com o quê | o que a coluna **significa** |
 | **A ajuda do Builder** (~2.500 páginas `.htm`; leia com `ferramentas.ajuda_builder`) | o que cada propriedade da tela é, e a qual coluna ela corresponde | quais valores são obrigatórios na prática |
 
+**A ajuda tem página de versão antiga misturada com a atual.** Das 2.565 páginas medidas em
+2026-09-11, **281 não são alcançáveis** a partir do sumário (`contents_data.js`) nem por link de
+quem é alcançável: são sucata de versões passadas, e vêm em pares de nome quase igual
+(`Angulo_rotacao.htm` × `Angulo_de_rotacao.htm`), o tipo de coisa que se cita sem perceber. Outras
+**76** só se alcançam por link de dentro de uma página do sumário — tipicamente janela de
+propriedade, e valem como fonte. O índice do `ferramentas.ajuda_builder` classifica cada página
+nesses três estados (`toc`, `link`, `orfa`), **pula a órfã por padrão** (`--incluir-orfas` traz de
+volta) e marca `[link]` o que não está no sumário. As quatro páginas que sustentam ADR-020 a
+ADR-025 — `peca.htm`, `entradas_3d.htm`, `representacao_simbologia_3d.htm`,
+`editar_simbologia_3d.htm` — estão **todas no sumário**, com 58, 17, 23 e 10 links de entrada.
+
 **Distinguir nativa de saída nossa antes de medir.** Elas convivem na mesma pasta, e o prefixo
 `pecas_` **não** distingue — nosso gerador imita a convenção do nome. A assinatura é:
 `PECA.BIBLIOTECA` preenchida com `SIMBOLOGIA_3D.WIREFRAME` nulo em toda simbologia é saída nossa.
