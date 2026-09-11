@@ -160,7 +160,7 @@ Identidade `carlosnetoaltoqi`; branch `main`, histórico linear; nada de push se
 
 **Estado (2026-09-11):** sessão de **auditoria cruzada** — cada afirmação de `docs/conhecimento/`
 conferida contra o código, a ajuda do Builder e o catálogo oficial (31.611 peças, 3.929 grupos,
-6.132 simbologias). Dezesseis achados, registrados em
+6.132 simbologias). Dezessete achados, registrados em
 `docs/historico/sessoes/2026-09-11-auditoria-cruzada-da-documentacao.md`. Suíte em **272** na coleta
 (251 passam, 19 pulam por fixture ausente), `pnpm -r build` verde.
 
