@@ -69,7 +69,11 @@ biblioteca com milhares de peças) na mesma régua de um processo travado. Por i
 relógios independentes:
 
 - **Timeout total** — mata o filho depois de X minutos, não importa o que aconteça. É o teto
-  absoluto (30 minutos, por padrão, tanto para o Python quanto para o Chromium).
+  absoluto (30 minutos, por padrão, tanto para o Python quanto para o Chromium). **`timeoutMs: 0`
+  desarma esse relógio**, e é o que a importação de catálogo web usa: baixar uma categoria com
+  centenas de arquivos passa de três horas (medido: ~22 s por arquivo), então o teto fixo matava
+  trabalho legítimo no meio. Só desarme onde a ociosidade **de fato** protege — ou seja, onde o
+  processo imprime uma linha por unidade de trabalho.
 - **Ociosidade** — reinicia um contador toda vez que **qualquer** linha chega em stdout ou
   stderr; se passar um tempo sem nenhuma linha nova, o processo é considerado travado e morto,
   mesmo estando bem dentro do timeout total. Um Chromium que trava renderizando uma geometria

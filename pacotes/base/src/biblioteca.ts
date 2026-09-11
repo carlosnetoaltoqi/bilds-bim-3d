@@ -190,6 +190,10 @@ export class Biblioteca extends BibliotecaCli {
     }
     try {
       await this.rodar('plugin_catalogo_web', args, {
+        // Sem teto total: uma categoria com centenas de IGES leva horas só na fase de download
+        // (medido: ~22 s por arquivo), e o teto de 30 min matava a importação no meio. Quem
+        // protege é o `ociosoMs` padrão, porque o Python imprime uma linha por arquivo.
+        timeoutMs: 0,
         onStderr: (l) => { if (l.trim()) opts.onProgresso?.(l.trim()); },
       });
       return validarContrato<ResultadoCatalogo>('catalogo', JSON.parse(await fsp.readFile(saida, 'utf8')));

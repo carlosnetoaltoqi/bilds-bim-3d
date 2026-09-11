@@ -140,6 +140,8 @@ export class PublicacaoService {
       let note = [descreveDiag(diag), o.notaExtra?.(resultado) ?? null].filter(Boolean).join(' · ');
       if (prevImportId) {
         const deleted = await this.productModel.deleteMany({ catalogId, importId: { $ne: importId } });
+        // `catallog/<importId>` só existe em importações antigas: o cache de download passou a
+        // ser por (host, categoria), e de propósito não é apagado aqui — ver `pastaDeDownloads`.
         for (const prefixo of [`geo/${prevImportId}`, `thumbs/${prevImportId}`, `catallog/${prevImportId}`]) {
           await this.store.deleteByPrefix(prefixo).catch((e: any) =>
             this.logger.warn(`${tag} não removeu ${prefixo} do import anterior — ${e?.message ?? e}`));

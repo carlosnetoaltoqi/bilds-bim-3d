@@ -94,7 +94,13 @@ export function executar(cmd: string, args: string[], opts: OpcoesProcesso = {})
       motivoKill = motivo;
       child.kill('SIGKILL');
     };
-    const tTotal = setTimeout(() => matar('timeout'), timeoutMs);
+    // `timeoutMs: 0` = sem teto total. É para trabalho legitimamente longo (baixar uma
+    // categoria inteira de um catálogo web passa de 3 h), onde um teto fixo mata no meio e
+    // joga fora o que já custou rede. A guarda real nesses casos é `ociosoMs`: o processo
+    // imprime uma linha por arquivo, então travar de verdade continua sendo morte certa.
+    const tTotal = timeoutMs > 0 && Number.isFinite(timeoutMs)
+      ? setTimeout(() => matar('timeout'), timeoutMs)
+      : undefined;
     const rearmar = () => {
       if (!ociosoMs) return;
       clearTimeout(tOcioso);

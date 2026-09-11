@@ -3,6 +3,26 @@
 > O padrão, generalizável a qualquer plugin de CAD que siga a mesma forma; fabricante, produto e
 > domínios do caso estudado não aparecem aqui (ADR-016).
 
+
+## O download é um cache retomável, não um efêmero da importação
+
+Os arquivos ficam em `catallog/<host>--<categoria>/` — **por par (host, categoria), não por
+importação**. Cada um custa rede lenta e um envio do formulário de lead, e os Termos de Uso proíbem
+redistribuição: é o ativo caro do processo. Dentro da pasta, o `manifesto.json` (gravado **a cada
+arquivo**, com SHA-256) diz o que já veio, e `baixar_plano` pula o que existe — então **uma
+tentativa nova retoma de onde a anterior parou**, sem rebaixar nada e sem reenviar formulário.
+
+Duas regras que vêm disso e já custaram caro quando foram quebradas:
+
+- **Falha não apaga download.** O serviço apagava `catallog/<importId>` no `aoFalhar`; combinado com
+  o teto de 30 min do processo filho, um timeout virava horas de rede jogadas fora. Hoje o
+  `aoFalhar` apaga só a DLL enviada.
+- **A importação não tem teto total** (`timeoutMs: 0`): quem protege é a ociosidade, porque o
+  Python imprime uma linha por arquivo. Ver `processos-filhos.md`.
+
+A limpeza por retenção (`publicacao`) apaga `geo/` e `thumbs/` da importação anterior, e **não**
+toca nesse cache — de propósito.
+
 ## O padrão
 
 Um plugin de CAD de fabricante — o botão que aparece na ribbon do AutoCAD, do Revit, do

@@ -41,6 +41,14 @@ saida.sinal = await capturar(executar(node, ['-e', "process.kill(process.pid,'SI
   const r = await capturar(executar(node, ['-e', 'console.log("one");setTimeout(()=>{},10000)'], { timeoutMs: 10_000, ociosoMs: 300 }))
   saida.ocioso = { ...r, ms: Date.now() - t0 }
 }
+// sem teto total (`timeoutMs: 0`): trabalho longo não morre pelo relógio, só por ociosidade —
+// é o caso da importação de uma categoria inteira, que passa de 3 h só baixando
+{
+  const t0 = Date.now()
+  const r = await capturar(executar(node, ['-e', 'console.log("um");setTimeout(()=>{},10000)'], { timeoutMs: 0, ociosoMs: 300 }))
+  saida.semTetoTotal = { ...r, ms: Date.now() - t0 }
+}
+
 // comando inexistente
 saida.spawn = await capturar(executar('nao-existe-bilds-xyz', [], { timeoutMs: 10_000 }))
 // o stdin do filho fica ABERTO enquanto o pai vive: um filho que sai no EOF do stdin não sai antes da hora

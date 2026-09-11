@@ -44,6 +44,22 @@ export function tipoDe(nomeOuExt: string): ImportTipo | null {
   return null;
 }
 
+
+/**
+ * Nome de pasta estável para o cache de download de uma categoria de catálogo web.
+ *
+ * Por (host, categoria) e não por importação: os arquivos são caros de obter (rede lenta,
+ * um formulário de lead por arquivo, Termos de Uso que proíbem redistribuição), e é o
+ * `manifesto.json` de dentro da pasta que diz o que já veio. Duas tentativas da mesma
+ * categoria compartilham o cache; categorias diferentes não se misturam.
+ */
+export function pastaDeDownloads(host: string, categoria: string): string {
+  const limpo = (v: string) =>
+    v.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'x';
+  return `${limpo(host)}--${limpo(categoria)}`;
+}
+
 @Injectable()
 export class ImportacoesService {
   private readonly logger = new Logger(ImportacoesService.name);
@@ -156,7 +172,11 @@ export class ImportacoesService {
       updatedAt: new Date(),
     });
     const lead = { full_name: body.fullName, email: body.email, mobile: body.mobile, company: body.company, position: body.position };
-    const downloads = path.join(storagePath(), 'catallog', importId);
+    // A pasta de download é do par (host, categoria), **não** do importId: ela é um cache caro
+    // — cada arquivo custa uma rede lenta e um formulário de lead —, e o `manifesto.json` que o
+    // Python mantém a cada arquivo torna a importação idempotente. Com isso, uma nova tentativa
+    // depois de uma falha **retoma de onde parou** em vez de baixar tudo de novo.
+    const downloads = path.join(storagePath(), 'catallog', pastaDeDownloads(host, body.categoria));
     const trabalho = () => this.publicacao.processarCatalogo(importId, company, {
       disciplina: body.disciplina,
       rotulo: 'plugin_catalogo_web importar',
@@ -164,7 +184,10 @@ export class ImportacoesService {
         host, categoria: body.categoria, lead, downloads, geoDir, igsPorGrupo: body.igsPorGrupo ?? 1, deflexao: body.deflexao ?? 0.2, plugin: info, onProgresso,
       }),
       aoTerminar: () => fs.unlink(arquivo.path),
-      aoFalhar: () => fs.rm(downloads, { recursive: true, force: true }),
+      // Ao falhar, apaga só a DLL enviada — **nunca os downloads**. Apagá-los era o que
+      // transformava um timeout em horas de rede perdidas, e eles são justamente o que permite
+      // retomar.
+      aoFalhar: () => fs.unlink(arquivo.path),
       notaExtra: (r) => {
         const o = (r.hints as any)?.origem;
         if (!o) return null;

@@ -58,6 +58,20 @@ def test_sinal_timeout_ocioso_e_spawn_tem_motivo_proprio(casos):
 
 
 @pytest.mark.paridade
+def test_sem_teto_total_so_morre_por_ociosidade(casos):
+    """`timeoutMs: 0` desarma o relógio total; a guarda continua sendo a ociosidade.
+
+    Importar uma categoria de catálogo web passa de 3 h só na fase de download, e o teto fixo de
+    30 min matava no meio — jogando fora horas de rede e o formulário de lead já gasto por
+    arquivo. Sem teto, quem protege é `ociosoMs`: o Python imprime uma linha por arquivo, então
+    processo travado de verdade continua morrendo.
+    """
+    c = casos['semTetoTotal']
+    assert c['erro']['motivo'] == 'ocioso', c
+    assert 'sem saída há 0s' in c['erro']['message'] and c['ms'] < 3000
+
+
+@pytest.mark.paridade
 def test_stdin_do_filho_fica_aberto_enquanto_o_pai_vive(casos):
     # o filho sairia com 2 no EOF do stdin; como o pai está vivo, chega ao fim e sai com 0
     assert casos['stdinAberto']['ok']['code'] == 0
