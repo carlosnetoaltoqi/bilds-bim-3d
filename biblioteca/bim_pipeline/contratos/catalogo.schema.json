@@ -147,6 +147,13 @@
               },
               "thumb": {
                 "type": "string"
+              },
+              "entidadeIfc": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "description": "ENTIDADE_IFC do GRUPO_PECA de origem — primeiro degrau da classificação ao reexportar (ADR-026)"
               }
             }
           }

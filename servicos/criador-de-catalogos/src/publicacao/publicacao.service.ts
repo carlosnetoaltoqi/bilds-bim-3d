@@ -129,6 +129,7 @@ export class PublicacaoService {
         curva: p.curva ?? null,
         potencia: p.potencia ?? null,
         conexoes: p.conexoes || null,
+        entidadeIfc: p.entidadeIfc ?? null,
         geoKey: `geo/${importId}/${p.geo}`,
         geoKeyCompartilhada: null,
         thumbKey: null,

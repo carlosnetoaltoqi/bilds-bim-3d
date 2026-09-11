@@ -29,3 +29,4 @@ Uma decisão por arquivo: decisão, por quê, consequências. Uma decisão super
 | [ADR-023](ADR-023-conexao-volumetrica-e-o-pontos-de-ligacao-3d.md) | `CONEXAO_VOLUMETRICA` é o "Pontos de ligação 3D" do Cadastro | Aceita |
 | [ADR-024](ADR-024-a-disciplina-vem-da-fonte-nao-do-nome.md) | a disciplina da peça vem de quem importa; hidráulico deixa de ser o *default* | Aceita |
 | [ADR-025](ADR-025-o-codigo-de-bitola-e-em-polegada.md) | o código de bitola do AltoQi é uma escala em polegada, não em milímetro | Aceita |
+| [ADR-026](ADR-026-a-entidade-ifc-atravessa-o-pipeline.md) | a entidade IFC de origem chega ao produto e volta na reexportação; supertipo abstrato não classifica | Aceita |

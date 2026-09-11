@@ -317,7 +317,8 @@ nome". A tabela completa das 42 entidades está lá.
 
 `SUBTIPO_IFC` dentro de `IfcPipeFitting`: **0** curva/joelho · **1** luva · **3** cap · **4**
 tê/junção · **6** redução · **7** ramal. Em `IfcPipeSegment` só o 3; em bomba só o 5; em válvula
-só o 22. `SUBTIPO_IFC_2X3` é sempre igual a `SUBTIPO_IFC`.
+só o 22. `SUBTIPO_IFC_2X3` **quase sempre** repete o `SUBTIPO_IFC`: difere em 438 dos 3.929 grupos do
+catálogo oficial (11 %). Os dois escritores gravam os dois iguais, o que fica dentro do observado.
 
 `PECA.TIPO_APLICACAO_PECA`: **1** tubo · **2** conexão · **6** bomba · **8** aparelho sanitário ·
 **9** caixa sifonada / ralo com grelha · **10** ralo · **55** ramal de ventilação.

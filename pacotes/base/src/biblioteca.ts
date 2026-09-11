@@ -34,6 +34,8 @@ export interface ProdutoPipeline {
   specs: Record<string, string>;
   curva: number[][] | null;
   thumb?: string;
+  /** `ENTIDADE_IFC` do grupo de origem, quando a fonte a declara (ADR-026) */
+  entidadeIfc?: number | null;
 }
 
 export interface ResultadoCatalogo {

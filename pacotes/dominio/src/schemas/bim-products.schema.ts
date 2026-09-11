@@ -38,6 +38,10 @@ export class BimProduct {
   @Prop()
   potencia: number;
 
+  /** `ENTIDADE_IFC` do grupo de origem — primeiro degrau da classificação ao exportar (ADR-026) */
+  @Prop({ type: Number, default: null })
+  entidadeIfc: number | null;
+
   /** Chave para o GeometryStore (ADR-001) */
   @Prop({ required: true })
   geoKey: string;

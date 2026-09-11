@@ -135,3 +135,26 @@ mas hoje uma fonte que declare qualquer uma delas cai no degrau 3 com aviso de g
 - Sentinelas: `-DBL_MAX` em 25.294/31.611 `DIAMETRO_PECA` e 14.031 `COMPRIMENTO_PECA`;
   `-2147483647` em 26.223/33.041 `SECAO_EP`. Só `TIPO_CONFIGURACAO_GP` desmente o "todas as linhas"
   do documento: **3.534 de 3.929** (90 %).
+
+## Achado 10 — `SUBTIPO_IFC_2X3` não é "sempre igual" ao `SUBTIPO_IFC`
+
+Difere em **438 dos 3.929 grupos** (11 %). Os dois escritores gravam os dois iguais, o que continua
+dentro do observado — a correção é do texto, não do código. `aq-formato.md` ajustado.
+
+---
+
+## O que virou código: ADR-026 (achados 6, 7 e 8)
+
+Aceita e implementada no mesmo dia, com a suíte em **271** na coleta (era 268) e `pnpm -r build`
+verde nos 9 workspaces:
+
+- `catalogo.build_catalog_from_aq` grava `entidadeIfc` no produto; `bim_products` ganha a coluna;
+  a exportação a devolve no manifesto. O round-trip deixa de perder a entidade de origem — provado
+  em `test_catalogo_to_aq` (`[2071, 2071, 2075]`, e a série "Junção Ímpar" não tem nome de bomba).
+- `TIPOS_SUPERTIPO` (4133…4142): supertipo abstrato não vence o nome, só serve de rede.
+- Nove entidades novas em `cadastro.IFC` (41 de 42). A 2057 ficou fora: `TIPO_ENTIDADE_IFC = 0` nos
+  dois grupos que a usam é cadastro incompleto do próprio catálogo oficial.
+
+Pendência que a ADR-026 **não** resolve, registrada nela: traduzir a classe IFC de um arquivo IFC
+importado (`IFCVALVE` → 2084) exige fechar a tabela nome → código para as entidades de climatização,
+que são justamente as que a ajuda não lista.

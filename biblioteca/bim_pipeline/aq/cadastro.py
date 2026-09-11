@@ -167,7 +167,25 @@ IFC = {
     2102: (4152, 2090, 0, APL_CONDENSADORA),         # 100 %
     2106: (4156, 2088, 1, APL_CONEXAO),
     2111: (4161, 2090, 0, APL_EVAPORADORA),          # 100 %
+    # As dez que faltavam, medidas em 2026-09-11 no catálogo oficial (2 a 26 peças cada).
+    # Fora ficou só a 2057, cujos dois grupos trazem `TIPO_ENTIDADE_IFC = 0` — cadastro
+    # incompleto do próprio catálogo, que não serve de padrão para ninguém.
+    2058: (4111, 2092, 14, APL_DISPOSITIVO_ELETRICO),  # IfcElectricAppliance
+    2061: (4107, 2091, 0, APL_DISPOSITIVO_ELETRICO),   # IfcElectricTimeControl
+    2063: (4116, 2095, 5, 54),                         # IfcFilter — filtro de água da chuva
+    2066: (4124, 2092, 2, 30),                         # IfcInterceptor — caixa de gordura
+    2070: (4108, 2092, 2, APL_DISPOSITIVO_ELETRICO),   # IfcOutlet
+    2077: (4131, 2089, 0, APL_DISPOSITIVO_ELETRICO),   # IfcSensor
+    2082: (4113, 2090, 4, 35),                         # IfcTransformer
+    2083: (4126, 2087, 1, APL_DISPOSITIVO_ELETRICO),   # IfcUnitaryControlElement
+    2092: (4122, 2092, 11, APL_EQUIPAMENTO),           # IfcSanitaryTerminal (louça)
 }
+
+# Os supertipos abstratos do IFC (`IfcDistributionFlowElement`, `IfcFlowFitting`,
+# `IfcBuildingElementProxy` e os outros do fim da lista da ajuda, tipos 4133…4142). Uma fonte
+# que declara um deles **não disse o que a peça é** — disse que é um elemento de instalação.
+# Por isso eles não vencem o nome: servem de rede, quando o vocabulário também não sabe.
+TIPOS_SUPERTIPO = frozenset(range(4133, 4143))
 
 # Onde a entidade sozinha não decide, a **disciplina** desempata. São os três casos medidos em
 # que o segundo valor não é ruído: captor de SPDA contra componente elétrico, hidrante contra
@@ -557,17 +575,19 @@ def classificar(nome, disciplina, entidade_ifc=None, diag=None):
 
     A ordem é a do ADR-024:
 
-    1. **entidade IFC declarada pela fonte** — a classe IFC uma família Revit, um IFC ou um
-       catálogo de plugin sempre tem, e ela prevê a aplicação com pouca ambiguidade;
+    1. **entidade IFC declarada pela fonte** — a classe IFC de uma família Revit, de um IFC, de
+       um catálogo de plugin ou do `.aq` de origem, quando ela **diz o que a peça é**. Supertipo
+       abstrato (`TIPOS_SUPERTIPO`) não diz, e por isso não vence o nome: espera no degrau 3;
     2. **vocabulário da disciplina escolhida** — nunca o de outra disciplina;
     3. **genérico da disciplina, com aviso** em `diag`.
     """
     mascara_da_disciplina(disciplina)          # valida o slug antes de qualquer coisa
 
-    if entidade_ifc in IFC:
-        tipo, e23, sub, apl = IFC[entidade_ifc]
-        apl = APLICACAO_POR_IFC_E_DISCIPLINA.get((entidade_ifc, disciplina), apl)
-        return entidade_ifc, tipo, e23, sub, apl
+    declarada = entidade_ifc if entidade_ifc in IFC else None
+    if declarada is not None and IFC[declarada][0] not in TIPOS_SUPERTIPO:
+        tipo, e23, sub, apl = IFC[declarada]
+        apl = APLICACAO_POR_IFC_E_DISCIPLINA.get((declarada, disciplina), apl)
+        return declarada, tipo, e23, sub, apl
 
     alvo = _sem_acento(nome)
     for chaves, ent, sub, apl in VOCABULARIO[disciplina]:
@@ -580,6 +600,14 @@ def classificar(nome, disciplina, entidade_ifc=None, diag=None):
 
     if diag is not None:
         diag.generico(nome)
+
+    # Supertipo declarado e nome que não diz nada: fica o supertipo, que ao menos é o que a
+    # fonte afirmou — melhor que trocá-lo pelo genérico da disciplina, que é palpite nosso.
+    if declarada is not None:
+        tipo, e23, sub, apl = IFC[declarada]
+        return declarada, tipo, e23, sub, APLICACAO_POR_IFC_E_DISCIPLINA.get(
+            (declarada, disciplina), apl)
+
     apl = GENERICO_DA_DISCIPLINA[disciplina]
     ent = 2067 if disciplina in ('eletrico', 'spda') else 2071
     if disciplina == 'climatizacao':

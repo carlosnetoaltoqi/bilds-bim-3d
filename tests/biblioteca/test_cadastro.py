@@ -32,6 +32,28 @@ def test_a_entidade_ifc_da_fonte_vence_o_nome():
     assert apl == cadastro.APL_CONDENSADORA
 
 
+def test_supertipo_abstrato_nao_vence_o_nome():
+    """ADR-026: `IfcDistributionFlowElement` (2087) não diz o que a peça é — diz que é uma peça.
+
+    Medido no catálogo oficial: das 1.024 peças declaradas com 2087, a aplicação dominante é
+    **conexão** (56 %), não "equipamento". Uma fonte que declara o supertipo não pode calar o
+    vocabulário; uma que declara `IfcValve` ou uma condensadora, pode.
+    """
+    ent, _t, _e, _s, apl = cadastro.classificar('Válvula de esfera', 'climatizacao', 2087)
+    assert (ent, apl) == (2084, cadastro.APL_VALVULA_BLOQUEIO)      # o nome decidiu
+
+    # e o supertipo continua servindo de rede quando o nome também não diz nada
+    ent, _t, _e, _s, apl = cadastro.classificar('XPTO 42', 'climatizacao', 2087)
+    assert (ent, apl) == (2087, cadastro.APL_EQUIPAMENTO)
+
+
+def test_as_entidades_medidas_em_2026_09_11_classificam():
+    """Dez entidades do catálogo oficial estavam fora da tabela e caíam no genérico."""
+    assert cadastro.classificar('Caixa de gordura 100L', 'sanitario', 2066)[4] == 30
+    assert cadastro.classificar('Transformador 150 kVA', 'eletrico', 2082)[4] == 35
+    assert cadastro.classificar('Detetor de fumaça', 'eletrico', 2077)[0] == 2077
+
+
 def test_a_mesma_entidade_muda_de_aplicacao_com_a_disciplina():
     """2073 é componente elétrico no elétrico e captor no SPDA — medido no catálogo oficial."""
     assert cadastro.classificar('Captor', 'eletrico', 2073)[4] == cadastro.APL_COMPONENTE

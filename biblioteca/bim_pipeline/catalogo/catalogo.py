@@ -204,10 +204,15 @@ def build_catalog_from_aq(config, aq_path, geo_dir, progresso=None):
         ids_usados.add(pid_slug)
 
         serie = nome_gp or 'Outros'
+        # A entidade IFC do grupo é o primeiro degrau da classificação na volta (ADR-024/026).
+        # Ela está aqui, no `.aq` de origem, e jogá-la fora obrigava a reexportação a redescobrir
+        # pelo nome o que o arquivo já dizia.
+        entidade = grupos_by_id.get(p['ID_GRUPO_PECA'], {}).get('ENTIDADE_IFC')
         produtos.append({
             'id': pid_slug,
             'nome': nome_peca,
             'serie': serie,
+            'entidadeIfc': int(entidade) if isinstance(entidade, (int, float)) else None,
             'geo': f'{geo}.json',
             'potencia': _potencia_de(nome_gp, p),
             'conexoes': p.get('DESCRICAO_DADOS') or '',

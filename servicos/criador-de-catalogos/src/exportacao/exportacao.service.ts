@@ -52,6 +52,7 @@ export class ExportacaoService {
         specs: p.specs ?? {},
         curva: p.curva ?? null,
         potencia: p.potencia ?? null,
+        entidadeIfc: p.entidadeIfc ?? undefined,
         geo: p.geoKey,
       })),
     };

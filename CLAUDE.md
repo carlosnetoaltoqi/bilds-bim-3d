@@ -63,7 +63,7 @@ aceitação com tudo de pé em `docs/aceitacao.md`.
 
 | Assunto | Onde |
 |---|---|
-| **Arquitetura**: camadas, sete regras de fronteira, quem grava o quê, guia de porte, regras de mudança | `docs/arquitetura.md`; decisões em `docs/decisoes/` (ADR-001…024) |
+| **Arquitetura**: camadas, sete regras de fronteira, quem grava o quê, guia de porte, regras de mudança | `docs/arquitetura.md`; decisões em `docs/decisoes/` (ADR-001…026) |
 | Formato `.aq` (SQLite/ZIP, cp1252, sentinelas, código de diâmetro, enums, versões de schema, leitura; **o que desenha em planta**) | `docs/conhecimento/aq-formato.md` |
 | Escrever `.aq` — uma peça e o catálogo inteiro (cinco regras, erros que abortam, validação) | `docs/conhecimento/aq-escrita.md` |
 | Formato binário **OQ3D** — leitura tolerante e escrita | `docs/conhecimento/oq3d.md` |

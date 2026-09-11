@@ -131,6 +131,9 @@ def test_exporta_catalogo_e_o_leitor_do_projeto_le_de_volta(tmp_path):
     assert cat['produtos'][2]['curva'] == [[28.9, 10.9, 2.34, 39.3], [31.0, 9.3, 2.46, 36.3]]
     assert cat['produtos'][0]['geo'] == cat['produtos'][1]['geo'] != cat['produtos'][2]['geo']
     assert read_aq.peek_metadata(str(saida))['fabricante'] == 'Fábrica Ç'
+    # ADR-026: a entidade IFC do grupo volta no produto. Sem isto, reexportar redescobre pelo
+    # nome o que o arquivo já dizia — e "Junção Ímpar" não tem nome de bomba nenhum.
+    assert [p['entidadeIfc'] for p in cat['produtos']] == [2071, 2071, 2075]
 
 
 def test_manter_prefixo_serie_grava_o_nome_da_tela(tmp_path):

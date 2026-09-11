@@ -237,11 +237,18 @@ com as sete hidráulicas de antes mais elétrica, SPDA e climatização. As dez 
 `IfcOutlet`, 2077 `IfcSensor`, 2082 `IfcTransformer`, 2083 `IfcUnitaryControlElement` e 2092
 `IfcSanitaryTerminal` — somam 2 a 26 peças cada no catálogo.
 
-**A ponte só funciona se alguém a atravessar.** Hoje nenhuma fonte preenche `entidadeIfc`: o campo é
-lido em `catalogo_to_aq` e `geo_to_aq`, está no contrato e no tipo TypeScript, e não é escrito por
-ninguém — nem pelo leitor de `.aq`, que tem a entidade na mão e a descarta. Na prática toda
-exportação classifica pelo **nome** (degrau 2), e um `.aq` que entre e saia do pipeline perde a
-entidade que já trazia.
+**Quem atravessa a ponte (ADR-026).** Até 2026-09-11 ninguém: `entidadeIfc` era lido pelos dois
+escritores, estava no contrato e no tipo TypeScript, e **nenhuma fonte o preenchia** — toda
+exportação caía no degrau 2, o nome. Agora o caminho do `.aq` está ligado ponta a ponta:
+`catalogo.build_catalog_from_aq` grava a `ENTIDADE_IFC` do grupo em cada produto, o criador a
+guarda em `bim_products.entidadeIfc` e a devolve no manifesto de exportação. As outras fontes (IFC,
+família Revit, plugin de CAD) ainda não declaram — para elas vale o nome, e traduzir a classe IFC do
+arquivo (`IFCVALVE` → 2084) é a pendência seguinte.
+
+**Supertipo abstrato não classifica.** As entidades de tipo 4133…4142 (`IfcDistributionFlowElement` e
+as outras do fim da lista) dizem só que a peça é uma peça de instalação. Elas deixam o vocabulário
+falar primeiro e só valem como rede — das 1.024 peças declaradas com 2087 no catálogo oficial, a
+aplicação dominante é **conexão** (56 %), não "equipamento".
 
 ## `POSICIONAR_SIMBOLOGIA_3D` — como a peça se orienta ao ser lançada
 
