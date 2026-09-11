@@ -157,6 +157,25 @@ def is_oq3d(buf):
     return isinstance(buf, (bytes, bytearray)) and MAGIC in buf[:64]
 
 
+CONTAINER = b'TStreamableObjectsContainer'
+
+
+def _por_que_nao_e_oq3d(buf):
+    """Mensagem de erro que diz **qual** é o caso — container ou lixo.
+
+    O catálogo oficial do Builder (schema 625) guarda 1.224 das 6.132 simbologias num segundo
+    formato, que abre com um dicionário de classes (`TStreamableObjectsContainer`) e referencia
+    as instâncias por índice, em vez de trazer o nome da classe inline como o OQ3D. A varredura
+    por marcador não acha nada nele — nem quando o grafo tem malha —, e boa parte desses blobs
+    sequer é malha: são faces 2D extrudadas (`TExtrusionPath`, `TCircularFace2D`). Nenhuma das 14
+    bibliotecas de fabricante medidas (schemas 552 a 615) usa esse formato.
+    """
+    if isinstance(buf, (bytes, bytearray)) and CONTAINER in buf[:256]:
+        return ('blob no formato TStreamableObjectsContainer, não OQ3D — outra serialização, '
+                'que esta biblioteca não lê (ver docs/conhecimento/oq3d.md)')
+    return 'blob sem assinatura OQ3D'
+
+
 def _class_at(buf, p):
     """(nome, offset_do_payload) se há marcador de classe em p, senão None."""
     if p + 5 > len(buf):
@@ -210,7 +229,7 @@ def parse(buf):
     aviso troca esse erro silencioso por algo visível.
     """
     if not is_oq3d(buf):
-        raise OQ3DError('blob sem assinatura OQ3D')
+        raise OQ3DError(_por_que_nao_e_oq3d(buf))
 
     roots, stack = [], []
     defs = {}          # índice de serialização -> nó TQi3DReusableObject

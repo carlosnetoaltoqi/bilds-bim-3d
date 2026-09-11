@@ -13,6 +13,8 @@ estão em `docs/conhecimento/servicos-web.md` — ver a seção final deste docu
 | Peças 100× maiores ou menores | OQ3D grava em **centímetros** | Multiplicar por 0,01 ao converter para metros |
 | Joelhos e curvas aparecem retos no viewer | Transforms do OQ3D ignorados | Usar o parser de árvore completo, não só a malha de folha |
 | Menos produtos que peças na origem | Peças sem geometria vinculada são tubos/kits, sem forma fixa | Comportamento esperado — pular ao montar o catálogo |
+| Muitas peças em `sim_nao_oq3d`, o arquivo abre no Builder | O `.aq` é schema 625 e a simbologia está em `TStreamableObjectsContainer`, outra serialização | Não é corrupção: o erro diz o nome do formato. Ver `oq3d.md` §"segundo container" |
+
 
 ## `.aq` e cp1252
 

@@ -337,9 +337,12 @@ Temperatura de cor, Dimerizável. `TIPO_VALOR = 0` (texto) mesmo para números �
 
 | `VERSAO` | Diferença notada |
 |---|---|
-| 552–582 | `ENTRADA_3D` **não tem** a coluna `DIAMETRO` |
-| 595 | — |
-| 607 | `ENTRADA_3D.DIAMETRO` existe; é a versão que o escritor emite |
+| 552–595 | `ENTRADA_3D` **não tem** a coluna `DIAMETRO` (medido em 552, 562, 572, 582, 594 e 595) |
+| 607–625 | `ENTRADA_3D.DIAMETRO` existe (medido em 607, 615 e 625); 607 é a versão que o escritor emite |
+
+`PECA` tem as mesmas 33 colunas em todas as versões medidas, `CONEXAO_VOLUMETRICA` inclusive — a
+diferença de schema que já custou uma query quebrada é a do `ENTRADA_3D`. No schema **625** aparece
+também um segundo container de geometria, que não é OQ3D (`oq3d.md`).
 
 Uma query com `ENTRADA_3D.DIAMETRO` quebra com `no such column` nas bibliotecas antigas — testar
 `VERSAO_BANCO_CADASTRO.VERSAO` ou `PRAGMA table_info` antes. O leitor OQ3D foi validado em seis

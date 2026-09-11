@@ -31,6 +31,23 @@ def _avisos(blob):
 
 # ── assinatura ────────────────────────────────────────────────────────────────
 
+
+
+def test_o_container_do_catalogo_oficial_e_recusado_com_nome():
+    """O catálogo oficial (schema 625) guarda 1.224 das 6.132 simbologias noutro formato.
+
+    Abre com dicionário de classes (`TStreamableObjectsContainer`) e referencia instâncias por
+    índice; a varredura por marcador não acha nada nele, nem quando o grafo tem malha. Recusar é
+    certo — recusar dizendo "sem assinatura" faz parecer arquivo corrompido, que é outra causa e
+    outro conserto. Nenhuma das 14 bibliotecas de fabricante (schemas 552 a 615) usa esse formato.
+    """
+    blob = b'\x07\x00\x00\x00' + b'\x00' * 56 + b'\x1b\x00\x00\x00' + oq3d.CONTAINER + b'\x00' * 64
+    assert not oq3d.is_oq3d(blob)
+    with pytest.raises(oq3d.OQ3DError, match='TStreamableObjectsContainer'):
+        oq3d.to_buffers(blob)
+    with pytest.raises(oq3d.OQ3DError, match='sem assinatura'):
+        oq3d.to_buffers(b'lixo' * 20)
+
 def test_is_oq3d():
     assert oq3d.is_oq3d(triangulo())
     assert not oq3d.is_oq3d(b'')

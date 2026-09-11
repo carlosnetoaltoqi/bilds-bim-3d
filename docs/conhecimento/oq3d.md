@@ -19,6 +19,33 @@ offset  bytes                      significado
 
 Não se sabe o que os 5 bytes iniciais significam; sabe-se que não variam.
 
+## O catálogo oficial tem um **segundo** container, que não é OQ3D
+
+Medido em 2026-09-11 nas 6.132 simbologias do catálogo oficial do Builder (`Catalog.db`, schema
+625): **4.908 são OQ3D clássico e 1.224 (20 %) não são**. Estas abrem com um dicionário de classes
+— `TStreamableObjectsContainer`, seguido dos nomes versionados (`TCoordinateTransformation3D_2014_06_09`,
+`TFace2D_2014_06_09`, `THoledFace2D_2015_02_10`, `TCircularFace2D_2015_02_10`, `TExtrusionPath`,
+`T3DSegment`) — e referenciam as instâncias **por índice**, não repetindo o nome da classe inline
+como o OQ3D faz. A varredura por marcador `0x5B`/`0x5D` não encontra nada nelas.
+
+Duas consequências que valem saber antes de tentar:
+
+- **Não é só o cabeçalho.** Ignorar a assinatura e mandar o parser em frente devolve zero
+  triângulos, inclusive nos blobs cujo grafo **tem** `TQi3DIndexedTriangleMeshData` (11 de 42 numa
+  amostra de 220). O nome só aparece no dicionário; a instância é um índice.
+- **Boa parte nem é malha.** Dos blobs em container da amostra, a maioria traz face 2D mais caminho
+  de extrusão (`TExtrusionPath`, `TCircularFace2D`) — geometria **paramétrica**, que teria de ser
+  tesselada, não lida.
+
+**Nenhuma biblioteca de fabricante usa esse formato**: nas 14 medidas (schemas 552, 562, 572, 582,
+594, 595, 607, 615) são zero blobs em container. Ele aparece só no catálogo do próprio Builder,
+schema 625 — o que torna isto um risco de *biblioteca nova*, não um defeito de hoje. Quem cair nele
+recebe agora um erro que diz o nome do formato, em vez de "sem assinatura OQ3D", que faz pensar em
+arquivo corrompido.
+
+Efeito colateral a lembrar ao medir: **20 % da geometria do catálogo oficial é invisível para nós**,
+então distribuição de vértice, cor ou bocal medida lá é sobre os 80 % legíveis.
+
 ## Árvore serializada estilo Delphi
 
 ```

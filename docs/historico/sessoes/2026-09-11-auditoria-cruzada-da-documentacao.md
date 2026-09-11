@@ -158,3 +158,42 @@ verde nos 9 workspaces:
 Pendência que a ADR-026 **não** resolve, registrada nela: traduzir a classe IFC de um arquivo IFC
 importado (`IFCVALVE` → 2084) exige fechar a tabela nome → código para as entidades de climatização,
 que são justamente as que a ajuda não lista.
+
+---
+
+## Achado 11 — o catálogo oficial guarda geometria num **segundo** container, que não é OQ3D
+
+Primeira vez que o leitor OQ3D correu contra as **6.132 simbologias nativas** do catálogo oficial —
+a maior amostra de geometria que existe aqui. Resultado: **4.908 são OQ3D clássico e 1.224 (20 %)
+não são**. Estas abrem com um dicionário de classes (`TStreamableObjectsContainer`, seguido de
+`TCoordinateTransformation3D_2014_06_09`, `TFace2D_2014_06_09`, `TCircularFace2D_2015_02_10`,
+`TExtrusionPath`, `T3DSegment`) e referenciam as instâncias **por índice** — a varredura por
+marcador não acha nada nelas.
+
+Duas medições que evitam a pista falsa:
+
+- **Não é o cabeçalho.** Ignorar a assinatura e mandar o parser em frente devolve **zero
+  triângulos**, inclusive nos 11 de 42 blobs em container cujo grafo tem `TQi3DIndexedTriangleMeshData`
+  no dicionário. O nome está lá como declaração; a instância é um índice.
+- **A maioria nem é malha:** é face 2D mais caminho de extrusão — geometria paramétrica, que teria
+  de ser tesselada.
+
+**Relevância medida, não suposta:** nas 14 bibliotecas de fabricante do acervo (schemas 552, 562,
+572, 582, 594, 595, 607, 615) são **zero** blobs em container. Ele só aparece no catálogo do próprio
+Builder, schema **625**. Ou seja: risco de biblioteca nova, não defeito de hoje — e viés a lembrar,
+porque 20 % da geometria do catálogo oficial é invisível para nós ao medir.
+
+**Feito:** o erro passou a dizer o nome do formato em vez de "sem assinatura OQ3D" (que faz pensar
+em arquivo corrompido, outra causa e outro conserto), com teste; `oq3d.md` ganhou a seção,
+`diagnostico.md` o sintoma.
+
+## Achado 12 — a tabela de versões de schema tinha o limite no lugar errado
+
+`aq-formato.md` dava 552–582 sem `ENTRADA_3D.DIAMETRO`, com o 595 numa linha à parte que sugeria
+tê-la. Medido nas 15 bibliotecas: **552, 562, 572, 582, 594 e 595 não têm**; **607, 615 e 625 têm**.
+`PECA` tem as mesmas 33 colunas em todas, `CONEXAO_VOLUMETRICA` inclusive.
+
+## Achado 13 — a `IMAGEM` (ADR-020) ganha a confirmação mais forte que havia
+
+**6.132 de 6.132** simbologias do catálogo oficial têm `IMAGEM` preenchida — e também `WIREFRAME`,
+que o Builder gera sozinho (ADR-021). A medição antiga era sobre ~1.400 simbologias de fabricante.
