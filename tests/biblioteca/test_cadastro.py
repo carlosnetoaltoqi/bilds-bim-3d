@@ -42,9 +42,30 @@ def test_supertipo_abstrato_nao_vence_o_nome():
     ent, _t, _e, _s, apl = cadastro.classificar('Válvula de esfera', 'climatizacao', 2087)
     assert (ent, apl) == (2084, cadastro.APL_VALVULA_BLOQUEIO)      # o nome decidiu
 
-    # e o supertipo continua servindo de rede quando o nome também não diz nada
+    # e o supertipo continua servindo de rede quando o nome também não diz nada — com a
+    # aplicação que a medição sustenta (conexão), não "equipamento"
     ent, _t, _e, _s, apl = cadastro.classificar('XPTO 42', 'climatizacao', 2087)
-    assert (ent, apl) == (2087, cadastro.APL_EQUIPAMENTO)
+    assert (ent, apl) == (2087, cadastro.APL_CONEXAO)
+
+
+def test_o_supertipo_2087_e_conexao_e_o_nome_do_fabricante_e_reconhecido():
+    """Round-trip de 2026-09-11 numa biblioteca real de barramento blindado.
+
+    As 212 peças de conexão dela declaram `2087` e aplicação **2**, e saíam da reexportação como
+    68 (equipamento) — a tabela derivava do supertipo uma aplicação que nem o catálogo oficial
+    (2 em 56 % de 1.024 peças) nem a nativa (212 de 212) sustentam. E o vocabulário elétrico já
+    tinha regra de conexão, que não pegava porque o fabricante escreve "Cotovelo" e `"T"`.
+    """
+    # nome que não diz nada (o fabricante batiza a linha): fica o supertipo, com a aplicação medida
+    assert cadastro.classificar('XPTO 400A', 'eletrico', 2087)[::4] == (2087, cadastro.APL_CONEXAO)
+    # nome que diz: o vocabulário vence o supertipo e traz a entidade específica
+    for nome in ('Barramento CMAX - Cotovelo Horizontal', 'Barramento VMAX - "T" Vertical'):
+        assert cadastro.classificar(nome, 'eletrico', 2087)[::4] == (2051, cadastro.APL_CONEXAO), nome
+
+    # 'COFRE' entrou medido (32 de 32 peças do catálogo oficial na aplicação 32), e é o que
+    # impede o armário de virar conexão pelo fallback
+    assert cadastro.classificar('Caixa Cofre', 'eletrico', 2087)[::4] == \
+        (2059, cadastro.APL_QUADRO_DISTRIBUICAO)
 
 
 def test_as_entidades_medidas_em_2026_09_11_classificam():

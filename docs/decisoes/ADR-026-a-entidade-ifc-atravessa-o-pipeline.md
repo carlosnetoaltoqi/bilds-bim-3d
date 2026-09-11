@@ -58,11 +58,34 @@ era. São poucas peças no catálogo (2 a 26 cada), mas o custo de conhecê-las 
 ## Alternativas consideradas
 
 - **Deduzir a entidade do nome e gravá-la** — é o degrau 2 com outro nome; não acrescenta.
-- **Manter o supertipo vencendo e corrigir a aplicação dominante de 2087 para "conexão"** — trocaria
-  um palpite por outro, e continuaria calando o nome, que no catálogo acerta mais.
+- **Manter o supertipo vencendo e corrigir só a aplicação dominante de 2087** — continuaria calando o
+  nome, que no catálogo acerta mais. (A correção da aplicação em si entrou depois, pela emenda
+  abaixo: as duas coisas não eram excludentes.)
 - **Traduzir a classe IFC de um arquivo IFC importado (`IFCVALVE` → 2084)** — é o passo seguinte,
   e depende de fechar a tabela nome IFC4 → código para as entidades que a ajuda não lista
   (as de climatização). Fica como pendência, não como decisão.
+
+## Emenda de 2026-09-11 — a aplicação do supertipo 2087 é **conexão**, não "equipamento"
+
+A decisão acima deixou `IFC[2087]` com a aplicação 68 (equipamento), julgando que trocá-la seria
+palpite. O round-trip de validação, feito no mesmo dia numa biblioteca **real** de barramento
+blindado, mostrou que não é: as 212 peças de conexão dela declaram 2087 e aplicação **2**, e saíam
+da reexportação como 68. Com o catálogo oficial (2 em 56 % de 1.024 peças), são **duas medições
+independentes** contra o valor da tabela — o que deixa de ser palpite e vira dado.
+
+Mudou, então:
+
+- `IFC[2087]` passa a valer **`APL_CONEXAO`**. Isso só afeta o caminho em que o supertipo é
+  declarado e o nome não diz nada; o genérico da climatização (degrau 3) continua sendo
+  `APL_EQUIPAMENTO`, porque vem de `GENERICO_DA_DISCIPLINA`, não da tabela.
+- O vocabulário elétrico e o de climatização ganharam **`COTOVELO`** e **`T`** na regra de conexão,
+  que já existia com `CURVA`/`JOELHO`/`TE` e não pegava estas peças por diferença de palavra — o
+  fabricante escreve "Cotovelo" e `"T"`. Com isso a peça sai com a entidade específica (2051,
+  `IfcCableCarrierFitting`) em vez do supertipo.
+
+Vale notar o que a emenda **não** conserta: as três séries de conduto da mesma biblioteca somem na
+reexportação, porque suas 32 peças não têm simbologia 3D (tubo é paramétrico no Builder). É
+comportamento antigo e documentado, não regressão.
 
 ## Ver também
 

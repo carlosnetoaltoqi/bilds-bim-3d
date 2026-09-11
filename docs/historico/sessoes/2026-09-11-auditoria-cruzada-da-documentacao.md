@@ -257,3 +257,35 @@ fabricante: 21/21 e 14/16). O que o catálogo oficial acrescenta é a previsão 
 fica na face do bocal e a de um cadastro feito à mão fica centímetros para dentro** — diferença que
 o usuário vai ver no Builder e que não é defeito de nenhum dos dois. `geometria.md` §Bocais ganhou a
 linha e a leitura.
+
+---
+
+## Achado 18 — o round-trip de validação da ADR-026 achou a aplicação errada do supertipo
+
+Feito o teste que a própria ADR-026 pedia — importar uma biblioteca nativa e reexportá-la —, numa de
+**barramento blindado** (schema 615, 30 séries, 260 peças). A entidade sobreviveu, que era o ponto:
+**228 de 228 produtos** saíram do leitor com `entidadeIfc`, e o `2087` que a biblioteca declara em 27
+das 30 séries chegou inteiro do outro lado. O que não sobreviveu foi a **aplicação**: a origem diz
+**2 (conexão)** nas 212 peças de conexão e a reexportação escrevia **68 (equipamento)**, porque a
+tabela derivava isso do supertipo.
+
+Duas medições independentes contra o valor da tabela — catálogo oficial (2 em 56 % de 1.024 peças) e
+esta nativa (2 em 212 de 212) — tiraram o assunto do terreno do palpite, e a ADR-026 foi **emendada**
+no mesmo dia: `IFC[2087]` passa a valer `APL_CONEXAO`. Junto entraram as palavras que faltavam na
+regra de conexão do vocabulário elétrico e do de climatização (`COTOVELO` e `T`): a regra já existia
+com `CURVA`/`JOELHO`/`TE` e não pegava estas peças porque o fabricante escreve "Cotovelo" e `"T"`.
+
+**Placar na mesma biblioteca, depois da emenda: 25 das 30 séries reproduzem a aplicação da origem**
+(antes, 2). Das cinco que não:
+
+- **três são as séries de conduto**, que somem porque suas 32 peças não têm simbologia 3D — tubo é
+  paramétrico no Builder, comportamento antigo e documentado;
+- **"Caixa Cofre"** (origem 32, quadro de distribuição) caía no *fallback*. `COFRE` entrou no
+  vocabulário **medido**: 32 de 32 peças com esse nome no catálogo oficial estão na aplicação 32;
+- **"Caixa de Cabos"** (origem 37, caixa de passagem elétrica) continua no *fallback*, saindo como
+  conexão. **Não** foi acrescentada: o termo não aparece em nenhuma peça do catálogo oficial, e pôr
+  no código uma palavra que só uma biblioteca usa é ajustar o classificador a uma amostra de um.
+
+**O que este achado ensina sobre o método:** o round-trip é teste barato e mais severo que abrir o
+Builder, porque compara **todas** as colunas contra uma origem que já existe, em vez de depender de
+alguém reconhecer um rótulo errado numa tela. Vale repetir a cada mudança no classificador.

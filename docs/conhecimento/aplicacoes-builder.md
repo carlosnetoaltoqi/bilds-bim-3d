@@ -247,8 +247,10 @@ arquivo (`IFCVALVE` → 2084) é a pendência seguinte.
 
 **Supertipo abstrato não classifica.** As entidades de tipo 4133…4142 (`IfcDistributionFlowElement` e
 as outras do fim da lista) dizem só que a peça é uma peça de instalação. Elas deixam o vocabulário
-falar primeiro e só valem como rede — das 1.024 peças declaradas com 2087 no catálogo oficial, a
-aplicação dominante é **conexão** (56 %), não "equipamento".
+falar primeiro e só valem como rede — e, como rede, valem **conexão**: das 1.024 peças declaradas
+com 2087 no catálogo oficial a aplicação dominante é 2 (56 %), e numa biblioteca real de barramento
+blindado é 2 em **212 de 212** peças de conexão. Duas medições independentes, que é o que tirou esse
+valor do terreno do palpite (ADR-026, emenda de 2026-09-11).
 
 ## `POSICIONAR_SIMBOLOGIA_3D` — como a peça se orienta ao ser lançada
 

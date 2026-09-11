@@ -161,7 +161,8 @@ IFC = {
     2084: (4103, 2091, 13, APL_REGISTRO),
     2085: (4123, 2092, 0, APL_CAIXA),                # ralo, caixa sifonada
     2086: (4099, 2086, 8, APL_TUBO),                 # 100 %
-    2087: (4133, 2087, 1, APL_EQUIPAMENTO),
+    2087: (4133, 2087, 1, APL_CONEXAO),            # supertipo: conexão em 56 % das 1.024
+                                                   # peças do catálogo e em 212/212 de uma nativa
     2090: (4113, 2090, 2, 60),                       # inversor
     2096: (4147, 2092, 0, APL_DUTO_CLIMATIZACAO),
     2102: (4152, 2090, 0, APL_CONDENSADORA),         # 100 %
@@ -290,7 +291,7 @@ _ELETRICO = (
       'SUSPENSAO', 'CANALETA'),                      2052, 1, APL_TUBO),
     (('TOMADA', 'INTERRUPTOR', 'CONDULETE', 'LUMINARIA', 'PONTO DE LUZ',
       'SENSOR', 'CAMPAINHA'),                        2067, 1, APL_DISPOSITIVO_ELETRICO),
-    (('QUADRO DE DISTRIBUICAO', 'CAIXA DE DERIVACAO', 'UNIDADE DE DERIVACAO'),
+    (('QUADRO DE DISTRIBUICAO', 'CAIXA DE DERIVACAO', 'UNIDADE DE DERIVACAO', 'COFRE'),
                                                      2059, 1, APL_QUADRO_DISTRIBUICAO),
     (('QUADRO DE MEDICAO', 'MEDICAO'),               2059, 0, APL_QUADRO_MEDICAO),
     (('ENTRADA DE SERVICO', 'ANCORAGEM', 'POSTE', 'RAMAL DE ENTRADA'),
@@ -306,8 +307,8 @@ _ELETRICO = (
     (('BATERIA', 'NOBREAK'),                         2060, 0, 76),
     (('GERADOR',),                                   2087, 1, 84),
     (('TRANSFORMADOR', 'ESTABILIZADOR'),             2087, 1, 35),
-    (('CURVA', 'JOELHO', 'TE', 'JUNCAO', 'REDUCAO', 'FLANGE', 'TERMINAL',
-      'CRUZETA', 'DERIVACAO'),                       2051, 0, APL_CONEXAO),
+    (('CURVA', 'JOELHO', 'COTOVELO', 'TE', 'T', 'JUNCAO', 'REDUCAO', 'FLANGE',
+      'TERMINAL', 'CRUZETA', 'DERIVACAO'),           2051, 0, APL_CONEXAO),
 )
 
 _SPDA = (
@@ -331,7 +332,7 @@ _CLIMATIZACAO = (
     (('BOMBA DE DRENO', 'BOMBA PARA DRENAGEM', 'DRENO'), 2096, 0, 74),
     (('VALVULA', 'ATUADOR', 'REGISTRO'),             2084, 13, APL_VALVULA_BLOQUEIO),
     (('TUBO', 'LINHA FRIGORIGENA'),                  2052, 1, APL_TUBO),
-    (('CURVA', 'JOELHO', 'TE', 'JUNCAO', 'REDUCAO', 'LUVA', 'CAP'),
+    (('CURVA', 'JOELHO', 'COTOVELO', 'TE', 'T', 'JUNCAO', 'REDUCAO', 'LUVA', 'CAP'),
                                                      2071, 1, APL_CONEXAO),
 )
 
