@@ -276,8 +276,8 @@ conexão mora em `ENTRADA_PECA.DIAMETRO_EP`, não em `PECA.DIAMETRO_PECA`.
 
 | Sentinela | Coluna | Onde aparece |
 |---|---|---|
-| `-2147483647` | inteira | `GRUPO_PECA.TIPO_CONFIGURACAO_GP` (todas as linhas), `ENTRADA_PECA.SECAO_EP` (~70 %) |
-| `-1.7976931348623157e+308` (`-DBL_MAX`) | real | `PECA.DIAMETRO_PECA` e `COMPRIMENTO_PECA` (~82 % das peças numa biblioteca de conexões) |
+| `-2147483647` | inteira | `GRUPO_PECA.TIPO_CONFIGURACAO_GP` (90 % dos grupos do catálogo oficial), `ENTRADA_PECA.SECAO_EP` (79 %) |
+| `-1.7976931348623157e+308` (`-DBL_MAX`) | real | `PECA.DIAMETRO_PECA` (80 % das 31.611 peças do catálogo oficial) e `COMPRIMENTO_PECA` (44 %) |
 
 Uma coluna com sentinela **não está vazia no sentido do SQL**: `IS NULL` não a encontra, um
 `if peca['comprimento_cm']:` a considera verdadeira, e qualquer aritmética produz lixo.
@@ -290,22 +290,30 @@ Nada disto está documentado pelo fabricante do software; são correlações ent
 códigos, em bibliotecas de conexões (schema 595), bombas (607), aquecedores e elétrica. Extraia
 de uma biblioteca nova com `aq_referencia` antes de confiar.
 
-`GRUPO_PECA.PROJETO_APLICACAO` — tipo de instalação:
-**8** esgoto · **12** água fria · **22** incêndio · **36** gás · **64/76** elétrico.
-Água quente, pluvial e ar condicionado não foram observados.
+`GRUPO_PECA.PROJETO_APLICACAO` é **bitmask**, não enum — 4 hidráulico, 8 sanitário, 16 incêndio,
+32 gás, 64 elétrico, 256 SPDA, 512 climatização, e as somas. Os 20 valores em uso e o que cada bit
+significa estão em `aplicacoes-builder.md`, que é onde esta coluna mora.
 
-`ENTIDADE_IFC` / `TIPO_ENTIDADE_IFC` / `ENTIDADE_IFC_2X3` andam sempre juntos, em combinações fixas:
+As seis colunas IFC são de **`GRUPO_PECA`** (não de `PECA`). `ENTIDADE_IFC`, `TIPO_ENTIDADE_IFC` e
+`ENTIDADE_IFC_2X3` andam coladas, mas **não em combinação única**: os 3.929 grupos do catálogo
+oficial trazem 42 entidades em 52 combinações. O par dominante é que é firme — nas 32 entidades que
+o escritor conhece, as 32 batem com o dominante.
 
 | IFC4 | tipo | 2×3 | O que é |
 |---|---|---|---|
 | 2071 | 4099 | 2088 | `IfcPipeFitting` — curva, luva, cap, tê, redução, ramal |
 | 2072 | 4096 | 2086 | `IfcPipeSegment` — tubo |
-| 2075 | 4118 | 2093 | bomba |
-| 2076 | 4122 | 2092 | aparelho sanitário |
-| 2079 | 4121 | 2092 | terminal de ventilação |
-| 2084 | 4103 | 2091 | válvula |
-| 2085 | 4123 | 2092 | terminal de descarte — ralo, caixa sifonada |
-| 2090 | 4138 | 2090 | aquecedor a gás |
+| 2075 | 4118 | 2093 | `IfcPump` — bomba |
+| 2076 | 4122 | 2092 | `IfcSanitaryTerminal` — aparelho sanitário |
+| 2079 | 4121 | 2092 | `IfcStackTerminal` — terminal de ventilação |
+| 2084 | 4103 | 2091 | `IfcValve` — válvula |
+| 2085 | 4123 | 2092 | `IfcWasteTerminal` — ralo, caixa sifonada |
+| 2049 | 4115 | 2090 | `IfcBoiler` — aquecedor |
+| 2090 | 4113 | 2090 | `IfcTransformer` — inversor, controlador de carga |
+
+O `TIPO_ENTIDADE_IFC` se **decodifica em nome IFC4**: é 4096 mais o índice na lista de entidades que
+a ajuda apresenta em `grupo_de_pecas.htm` — ver `aplicacoes-builder.md` §"Os dois enums IFC têm
+nome". A tabela completa das 42 entidades está lá.
 
 `SUBTIPO_IFC` dentro de `IfcPipeFitting`: **0** curva/joelho · **1** luva · **3** cap · **4**
 tê/junção · **6** redução · **7** ramal. Em `IfcPipeSegment` só o 3; em bomba só o 5; em válvula

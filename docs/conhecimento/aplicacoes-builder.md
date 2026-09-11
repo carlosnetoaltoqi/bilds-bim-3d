@@ -137,6 +137,75 @@ diretamente e cujo nome saiu da classe.
 Nem toda aplicação da ajuda tem valor no catálogo, e o contrário também vale: a ajuda **não lista
 "Tubo"** (o valor 1, que existe e é usado em 2.104 peças).
 
+## Os dois enums IFC têm nome — a ajuda decodifica os dois
+
+`grupo_de_pecas.htm` lista **as entidades IFC4 que o Builder oferece, na ordem**. Essa ordem é o
+`TIPO_ENTIDADE_IFC`: **4096 + o índice na lista**, descontado `IfcFlowSegment` (que só existe do lado
+2×3). O `ENTIDADE_IFC` segue uma ordem própria, mas cada código anda colado a um tipo — e é o tipo
+que o nomeia.
+
+A decodificação foi conferida contra o nome de grupo de cada código nos 3.929 grupos do catálogo
+oficial, **32 verificações independentes, todas certas**: `IfcAlarm` traz "Sirene", `IfcBoiler` traz
+"Reservatório térmico", `IfcInterceptor` traz "Caixa de gordura", `IfcElectricTimeControl` traz
+"Programador horário", `IfcFlowMeter` traz "Hidrômetro", `IfcCommunicationAppliance` traz "DIO 24
+fibras". Com **uma** correção, e ela é da ajuda: o texto lista `IfcSanitaryTerminal` antes de
+`IfcStackTerminal` e os dados dizem o contrário (4121 é o terminal de ventilação, 4122 é a pia). A
+página é digitada à mão — escreve `IfcElectricDistribuitionBoard`, `IfcFireSuppresionTerminal` e
+`IfcFlowMovingDevic` errado —, então um par fora de ordem é o que se espera dela.
+
+**A lista da ajuda acaba antes do programa:** cinco tipos em uso no catálogo (4147, 4152, 4156, 4157,
+4161 — dutos, VRF, evaporadora) estão além do fim dela. São entidades que entraram depois que a
+página foi escrita, e são justamente as de climatização.
+
+| `ENTIDADE_IFC` | nome IFC4 | tipo | 2×3 | grupos | peças | aplicação dominante | no escritor |
+|---|---|---|---|---|---|---|---|
+| 2048 | `IfcAlarm` | 4125 | 2089 | 15 | 129 | 31 (100 %) | sim |
+| 2049 | `IfcBoiler` | 4115 | 2090 | 9 | 89 | 23 (40 %) | sim |
+| 2050 | `IfcBurner` | 4127 | 2087 | 152 | 280 | 12 (100 %) | sim |
+| 2051 | `IfcCableCarrierFitting` | 4100 | 2088 | 336 | 5265 | 2 (100 %) | sim |
+| 2052 | `IfcCableCarrierSegment` | 4097 | 2086 | 86 | 1224 | 1 (100 %) | sim |
+| 2053 | `IfcCableFitting` | 4101 | 2088 | 3 | 47 | 57 (91 %) | sim |
+| 2054 | `IfcCableSegment` | 4098 | 2086 | 38 | 209 | 1 (100 %) | sim |
+| 2055 | `IfcCommunicationAppliance` | 4112 | 2089 | 24 | 75 | 44 (100 %) | sim |
+| 2057 | `— entrou depois da ajuda` | 0 | 2087 | 2 | 6 | 2 (100 %) | **não** |
+| 2058 | `IfcElectricAppliance` | 4111 | 2092 | 2 | 6 | 31 (100 %) | **não** |
+| 2059 | `IfcElectricDistribuitionBoard` | 4106 | 2091 | 226 | 4008 | 34 (94 %) | sim |
+| 2060 | `IfcElectricFlowStorageDevice` | 4128 | 2094 | 3 | 42 | 76 (88 %) | sim |
+| 2061 | `IfcElectricTimeControl` | 4107 | 2091 | 4 | 26 | 31 (50 %) | **não** |
+| 2063 | `IfcFilter` | 4116 | 2095 | 2 | 7 | 54 (86 %) | **não** |
+| 2064 | `IfcFireSuppresionTerminal` | 4120 | 2092 | 271 | 1637 | 17 (88 %) | sim |
+| 2065 | `IfcFlowMeter` | 4102 | 2091 | 779 | 2696 | 36 (94 %) | sim |
+| 2066 | `IfcInterceptor` | 4124 | 2092 | 2 | 12 | 30 (67 %) | **não** |
+| 2067 | `IfcJunctionBox` | 4132 | 2088 | 281 | 3936 | 31 (77 %) | sim |
+| 2069 | `IfcLightFixture` | 4109 | 2092 | 203 | 1119 | 31 (100 %) | sim |
+| 2070 | `IfcOutlet` | 4108 | 2092 | 4 | 10 | 31 (90 %) | **não** |
+| 2071 | `IfcPipeFitting` | 4099 | 2088 | 598 | 4408 | 2 (96 %) | sim |
+| 2072 | `IfcPipeSegment` | 4096 | 2086 | 39 | 256 | 1 (100 %) | sim |
+| 2073 | `IfcProtectiveDevice` | 4105 | 2091 | 58 | 1504 | 41 (86 %) | sim |
+| 2075 | `IfcPump` | 4118 | 2093 | 34 | 621 | 6 (91 %) | sim |
+| 2076 | `IfcSanitaryTerminal` | 4122 | 2092 | 223 | 549 | 4 (80 %) | sim |
+| 2077 | `IfcSensor` | 4131 | 2089 | 2 | 8 | 31 (100 %) | **não** |
+| 2078 | `IfcSolarDevice` | 4114 | 2094 | 5 | 55 | 77 (84 %) | sim |
+| 2079 | `IfcStackTerminal` | 4121 | 2092 | 3 | 7 | 2 (100 %) | sim |
+| 2080 | `IfcSwitchingDevice` | 4104 | 2091 | 56 | 324 | 31 (77 %) | sim |
+| 2081 | `IfcTank` | 4119 | 2094 | 42 | 283 | 27 (71 %) | sim |
+| 2082 | `IfcTransformer` | 4113 | 2090 | 1 | 2 | 35 (100 %) | **não** |
+| 2083 | `IfcUnitaryControlElement` | 4126 | 2087 | 2 | 6 | 31 (100 %) | **não** |
+| 2084 | `IfcValve` | 4103 | 2091 | 163 | 740 | 3 (84 %) | sim |
+| 2085 | `IfcWasteTerminal` | 4123 | 2092 | 33 | 79 | 58 (25 %) | sim |
+| 2086 | `IfcPipeFitting` | 4099 | 2086 | 34 | 415 | 1 (100 %) | sim |
+| 2087 | `IfcDistributionFlowElement` | 4133 | 2087 | 147 | 1024 | 2 (56 %) | sim |
+| 2090 | `IfcTransformer` | 4113 | 2090 | 4 | 36 | 60 (61 %) | sim |
+| 2092 | `IfcSanitaryTerminal` | 4122 | 2092 | 1 | 14 | 68 (100 %) | **não** |
+| 2096 | `— entrou depois da ajuda` | 4147 | 2092 | 7 | 41 | 72 (66 %) | sim |
+| 2102 | `— entrou depois da ajuda` | 4152 | 2090 | 4 | 146 | 70 (100 %) | sim |
+| 2106 | `— entrou depois da ajuda` | 4156 | 2088 | 25 | 201 | 2 (95 %) | sim |
+| 2111 | `— entrou depois da ajuda` | 4161 | 2090 | 6 | 69 | 69 (100 %) | sim |
+
+<!-- 31611 peças, 3929 grupos com entidade; 42 entidades -->
+
+Peça sem entidade não existe: os 3.929 grupos têm todos as seis colunas preenchidas.
+
 ## A ponte prática: `ENTIDADE_IFC` → aplicação
 
 É por aqui que uma fonte que não conhece o vocabulário do Builder (IFC, família Revit, catálogo de
@@ -162,9 +231,17 @@ plugin) chega na aplicação certa — a classe IFC ela sempre tem. Os pares dom
 | 2049 | 23/24/25 aquecedor | 100 % |
 | 2081 | 27 reservatório cilíndrico | 202 de 283 |
 
-Nosso escritor já conhece sete dessas entidades (`IFC_TUBO` 2072, `IFC_CONEXAO` 2071, `IFC_BOMBA`
-2075, `IFC_APARELHO` 2076, `IFC_VALVULA` 2084, `IFC_TERMINAL` 2085, `IFC_TERMINAL_VENT` 2079) — todas
-hidráulicas. Não conhece nenhuma elétrica, de SPDA ou de climatização.
+Desde a ADR-024 o escritor conhece **32** dessas 42 entidades (`cadastro.py`, dicionário `IFC`),
+com as sete hidráulicas de antes mais elétrica, SPDA e climatização. As dez que faltam — 2057, 2058
+`IfcElectricAppliance`, 2061 `IfcElectricTimeControl`, 2063 `IfcFilter`, 2066 `IfcInterceptor`, 2070
+`IfcOutlet`, 2077 `IfcSensor`, 2082 `IfcTransformer`, 2083 `IfcUnitaryControlElement` e 2092
+`IfcSanitaryTerminal` — somam 2 a 26 peças cada no catálogo.
+
+**A ponte só funciona se alguém a atravessar.** Hoje nenhuma fonte preenche `entidadeIfc`: o campo é
+lido em `catalogo_to_aq` e `geo_to_aq`, está no contrato e no tipo TypeScript, e não é escrito por
+ninguém — nem pelo leitor de `.aq`, que tem a entidade na mão e a descarta. Na prática toda
+exportação classifica pelo **nome** (degrau 2), e um `.aq` que entre e saia do pipeline perde a
+entidade que já trazia.
 
 ## `POSICIONAR_SIMBOLOGIA_3D` — como a peça se orienta ao ser lançada
 
