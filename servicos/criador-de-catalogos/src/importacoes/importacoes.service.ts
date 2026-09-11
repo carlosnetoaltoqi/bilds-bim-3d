@@ -4,12 +4,14 @@ import { Model } from 'mongoose';
 import * as crypto from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { BimCatalog, BimCatalogDocument, BimImport, BimImportDocument, BimProduct, BimProductDocument, Company, CompanyDocument, IGeometryStore, ImportStatus, ImportTipo, apagarImportacao, storagePath } from '@bim/dominio';
+import { BimCatalog, BimCatalogDocument, BimImport, BimImportDocument, BimProduct, BimProductDocument, Company, CompanyDocument, IGeometryStore, ImportStatus, ImportTipo, ImportacaoEmAndamento, apagarImportacao, storagePath } from '@bim/dominio';
 import type { FamiliasRevitInfo, PluginInfo } from '@bim/base';
 import { FILA_IMPORTACOES, Fila } from './fila';
 import { ImportarDto } from './importar.dto';
 import { ImportarPluginDto } from './importar-plugin.dto';
 import { ImportarRevitDto } from './importar-revit.dto';
+import { RetomarPluginDto } from './retomar-plugin.dto';
+import { STATUS_NAO_TERMINAIS } from './recuperacao.service';
 import { PipelineService } from '../pipeline/pipeline.service';
 import { ArquivoRecebido, Empresa, PublicacaoService } from '../publicacao/publicacao.service';
 
@@ -169,6 +171,9 @@ export class ImportacoesService {
       status: 'recebido' as ImportStatus,
       fileName: `${rotulo} · ${body.categoria}`,
       note: `plugin ${rotulo} → ${host} · categoria ${body.categoria}`,
+      // Sem o lead, de propósito: ele é pedido de novo a cada tentativa (ver o schema).
+      origem: { host, categoria: body.categoria, igsPorGrupo: body.igsPorGrupo ?? 1,
+                deflexao: body.deflexao ?? 0.2, disciplina: body.disciplina, rotulo },
       updatedAt: new Date(),
     });
     const lead = { full_name: body.fullName, email: body.email, mobile: body.mobile, company: body.company, position: body.position };
@@ -291,14 +296,122 @@ export class ImportacoesService {
   // ── apagar ───────────────────────────────────────────────────────────────
 
   /** Apaga uma importação terminada: produtos, `geo/`, `thumbs/`, documento; reconta o catálogo (remocao.ts). */
+  /**
+   * Apaga a importação **e o que ela deixou pela metade**: os arquivos já baixados do catálogo web.
+   *
+   * As duas coisas andam juntas de propósito. O cache de download sobrevive a uma falha justamente
+   * para permitir retomar; então quem decide que aquela tentativa não vale mais precisa de um jeito
+   * de mandar os arquivos embora — senão sobram gigabytes que ninguém sabe de quem são. A tela diz
+   * quantos arquivos e quantos MB vão junto antes de confirmar.
+   *
+   * Só apaga o cache se **nenhuma outra importação viva** aponta para a mesma origem: duas
+   * tentativas da mesma categoria compartilham a pasta, e apagar por baixo de uma importação em
+   * andamento seria sabotá-la.
+   */
   async apagar(importId: string) {
+    const imp = await this.importModel.findById(importId).lean().exec();
+    const origem = (imp as any)?.origem as Record<string, any> | null;
+    const parcial = await this.parcialDe(origem);
+
     const r = await apagarImportacao(
       { companies: this.companyModel as any, catalogs: this.catalogModel as any, products: this.productModel as any, imports: this.importModel as any },
       this.store, importId,
     );
+
+    let downloadsRemovidos = { arquivos: 0, bytes: 0 };
+    if (origem?.host && origem?.categoria && parcial.arquivos > 0) {
+      const emUso = await this.importModel.countDocuments({
+        _id: { $ne: importId }, status: { $in: [...STATUS_NAO_TERMINAIS] },
+        'origem.host': origem.host, 'origem.categoria': origem.categoria,
+      }).exec();
+      if (emUso > 0) {
+        this.logger.warn(`[${importId.slice(0, 8)}] download parcial mantido — ${emUso} importação(ões) em andamento usam ${origem.host} · ${origem.categoria}`);
+      } else {
+        const pasta = path.join(storagePath(), 'catallog', pastaDeDownloads(origem.host, origem.categoria));
+        await fs.rm(pasta, { recursive: true, force: true });
+        downloadsRemovidos = parcial;
+        this.logger.log(`[${importId.slice(0, 8)}] download parcial apagado — ${parcial.arquivos} arquivo(s), ${(parcial.bytes / 1e6).toFixed(0)} MB`);
+      }
+    }
+
     this.logger.log(`[${importId.slice(0, 8)}] importação apagada — ${r.produtos} produtos${r.avisos.length ? ` (${r.avisos.length} avisos)` : ''}`);
     for (const a of r.avisos) this.logger.warn(a);
-    return { ok: true, importId, ...r };
+    return { ok: true, importId, ...r, downloadsRemovidos };
+  }
+
+  /**
+   * Retoma uma importação de plugin que terminou mal, **reaproveitando o que já foi baixado**.
+   *
+   * Não recebe a DLL: o host e a categoria estão na `origem` do registro. Recebe o lead de novo,
+   * porque ele nunca é gravado — é dado pessoal do formulário do fabricante, e a cada tentativa
+   * quem importa decide entregá-lo outra vez. O cache de download é o mesmo (`pastaDeDownloads`),
+   * então a biblioteca pula tudo o que já tem manifesto e continua de onde parou.
+   *
+   * Nasce uma importação nova (a que falhou fica no histórico, com o erro): é ela que a página
+   * acompanha, e é dela que sai o catálogo publicado.
+   */
+  async retomar(importId: string, lead: RetomarPluginDto) {
+    const anterior = await this.importModel.findById(importId).lean().exec();
+    if (!anterior) throw new NotFoundException('importação não encontrada');
+    const origem = (anterior as any).origem as Record<string, any> | null;
+    if (anterior.tipo !== 'plugin' || !origem?.host || !origem?.categoria) {
+      throw new BadRequestException('só importação de plugin de CAD pode ser retomada — as outras precisam do arquivo original');
+    }
+    if ((STATUS_NAO_TERMINAIS as readonly string[]).includes(anterior.status)) {
+      throw new ImportacaoEmAndamento(`a importação está em "${anterior.status}" — espere terminar`);
+    }
+    const company = await this.companyModel.findById(anterior.companyId).lean().exec();
+    if (!company) throw new NotFoundException('empresa da importação não existe mais');
+
+    const novoId = crypto.randomUUID();
+    const parcial = await this.parcialDe(origem);
+    await this.importModel.create({
+      _id: novoId,
+      companyId: anterior.companyId,
+      tipo: 'plugin' as ImportTipo,
+      status: 'recebido' as ImportStatus,
+      fileName: anterior.fileName,
+      note: `retomando ${importId.slice(0, 8)} — ${parcial.arquivos} arquivo(s) já baixados (${(parcial.bytes / 1e6).toFixed(0)} MB)`,
+      origem,
+      updatedAt: new Date(),
+    });
+    this.logger.log(`[${novoId.slice(0, 8)}] retomando ${importId.slice(0, 8)} — ${origem.host} · ${origem.categoria} · ${parcial.arquivos} arquivo(s) em cache`);
+
+    const downloads = path.join(storagePath(), 'catallog', pastaDeDownloads(origem.host, origem.categoria));
+    const leadPipeline = { full_name: lead.fullName, email: lead.email, mobile: lead.mobile, company: lead.company, position: lead.position };
+    const trabalho = () => this.publicacao.processarCatalogo(novoId, company as any, {
+      disciplina: origem.disciplina,
+      rotulo: 'plugin_catalogo_web importar (retomada)',
+      produzir: (geoDir, onProgresso) => this.pipeline.catalogoDePlugin({
+        host: origem.host, categoria: origem.categoria, lead: leadPipeline, downloads, geoDir,
+        igsPorGrupo: origem.igsPorGrupo ?? 1, deflexao: origem.deflexao ?? 0.2, plugin: null, onProgresso,
+      }),
+      // Não há arquivo enviado nesta rota: a DLL foi da primeira tentativa e já sumiu.
+      aoTerminar: async () => {},
+    });
+    this.fila
+      .executar(novoId, trabalho, (naFrente) => {
+        if (naFrente > 0) {
+          this.importModel.findByIdAndUpdate(novoId, { note: `na fila — ${naFrente} importação(ões) à frente`, updatedAt: new Date() })
+            .exec().catch(() => undefined);
+        }
+      })
+      .catch((e: any) => this.logger.error(`[${novoId.slice(0, 8)}] processamento escapou — ${e?.message ?? e}`));
+
+    return { importId: novoId, tipo: 'plugin', status: 'recebido', statusUrl: `/importacoes/${novoId}`, retomouDe: importId, parcial };
+  }
+
+  /** O que já está baixado no cache de uma origem: `{ arquivos, bytes }` (zeros se não há nada). */
+  private async parcialDe(origem: Record<string, any> | null | undefined) {
+    if (!origem?.host || !origem?.categoria) return { arquivos: 0, bytes: 0 };
+    const man = path.join(storagePath(), 'catallog', pastaDeDownloads(origem.host, origem.categoria), 'manifesto.json');
+    try {
+      const dados = JSON.parse(await fs.readFile(man, 'utf8'));
+      const arquivos: any[] = Array.isArray(dados?.arquivos) ? dados.arquivos : [];
+      return { arquivos: arquivos.length, bytes: arquivos.reduce((t, a) => t + (Number(a?.tamanho) || 0), 0) };
+    } catch {
+      return { arquivos: 0, bytes: 0 };       // sem manifesto = nada baixado ainda
+    }
   }
 
   // ── consulta ─────────────────────────────────────────────────────────────
@@ -333,8 +446,16 @@ export class ImportacoesService {
       }
     }
     const updatedAt = imp.updatedAt ?? null;
+    const origem = (imp as any).origem as Record<string, any> | null;
+    // O que já está baixado da origem — é o que a tela precisa para oferecer "continuar" ou
+    // "apagar o que ficou pela metade" com número na frente, em vez de no escuro.
+    const parcial = origem ? await this.parcialDe(origem) : { arquivos: 0, bytes: 0 };
     return {
       importId: imp._id,
+      origem: origem ? { host: origem.host, categoria: origem.categoria } : null,
+      parcial: parcial.arquivos > 0 ? parcial : null,
+      podeRetomar: imp.tipo === 'plugin' && !!origem?.host && !!origem?.categoria
+        && !(STATUS_NAO_TERMINAIS as readonly string[]).includes(imp.status),
       tipo: imp.tipo ?? 'aq',
       status: imp.status,
       fileName: imp.fileName,

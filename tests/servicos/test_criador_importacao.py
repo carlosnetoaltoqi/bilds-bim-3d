@@ -48,6 +48,18 @@ def recuperacao(node):
     return json.loads(proc.stdout)
 
 
+@pytest.fixture(scope='module')
+def retomada(node):
+    if not (INGESTAO / 'node_modules' / 'ts-node').is_dir():
+        pytest.skip('precisa de ts-node em servicos/criador-de-catalogos/node_modules (pnpm install na raiz)')
+    proc = subprocess.run(
+        [node, '--no-warnings', '--require', 'ts-node/register/transpile-only', '--require', 'reflect-metadata',
+         str(ROOT / 'tests' / 'paridade' / 'retomada.cts')],
+        capture_output=True, text=True, cwd=INGESTAO, timeout=300)
+    assert proc.returncode == 0, proc.stderr[-3000:]
+    return json.loads(proc.stdout.strip().splitlines()[-1])
+
+
 # ── fila ─────────────────────────────────────────────────────────────────────
 
 def test_fila_roda_um_por_vez_em_ordem_e_informa_a_posicao(fila):
@@ -117,3 +129,39 @@ def test_uploads_temporarios_so_os_nossos(recuperacao):
 def test_servico_nest_chama_a_recuperacao_no_on_module_init(recuperacao):
     r = recuperacao['servico_on_module_init']
     assert r['marcados'] == ['y'] and r['uploadsRemovidosEhArray'] is True
+
+
+# ── saída pós-falha: apagar o parcial ou retomar ─────────────────────────────
+
+def test_a_pasta_de_download_e_estavel_por_host_e_categoria(retomada):
+    """O cache precisa ser reencontrável por uma tentativa nova — senão não há retomada.
+
+    Era `catallog/<importId>`, e uma segunda tentativa nunca acharia o que a primeira baixou.
+    """
+    p = retomada['pasta']
+    assert p['igual'] and p['categoriasDiferentes']
+    assert p['nome'] == 'https-catalogo-exemplo-com--conexoes-ranhuradas-17'   # sem acento, barra ou maiúscula
+
+
+def test_apagar_a_importacao_leva_o_download_parcial(retomada):
+    """Apagar é a decisão deliberada de jogar fora o que ficou pela metade.
+
+    O cache sobrevive à falha de propósito (é rede lenta e um formulário de lead por arquivo);
+    quem decide que a tentativa não vale mais precisa de um jeito de mandá-lo embora, com o
+    número na frente — a tela mostra arquivos e MB antes de confirmar.
+    """
+    r = retomada['apagouCache']
+    assert r['removidos']['arquivos'] == 41 and round(r['removidos']['bytes'] / 1e6) == 214
+    assert r['pastaSumiu']
+
+
+def test_apagar_nao_sabota_outra_importacao_da_mesma_origem(retomada):
+    """Duas tentativas da mesma categoria compartilham o cache: apagar por baixo de uma em
+    andamento a faria baixar de novo no meio do caminho."""
+    r = retomada['preservouCacheEmUso']
+    assert r['removidos']['arquivos'] == 0 and r['pastaFicou']
+
+
+def test_retomar_so_vale_para_plugin_terminado(retomada):
+    assert retomada['retomarAq'] == 'BadRequestException'          # .aq precisa do arquivo original
+    assert retomada['retomarEmAndamento'] == 'ImportacaoEmAndamento'

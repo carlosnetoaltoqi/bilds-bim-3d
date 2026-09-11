@@ -23,6 +23,30 @@ Duas regras que vêm disso e já custaram caro quando foram quebradas:
 A limpeza por retenção (`publicacao`) apaga `geo/` e `thumbs/` da importação anterior, e **não**
 toca nesse cache — de propósito.
 
+### A saída pós-falha: continuar ou apagar, e quem decide é quem importa
+
+Como o cache sobrevive à falha, a importação que falhou passa a ter duas saídas na tela, as duas
+com o número na frente (*N arquivos, X MB*), porque decisão no escuro sobre gigabytes não é decisão:
+
+| ação | rota | o que faz |
+|---|---|---|
+| **continuar de onde parou** | `POST /importacoes/<id>/retomar` | nasce uma importação nova com a mesma `origem` (host, categoria, disciplina, opções), aponta para o mesmo cache e pula o que já tem manifesto. A que falhou fica no histórico com o erro |
+| **apagar** | `DELETE /importacoes/<id>` | apaga a importação **e o cache de download** daquela origem |
+
+Três coisas que isso exige e que não são detalhe:
+
+- **A `origem` fica gravada** em `bim_imports.origem` (host, categoria, `igsPorGrupo`, `deflexao`,
+  disciplina). Sem ela, retomar precisaria da DLL de novo só para redescobrir o host.
+- **O lead nunca é gravado**, e por isso é pedido outra vez ao retomar. É dado pessoal de um
+  formulário de terceiro, enviado uma vez por arquivo: guardá-lo para reusar depois seria decidir
+  pela pessoa. A tela explica isso onde pede.
+- **Apagar não passa por cima de quem está usando**: se outra importação **em andamento** tem a
+  mesma origem, o cache fica e o log diz por quê. Duas tentativas da mesma categoria compartilham
+  a pasta, e apagá-la por baixo de uma delas a faria rebaixar tudo no meio do caminho.
+
+O status (`GET /importacoes/<id>`) traz `parcial` (`{arquivos, bytes}`), `origem` e `podeRetomar`
+— é o que a tela usa para montar essas duas saídas.
+
 ## O padrão
 
 Um plugin de CAD de fabricante — o botão que aparece na ribbon do AutoCAD, do Revit, do

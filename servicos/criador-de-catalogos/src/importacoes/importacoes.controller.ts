@@ -22,6 +22,7 @@ import { ImportacoesService, tipoDe } from './importacoes.service';
 import { ImportarDto } from './importar.dto';
 import { ImportarPluginDto } from './importar-plugin.dto';
 import { ImportarRevitDto } from './importar-revit.dto';
+import { RetomarPluginDto } from './retomar-plugin.dto';
 
 /**
  * POST /importacoes                 — multipart `file` (.aq | .zip | .stp | .step | .igs | .ifc | .rfa) + campos do ImportarDto
@@ -95,6 +96,20 @@ export class ImportacoesController {
   @Get(':importId')
   async status(@Param('importId') importId: string) {
     return this.importacoes.status(importId);
+  }
+
+  /**
+   * Retoma uma importação de plugin que falhou, reaproveitando o que já foi baixado. Sem a DLL
+   * (host e categoria vêm do registro) e **com o lead de novo**, que nunca é guardado.
+   */
+  @Post(':importId/retomar')
+  async retomar(@Param('importId') importId: string, @Body() body: RetomarPluginDto) {
+    try {
+      return await this.importacoes.retomar(importId, body);
+    } catch (e) {
+      if (e instanceof ImportacaoEmAndamento) throw new ConflictException(e.message);
+      throw e;
+    }
   }
 
   @Delete(':importId')

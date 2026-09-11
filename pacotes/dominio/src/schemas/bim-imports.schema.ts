@@ -66,6 +66,17 @@ export class BimImport {
   @Prop({ required: true })
   fileName: string;
 
+  /**
+   * De onde a importação veio, quando dá para repeti-la sem o arquivo original — hoje só o
+   * `plugin`: `{ host, categoria, igsPorGrupo, deflexao, disciplina, pasta }`. É o que permite
+   * **retomar** uma importação que falhou, reaproveitando o cache de download.
+   *
+   * O **lead** (nome, e-mail, telefone, empresa, cargo) **nunca** entra aqui: ele é do formulário
+   * do site do fabricante, vive só no processo filho e é pedido de novo a cada tentativa.
+   */
+  @Prop({ type: MongooseSchema.Types.Mixed, default: null })
+  origem: Record<string, unknown> | null;
+
   @Prop({ default: Date.now })
   createdAt: Date;
 

@@ -41,7 +41,17 @@ interface Importacao {
   segundos: number
   produtoId?: string
   nome?: string
+  /**
+   * Só em importação de plugin, e só quando vêm do serviço: de onde veio, o que já foi baixado e
+   * se dá para retomar. Opcionais porque o objeto otimista que a tela monta ao enviar ainda não
+   * passou pelo serviço — o primeiro `GET` de status os traz.
+   */
+  origem?: { host: string; categoria: string } | null
+  parcial?: { arquivos: number; bytes: number } | null
+  podeRetomar?: boolean
 }
+
+const mb = (bytes: number) => `${(bytes / 1e6).toFixed(0)} MB`
 
 const TERMINAL = ['publicado', 'vazio', 'falhou']
 const ETAPAS: Array<[string, string]> = [['recebido', 'recebido'], ['parseando', 'lendo'], ['gravando', 'gravando'], ['publicado', 'publicado']]
@@ -240,7 +250,11 @@ function ImportarPageInner() {
           )}
         </form>
 
-        {atual && <Status imp={atual} onNovo={() => setAtual(null)} />}
+        {atual && (
+          <Status imp={atual} onNovo={() => setAtual(null)}
+            onRetomado={(i) => { setAtual(i); void carregarUltimas(empresa) }}
+            onApagado={() => { setAtual(null); void carregarUltimas(empresa) }} />
+        )}
 
         {ultimas.length > 0 && (
           <section className="mt-8">
@@ -257,7 +271,9 @@ function ImportarPageInner() {
                   {i.catalogoUrl && <a href={`${i.catalogoUrl}/editar`} className="text-[12px] text-[#1e40af] hover:underline">editar</a>}
                   {TERMINAL.includes(i.status) && (
                     <BotaoApagar rota={`/importacoes/${i.importId}`} base={CRIADOR_URL} onApagado={() => void carregarUltimas(empresa)}
-                      confirmacao={`Apagar a importação de "${i.fileName}"${i.productCount ? ` com ${i.productCount} produto(s)` : ''}, geometria e miniaturas? O catálogo fica (recontado).`} />
+                      confirmacao={`Apagar a importação de "${i.fileName}"${i.productCount ? ` com ${i.productCount} produto(s)` : ''}, geometria e miniaturas?`
+                        + (i.parcial ? ` Vão junto os ${i.parcial.arquivos} arquivo(s) já baixados (${mb(i.parcial.bytes)}) — retomar depois exige baixar tudo de novo.` : '')
+                        + ' O catálogo fica (recontado).'} />
                   )}
                 </li>
               ))}
@@ -269,7 +285,86 @@ function ImportarPageInner() {
   )
 }
 
-function Status({ imp, onNovo }: { imp: Importacao; onNovo: () => void }) {
+/**
+ * A saída de uma importação de plugin que falhou: **continuar** ou **apagar o que ficou pela metade**.
+ *
+ * O download é o que custa caro (rede lenta, um formulário de lead por arquivo) e sobrevive à
+ * falha de propósito, então a decisão é de quem importa — e é tomada com o número na frente:
+ * quantos arquivos e quantos MB estão lá. "Continuar" pede o lead de novo porque ele nunca é
+ * gravado; do resto (host, categoria, disciplina) o serviço já se lembra.
+ */
+function Retomada({ imp, onRetomado, onApagado }: { imp: Importacao; onRetomado: (i: Importacao) => void; onApagado: () => void }) {
+  const [aberto, setAberto] = useState(false)
+  const [lead, setLead] = useState({ fullName: '', email: '', mobile: '', company: '', position: '' })
+  const [enviando, setEnviando] = useState(false)
+  const [erro, setErro] = useState<string | null>(null)
+  const completo = Object.values(lead).every((v) => v.trim()) && lead.email.includes('@')
+
+  async function continuar() {
+    setEnviando(true); setErro(null)
+    try {
+      const r = await fetch(`${CRIADOR_URL}/importacoes/${imp.importId}/retomar`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(lead),
+      })
+      const corpo = await r.json().catch(() => null)
+      if (!r.ok) { setErro(corpo?.message ? String(corpo.message) : `serviço respondeu ${r.status}`); setEnviando(false); return }
+      onRetomado({ ...imp, ...corpo, status: 'recebido', error: null, note: corpo?.note ?? null })
+    } catch (e: any) {
+      setErro(`falha de rede — o criador de catálogos está de pé em ${CRIADOR_URL}?`); setEnviando(false)
+    }
+  }
+
+  return (
+    <div className="mt-4 border-t border-gray-100 pt-3">
+      <p className="text-[12px] text-gray-700">
+        {imp.parcial
+          ? <><strong>{imp.parcial.arquivos} arquivo(s) já baixados</strong> ({mb(imp.parcial.bytes)}) continuam guardados — nada foi perdido.</>
+          : <>Nada foi baixado ainda desta categoria.</>}
+      </p>
+      {!aberto ? (
+        <div className="flex gap-3 flex-wrap mt-2 items-center">
+          <button onClick={() => setAberto(true)}
+            className="px-3 py-1.5 rounded bg-[#1e40af] text-white text-[12px] font-semibold">
+            Continuar de onde parou
+          </button>
+          <BotaoApagar rota={`/importacoes/${imp.importId}`} base={CRIADOR_URL} onApagado={onApagado}
+            rotulo={imp.parcial ? `apagar tudo (inclusive os ${imp.parcial.arquivos} arquivos)` : 'apagar esta importação'}
+            confirmacao={imp.parcial
+              ? `Apagar a importação E os ${imp.parcial.arquivos} arquivo(s) já baixados (${mb(imp.parcial.bytes)})? Retomar depois exige baixar tudo de novo.`
+              : 'Apagar esta importação?'} />
+        </div>
+      ) : (
+        <div className="mt-2">
+          <p className="text-[12px] text-gray-500 mb-2">
+            O formulário do fabricante é enviado uma vez por arquivo, e estes dados não ficam
+            guardados — por isso são pedidos de novo.
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            {([['fullName', 'Nome'], ['email', 'E-mail'], ['mobile', 'Telefone'], ['company', 'Empresa'], ['position', 'Cargo']] as Array<[keyof typeof lead, string]>).map(([k, rot]) => (
+              <label key={k} className="text-[12px] text-gray-600">
+                {rot}
+                <input value={lead[k]} onChange={(e) => setLead({ ...lead, [k]: e.target.value })}
+                  className="mt-0.5 w-full border border-gray-300 rounded px-2 py-1 text-[13px]"
+                  type={k === 'email' ? 'email' : 'text'} disabled={enviando} />
+              </label>
+            ))}
+          </div>
+          {erro && <p className="text-[12px] text-red-700 mt-2">{erro}</p>}
+          <div className="flex gap-3 mt-3 items-center">
+            <button onClick={() => void continuar()} disabled={!completo || enviando}
+              className="px-3 py-1.5 rounded bg-[#1e40af] text-white text-[12px] font-semibold disabled:opacity-40">
+              {enviando ? 'retomando…' : 'Retomar a importação'}
+            </button>
+            <button onClick={() => setAberto(false)} disabled={enviando}
+              className="text-[12px] text-gray-500 hover:underline">cancelar</button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function Status({ imp, onNovo, onRetomado, onApagado }: { imp: Importacao; onNovo: () => void; onRetomado: (i: Importacao) => void; onApagado: () => void }) {
   const idxAtual = ETAPAS.findIndex(([e]) => e === imp.status)
   const terminal = TERMINAL.includes(imp.status)
   const cor = imp.status === 'falhou' ? 'border-red-200' : imp.status === 'publicado' ? 'border-green-200' : imp.status === 'vazio' ? 'border-amber-200' : 'border-blue-200'
@@ -295,6 +390,9 @@ function Status({ imp, onNovo }: { imp: Importacao; onNovo: () => void }) {
           <a href={imp.catalogoUrl} className="px-3 py-1.5 rounded bg-[#1e40af] text-white text-[12px] font-semibold">Ver catálogo</a>
           <a href={imp.editorUrl ?? `${imp.catalogoUrl}/editar`} className="px-3 py-1.5 rounded border border-gray-300 text-[12px] font-semibold text-gray-700">{imp.tipo === 'cad' ? 'Abrir a peça no editor 3D' : 'Editar catálogo'}</a>
         </div>
+      )}
+      {imp.podeRetomar && imp.status !== 'publicado' && (
+        <Retomada imp={imp} onRetomado={onRetomado} onApagado={onApagado} />
       )}
       {terminal && <button onClick={onNovo} className="mt-4 text-[12px] text-[#1e40af] hover:underline">importar outro arquivo</button>}
     </div>
