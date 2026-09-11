@@ -26,6 +26,21 @@ tubulação de entrada") em toda peça, quando conexão quer 0 ("no plano formad
 8.039 de 10.467 no catálogo oficial) e tubo quer nulo (2.104 de 2.104). Como as outras duas, é
 escolha por aplicação, não valor fixo.
 
+> **Emenda de 2026-09-11 — o posicionamento de peça com ligação 3D, e o nome em inglês.** Dois
+> defeitos que só uma biblioteca real no Builder revelou, os dois corrigidos no mesmo dia:
+>
+> - **Peça com "Pontos de ligação 3D: Sim" só aceita os modos 2 e 6** (o Cadastro oferece dois no
+>   combo; o catálogo confirma em 4.206 de 4.206). O escritor gravava o modo por aplicação — 0 em
+>   conexão, 1 em registro, 3 em bomba — **e** marcava a ligação 3D em toda peça com bocal, o que
+>   produzia combinação que não existe em nativa nenhuma. A escolha entre os dois é o que a peça
+>   faz: **6** quando entra na tubulação (a curva, que fica como o usuário lançar) e **2** quando se
+>   apoia (bomba, reservatório, evaporadora — sempre de pé). Tubo fica fora, que é a única regra mais
+>   forte que essa (nulo em 2.104 de 2.104).
+> - **O nome pode chegar em inglês.** Uma biblioteca de válvulas e atuadores de HVAC saiu inteira
+>   como "Elemento genérico" porque o vocabulário só conhecia `VÁLVULA`/`ATUADOR` e a família Revit
+>   diz `Valves`/`Actuator`. A tradução (`cadastro.SINONIMOS_EN`) acontece antes do casamento, num
+>   lugar só, para os dois idiomas darem a mesma classificação.
+
 ## Por quê
 
 A engenharia do Builder, testando nossas bibliotecas, encontrou **peças elétricas cadastradas com

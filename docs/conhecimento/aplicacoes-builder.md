@@ -268,16 +268,31 @@ catálogo oficial.
 | 2 | Na horizontal, apontando para o ponto diretor | ponto diretor; Z global | ponto de lâmpada | dispositivo elétrico (1.780), evaporadora (78 de 78) |
 | 3 | Na horizontal, apontando para a **tubulação de entrada** | conduto da entrada; Z global | hidrômetro | bomba (503 de 588) |
 | 4 | Na horizontal, apontando para a **tubulação de saída** | conduto da saída; Z global | caixa sifonada | — (263 peças no total) |
-| 5 | No plano de lançamento, apontando para o ponto diretor | plano do cursor | — | — (50 peças) |
-| 6 | Alinhada ao conduto com saída lateral de trecho reto | conduto da entrada; Y para o lado do outro conduto | junção simples | — (1.397 peças) |
+| 5 | — indeterminado (só 50 peças no catálogo, nenhuma âncora) | — | — | — |
+| 6 | **No plano de lançamento, apontando para o ponto diretor** | plano em que o usuário lança | junção simples | conexão **com ligação 3D** (288 de 332) |
+
+**Peça com "Pontos de ligação 3D: Sim" só aceita dois modos — 2 e 6.** O Cadastro oferece só esses
+dois no combo (visto na tela em 2026-09-11) e o catálogo confirma: das **4.206** peças com
+`CONEXAO_VOLUMETRICA = 1`, todas usam 2 ou 6 — **nenhuma** usa 0, 1, 3, 4 ou 5. A engenharia do
+Builder descreveu a diferença, e a medição bate com a descrição:
+
+| modo | o que significa na prática | quem usa (entre as peças com ligação 3D) |
+|---|---|---|
+| **2** — na horizontal | a peça fica **sempre de pé**: apoiada no piso ou na face da parede | bomba 26/26, evaporadora 32/32, condensadora 58/58, reservatório 26/26, aquecedor 36/36, elemento genérico 101/102, quadro de medição 2.623/2.966 |
+| **6** — no plano de lançamento | a peça fica **como o usuário lançar**: de pé, deitada ou de ponta-cabeça. É a curva entre dois tubos | conexão 288/332, registro 7/12, tomada d'água 6/6, pressurizador 33/33, dispositivo elétrico 17/27 |
+
+Foi isso que corrigiu o escritor: ele gravava o modo **por aplicação** (0 em conexão, 1 em registro,
+3 em bomba) **e** marcava a ligação 3D em toda peça com bocal — combinação que não existe em nenhuma
+das 4.206. Agora `entradas_aq.marcar_pontos_de_ligacao` normaliza o modo junto com a marca
+(`cadastro.posicionar_com_ligacao`). **Tubo fica de fora**: a coluna é nula em 2.104 de 2.104 tubos
+e tubo com ligação 3D não existe no catálogo — sem medição, a regra forte do tubo prevalece.
 
 Duas coisas medidas que valem como regra:
 
 - **Tubo (aplicação 1) tem a coluna nula** — 2.104 de 2.104. Conduto não tem simbologia a orientar.
-- **Conexão quer 0**, não 3. Nosso `catalogo_to_aq` grava **3** em toda peça ("apontando para a
-  tubulação de entrada"), o que num joelho ou num tê orienta a peça pelo conduto de entrada em vez
-  do plano dos dois condutos; `geo_to_aq` grava 0, que é o valor certo para conexão. É defeito de
-  orientação no lançamento, não de desenho: a peça aparece, torta.
+- **Conexão sem ligação 3D quer 0** (8.039 de 10.467); com ligação 3D, quer **6**. As duas regras
+  convivem porque descrevem peças diferentes: sem pontos de ligação a peça se orienta pelo plano
+  dos condutos, com pontos ela se orienta pelo lançamento.
 
 ## O que o pipeline faz hoje (ADR-024, implementado em 2026-09-10)
 

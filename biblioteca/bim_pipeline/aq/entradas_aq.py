@@ -141,10 +141,31 @@ def marcar_pontos_de_ligacao(con, ids_peca):
     em "Não". A regra da seção continua valendo como formato (é o que a nativa faz: nulas em
     15.321 de 15.321 peças com `ENTRADA_PECA` no catálogo oficial), mas quem acende o rótulo
     é o `CONEXAO_VOLUMETRICA`.
+
+    **Acender o rótulo restringe o posicionamento**, e por isso ele é corrigido aqui: peça com
+    "Pontos de ligação 3D" só aceita os modos 2 e 6 (4.206 de 4.206 no catálogo oficial; o
+    Cadastro oferece só esses dois no combo). O modo por aplicação que o escritor gravou vale
+    para peça **sem** ligação 3D — em peça com ligação, 0 ("no plano formado pelos condutos"),
+    1 e 3 não existem em nenhuma nativa. `cadastro.posicionar_com_ligacao` escolhe entre os
+    dois pelo que a peça faz: 6 quando entra na tubulação (a curva, que fica de pé, deitada ou
+    de ponta-cabeça, como o usuário lançar), 2 quando se apoia (bomba, reservatório,
+    evaporadora — sempre de pé).
     """
+    ids = [int(i) for i in ids_peca]
     con.executemany('UPDATE PECA SET CONEXAO_VOLUMETRICA = 1, SECAO = NULL,'
-                    ' DIAMETRO_INTERNO = NULL WHERE ID_PECA = ?',
-                    [(int(i),) for i in ids_peca])
+                    ' DIAMETRO_INTERNO = NULL WHERE ID_PECA = ?', [(i,) for i in ids])
+    # o modo depende da aplicação que a peça já tem gravada, uma consulta só
+    marca = ','.join('?' * len(ids))
+    if not ids:
+        return
+    alvo = con.execute(f'SELECT ID_PECA, TIPO_APLICACAO_PECA FROM PECA WHERE ID_PECA IN ({marca})',
+                       ids).fetchall()
+    # Tubo fica de fora: a coluna é **nula** em 2.104 de 2.104 tubos do catálogo, e tubo com
+    # ligação 3D não existe lá (zero casos) — não há o que medir, então a regra forte do tubo
+    # prevalece sobre um palpite entre 2 e 6.
+    con.executemany('UPDATE PECA SET POSICIONAR_SIMBOLOGIA_3D = ? WHERE ID_PECA = ?',
+                    [(cadastro.posicionar_com_ligacao(apl), pid)
+                     for pid, apl in alvo if apl != cadastro.APL_TUBO])
 
 
 def gravar(g, entradas, id_simbologia=None, ids_peca=()):

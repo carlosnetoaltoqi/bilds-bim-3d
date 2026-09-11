@@ -347,7 +347,71 @@ VOCABULARIO = {
 }
 
 
+# ── O nome pode chegar em inglês ──────────────────────────────────────────────
+#
+# Família Revit de fabricante internacional nomeia tudo em inglês (`Actuator - MP500C`,
+# `PIBCV Valves`, `Pipe Accessories`). Medido no Builder em 2026-09-11: uma biblioteca de
+# válvulas e atuadores de HVAC saiu **inteira** como "Elemento genérico" (aplicação 68) porque
+# nenhuma palavra do vocabulário casou — o Builder recebeu, corretamente, o nosso "não sei".
+#
+# A tradução acontece **antes** do casamento, num lugar só, em vez de duplicar cada termo nos
+# sete vocabulários: assim os dois idiomas dão exatamente a mesma classificação, e uma regra
+# nova em português vale para o inglês de graça. Só entram termos cujo equivalente já existe
+# em alguma regra — nada aqui inventa classificação.
+SINONIMOS_EN = {
+    'PIPE': 'TUBO', 'TUBING': 'TUBO', 'DUCT': 'DUTO', 'DUCTWORK': 'DUTO',
+    'ELBOW': 'CURVA', 'BEND': 'CURVA', 'TEE': 'TE', 'WYE': 'JUNCAO', 'CROSS': 'CRUZETA',
+    'REDUCER': 'REDUCAO', 'COUPLING': 'LUVA', 'UNION': 'UNIAO', 'ADAPTER': 'ADAPTADOR',
+    'NIPPLE': 'NIPEL', 'PLUG': 'PLUG', 'FITTING': 'CONEXAO', 'FITTINGS': 'CONEXAO',
+    'VALVE': 'VALVULA', 'ACTUATOR': 'ATUADOR', 'DAMPER': 'REGISTRO',
+    'PUMP': 'BOMBA', 'BOOSTER': 'PRESSURIZADOR', 'TANK': 'RESERVATORIO',
+    'HEATER': 'AQUECEDOR', 'BOILER': 'AQUECEDOR', 'FAN': 'EXAUSTOR',
+    'SPRINKLER': 'SPRINKLER', 'HYDRANT': 'HIDRANTE', 'EXTINGUISHER': 'EXTINTOR',
+    'OUTLET': 'TOMADA', 'SOCKET': 'TOMADA', 'SWITCH': 'INTERRUPTOR', 'BREAKER': 'DISJUNTOR',
+    'PANEL': 'QUADRO', 'BUSBAR': 'BARRAMENTO', 'CABLE': 'CABO', 'TRAY': 'ELETROCALHA',
+    'LUMINAIRE': 'LUMINARIA', 'FIXTURE': 'LUMINARIA', 'SENSOR': 'SENSOR',
+    'RACK': 'RACK', 'CABINET': 'GABINETE', 'BATTERY': 'BATERIA', 'INVERTER': 'INVERSOR',
+    'TRANSFORMER': 'TRANSFORMADOR', 'GENERATOR': 'GERADOR', 'FILTER': 'FILTRO',
+    'STRAINER': 'FILTRO', 'METER': 'HIDROMETRO', 'DRAIN': 'RALO', 'TRAP': 'SIFAO',
+    'EVAPORATOR': 'EVAPORADORA', 'CONDENSER': 'CONDENSADORA', 'SPLIT': 'SPLIT',
+}
+_RX_EN = re.compile(r'\b(' + '|'.join(sorted(SINONIMOS_EN, key=len, reverse=True)) + r')S?\b')
+
+
+def _traduzir(alvo):
+    """Nome já sem acento e em maiúscula → com os termos em inglês trocados pelo equivalente."""
+    return _RX_EN.sub(lambda m: SINONIMOS_EN[m.group(1)], alvo)
+
+
 # ── 3. Posicionamento — `PECA.POSICIONAR_SIMBOLOGIA_3D` ───────────────────────
+#
+# **Peça com "Pontos de ligação 3D: Sim" só aceita dois modos.** O Cadastro oferece dois itens no
+# combo, e o catálogo oficial confirma: das 4.206 peças com `CONEXAO_VOLUMETRICA = 1`, **todas**
+# usam 2 ou 6 — nunca 0, 1, 3, 4 ou 5. A engenharia do Builder descreveu o que cada um significa,
+# e a medição bate com a descrição:
+#
+#   2 "Na horizontal, apontando para o ponto diretor" — a peça fica **sempre de pé**: apoiada no
+#     piso ou na face da parede. Bomba (26/26), evaporadora (32/32), condensadora (58/58),
+#     reservatório (26/26), aquecedor (36/36), elemento genérico (101/102).
+#   6 "No plano de lançamento, apontando para o ponto diretor" — a peça fica **como o usuário
+#     lançar**: de pé, deitada ou de ponta-cabeça. É a curva entre dois tubos — conexão (288/332),
+#     registro (7/12), pressurizador (33/33).
+#
+# Como o pipeline marca a ligação 3D em toda peça com bocal detectado (ADR-023), é esta regra que
+# vale para ela — e não a tabela por aplicação abaixo, que descreve a peça **sem** ligação 3D.
+POSICIONAR_APOIADA = 2
+POSICIONAR_EM_LINHA = 6
+
+# Quem entra na tubulação em vez de se apoiar. Medido entre as peças com ligação 3D do catálogo.
+APLICACOES_EM_LINHA = frozenset({APL_CONEXAO, APL_REGISTRO, 5, APL_DISPOSITIVO_ELETRICO, 81})
+
+
+def posicionar_com_ligacao(aplicacao):
+    """Modo de posicionamento de uma peça **com** "Pontos de ligação 3D" — 6 se entra na
+    tubulação, 2 se se apoia. Ver o bloco acima."""
+    return POSICIONAR_EM_LINHA if aplicacao in APLICACOES_EM_LINHA else POSICIONAR_APOIADA
+
+
 #
 # O modo diz para onde aponta o eixo X da simbologia quando o Builder monta o 3D a partir do
 # croqui: é o que faz a peça **já entrar certa** no projeto. Os sete modos (0…6) estão em
@@ -590,7 +654,7 @@ def classificar(nome, disciplina, entidade_ifc=None, diag=None):
         apl = APLICACAO_POR_IFC_E_DISCIPLINA.get((declarada, disciplina), apl)
         return declarada, tipo, e23, sub, apl
 
-    alvo = _sem_acento(nome)
+    alvo = _traduzir(_sem_acento(nome))
     for chaves, ent, sub, apl in VOCABULARIO[disciplina]:
         # o `S?` é o plural: no catálogo oficial o nome de grupo mais comum do tubo é
         # literalmente "Tubos", e `\bTUBO\b` não casa com ele. Plural irregular

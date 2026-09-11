@@ -172,11 +172,14 @@ def test_peca_com_entrada_sai_marcada_e_sem_secao_no_cadastro(tmp_path):
     assert proc.returncode == 0, proc.stderr[-2000:]
 
     con = sqlite3.connect(saida)
-    pecas = con.execute('SELECT CONEXAO_VOLUMETRICA, SECAO, DIAMETRO_INTERNO'
-                        ' FROM PECA').fetchall()
+    pecas = con.execute('SELECT CONEXAO_VOLUMETRICA, SECAO, DIAMETRO_INTERNO,'
+                        ' POSICIONAR_SIMBOLOGIA_3D FROM PECA').fetchall()
     secoes = con.execute('SELECT DISTINCT SECAO_EP FROM ENTRADA_PECA').fetchall()
     con.close()
-    assert pecas == [(1, None, None)]     # marcada, e sem o default 10 do schema
+    # marcada e sem o default 10 do schema. O posicionamento segue **nulo** porque a peça é um
+    # tubo: a coluna é nula em 2.104 de 2.104 tubos do catálogo, e tubo com ligação 3D não
+    # existe lá — a regra dos modos 2/6 vale para as outras aplicações, não para esta.
+    assert pecas == [(1, None, None, None)]
     assert secoes == [(10,)]              # a seção está na entrada, que é onde a nativa põe
 
 

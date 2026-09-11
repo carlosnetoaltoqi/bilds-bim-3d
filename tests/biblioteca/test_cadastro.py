@@ -75,6 +75,37 @@ def test_as_entidades_medidas_em_2026_09_11_classificam():
     assert cadastro.classificar('Detetor de fumaça', 'eletrico', 2077)[0] == 2077
 
 
+def test_nome_em_ingles_classifica_igual_ao_portugues():
+    """Família Revit de fabricante internacional nomeia tudo em inglês.
+
+    Medido no Builder em 2026-09-11: uma biblioteca de válvulas e atuadores de HVAC saiu
+    **inteira** como "Elemento genérico" (aplicação 68) — nenhuma palavra do vocabulário casou
+    com `Actuator - MP500C` nem com `PIBCV Valves`, e o Builder recebeu o nosso "não sei".
+    """
+    assert cadastro.classificar('Actuator - MP500C', 'climatizacao')[::4] == \
+        cadastro.classificar('Atuador MP500C', 'climatizacao')[::4] == (2084, cadastro.APL_VALVULA_BLOQUEIO)
+    for ingles, portugues, disciplina in [('Ball Valve DN50', 'Válvula de esfera DN50', 'hidraulico'),
+                                          ('Elbow 90 DN50', 'Curva 90 DN50', 'hidraulico'),
+                                          ('Pump 3CV', 'Bomba 3CV', 'hidraulico'),
+                                          ('Floor Drain 100', 'Ralo 100', 'sanitario')]:
+        assert cadastro.classificar(ingles, disciplina)[::4] == cadastro.classificar(portugues, disciplina)[::4], ingles
+
+
+def test_peca_com_ligacao_3d_so_aceita_dois_modos_de_posicionamento():
+    """O Cadastro oferece só dois modos quando "Pontos de ligação 3D" está em Sim, e o catálogo
+    oficial concorda: 4.206 de 4.206 peças usam 2 ou 6, nunca 0, 1 ou 3.
+
+    A engenharia do Builder descreveu a diferença: 2 é a peça que fica **sempre de pé** (apoiada
+    no piso ou na face da parede) e 6 é a que fica **como o usuário lançar** — a curva entre dois
+    tubos, de pé, deitada ou de ponta-cabeça.
+    """
+    em_linha = [cadastro.APL_CONEXAO, cadastro.APL_REGISTRO, 81]          # conexão, registro, pressurizador
+    apoiada = [cadastro.APL_BOMBA, cadastro.APL_EVAPORADORA, cadastro.APL_CONDENSADORA,
+               cadastro.APL_RESERVATORIO, cadastro.APL_EQUIPAMENTO]
+    assert all(cadastro.posicionar_com_ligacao(a) == 6 for a in em_linha)
+    assert all(cadastro.posicionar_com_ligacao(a) == 2 for a in apoiada)
+
+
 def test_a_mesma_entidade_muda_de_aplicacao_com_a_disciplina():
     """2073 é componente elétrico no elétrico e captor no SPDA — medido no catálogo oficial."""
     assert cadastro.classificar('Captor', 'eletrico', 2073)[4] == cadastro.APL_COMPONENTE

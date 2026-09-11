@@ -289,3 +289,41 @@ com `CURVA`/`JOELHO`/`TE` e não pegava estas peças porque o fabricante escreve
 **O que este achado ensina sobre o método:** o round-trip é teste barato e mais severo que abrir o
 Builder, porque compara **todas** as colunas contra uma origem que já existe, em vez de depender de
 alguém reconhecer um rótulo errado numa tela. Vale repetir a cada mudança no classificador.
+
+---
+
+## Achados 19 e 20 — o que o engenheiro do Builder viu numa biblioteca real
+
+A biblioteca de válvulas e atuadores de HVAC foi reexportada pelo pipeline corrigido e aberta no
+Cadastro. **Passaram:** disciplina (só Climatização marcada), "Pontos de ligação 3D" acendendo Sim
+nas peças com bocal e Não nas sem — em exportação vinda de **família Revit**, caminho diferente do
+`.aq` onde ADR-023 tinha sido aceita. Dois defeitos apareceram:
+
+**19 — a peça saiu com Aplicação "Elemento genérico" porque o nome está em inglês.** A ajuda diz o
+que esse valor é: a aplicação 68 foi criada na versão 2020-05 "para cadastrar **qualquer**
+equipamento, aparelho, elemento, objeto etc.". Ou seja, o Builder recebeu corretamente o nosso "não
+sei" — o vocabulário conhece `VÁLVULA`/`ATUADOR` e a família Revit diz `Valves`/`Actuator`, nada
+casou e a classificação caiu no degrau 3. Reproduzido: `Actuator - MP500C` → 2087/68, enquanto
+`Atuador MP500C` → 2084/75. **Corrigido** com uma camada de tradução (`SINONIMOS_EN`) aplicada antes
+do casamento, num lugar só — não copiando termos para os sete vocabulários —, de modo que regra nova
+em português passe a valer para o inglês de graça.
+
+**20 — peça com "Pontos de ligação 3D" só aceita dois modos de posicionamento, e gravávamos um
+terceiro.** O engenheiro mostrou que o combo do Cadastro oferece só "Na horizontal" e "No plano de
+lançamento" nessas peças, e descreveu a diferença: a primeira fica **sempre de pé** (apoiada no piso
+ou na face da parede), a segunda fica **como o usuário lançar** — a curva entre dois tubos, de pé,
+deitada ou de ponta-cabeça. Medido no catálogo: das **4.206** peças com `CONEXAO_VOLUMETRICA = 1`,
+**todas** usam 2 ou 6; nenhuma usa 0, 1, 3, 4 ou 5. E a divisão segue a descrição exatamente —
+bomba 26/26, evaporadora 32/32, condensadora 58/58, reservatório 26/26 no modo 2; conexão 288/332,
+pressurizador 33/33 no modo 6.
+
+Nosso escritor gravava o modo **por aplicação** (0 em conexão, 1 em registro, 3 em bomba) **e**
+marcava a ligação 3D em toda peça com bocal — combinação inexistente em nativa. Corrigido em
+`marcar_pontos_de_ligacao`, que normaliza o modo junto com a marca. **Tubo ficou de fora**: a coluna
+é nula em 2.104 de 2.104 tubos e tubo com ligação 3D não existe no catálogo, então não há o que
+medir e a regra forte do tubo prevalece sobre um palpite.
+
+De quebra, o rótulo do modo **6** estava errado no nosso documento ("alinhada ao conduto com saída
+lateral"): é **"No plano de lançamento, apontando para o ponto diretor"**, como o combo mostra. A
+ordem que deduzimos da ajuda escorregou aqui, como já tinha escorregado no par Sanitary/Stack das
+entidades IFC — terceira vez que a lista da ajuda erra a ordem e a medição corrige.
