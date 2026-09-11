@@ -160,8 +160,8 @@ Identidade `carlosnetoaltoqi`; branch `main`, histórico linear; nada de push se
 
 **Estado (2026-09-11):** sessão de **auditoria cruzada** — cada afirmação de `docs/conhecimento/`
 conferida contra o código, a ajuda do Builder e o catálogo oficial (31.611 peças, 3.929 grupos,
-6.132 simbologias). Dezessete achados, registrados em
-`docs/historico/sessoes/2026-09-11-auditoria-cruzada-da-documentacao.md`. Suíte em **272** na coleta
+6.132 simbologias). Dezoito achados, registrados em
+`docs/historico/sessoes/2026-09-11-auditoria-cruzada-da-documentacao.md`. Suíte em **273** na coleta
 (251 passam, 19 pulam por fixture ausente), `pnpm -r build` verde.
 
 Três viraram código:
@@ -309,6 +309,9 @@ fabricante, o que depende de autorização explícita (Termos de Uso).
   `docs/historico/sessoes/2026-09-10-a-planta-saiu-e-o-rotulo-nao.md` §5 e §7.
 - ~~Aceitação de ADR-023~~ — **feita** em 2026-09-10, pelas seis telas do Cadastro. Os `.aq` do teste
   já não estão em `Downloads/teste-geometria-aq/`.
+- **"Caixa de Cabos" sai como conexão (aberta, de propósito):** o termo não aparece em nenhuma peça
+  do catálogo oficial, então pôr a palavra no vocabulário seria ajustar o classificador a uma
+  biblioteca só. Se aparecer numa segunda fonte, vira regra (achado 18 da auditoria).
 - **Bitola em biblioteca elétrica (decisão aberta):** `entradas_aq` converte raio medido → código
   em qualquer disciplina, e no elétrico o catálogo oficial grava **2** em 10.097 de 13.665 entradas,
   qualquer que seja a bitola. Copiar o 2 é palpite sobre valor não documentado; a medição está na
