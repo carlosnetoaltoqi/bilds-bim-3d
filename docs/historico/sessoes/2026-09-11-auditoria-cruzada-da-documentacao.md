@@ -197,3 +197,21 @@ tê-la. Medido nas 15 bibliotecas: **552, 562, 572, 582, 594 e 595 não têm**; 
 
 **6.132 de 6.132** simbologias do catálogo oficial têm `IMAGEM` preenchida — e também `WIREFRAME`,
 que o Builder gera sozinho (ADR-021). A medição antiga era sobre ~1.400 simbologias de fabricante.
+
+## Achado 14 — `aq-escrita.md`: a tabela IFC repetia os exageros, e a lista de abortos estava curta
+
+- "andam sempre juntos" e "`cadastro.IFC`, 31 entidades" (hoje 41 de 42) — corrigidos, e a tabela
+  ganhou o **nome IFC4** de cada código, que a decodificação do achado 5 permitiu.
+- `2052` era descrito como "conduto/tubo genérico": é `IfcCableCarrierSegment`, segmento de
+  eletrocalha. `2065` era "entrada de serviço": a entidade é `IfcFlowMeter` (hidrômetro) — a
+  *aplicação* é que é entrada de serviço.
+- `SUBTIPO_IFC_2X3` "sempre igual": 438 dos 3.929 grupos divergem.
+- **Erros que abortam a exportação: o documento listava 5, o código levanta 8.** Faltavam os três
+  que mais importam ao operador: biblioteca **sem disciplina** (ADR-024, o primeiro a ser checado),
+  produto com `geo` vazio e ponto de curva Q-H inválido.
+
+## Achado 15 — `POSICIONAR_SIMBOLOGIA_3D` se reproduz número a número
+
+Remedido hoje, contra o que `aplicacoes-builder.md` e `aq-escrita.md` afirmam: tubo **nulo em
+2.104 de 2.104**; conexão **0 em 8.039 de 10.467**; registro 1 (353 de 733); bomba 3 (503 de 588);
+dispositivo elétrico 2 (1.780 de 4.583); evaporadora 2 (78 de 78). Nada a corrigir.

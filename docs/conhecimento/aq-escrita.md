@@ -107,32 +107,36 @@ omissão — e com dois valores errados (12 é hidráulico **mais** sanitário; 
 identificado). Foi assim que uma biblioteca de válvulas de HVAC saiu inteira como conexão de água
 fria. A distribuição completa das máscaras está em `aplicacoes-builder.md`.
 
-`ENTIDADE_IFC`/`TIPO_ENTIDADE_IFC`/`ENTIDADE_IFC_2X3` andam sempre juntos, e a tripla de cada
-entidade está medida no catálogo oficial (`cadastro.IFC`, 31 entidades; em 26 delas a tripla é
-única em 100 % das peças):
+`ENTIDADE_IFC`/`TIPO_ENTIDADE_IFC`/`ENTIDADE_IFC_2X3` andam coladas, mas **não em combinação
+única**: os 3.929 grupos do catálogo oficial trazem 42 entidades em 52 combinações. O que é firme é
+o par dominante, e é ele que está em `cadastro.IFC` (**41 das 42**). O nome IFC4 de cada código sai
+da lista ordenada da ajuda — `aplicacoes-builder.md` §"Os dois enums IFC têm nome" traz a tabela
+completa; as mais usadas ao escrever:
 
-| IFC4 | tipo | 2×3 | O que é |
-|---|---|---|---|
-| 2051 | 4100 | 2088 | conexão de eletrocalha/perfilado — 5.246 de 5.265 peças |
-| 2052 | 4097 | 2086 | conduto/tubo genérico — 100 % |
-| 2059 | 4106 | 2091 | quadro de medição (barramento blindado) |
-| 2064 | 4120 | 2092 | sprinkler (1.445) e hidrante (96) |
-| 2065 | 4102 | 2091 | entrada de serviço |
-| 2067 | 4132 | 2088 | dispositivo elétrico — tomada, condulete, caixa, rack |
-| 2071 | 4099 | 2088 | `IfcPipeFitting` — curva, luva, cap, tê, redução, ramal |
-| 2072 | 4096 | 2086 | `IfcPipeSegment` — tubo |
-| 2073 | 4105 | 2091 | componente elétrico (41) e captor de SPDA (47) |
-| 2075 | 4118 | 2093 | bomba |
-| 2076 | 4122 | 2092 | peça de utilização e aparelho sanitário |
-| 2079 | 4121 | 2092 | terminal de ventilação |
-| 2084 | 4103 | 2091 | válvula |
-| 2085 | 4123 | 2092 | terminal de descarte — ralo, caixa sifonada |
-| 2096 | 4147 | 2092 | duto e exaustor de climatização |
-| 2102 · 2111 | 4152 · 4161 | 2090 | condensadora · evaporadora — 100 % |
+| IFC4 | tipo | 2×3 | nome IFC4 | O que é na prática |
+|---|---|---|---|---|
+| 2051 | 4100 | 2088 | `IfcCableCarrierFitting` | conexão de eletrocalha/perfilado — 5.246 de 5.265 peças |
+| 2052 | 4097 | 2086 | `IfcCableCarrierSegment` | segmento de eletrocalha/leito — 100 % |
+| 2059 | 4106 | 2091 | `IfcElectricDistribuitionBoard` | quadro de medição (barramento blindado) |
+| 2064 | 4120 | 2092 | `IfcFireSuppresionTerminal` | sprinkler (1.445) e hidrante (96) |
+| 2065 | 4102 | 2091 | `IfcFlowMeter` | hidrômetro, entrada de serviço |
+| 2067 | 4132 | 2088 | `IfcJunctionBox` | dispositivo elétrico — tomada, condulete, caixa, rack |
+| 2071 | 4099 | 2088 | `IfcPipeFitting` | curva, luva, cap, tê, redução, ramal |
+| 2072 | 4096 | 2086 | `IfcPipeSegment` | tubo |
+| 2073 | 4105 | 2091 | `IfcProtectiveDevice` | componente elétrico (41) e captor de SPDA (47) |
+| 2075 | 4118 | 2093 | `IfcPump` | bomba |
+| 2076 | 4122 | 2092 | `IfcSanitaryTerminal` | peça de utilização e aparelho sanitário |
+| 2079 | 4121 | 2092 | `IfcStackTerminal` | terminal de ventilação |
+| 2084 | 4103 | 2091 | `IfcValve` | válvula, registro |
+| 2085 | 4123 | 2092 | `IfcWasteTerminal` | ralo, caixa sifonada, poço de visita |
+| 2087 | 4133 | 2087 | `IfcDistributionFlowElement` | **supertipo**: não classifica sozinho (ADR-026) |
+| 2096 | 4147 | 2092 | — posterior à ajuda | duto e exaustor de climatização |
+| 2102 · 2111 | 4152 · 4161 | 2090 | — posterior à ajuda | condensadora · evaporadora — 100 % |
 
 `SUBTIPO_IFC` dentro de `IfcPipeFitting`: **0** curva/joelho · **1** luva · **3** cap ·
 **4** tê/junção · **6** redução · **7** ramal; em tubo só o 3, em bomba só o 5, em válvula
-só o 22. `SUBTIPO_IFC_2X3` é sempre igual ao `SUBTIPO_IFC`.
+só o 22. `SUBTIPO_IFC_2X3` **quase sempre** repete o `SUBTIPO_IFC` — difere em 438 dos 3.929
+grupos (11 %) —, e os dois escritores gravam os dois iguais, o que fica dentro do observado.
 
 `PECA.TIPO_APLICACAO_PECA` é um enum de 1 a 84, nomeado por inteiro em `aplicacoes-builder.md`.
 Os mais usados: **1** tubo · **2** conexão · **3** registro · **6** bomba · **8** aparelho
@@ -307,10 +311,13 @@ Nada é engolido — tudo acusa com `exit 1` e apaga o arquivo `.aq` parcial (um
 
 | Erro | Onde é pego |
 |---|---|
+| **Biblioteca sem disciplina** (ADR-024) | antes de tudo, com a lista do que escolher — adivinhar pelo nome é o defeito que a ADR-024 encerrou |
+| Catálogo sem produtos | antes de criar o schema |
+| Produto com `geo` vazio | na varredura dos produtos, com o nome do produto |
 | Geometria ausente no storage | antes de ler o JSON, com o caminho e o nome do produto |
 | JSON de geometria inválido ou malha vazia | `malhas_por_cor` / `malhas_de_partes` |
+| Ponto de curva Q-H inválido | ao gravar `DADOS_HIDRAULICOS`, com o ponto que veio errado |
 | Caractere fora do cp1252 em nome, série ou spec | `EscritorAq.cp1252`, com `tabela.coluna` e a posição do caractere |
-| Catálogo sem produtos | antes de criar o schema |
 | Chave estrangeira órfã | `PRAGMA foreign_key_check`, rodado no fim, antes do `commit` final |
 
 A última linha do `stdout` de `catalogo_to_aq` é sempre um resumo em JSON —
