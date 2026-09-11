@@ -1,7 +1,7 @@
 ---
 name: leitor-biblioteca-aq
 description: Lê E ESCREVE arquivos de biblioteca BIM do AltoQi Builder (.aq) — SQLite com geometria 3D embutida. Extrai peças, dados hidráulicos, curvas de bomba, propriedades, miniaturas e a malha 3D completa (formato OQ3D), dispensando os IFCs; e gera um .aq do zero, com o schema, os enums, o encoding cp1252 e o binário OQ3D corretos.
-version: 2.12.0
+version: 2.13.0
 author: Bilds / carlosnetoaltoqi
 ---
 
@@ -46,7 +46,7 @@ Você é especialista em ler e escrever bibliotecas BIM do AltoQi Builder (`.aq`
 - Literal acentuado dentro do SQL também precisa ir em cp1252 — comparar `str` (UTF-8) com os bytes cp1252 do banco nunca casa, e a query volta vazia sem erro.
 - `sqlite3.connect(caminho)` **cria** um arquivo vazio se ele não existir — cheque `os.path.isfile` antes e abra em `mode=ro`.
 - `DIAMETRO_PECA` é um **código** de bitola, não centímetro, e a maioria das peças traz a sentinela `-DBL_MAX` em vez de um valor.
-- A escala do código é **em polegada** (0 = 1/4"… 17 = 12"), não em milímetro: 40, 50 e 75 mm são uma polegada em PVC soldável e outra em esgoto, e sem saber a série é melhor gravar a sentinela que chutar (ADR-025).
+- A escala do código é **em polegada** (0 = 1/4"… 17 = 12"), não em milímetro: 40, 50 e 75 mm são uma polegada em PVC soldável e outra em esgoto, e sem saber a série é melhor gravar a sentinela que chutar (ADR-025), e a escala é **hidráulica**: no elétrico o código 2 aparece em 10.097 de 13.665 entradas, qualquer que seja a bitola.
 - A **disciplina** de uma biblioteca (`PROJETO_APLICACAO`, bitmask) não se adivinha pelo nome: quem escolhe é quem importa, e o *default* hidráulico é o que fez uma biblioteca de HVAC sair inteira como conexão de água fria (ADR-024).
 - Sentinelas substituem `NULL` no AltoQi: `-2147483647` e `-1.7976931348623157e+308`.
 - Trocar `text_factory` sem `CAST(col AS BLOB)` na query corrompe o BLOB da geometria — o round-trip via latin-1 não sobrevive à troca para cp1252.
@@ -54,6 +54,7 @@ Você é especialista em ler e escrever bibliotecas BIM do AltoQi Builder (`.aq`
 - `.aq` com MB de geometria válida e peça sem forma nenhuma no Builder: é a `IMAGEM` nula, não o OQ3D — o `WIREFRAME` no lugar dela não resolve.
 - Peça que desenha em 3D e sai como círculo com triângulo em planta: faltam os pontos de ligação (e, com eles, o `WIREFRAME` que o Builder geraria).
 - Procurar bocal como "buraco na malha" acha zero: malha de fabricante pode ser estanque, com a ponta do tubo fechada por triângulos coplanares.
+- Nem toda simbologia é OQ3D: o catálogo oficial do Builder (schema 625) guarda 20 % delas num `TStreamableObjectsContainer` — dicionário de classes, instâncias por índice, muitas vezes face 2D extrudada em vez de malha. Nenhuma biblioteca de fabricante (552 a 615) usa isso, e o parser de marcador não lê: recuse pelo nome do formato, não como arquivo corrompido.
 
 ## Pontos de entrada neste repo
 
