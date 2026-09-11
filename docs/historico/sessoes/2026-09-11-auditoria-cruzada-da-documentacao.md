@@ -232,3 +232,28 @@ hidráulica; dentro do elétrico, 2 responde por 10.097 de 13.665 entradas, com 
 Para biblioteca elétrica isso não tem respaldo — o catálogo grava 2 em três quartos dos casos. Como
 a escolha "copiar o 2" é palpite sobre valor não documentado, fica para decisão, com a medição
 acima. Documentos já corrigidos: `aq-escrita.md` e a ADR-025 ganharam a nota de escopo.
+
+## Achado 17 — o detector de bocais contra o catálogo oficial: 0 de 331, e o número é informativo
+
+Primeira corrida do detector de ADR-021 fora das bibliotecas de fabricante. Amostra de 38
+simbologias do catálogo oficial (placement identidade, OQ3D clássico): **331 entradas nativas,
+zero reencontradas** no critério de 0,5 cm do documento. Antes de concluir qualquer coisa, as duas
+explicações fáceis foram testadas e caíram:
+
+- **Não é frame nem unidade.** Em peça após peça, duas das três coordenadas batem na casa do
+  milímetro — nativa `(15,0, −3,1, 2,8)` contra nossa `(14,9, −9,3, 2,7)`. Malha e entrada estão no
+  mesmo referencial.
+- **Não é só "amostra elétrica" às cegas** — foi medido: das 1.558 simbologias com `ENTRADA_3D` no
+  catálogo, **1.251 (80 %) são de grupo elétrico** (máscara 64), contra 96 hidráulicas e 56
+  sanitárias. E **318 das 331 entradas** da amostra caíram em peça onde o detector não acha
+  candidato nenhum, que é o comportamento pretendido: ali "ponto de ligação" é entrada de cabo.
+
+Sobram **13 entradas** em sifão sanitário, com candidato: a distância mediana ao candidato mais
+próximo é **4,01 cm** (nenhuma abaixo de 1 cm, 2 abaixo de 3 cm, todas abaixo de 10 cm) — a entrada
+nativa está recuada dentro da bolsa, o mesmo padrão já conhecido das bombas de incêndio.
+
+**Leitura:** o placar de ADR-021 continua valendo para o que entra no pipeline (biblioteca de
+fabricante: 21/21 e 14/16). O que o catálogo oficial acrescenta é a previsão de que **nossa entrada
+fica na face do bocal e a de um cadastro feito à mão fica centímetros para dentro** — diferença que
+o usuário vai ver no Builder e que não é defeito de nenhum dos dois. `geometria.md` §Bocais ganhou a
+linha e a leitura.

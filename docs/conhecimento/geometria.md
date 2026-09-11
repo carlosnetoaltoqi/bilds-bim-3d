@@ -158,7 +158,21 @@ encaixado na geometria e não o que foi clicado à mão:
 | bombas de incêndio | 16 | 1 | 31 | — |
 | rack de dados | 105 | 0 | 178 | — |
 
-As duas últimas linhas são o limite, e são conhecidos: na biblioteca de bombas de incêndio a
+| **catálogo oficial do Builder** (amostra de 38 simbologias) | 331 | **0** | 22 | — |
+
+A linha do catálogo oficial não desmente as de cima: ela mede o **alcance**. Das 1.558 simbologias
+com `ENTRADA_3D` naquele acervo, **80 % são de grupos elétricos** (máscara 64), onde "ponto de
+ligação" é entrada de cabo e não abertura de malha — 318 das 331 entradas da amostra estão em peça
+onde o detector não acha candidato nenhum, que é o comportamento pretendido. Nas 13 restantes, de
+sifão sanitário, os candidatos existem e a entrada nativa fica a **4 cm** deles na mediana (3 a 10
+cm), recuada dentro da bolsa: é o mesmo padrão das bombas de incêndio — cadastro feito à mão. O
+referencial está certo (duas das três coordenadas batem na casa do milímetro).
+
+**O que isso prevê, na prática:** as entradas que escrevemos ficam na face do bocal; um cadastro
+feito à mão no Builder as põe centímetros para dentro. Nenhum dos dois está errado, e é por isso que
+o placar acima se mede contra bibliotecas **de fabricante**, que é o que entra no pipeline.
+
+As duas últimas linhas da tabela de fabricante são o limite, e são conhecidos: na biblioteca de bombas de incêndio a
 entrada nativa está **recuada** 0,6 a 4,5 cm atrás da face do flange (cadastro feito à mão, o
 que a engenharia confirma); num rack, "ponto de ligação" é entrada de cabo, não abertura de
 malha — a heurística é hidráulica. Custo: ~2 s numa simbologia de 56 mil triângulos.
