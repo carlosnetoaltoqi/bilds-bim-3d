@@ -186,6 +186,14 @@ fora de três valores: **40, 50 e 75 mm** são uma polegada em PVC soldável de 
 (`cadastro.serie_do_titulo`, tirada do título da biblioteca) e, **sem ela, grava a sentinela e
 avisa** — pôr a peça uma bitola inteira fora, calado, é pior que deixá-la sem bitola.
 
+**A escala é hidráulica.** Medido em 2026-09-11 por disciplina, nas entradas do catálogo oficial:
+nas máscaras 8 (sanitário), 52 (hidráulico + incêndio + gás) e 16 (incêndio) o código acompanha a
+bitola da peça; no **elétrico** (máscara 64) **10.097 das 13.665 entradas trazem o código 2**
+qualquer que seja a bitola nominal da peça — 20, 25, 50, 60, 75, 80, 100 e 150 mm caem todas nele.
+Não é 3/8": é o valor que o cadastro elétrico usa por omissão. Converter raio em código numa
+biblioteca elétrica, portanto, não tem respaldo na medição — e é o que o escritor faz hoje, em
+qualquer disciplina (pendência registrada na auditoria de 2026-09-11).
+
 > A tabela em milímetro que existia aqui (`{40: 8, 50: 9, 60: 10, 75: 11, 100: 12, …}`) era a
 > equivalência do PVC **esgoto** com um valor inventado no meio (60 → 10 não existe em série
 > nenhuma), e errava toda bitola de PVC soldável por um degrau.

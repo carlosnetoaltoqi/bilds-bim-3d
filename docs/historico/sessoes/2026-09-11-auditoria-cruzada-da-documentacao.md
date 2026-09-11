@@ -215,3 +215,20 @@ que o Builder gera sozinho (ADR-021). A medição antiga era sobre ~1.400 simbol
 Remedido hoje, contra o que `aplicacoes-builder.md` e `aq-escrita.md` afirmam: tubo **nulo em
 2.104 de 2.104**; conexão **0 em 8.039 de 10.467**; registro 1 (353 de 733); bomba 3 (503 de 588);
 dispositivo elétrico 2 (1.780 de 4.583); evaporadora 2 (78 de 78). Nada a corrigir.
+
+## Achado 16 — a escala de bitola (ADR-025) é **hidráulica**; no elétrico o código é outro bicho
+
+Os 17 códigos foram reconferidos um a um contra o nome da peça: **16 batem**. O 4 (5/8") parece
+divergir só porque seus nomes são adaptadores ("20 mm × 3/4""); as oito peças com nome puro em
+polegada dizem 5/8".
+
+O que apareceu de novo veio da tabela **milímetro → código**: nove entradas dela "divergem", e
+todas com o mesmo destino, o código **2**. A causa não é a tabela — é a disciplina. Das entradas
+com `DIAMETRO_EP = 2`, **10.097 são da máscara 64 (elétrico)**, contra 32 do sanitário e 16 da
+hidráulica; dentro do elétrico, 2 responde por 10.097 de 13.665 entradas, com bitolas nominais de
+20 a 150 mm caindo todas nele. Ou seja, no cadastro elétrico o campo não guarda bitola em polegada.
+
+**Pendência (não mexida):** `entradas_aq` converte raio medido → código em **qualquer** disciplina.
+Para biblioteca elétrica isso não tem respaldo — o catálogo grava 2 em três quartos dos casos. Como
+a escolha "copiar o 2" é palpite sobre valor não documentado, fica para decisão, com a medição
+acima. Documentos já corrigidos: `aq-escrita.md` e a ADR-025 ganharam a nota de escopo.

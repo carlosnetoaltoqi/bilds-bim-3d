@@ -19,6 +19,13 @@ O escritor passa a decidir o código assim, nesta ordem:
 3. **a série da biblioteca**, nas três bitolas em milímetro que colidem — 40, 50 e 75 mm;
 4. **sentinela e aviso**, quando nada disso resolve.
 
+
+> **Escopo medido em 2026-09-11 (auditoria cruzada):** a escala vale para as disciplinas
+> hidráulicas. Nas entradas de máscara **64 (elétrico)**, 10.097 de 13.665 trazem o código **2**
+> independentemente da bitola nominal (20 a 150 mm caem todas nele) — é o valor por omissão do
+> cadastro elétrico, não 3/8". Os 17 códigos da escala foram reconferidos um a um contra o nome da
+> peça e **16 batem**; o 4 (5/8") só destoa porque seus nomes são adaptadores "20 mm × 3/4"".
+
 ## Por quê
 
 A tabela que existia (`aq_writer.CODIGO_DIAMETRO = {40: 8, 50: 9, 60: 10, 75: 11, 100: 12, 150: 14,
