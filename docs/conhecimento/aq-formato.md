@@ -139,8 +139,8 @@ experimentos no Builder, 2026-09-09, cada um numa nativa de fabricante):
 | aquecedor de passagem | não | sim | **desenha** |
 | conexão de esgoto (sifão) | não | sim | **desenha** |
 | rack de piso | sim | não | **desenha** |
-| nossas 3.089 peças até 2026-09-09 | não | não | símbolo padrão |
-| **nossas, com entradas (2026-09-10)** | **não** | **não** | **desenha — unifiliar** |
+| peça sem simbologia 2D, sem wireframe **e sem ponto de ligação** | não | não | símbolo padrão |
+| **peça sem as duas, mas com pontos de ligação** | **não** | **não** | **desenha — unifiliar** |
 
 A última linha é a aceitação, medida no Builder em 2026-09-10 em três bibliotecas nossas: com os
 pontos de ligação gravados, as peças foram lançadas em projeto e saíram em planta na representação
@@ -172,10 +172,9 @@ entrada nenhuma (13). O blob é resíduo do fluxo que montou aquele arquivo.
 
 ### O rótulo "Pontos de ligação 3D: Sim/Não" é `PECA.CONEXAO_VOLUMETRICA`
 
-O rótulo do Cadastro não sai das tabelas de entrada: em 2026-09-10 as peças nossas apareceram com
-**"Pontos de ligação 3D: Não"** ao mesmo tempo em que o Builder desenhava os pontos no lugar certo
-(as bolinhas vermelhas) e a planta saía — inclusive numa biblioteca de conexões com entrada em
-todas as peças.
+O rótulo do Cadastro **não sai das tabelas de entrada**: uma peça com `ENTRADA_3D`/`ENTRADA_PECA`
+gravadas pode aparecer em "Não" enquanto o Builder desenha os pontos no lugar certo (as bolinhas
+vermelhas) e a planta sai — medido no Builder em 2026-09-10.
 
 A ajuda do Builder (`peca.htm`) descreve a propriedade — "quando definida como Sim, a ligação passa
 a ser efetuada em pontos apresentados nas peças, e não mais somente no centro das mesmas" — e diz
@@ -232,7 +231,7 @@ que `bim_pipeline.geometria.bocais` reencontra na malha (ver `geometria.md`).
 ### `DIAMETRO_PECA` é um CÓDIGO, e a escala é **em polegada** (ADR-025)
 
 > Tratar o valor como centímetro erra por ~2× nas peças de tubo e devolve `-1.8e308` em todo o resto.
-> E tratá-lo como escala em **milímetro** — o que este documento dizia até 2026-09-10 — erra por um
+> E tratá-lo como escala em **milímetro** erra por um
 > degrau em toda bitola de PVC soldável.
 
 É o índice de uma escala de bitolas nominais **em polegada**, medida no catálogo oficial do Builder
@@ -341,7 +340,7 @@ Temperatura de cor, Dimerizável. `TIPO_VALOR = 0` (texto) mesmo para números �
 | 607–625 | `ENTRADA_3D.DIAMETRO` existe (medido em 607, 615 e 625); 607 é a versão que o escritor emite |
 
 `PECA` tem as mesmas 33 colunas em todas as versões medidas, `CONEXAO_VOLUMETRICA` inclusive — a
-diferença de schema que já custou uma query quebrada é a do `ENTRADA_3D`. No schema **625** aparece
+única diferença de schema que quebra query é a do `ENTRADA_3D`. No schema **625** aparece
 também um segundo container de geometria, que não é OQ3D (`oq3d.md`).
 
 Uma query com `ENTRADA_3D.DIAMETRO` quebra com `no such column` nas bibliotecas antigas — testar

@@ -102,10 +102,9 @@ escolha de quem importa (ADR-024). Os bits: **4** hidráulico · **8** sanitári
 **32** gás · **64** elétrico · **256** SPDA · **512** climatização. O que os escritores gravam por
 disciplina é o que o catálogo oficial usa: hidráulico **4**, sanitário **8**, incêndio **20**
 (=4+16, incêndio com água), gás **36** (=4+32), elétrico **64**, SPDA **256**, climatização **512**.
-Até 2026-09-10 este valor saía de quatro palavras no título (`aplicacao_de`), com água fria por
-omissão — e com dois valores errados (12 é hidráulico **mais** sanitário; 22 carrega um bit não
-identificado). Foi assim que uma biblioteca de válvulas de HVAC saiu inteira como conexão de água
-fria. A distribuição completa das máscaras está em `aplicacoes-builder.md`.
+Dois valores que parecem certos e não são: **12** é hidráulico **mais** sanitário (água fria pura é
+4) e **22** carrega um bit não identificado (incêndio com água é 20). A distribuição completa das
+máscaras está em `aplicacoes-builder.md`.
 
 `ENTIDADE_IFC`/`TIPO_ENTIDADE_IFC`/`ENTIDADE_IFC_2X3` andam coladas, mas **não em combinação
 única**: os 3.929 grupos do catálogo oficial trazem 42 entidades em 52 combinações. O que é firme é
@@ -393,10 +392,9 @@ Aceitação de 2026-09-08, com os dois lados verificados na janela 3D: uma bibli
 gerada aqui, com a `IMAGEM` de `imagem_aq`, desenha no Cadastro **e** lança a peça no projeto com a
 geometria real. É o primeiro registro de peça nossa desenhada no ambiente do Builder.
 
-Em 2026-09-09 o usuário verificou o que faltava do outro lado: uma peça nossa lançada em **planta**
-saía com o símbolo padrão do Builder, e três experimentos em nativas de fabricante mostraram que
-planta e corte vêm da simbologia 2D **ou** do `WIREFRAME` — que o Builder gera, desde que a peça
-tenha pontos de ligação 3D (`aq-formato.md`, seção da planta).
+**Planta e corte** vêm da simbologia 2D **ou** do `WIREFRAME` — que o Builder gera sozinho, desde
+que a peça tenha pontos de ligação 3D (`aq-formato.md`, seção da planta). Sem nenhum dos dois, a
+peça sai com o símbolo padrão do Builder.
 
 Aceitação de **2026-09-10**, em três bibliotecas nossas com as entradas escritas: as peças
 desenharam a simbologia 3D, foram lançadas em projeto e **saíram em planta na representação

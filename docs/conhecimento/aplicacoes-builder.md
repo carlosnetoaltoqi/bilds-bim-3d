@@ -237,13 +237,12 @@ com as sete hidráulicas de antes mais elétrica, SPDA e climatização. As dez 
 `IfcOutlet`, 2077 `IfcSensor`, 2082 `IfcTransformer`, 2083 `IfcUnitaryControlElement` e 2092
 `IfcSanitaryTerminal` — somam 2 a 26 peças cada no catálogo.
 
-**Quem atravessa a ponte (ADR-026).** Até 2026-09-11 ninguém: `entidadeIfc` era lido pelos dois
-escritores, estava no contrato e no tipo TypeScript, e **nenhuma fonte o preenchia** — toda
-exportação caía no degrau 2, o nome. Agora o caminho do `.aq` está ligado ponta a ponta:
-`catalogo.build_catalog_from_aq` grava a `ENTIDADE_IFC` do grupo em cada produto, o criador a
-guarda em `bim_products.entidadeIfc` e a devolve no manifesto de exportação. As outras fontes (IFC,
-família Revit, plugin de CAD) ainda não declaram — para elas vale o nome, e traduzir a classe IFC do
-arquivo (`IFCVALVE` → 2084) é a pendência seguinte.
+**Quem atravessa a ponte (ADR-026).** Só o caminho do `.aq`, e ele está ligado ponta a ponta:
+`catalogo.build_catalog_from_aq` grava a `ENTIDADE_IFC` do grupo em cada produto, o criador a guarda
+em `bim_products.entidadeIfc` e a devolve no manifesto de exportação — um `.aq` que entra e sai do
+pipeline conserva a entidade que trazia. As outras fontes (IFC, família Revit, plugin de CAD) não
+declaram entidade: para elas vale o nome, e traduzir a classe IFC do arquivo (`IFCVALVE` → 2084) é a
+pendência seguinte.
 
 **Supertipo abstrato não classifica.** As entidades de tipo 4133…4142 (`IfcDistributionFlowElement` e
 as outras do fim da lista) dizem só que a peça é uma peça de instalação. Elas deixam o vocabulário
@@ -281,9 +280,9 @@ Builder descreveu a diferença, e a medição bate com a descrição:
 | **2** — na horizontal | a peça fica **sempre de pé**: apoiada no piso ou na face da parede | bomba 26/26, evaporadora 32/32, condensadora 58/58, reservatório 26/26, aquecedor 36/36, elemento genérico 101/102, quadro de medição 2.623/2.966 |
 | **6** — no plano de lançamento | a peça fica **como o usuário lançar**: de pé, deitada ou de ponta-cabeça. É a curva entre dois tubos | conexão 288/332, registro 7/12, tomada d'água 6/6, pressurizador 33/33, dispositivo elétrico 17/27 |
 
-Foi isso que corrigiu o escritor: ele gravava o modo **por aplicação** (0 em conexão, 1 em registro,
-3 em bomba) **e** marcava a ligação 3D em toda peça com bocal — combinação que não existe em nenhuma
-das 4.206. Agora `entradas_aq.marcar_pontos_de_ligacao` normaliza o modo junto com a marca
+Como o pipeline marca a ligação 3D em toda peça com bocal, é esta regra que vale para ela, e não a
+tabela por aplicação acima — que descreve a peça **sem** ligação 3D.
+`entradas_aq.marcar_pontos_de_ligacao` normaliza o modo junto com a marca
 (`cadastro.posicionar_com_ligacao`). **Tubo fica de fora**: a coluna é nula em 2.104 de 2.104 tubos
 e tubo com ligação 3D não existe no catálogo — sem medição, a regra forte do tubo prevalece.
 
@@ -294,17 +293,9 @@ Duas coisas medidas que valem como regra:
   convivem porque descrevem peças diferentes: sem pontos de ligação a peça se orienta pelo plano
   dos condutos, com pontos ela se orienta pelo lançamento.
 
-## O que o pipeline faz hoje (ADR-024, implementado em 2026-09-10)
+## O que o pipeline faz hoje (ADR-024)
 
-Até 2026-09-10, `aq_writer.REGRAS_GRUPO` classificava **pelo nome do grupo**, com um vocabulário
-de catálogo hidráulico em PVC (tubo, bomba, ralo, sifão, joelho, luva…) e, **sem regra que
-casasse, a peça virava conexão genérica**; `aplicacao_de` escolhia a disciplina por quatro
-palavras no título (esgoto, incêndio, gás, senão água fria). O resultado com um catálogo elétrico
-ou de climatização é o que a engenharia do Builder observou: **peça elétrica cadastrada como
-conexão hidráulica**. Não era um bug pontual — era o padrão errado, herdado de as primeiras
-bibliotecas importadas serem hidráulicas.
-
-Hoje quem classifica é `bim_pipeline.aq.cadastro`, chamado pelos dois escritores, em três degraus:
+Quem classifica é `bim_pipeline.aq.cadastro`, chamado pelos dois escritores, em três degraus:
 
 1. **A disciplina vem de quem importa, não do nome.** É campo **obrigatório** no formulário de
    importação (`POST /importacoes`, `/importacoes/plugin-autocad`, `/importacoes/familias-revit`),
