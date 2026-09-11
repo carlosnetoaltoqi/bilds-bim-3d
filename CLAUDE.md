@@ -158,6 +158,43 @@ Identidade `carlosnetoaltoqi`; branch `main`, histórico linear; nada de push se
 
 ## 👉 Estado atual e pendências
 
+**Estado (2026-09-11):** sessão de **auditoria cruzada** — cada afirmação de `docs/conhecimento/`
+conferida contra o código, a ajuda do Builder e o catálogo oficial (31.611 peças, 3.929 grupos,
+6.132 simbologias). Dezesseis achados, registrados em
+`docs/historico/sessoes/2026-09-11-auditoria-cruzada-da-documentacao.md`. Suíte em **272** na coleta
+(251 passam, 19 pulam por fixture ausente), `pnpm -r build` verde.
+
+Três viraram código:
+
+- **A ajuda tinha 281 páginas de versão antiga** misturadas às atuais, e a busca as citava como
+  iguais. O índice do `ferramentas.ajuda_builder` agora classifica cada página pelo alcance a partir
+  do sumário — `toc` (2.208), `link` (76) e `orfa` (281) — e pula a órfã por padrão. As quatro
+  páginas que sustentam ADR-020 a ADR-025 estão todas no sumário.
+- **ADR-026**: o degrau 1 da ADR-024 estava morto — ninguém preenchia `entidadeIfc`, então todo
+  `.aq` que entrava e saía do pipeline perdia a entidade IFC de origem e era reclassificado pelo
+  nome. Agora a entidade atravessa (`build_catalog_from_aq` → `bim_products` → manifesto), o
+  supertipo abstrato (tipos 4133…4142) deixou de vencer o nome, e nove entidades novas entraram na
+  tabela (41 de 42).
+- **Um segundo container de geometria**: 1.224 das 6.132 simbologias do catálogo oficial não são
+  OQ3D — são `TStreamableObjectsContainer`, com dicionário de classes e instância por índice, muitas
+  vezes face 2D extrudada em vez de malha. Nenhuma biblioteca de fabricante (schemas 552 a 615) usa
+  isso; só o schema 625. O erro passou a nomear o formato em vez de dizer "sem assinatura".
+
+**A ajuda decodifica os dois enums IFC.** `grupo_de_pecas.htm` lista as entidades IFC4 na ordem, e
+essa ordem é o `TIPO_ENTIDADE_IFC` (4096 + índice) — 32 verificações contra os nomes de grupo do
+catálogo, todas certas, com um par trocado que é erro de digitação da própria ajuda. A tabela das 42
+entidades nomeadas está em `aplicacoes-builder.md`.
+
+**Corrigido nos documentos:** `PROJETO_APLICACAO` tratado como enum com os valores que a ADR-024 já
+corrigira; `2090` como "aquecedor a gás" (é inversor, e o tipo 4138 não existe em grupo nenhum);
+"as três colunas IFC andam sempre juntas" (42 entidades, 52 combinações); a fronteira das versões de
+schema (595 também não tem `ENTRADA_3D.DIAMETRO`); `SUBTIPO_IFC_2X3` "sempre igual" (438 grupos
+divergem); a lista de erros que abortam a exportação (listava 5, o código levanta 8); e o **escopo
+da ADR-025** — a escala de bitola é hidráulica, no elétrico o código 2 responde por 10.097 de 13.665
+entradas. **Confirmados sem retoque:** ADR-022 (15.321/15.321), ADR-023 (4.206/4.206), ADR-020
+(6.132/6.132 com `IMAGEM`), os 20 valores de bitmask, os 84 de aplicação, as 32 triplas do escritor
+e a tabela inteira de `POSICIONAR_SIMBOLOGIA_3D`.
+
 **Estado (2026-09-10, parte 3):** a exportação `.aq` passou a perguntar a **disciplina** em vez de
 adivinhá-la (ADR-024, aceita e implementada). O cadastro da peça agora é montado num lugar só —
 `biblioteca/bim_pipeline/aq/cadastro.py` —, chamado pelos dois escritores, que antes o montavam em
@@ -272,6 +309,13 @@ fabricante, o que depende de autorização explícita (Termos de Uso).
   `docs/historico/sessoes/2026-09-10-a-planta-saiu-e-o-rotulo-nao.md` §5 e §7.
 - ~~Aceitação de ADR-023~~ — **feita** em 2026-09-10, pelas seis telas do Cadastro. Os `.aq` do teste
   já não estão em `Downloads/teste-geometria-aq/`.
+- **Bitola em biblioteca elétrica (decisão aberta):** `entradas_aq` converte raio medido → código
+  em qualquer disciplina, e no elétrico o catálogo oficial grava **2** em 10.097 de 13.665 entradas,
+  qualquer que seja a bitola. Copiar o 2 é palpite sobre valor não documentado; a medição está na
+  auditoria de 2026-09-11 (achado 16).
+- **Traduzir a classe IFC de um arquivo importado** (`IFCVALVE` → 2084) é o que falta para as outras
+  fontes atravessarem a ponte da ADR-026 — hoje só o caminho do `.aq` a atravessa. Depende de fechar
+  o nome → código das entidades de climatização, que são as que a ajuda não lista.
 - **Uma pergunta para a engenharia**, que decide o que ainda está chutado no escritor: o que
   significa "Ligação" na aba de entradas do Cadastro — é o enum `LIGACAO_EP`, 0 a 3, que gravamos
   fixo em 0 porque `TIPO_LIGACAO` está vazia em toda nativa (medido: **não** é índice da entrada).
