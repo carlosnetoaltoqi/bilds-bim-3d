@@ -300,8 +300,8 @@ fabricante, o que depende de autorização explícita (Termos de Uso).
 - Conferir no Builder as quatro bibliotecas de 2026-09-08 corrigidas com `preencher_imagem_aq` (as duas
   de famílias Revit, a de conexões e a do projeto `.rvt`) — a de conexões já foi verificada, com peça
   lançada no projeto e, em 2026-09-10, em planta.
-- Nada pendente de push: os 6 commits de 2026-09-10 foram enviados (`main` == `origin/main` em
-  `edb3a9e`). Confira com `git rev-list --count origin/main..HEAD`.
+- Nada pendente de push: os 8 commits de 2026-09-11 foram enviados (`main` == `origin/main` em
+  `92372b6`). Confira com `git rev-list --count origin/main..HEAD`.
 - **Próxima sessão: comece listando estas pendências e pergunte ao usuário por onde seguir (ou o
   que ele já testou) antes de executar qualquer coisa.** Os registros das duas últimas sessões, com
   as tentativas que falharam e as armadilhas, estão em
@@ -335,4 +335,3 @@ fabricante, o que depende de autorização explícita (Termos de Uso).
   1000 mm é o desejado para o catálogo. APS: revogar e regerar o client secret que passou pelo chat da
   sessão de 2026-09-06.
 - LICENSE (decisão em aberto).
-- Push, quando autorizado.
